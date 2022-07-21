@@ -7,13 +7,13 @@
 package main
 
 import (
+	"block-crawling/internal/biz"
+	"block-crawling/internal/conf"
+	"block-crawling/internal/data"
+	"block-crawling/internal/server"
+	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	"node-proxy/internal/biz"
-	"node-proxy/internal/conf"
-	"node-proxy/internal/data"
-	"node-proxy/internal/server"
-	"node-proxy/internal/service"
 )
 
 // Injectors from wire.go:

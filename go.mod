@@ -1,4 +1,4 @@
-module node-proxy
+module block-crawling
 
 go 1.17
 

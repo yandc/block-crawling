@@ -3,8 +3,8 @@ package data
 import (
 	"context"
 
+	"block-crawling/internal/biz"
 	"github.com/go-kratos/kratos/v2/log"
-	"node-proxy/internal/biz"
 )
 
 type greeterRepo struct {

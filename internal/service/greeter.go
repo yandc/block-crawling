@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	v1 "node-proxy/api/helloworld/v1"
-	"node-proxy/internal/biz"
+	v1 "block-crawling/api/helloworld/v1"
+	"block-crawling/internal/biz"
 )
 
 // GreeterService is a greeter service.
