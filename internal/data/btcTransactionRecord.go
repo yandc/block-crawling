@@ -16,7 +16,7 @@ type BtcTransactionRecord struct {
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
 	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
-	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index"`
+	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index,unique"`
 	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(62);index"`
 	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(62);index"`
 	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
