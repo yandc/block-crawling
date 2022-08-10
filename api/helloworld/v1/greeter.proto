@@ -3,6 +3,7 @@ syntax = "proto3";
 package helloworld.v1;
 
 import "google/api/annotations.proto";
+import "common/v1/response.proto";
 
 option go_package = "block-crawling/api/helloworld/v1;v1";
 option java_multiple_files = true;
@@ -12,19 +13,44 @@ option java_outer_classname = "HelloworldProtoV1";
 // The greeting service definition.
 service Greeter {
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {
+  rpc GetUser (UserRequest) returns (UserRespose) {
     option (google.api.http) = {
-      get: "/helloworld/{name}"
+      get: "/user/get/{id}"
+    };
+  }
+
+  rpc AddUser(UserRequest) returns (common.v1.Int64Response) {
+    option (google.api.http) = {
+      post: "/user/add",
+      body:"*"
+    };
+  }
+
+  rpc BatchAddOrUpdateUser(UserRequests) returns (common.v1.Int64Response) {
+    option (google.api.http) = {
+      post: "/user/batchAddOrUpdate",
+      body:"*"
     };
   }
 }
 
 // The request message containing the user's name.
-message HelloRequest {
-  string name = 1;
+message UserRequest {
+  int64 id = 1;
+  string username = 2;
+  string password = 3;
+  string remark = 4;
+  int64 createTime = 5;
+  int64 updateTime = 6;
 }
-
-// The response message containing the greetings
-message HelloReply {
-  string message = 1;
+message UserRequests {
+    repeated UserRequest userRequests = 1;
+}
+message UserRespose {
+  int64 id = 1;
+  string username = 2;
+  string password = 3;
+  string remark = 4;
+  int64 createTime = 5;
+  int64 updateTime = 6;
 }

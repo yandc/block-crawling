@@ -28,6 +28,7 @@ init:
 config:
 	protoc --proto_path=./internal \
 	       --proto_path=./third_party \
+	       --proto_path=$(GOPATH)/src \
  	       --go_out=paths=source_relative:./internal \
 	       $(INTERNAL_PROTO_FILES)
 
@@ -36,6 +37,7 @@ config:
 api:
 	protoc --proto_path=./api \
 	       --proto_path=./third_party \
+	       --proto_path=$(GOPATH)/src \
  	       --go_out=paths=source_relative:./api \
  	       --go-http_out=paths=source_relative:./api \
  	       --go-grpc_out=paths=source_relative:./api \
@@ -50,7 +52,7 @@ build:
 .PHONY: generate
 # generate
 generate:
-	go mod tidy
+    go mod tidy -compat=1.17
 	go get github.com/google/wire/cmd/wire@latest
 	go generate ./...
 
@@ -60,6 +62,11 @@ all:
 	make api;
 	make config;
 	make generate;
+
+.PHONY: run
+# run server
+run:
+	kratos run
 
 # show help
 help:

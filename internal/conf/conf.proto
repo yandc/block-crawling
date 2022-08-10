@@ -8,6 +8,15 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Data data = 2;
+  App app = 3;
+  AddressServer addressServer = 4;
+  Lark lark = 5;
+  Logger logger = 6;
+  Transaction transaction = 7;
+  map<string, PlatInfo>  innerNodeList = 8;
+  map<string, PlatInfo>  innerPublicNodeList = 9;
+  map<string, PlatInfo>  platform = 10;
+  map<string, PlatInfo>  platformTest = 11;
 }
 
 message Server {
@@ -26,16 +35,65 @@ message Server {
 }
 
 message Data {
+  message Pool {
+    int32 connMaxLifetime = 1;
+    int32 maxOpenConns = 2;
+    int32 maxIdleConns = 3;
+  }
   message Database {
     string driver = 1;
     string source = 2;
+    Pool pool = 3;
   }
   message Redis {
-    string network = 1;
-    string addr = 2;
-    google.protobuf.Duration read_timeout = 3;
-    google.protobuf.Duration write_timeout = 4;
+    string address = 1;
+    int32 db = 2;
+    string password = 3;
+    google.protobuf.Duration read_timeout = 4;
+    google.protobuf.Duration write_timeout = 5;
   }
   Database database = 1;
   Redis redis = 2;
+}
+
+message App {
+  string mode = 1;
+  bool scanAll = 2;
+  string target = 3;
+  string source = 4;
+}
+
+message AddressServer {
+  string serverUrl = 1;
+  int64 liveInterval = 2;
+}
+
+message Lark {
+  string larkAlarmTitle = 1;
+  string larkHost = 2;
+  string larkSecret = 3;
+  uint64 lockNum = 4;
+}
+
+message Logger {
+  bool   DEBUG = 1;
+  string fileName = 2;
+  string level = 3;
+  string archiveDir = 4;
+  int32  maxSize = 5;
+  int32  maxAge = 6;
+  int32  maxBackups = 7;
+}
+
+message Transaction {
+  string serverUrl = 1;
+  string accessKey = 2;
+}
+
+message PlatInfo {
+  string chain = 1;
+  string fullName = 2;
+  string handler = 3;
+  string type = 4;
+  repeated string rpcURL = 5;
 }

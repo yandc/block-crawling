@@ -10,6 +10,8 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	logger "block-crawling/internal/log"
+	"block-crawling/internal/platform"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2"
@@ -19,18 +21,28 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
-	dataData, cleanup, err := data.NewData(confData, logger)
+func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, confAddressServer *conf.AddressServer, confLark *conf.Lark, confLogger *conf.Logger, confTransaction *conf.Transaction, confInnerNodeList map[string]*conf.PlatInfo, confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo, confPlatformTest map[string]*conf.PlatInfo, logLogger log.Logger) (*kratos.App, func(), error) {
+	logger.NewLogger(confLogger)
+	gormDB, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
 		return nil, nil, err
 	}
-	greeterRepo := data.NewGreeterRepo(dataData, logger)
-	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, logger)
+	data.NewRedisClient(confData)
+	biz.NewConfig(confApp)
+	platform.NewPlatform(confInnerPublicNodeList, confPlatform, confPlatformTest)
+	platform.NewInnerNodeList(confInnerNodeList)
+	greeterRepo := data.NewGreeterRepo(gormDB)
+	/*btcTransactionRecordRepo := */ data.NewBtcTransactionRecordRepo(gormDB)
+	/*evmTransactionRecordRepo := */ data.NewEvmTransactionRecordRepo(gormDB)
+	/*stcTransactionRecordRepo := */ data.NewStcTransactionRecordRepo(gormDB)
+	/*trxTransactionRecordRepo := */ data.NewTrxTransactionRecordRepo(gormDB)
+	bizLark := biz.NewLark(confLark)
+	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, bizLark, logLogger)
 	greeterService := service.NewGreeterService(greeterUsecase)
-	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
-	httpServer := server.NewHTTPServer(confServer, greeterService, logger)
-	app := newApp(logger, grpcServer, httpServer)
-	return app, func() {
+	grpcServer := server.NewGRPCServer(confServer, greeterService, logLogger)
+	httpServer := server.NewHTTPServer(confServer, greeterService, logLogger)
+	kratosApp := newApp(logLogger, grpcServer, httpServer)
+	return kratosApp, func() {
 		cleanup()
 	}, nil
 }

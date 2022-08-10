@@ -1,15 +1,68 @@
 server:
   http:
-    addr: 0.0.0.0:8000
+    addr: 0.0.0.0:3001
     timeout: 1s
   grpc:
-    addr: 0.0.0.0:9000
+    addr: 0.0.0.0:8999
     timeout: 1s
 data:
   database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/test
+    driver: postgres
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    pool:
+      connMaxLifetime: 3
+      maxOpenConns: 10
+      maxIdleConns: 10
   redis:
-    addr: 127.0.0.1:6379
+    address: 127.0.0.1:6379
+    db: 2
+    password: ""
     read_timeout: 0.2s
     write_timeout: 0.2s
+
+app:
+  # Possible values: "debug", "release"
+#  mode: "debug"
+  mode: ""
+  scanAll: false
+  target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+  source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
+
+
+lark:
+  larkAlarmTitle: "SubHandle 测试环境"
+  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
+  larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
+  lockNum: 64
+logger:
+  DEBUG: true
+  fileName: "block-crawling.log"
+  level: "debug"
+
+innerNodeList:
+  BTC:
+    chain: "BTC"
+    fullName: "Bitcoin"
+    handler: "bitcoin"
+    rpcURL:
+      - "https://api.bixin.com/v1/btc/main"
+    symbol: "BTC"
+    type: "BTC"
+innerPublicNodeList:
+  Cronos:
+    blockExplorerAddrUrl: https://cronoscan.com/address/
+    blockExplorerTxUrl: https://cronoscan.com/tx/
+    blockExplorerUrl: https://cronoscan.com/
+    chain: Cronos
+    chainId: 25
+    coinId: 60
+    fullName: Cronos
+    getPriceKey: Cronos
+    handler: cronos
+    icon: https://bxhp.243096.com/mili/images/currency/chain/Cronos.png
+    nativeCurrency: CRO
+    netType: main
+    rpcURL:
+      - https://cronosrpc-1.xstaking.sg
+    symbol: CRO
+    type: EVM
