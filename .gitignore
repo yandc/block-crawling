@@ -25,3 +25,4 @@ bin/*
 
 # node_modules
 pkg/stc-lib/node_modules/*
+*.log

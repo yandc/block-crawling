@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/any.proto";
+
+option go_package = "block-crawling/api/common/v1;v1";
+option java_multiple_files = true;
+option java_package = "dev.kratos.api.common.v1";
+option java_outer_classname = "CommonProtoV1";
+
+message Empty{}
+message BoolResponse {
+  bool response = 1;
+}
+message IntResponse {
+  int32 response = 1;
+}
+message Int64Response {
+  int64 response = 1;
+}
+message StringResponse {
+  string response = 1;
+}
+message RequestId {
+  int32 id = 1;
+}
+enum ReadWrite {
+  None = 0;
+  Read = 1;
+  Write = 2;
+  Both = 3;
+}
+
+// The response message containing the beens
+message ApiResponse {
+  int32  code = 1;
+  bool status = 2;
+  string msg = 3;
+  google.protobuf.Any data = 4;
+}

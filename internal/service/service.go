@@ -1,6 +1,9 @@
 package service
 
-import "github.com/google/wire"
+import (
+	"block-crawling/internal/platform"
+	"github.com/google/wire"
+)
 
 // ProviderSet is service providers.
-var ProviderSet = wire.NewSet(NewGreeterService)
+var ProviderSet = wire.NewSet(platform.NewPlatform, platform.NewInnerNodeList, NewGreeterService)

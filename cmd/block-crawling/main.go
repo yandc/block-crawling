@@ -1,8 +1,15 @@
 package main
 
 import (
+	"block-crawling/internal/platform"
+	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/subhandle"
 	"flag"
+	"go.uber.org/zap"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"block-crawling/internal/conf"
 	"github.com/go-kratos/kratos/v2"
@@ -71,14 +78,108 @@ func main() {
 		panic(err)
 	}
 
-	app, cleanup, err := wireApp(bc.Server, bc.Data, logger)
+	app, cleanup, err := wireApp(bc.Server, bc.Data, bc.App, bc.AddressServer, bc.Lark, bc.Logger,
+		bc.Transaction, bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest, logger)
 	if err != nil {
 		panic(err)
 	}
 	defer cleanup()
+	platform.MigrateRecord()
+	// start task
+	//start()
 
 	// start and wait for stop signal
 	if err := app.Run(); err != nil {
 		panic(err)
 	}
+}
+
+func start() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("main panic:", zap.Any("", err))
+		}
+	}()
+	var quitChan = make(chan os.Signal)
+	quit := make(chan int)
+	innerquit := make(chan int)
+	signal.Notify(quitChan, syscall.SIGTERM, os.Interrupt)
+
+	go func() {
+		platforms := platform.Platforms
+		platformsLen := len(platforms)
+		for i := 0; i < platformsLen; i++ {
+			p := platforms[i]
+			go p.GetTransactions()
+		}
+	}()
+
+	// get transaction
+	go func() {
+		platforms := platform.Platforms
+		platformsLen := len(platforms)
+		for i := 0; i < platformsLen; i++ {
+			p := platforms[i]
+			go func(p subhandle.Platform) {
+				log.Info("start main", zap.Any("platform", p))
+
+				// get result
+				resultPlan := time.NewTicker(time.Duration(1200000) * time.Millisecond)
+				for true {
+					select {
+					case <-resultPlan.C:
+						if _, ok := p.(*bitcoin.Platform); !ok {
+							go p.GetTransactionResultByTxhash()
+						}
+					case <-quit:
+						resultPlan.Stop()
+						return
+					}
+				}
+			}(p)
+		}
+	}()
+
+	go func() {
+		platforms := platform.InnerPlatforms
+		platformsLen := len(platforms)
+		for i := 0; i < platformsLen; i++ {
+			p := platforms[i]
+			go func(p subhandle.Platform) {
+				if btc, ok := p.(*bitcoin.Platform); ok {
+					go p.GetTransactionResultByTxhash()
+					go btc.GetPendingTransactionsByInnerNode()
+				}
+				liveInterval := p.Coin().LiveInterval
+				log.Info("start inner main", zap.Any("platform", p))
+
+				pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
+
+				for true {
+					select {
+					case <-pendingTransactions.C:
+						if btc, ok := p.(*bitcoin.Platform); ok {
+							go p.GetTransactionResultByTxhash()
+							go btc.GetPendingTransactionsByInnerNode()
+						}
+					case <-innerquit:
+						pendingTransactions.Stop()
+						return
+					}
+				}
+			}(p)
+		}
+	}()
+
+	go func() {
+		select {
+		case <-quitChan:
+			for _, platform := range platform.Platforms {
+				platform.SetRedisHeight()
+			}
+			close(platform.PlatformChan)
+			close(quit)
+			close(innerquit)
+		}
+	}()
 }
