@@ -43,7 +43,7 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 			}
 		} else {
 			mode := strings.ToUpper(biz.AppConfig.Mode)
-			modes := strings.SplitAfter(mode, ",")
+			modes := strings.Split(mode, ",")
 			for _, chainName := range modes {
 				if platInfo := testConfig[chainName]; platInfo != nil {
 					c[chainName] = platInfo
