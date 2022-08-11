@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 	"time"
 )
 
@@ -15,6 +16,9 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 	log.Info("opening connection to postgres")
 	gormlDb, err := gorm.Open(postgres.Open(conf.Database.Source), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true, // 使用单数表名
+		},
 	})
 
 	if err != nil {

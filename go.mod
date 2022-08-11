@@ -1,6 +1,6 @@
 module block-crawling
 
-go 1.17
+go 1.18
 
 require (
 	github.com/blockcypher/gobcy v2.0.1+incompatible

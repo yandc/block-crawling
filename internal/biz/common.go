@@ -116,7 +116,7 @@ func UserAddressSwitch(address string) (bool, string, error) {
 		uid, err = data.RedisClient.Get(USER_ADDRESS_KEY + address).Result()
 	}
 	if !AppConfig.ScanAll {
-		if err != nil {
+		if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY {
 			return false, "", err
 		}
 		if uid == "" {

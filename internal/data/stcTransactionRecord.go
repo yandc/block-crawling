@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
 )
@@ -37,20 +38,19 @@ type StcTransactionRecord struct {
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
-
 // StcTransactionRecordRepo is a Greater repo.
 type StcTransactionRecordRepo interface {
-	Save(context.Context, *StcTransactionRecord) (int64, error)
-	BatchSave(context.Context, []*StcTransactionRecord) (int64, error)
-	BatchSaveOrUpdate(context.Context, []*StcTransactionRecord) (int64, error)
-	Update(context.Context, *StcTransactionRecord) (int64, error)
-	FindByID(context.Context, int64) (*StcTransactionRecord, error)
-	FindByStatus(context.Context, string) ([]*StcTransactionRecord, error)
-	ListByID(context.Context, int64) ([]*StcTransactionRecord, error)
-	ListAll(context.Context) ([]*StcTransactionRecord, error)
-	DeleteByID(context.Context, int64) (int64, error)
-	DeleteByBlockNumber(context.Context, int) (int64, error)
-	FindLast(context.Context) (*StcTransactionRecord, error)
+	Save(context.Context, string, *StcTransactionRecord) (int64, error)
+	BatchSave(context.Context, string, []*StcTransactionRecord) (int64, error)
+	BatchSaveOrUpdate(context.Context, string, []*StcTransactionRecord) (int64, error)
+	Update(context.Context, string, *StcTransactionRecord) (int64, error)
+	FindByID(context.Context, string, int64) (*StcTransactionRecord, error)
+	FindByStatus(context.Context, string, string) ([]*StcTransactionRecord, error)
+	ListByID(context.Context, string, int64) ([]*StcTransactionRecord, error)
+	ListAll(context.Context, string) ([]*StcTransactionRecord, error)
+	DeleteByID(context.Context, string, int64) (int64, error)
+	DeleteByBlockNumber(context.Context, string, int) (int64, error)
+	FindLast(context.Context, string) (*StcTransactionRecord, error)
 }
 
 type StcTransactionRecordRepoImpl struct {
@@ -67,8 +67,8 @@ func NewStcTransactionRecordRepo(gormDB *gorm.DB) StcTransactionRecordRepo {
 	return StcTransactionRecordRepoClient
 }
 
-func (r *StcTransactionRecordRepoImpl) Save(ctx context.Context, stcTransactionRecord *StcTransactionRecord) (int64, error) {
-	ret := r.gormDB.Create(stcTransactionRecord)
+func (r *StcTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, stcTransactionRecord *StcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Create(stcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -85,8 +85,8 @@ func (r *StcTransactionRecordRepoImpl) Save(ctx context.Context, stcTransactionR
 	return affected, err
 }
 
-func (r *StcTransactionRecordRepoImpl) BatchSave(ctx context.Context, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
-	ret := r.gormDB.CreateInBatches(stcTransactionRecords, len(stcTransactionRecords))
+func (r *StcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).CreateInBatches(stcTransactionRecords, len(stcTransactionRecords))
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -103,30 +103,11 @@ func (r *StcTransactionRecordRepoImpl) BatchSave(ctx context.Context, stcTransac
 	return affected, err
 }
 
-func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
-	sqlStr := "insert into public.stc_transaction_record (block_hash, block_number, transaction_hash, from_address, to_address, " +
-		"from_uid, to_uid, fee_amount, amount, status, tx_time, contract_address, parse_data, gas_limit, gas_used, gas_price, " +
-		"data, transaction_type, dapp_data, client_data, created_at, updated_at) values "
-	stcTransactionRecordsLen := len(stcTransactionRecords)
-	for i := 0; i < stcTransactionRecordsLen; i++ {
-		stc := stcTransactionRecords[i]
-		sqlStr += "('" + stc.BlockHash + "', " + strconv.Itoa(stc.BlockNumber) + ", '" + stc.TransactionHash + "', '" +
-			stc.FromAddress + "', '" + stc.ToAddress + "', '" + stc.FromUid + "', '" + stc.ToUid + "', " + stc.FeeAmount.String() + ", " +
-			stc.Amount.String() + ", '" + stc.Status + "', " + strconv.Itoa(int(stc.TxTime)) + ", '" + stc.ContractAddress + "', '" +
-			stc.ParseData + "', '" + stc.GasLimit + "', '" + stc.GasUsed + "', '" + stc.GasPrice + "', '" + stc.Data + "', '" +
-			stc.TransactionType + "', '" + stc.DappData + "', '" + stc.ClientData + "', " +
-			strconv.Itoa(int(stc.CreatedAt)) + ", " + strconv.Itoa(int(stc.UpdatedAt)) + "),"
-	}
-	sqlStr = sqlStr[0 : len(sqlStr)-1]
-	sqlStr += " on conflict (transaction_hash) do update set block_hash = excluded.block_hash, block_number = excluded.block_number, " +
-		"transaction_hash = excluded.transaction_hash, from_address = excluded.from_address, to_address = excluded.to_address, " +
-		"from_uid = excluded.from_uid, to_uid = excluded.to_uid, fee_amount = excluded.fee_amount, amount = excluded.amount, " +
-		"status = excluded.status, tx_time = excluded.tx_time, contract_address = excluded.contract_address, parse_data = excluded.parse_data, " +
-		"gas_limit = excluded.gas_limit, gas_used = excluded.gas_used, gas_price = excluded.gas_price, data = excluded.data, " +
-		"transaction_type = excluded.transaction_type, dapp_data = excluded.dapp_data, client_data = excluded.client_data, " +
-		"created_at = excluded.created_at, updated_at = excluded.updated_at"
-
-	ret := r.gormDB.Exec(sqlStr)
+func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, tableName string, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: true,
+	}).Create(&stcTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update stcTransactionRecord failed", err)
@@ -137,8 +118,8 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, st
 	return affected, err
 }
 
-func (r *StcTransactionRecordRepoImpl) Update(ctx context.Context, stcTransactionRecord *StcTransactionRecord) (int64, error) {
-	ret := r.gormDB.Model(&StcTransactionRecord{}).Where("id = ?", stcTransactionRecord.Id).Updates(stcTransactionRecord)
+func (r *StcTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, stcTransactionRecord *StcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Model(&StcTransactionRecord{}).Where("id = ?", stcTransactionRecord.Id).Updates(stcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update stcTransactionRecord failed", err)
@@ -148,9 +129,9 @@ func (r *StcTransactionRecordRepoImpl) Update(ctx context.Context, stcTransactio
 	return affected, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) FindByID(ctx context.Context, tableName string, id int64) (*StcTransactionRecord, error) {
 	var stcTransactionRecord *StcTransactionRecord
-	ret := r.gormDB.First(&stcTransactionRecord, id)
+	ret := r.gormDB.Table(tableName).First(&stcTransactionRecord, id)
 	err := ret.Error
 	if err != nil {
 		if fmt.Sprintf("%s", err) == POSTGRES_NOT_FOUND {
@@ -164,9 +145,9 @@ func (r *StcTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (
 	return stcTransactionRecord, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) ([]*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) ListByID(ctx context.Context, tableName string, id int64) ([]*StcTransactionRecord, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
-	ret := r.gormDB.Where("id > ?", id).Find(&stcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("id > ?", id).Find(&stcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query stcTransactionRecord failed", err)
@@ -175,9 +156,9 @@ func (r *StcTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) (
 	return stcTransactionRecordList, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status string) ([]*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, tableName string, status string) ([]*StcTransactionRecord, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
-	ret := r.gormDB.Where("status = ?", status).Find(&stcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("status = ?", status).Find(&stcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query stcTransactionRecord failed", err)
@@ -186,9 +167,9 @@ func (r *StcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status 
 	return stcTransactionRecordList, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*StcTransactionRecord, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
-	ret := r.gormDB.Find(&stcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Find(&stcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query stcTransactionRecord failed", err)
@@ -197,8 +178,8 @@ func (r *StcTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*StcTrans
 	return stcTransactionRecordList, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
-	ret := r.gormDB.Delete(&StcTransactionRecord{}, id)
+func (r *StcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
+	ret := r.gormDB.Table(tableName).Delete(&StcTransactionRecord{}, id)
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete stcTransactionRecord failed", err)
@@ -208,8 +189,8 @@ func (r *StcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64)
 	return affected, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, blockNumber int) (int64, error) {
-	ret := r.gormDB.Where("block_number >= ?", blockNumber).Delete(&StcTransactionRecord{})
+func (r *StcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, tableName string, blockNumber int) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("block_number >= ?", blockNumber).Delete(&StcTransactionRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete stcTransactionRecord failed", err)
@@ -219,9 +200,9 @@ func (r *StcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 	return affected, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) FindLast(ctx context.Context) (*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName string) (*StcTransactionRecord, error) {
 	var stcTransactionRecord *StcTransactionRecord
-	ret := r.gormDB.Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&stcTransactionRecord)
+	ret := r.gormDB.Table(tableName).Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&stcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last stcTransactionRecord failed", err)

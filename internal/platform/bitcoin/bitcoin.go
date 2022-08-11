@@ -278,7 +278,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
-		err := BatchSaveOrUpdate(txRecords)
+		err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 		if err != nil {
 			// postgres出错 接入lark报警
 			log.Error("btc主网扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
@@ -448,7 +448,7 @@ func (p *Platform) SendTXIds(txIds []string) {
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
-		err := BatchSaveOrUpdate(txRecords)
+		err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 		if err != nil {
 			// postgres出错 接入lark报警
 			log.Error("btc主网扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
@@ -498,10 +498,10 @@ func (p *Platform) getBTCTransactions() {
 	if err != nil {
 		if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
 			// 从数据库中查询最新一条数据
-			lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil)
+			lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil)
+				lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
 			}
 			if err != nil {
 				// postgres出错 接入lark报警
@@ -567,10 +567,10 @@ func (p *Platform) getBTCTransactions() {
 		if err != nil {
 			if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
 				// 从数据库中查询最新一条数据
-				lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil)
+				lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
 				for i := 0; i < 3 && err != nil; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil)
+					lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
 				}
 				if err != nil {
 					// postgres出错 接入lark报警
@@ -638,10 +638,10 @@ func (p *Platform) getBTCTransactions() {
 		//处理分叉上的孤块
 		if forked {
 			//删除 DB中 比curHeight 高的 块交易数据
-			_, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, curHeight)
+			_, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX, curHeight)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				_, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, curHeight)
+				_, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX, curHeight)
 			}
 			if err != nil {
 				//更新 redis中的块高和区块hash
@@ -766,7 +766,7 @@ func (p *Platform) getBTCTransactions() {
 		}
 		if txRecords != nil && len(txRecords) > 0 {
 			//保存交易数据
-			err := BatchSaveOrUpdate(txRecords)
+			err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 			if err != nil {
 				//更新 redis中的块高和区块hash
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
@@ -943,7 +943,7 @@ func (p *Platform) getBTCTestTransactions() {
 
 		if txRecords != nil && len(txRecords) > 0 {
 			//保存交易数据
-			err := BatchSaveOrUpdate(txRecords)
+			err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 			if err != nil {
 				// postgres出错 接入lark报警
 				log.Error("btc主网扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
@@ -974,7 +974,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 	}()
 
 	//records, err := biz.GetTransactionFromDB("BTC", types.STATUSPENDING)
-	records, err := data.BtcTransactionRecordRepoClient.FindByStatus(nil, types.STATUSPENDING)
+	records, err := data.BtcTransactionRecordRepoClient.FindByStatus(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, types.STATUSPENDING)
 	if err != nil {
 		log.Error("BTC查询数据库失败", zap.Any("error", err))
 		return
@@ -1055,7 +1055,7 @@ func (p *Platform) HandlerResult(param []*data.BtcTransactionRecord) {
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
-		err := BatchSaveOrUpdate(txRecords)
+		err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
 		if err != nil {
 			// postgres出错 接入lark报警
 			log.Error("btc主网扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
@@ -1067,7 +1067,7 @@ func (p *Platform) HandlerResult(param []*data.BtcTransactionRecord) {
 	}
 }
 
-func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord) error {
+func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord, table string) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0
@@ -1083,10 +1083,10 @@ func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord) error {
 			stop = total
 		}
 
-		_, err := data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, subTxRecords)
+		_, err := data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table, subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, subTxRecords)
+			_, err = data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table, subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

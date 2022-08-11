@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
 )
@@ -36,20 +37,19 @@ type TrxTransactionRecord struct {
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
-
 // TrxTransactionRecordRepo is a Greater repo.
 type TrxTransactionRecordRepo interface {
-	Save(context.Context, *TrxTransactionRecord) (int64, error)
-	BatchSave(context.Context, []*TrxTransactionRecord) (int64, error)
-	BatchSaveOrUpdate(context.Context, []*TrxTransactionRecord) (int64, error)
-	Update(context.Context, *TrxTransactionRecord) (int64, error)
-	FindByID(context.Context, int64) (*TrxTransactionRecord, error)
-	FindByStatus(context.Context, string) ([]*TrxTransactionRecord, error)
-	ListByID(context.Context, int64) ([]*TrxTransactionRecord, error)
-	ListAll(context.Context) ([]*TrxTransactionRecord, error)
-	DeleteByID(context.Context, int64) (int64, error)
-	DeleteByBlockNumber(context.Context, int) (int64, error)
-	FindLast(context.Context) (*TrxTransactionRecord, error)
+	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
+	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
+	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
+	Update(context.Context, string, *TrxTransactionRecord) (int64, error)
+	FindByID(context.Context, string, int64) (*TrxTransactionRecord, error)
+	FindByStatus(context.Context, string, string) ([]*TrxTransactionRecord, error)
+	ListByID(context.Context, string, int64) ([]*TrxTransactionRecord, error)
+	ListAll(context.Context, string) ([]*TrxTransactionRecord, error)
+	DeleteByID(context.Context, string, int64) (int64, error)
+	DeleteByBlockNumber(context.Context, string, int) (int64, error)
+	FindLast(context.Context, string) (*TrxTransactionRecord, error)
 }
 
 type TrxTransactionRecordRepoImpl struct {
@@ -66,8 +66,8 @@ func NewTrxTransactionRecordRepo(gormDB *gorm.DB) TrxTransactionRecordRepo {
 	return TrxTransactionRecordRepoClient
 }
 
-func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
-	ret := r.gormDB.Create(trxTransactionRecord)
+func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Create(trxTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -84,8 +84,8 @@ func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, trxTransactionR
 	return affected, err
 }
 
-func (r *TrxTransactionRecordRepoImpl) BatchSave(ctx context.Context, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
-	ret := r.gormDB.CreateInBatches(trxTransactionRecords, len(trxTransactionRecords))
+func (r *TrxTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).CreateInBatches(trxTransactionRecords, len(trxTransactionRecords))
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -102,29 +102,11 @@ func (r *TrxTransactionRecordRepoImpl) BatchSave(ctx context.Context, trxTransac
 	return affected, err
 }
 
-func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
-	sqlStr := "insert into public.trx_transaction_record (block_hash, block_number, transaction_hash, from_address, to_address, " +
-		"from_uid, to_uid, fee_amount, amount, status, tx_time, contract_address, parse_data, net_usage, fee_limit, energy_usage, " +
-		"transaction_type, dapp_data, client_data, created_at, updated_at) values "
-	trxTransactionRecordsLen := len(trxTransactionRecords)
-	for i := 0; i < trxTransactionRecordsLen; i++ {
-		trx := trxTransactionRecords[i]
-		sqlStr += "('" + trx.BlockHash + "', " + strconv.Itoa(trx.BlockNumber) + ", '" + trx.TransactionHash + "', '" +
-			trx.FromAddress + "', '" + trx.ToAddress + "', '" + trx.FromUid + "', '" + trx.ToUid + "', " + trx.FeeAmount.String() + ", " +
-			trx.Amount.String() + ", '" + trx.Status + "', " + strconv.Itoa(int(trx.TxTime)) + ", '" + trx.ContractAddress + "', '" +
-			trx.ParseData + "', '" + trx.NetUsage + "', '" + trx.FeeLimit + "', '" + trx.EnergyUsage + "', '" + trx.TransactionType + "', '" +
-			trx.DappData + "', '" + trx.ClientData + "', " + strconv.Itoa(int(trx.CreatedAt)) + ", " + strconv.Itoa(int(trx.UpdatedAt)) + "),"
-	}
-	sqlStr = sqlStr[0 : len(sqlStr)-1]
-	sqlStr += " on conflict (transaction_hash) do update set block_hash = excluded.block_hash, block_number = excluded.block_number, " +
-		"transaction_hash = excluded.transaction_hash, from_address = excluded.from_address, to_address = excluded.to_address, " +
-		"from_uid = excluded.from_uid, to_uid = excluded.to_uid, fee_amount = excluded.fee_amount, amount = excluded.amount, " +
-		"status = excluded.status, tx_time = excluded.tx_time, contract_address = excluded.contract_address, parse_data = excluded.parse_data, " +
-		"net_usage = excluded.net_usage, fee_limit = excluded.fee_limit, energy_usage = excluded.energy_usage, " +
-		"transaction_type = excluded.transaction_type, dapp_data = excluded.dapp_data, client_data = excluded.client_data, " +
-		"created_at = excluded.created_at, updated_at = excluded.updated_at"
-
-	ret := r.gormDB.Exec(sqlStr)
+func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: true,
+	}).Create(&trxTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update trxTransactionRecord failed", err)
@@ -135,8 +117,8 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, tr
 	return affected, err
 }
 
-func (r *TrxTransactionRecordRepoImpl) Update(ctx context.Context, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
-	ret := r.gormDB.Model(&TrxTransactionRecord{}).Where("id = ?", trxTransactionRecord.Id).Updates(trxTransactionRecord)
+func (r *TrxTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Model(&TrxTransactionRecord{}).Where("id = ?", trxTransactionRecord.Id).Updates(trxTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update trxTransactionRecord failed", err)
@@ -146,9 +128,9 @@ func (r *TrxTransactionRecordRepoImpl) Update(ctx context.Context, trxTransactio
 	return affected, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (*TrxTransactionRecord, error) {
+func (r *TrxTransactionRecordRepoImpl) FindByID(ctx context.Context, tableName string, id int64) (*TrxTransactionRecord, error) {
 	var trxTransactionRecord *TrxTransactionRecord
-	ret := r.gormDB.First(&trxTransactionRecord, id)
+	ret := r.gormDB.Table(tableName).First(&trxTransactionRecord, id)
 	err := ret.Error
 	if err != nil {
 		if fmt.Sprintf("%s", err) == POSTGRES_NOT_FOUND {
@@ -162,9 +144,9 @@ func (r *TrxTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (
 	return trxTransactionRecord, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) ([]*TrxTransactionRecord, error) {
+func (r *TrxTransactionRecordRepoImpl) ListByID(ctx context.Context, tableName string, id int64) ([]*TrxTransactionRecord, error) {
 	var trxTransactionRecordList []*TrxTransactionRecord
-	ret := r.gormDB.Where("id > ?", id).Find(&trxTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("id > ?", id).Find(&trxTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query trxTransactionRecord failed", err)
@@ -173,9 +155,9 @@ func (r *TrxTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) (
 	return trxTransactionRecordList, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status string) ([]*TrxTransactionRecord, error) {
+func (r *TrxTransactionRecordRepoImpl) FindByStatus(ctx context.Context, tableName string, status string) ([]*TrxTransactionRecord, error) {
 	var trxTransactionRecordList []*TrxTransactionRecord
-	ret := r.gormDB.Where("status = ?", status).Find(&trxTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("status = ?", status).Find(&trxTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query trxTransactionRecord failed", err)
@@ -184,9 +166,9 @@ func (r *TrxTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status 
 	return trxTransactionRecordList, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*TrxTransactionRecord, error) {
+func (r *TrxTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*TrxTransactionRecord, error) {
 	var trxTransactionRecordList []*TrxTransactionRecord
-	ret := r.gormDB.Find(&trxTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Find(&trxTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query trxTransactionRecord failed", err)
@@ -195,8 +177,8 @@ func (r *TrxTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*TrxTrans
 	return trxTransactionRecordList, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
-	ret := r.gormDB.Delete(&TrxTransactionRecord{}, id)
+func (r *TrxTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
+	ret := r.gormDB.Table(tableName).Delete(&TrxTransactionRecord{}, id)
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete trxTransactionRecord failed", err)
@@ -206,8 +188,8 @@ func (r *TrxTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64)
 	return affected, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, blockNumber int) (int64, error) {
-	ret := r.gormDB.Where("block_number >= ?", blockNumber).Delete(&TrxTransactionRecord{})
+func (r *TrxTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, tableName string, blockNumber int) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("block_number >= ?", blockNumber).Delete(&TrxTransactionRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete trxTransactionRecord failed", err)
@@ -217,9 +199,9 @@ func (r *TrxTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 	return affected, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) FindLast(context.Context) (*TrxTransactionRecord, error) {
+func (r *TrxTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName string) (*TrxTransactionRecord, error) {
 	var trxTransactionRecord *TrxTransactionRecord
-	ret := r.gormDB.Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&trxTransactionRecord)
+	ret := r.gormDB.Table(tableName).Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&trxTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last trxTransactionRecord failed", err)
