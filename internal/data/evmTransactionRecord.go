@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
 )
@@ -41,7 +42,6 @@ type EvmTransactionRecord struct {
 	CreatedAt       int64           `json:"createdAt" form:"createdAt"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
-
 
 // EvmTransactionRecordRepo is a Greater repo.
 type EvmTransactionRecordRepo interface {
@@ -109,29 +109,10 @@ func (r *EvmTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName 
 }
 
 func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, tableName string, evmTransactionRecords []*EvmTransactionRecord) (int64, error) {
-	sqlStr := "insert into public." + tableName + " (block_hash, block_number, nonce, transaction_hash, from_address, to_address, " +
-		"from_uid, to_uid, fee_amount, amount, status, tx_time, contract_address, parse_data, type, gas_limit, gas_used, gas_price, base_fee, " +
-		"data, transaction_type, dapp_data, client_data, created_at, updated_at,event_log) values "
-	evmTransactionRecordsLen := len(evmTransactionRecords)
-	for i := 0; i < evmTransactionRecordsLen; i++ {
-		evm := evmTransactionRecords[i]
-		sqlStr += "('" + evm.BlockHash + "', " + strconv.Itoa(evm.BlockNumber) + ", " + strconv.Itoa(int(evm.Nonce)) + ", '" + evm.TransactionHash + "', '" +
-			evm.FromAddress + "', '" + evm.ToAddress + "', '" + evm.FromUid + "', '" + evm.ToUid + "', " + evm.FeeAmount.String() + ", " +
-			evm.Amount.String() + ", '" + evm.Status + "', " + strconv.Itoa(int(evm.TxTime)) + ", '" + evm.ContractAddress + "', '" +
-			evm.ParseData + "', '" + evm.Type + "', '" + evm.GasLimit + "', '" + evm.GasUsed + "', '" + evm.GasPrice + "', '" + evm.BaseFee + "', '" +
-			evm.Data + "', '" + evm.TransactionType + "', '" + evm.DappData + "', '" + evm.ClientData + "', " +
-			strconv.Itoa(int(evm.CreatedAt)) + ", " + strconv.Itoa(int(evm.UpdatedAt)) + ", " + evm.EventLog + "),"
-	}
-	sqlStr = sqlStr[0 : len(sqlStr)-1]
-	sqlStr += " on conflict (transaction_hash) do update set block_hash = excluded.block_hash, block_number = excluded.block_number, " +
-		"nonce = excluded.nonce, transaction_hash = excluded.transaction_hash, from_address = excluded.from_address, to_address = excluded.to_address, " +
-		"from_uid = excluded.from_uid, to_uid = excluded.to_uid, fee_amount = excluded.fee_amount, amount = excluded.amount, status = excluded.status, " +
-		"tx_time = excluded.tx_time, contract_address = excluded.contract_address, parse_data = excluded.parse_data, type = excluded.type, " +
-		"gas_limit = excluded.gas_limit, gas_used = excluded.gas_used, gas_price = excluded.gas_price, base_fee = excluded.base_fee, " +
-		"data = excluded.data, transaction_type = excluded.transaction_type, dapp_data = excluded.dapp_data, client_data = excluded.client_data, " +
-		"created_at = excluded.created_at, updated_at = excluded.updated_at, event_log = excluded.event_log"
-
-	ret := r.gormDB.Exec(sqlStr)
+	ret := r.gormDB.Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: true,
+	}).Create(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update "+tableName+" failed", err)

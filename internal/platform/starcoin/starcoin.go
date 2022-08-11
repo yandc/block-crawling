@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/subhandle"
 	"block-crawling/internal/types"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -46,6 +47,22 @@ func (p *Platform) GetTransactions() {
 }
 
 func (p *Platform) IndexBlock() bool {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("IndexBlock error, chainName:{}"+p.ChainName, e)
+			} else {
+				log.Errore("IndexBlock panic, chainName:{}"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链爬块失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
 	height, err := p.client.GetBlockHeight()
 	if err != nil {
 		return true
@@ -56,7 +73,7 @@ func (p *Platform) IndexBlock() bool {
 	if redisHeight != "" {
 		curHeight, _ = strconv.Atoi(redisHeight)
 	} else {
-		row, _ := data.StcTransactionRecordRepoClient.FindLast(nil)
+		row, _ := data.StcTransactionRecordRepoClient.FindLast(nil,strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 		if row != nil && row.BlockNumber != 0 {
 			curHeight = row.BlockNumber + 1
 			preDBBlockHash[row.BlockNumber] = row.BlockHash
@@ -78,37 +95,29 @@ func (p *Platform) IndexBlock() bool {
 
 		if block != nil {
 			forked := false
-			preHeight := curHeight - 1
+			preHeight := curHeight - 1 // c 5 p 4
 			preHash := block.BlockHeader.ParentHash
-			curPreBlockHash, err := data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
+			curPreBlockHash, _ := data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 
 			if curPreBlockHash == "" {
 				bh := preDBBlockHash[preHeight]
 				if bh != "" {
 					curPreBlockHash = bh
-				} else {
-					if err != nil {
-						// redis出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取区块hash失败", p.ChainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						return true
-					}
 				}
-
 			}
 			//分叉孤块处理
 			for curPreBlockHash != "" && curPreBlockHash != preHash {
 				forked = true
 				pBlock, _ := p.client.GetBlockByNumber(preHeight)
 				preHash = pBlock.BlockHeader.ParentHash
+				// c 5 p 4  4 --  3 hahs p 3
 				preHeight = preHeight - 1
 				curPreBlockHash, _ = data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 			}
 
 			if forked {
-				curHeight = preHeight + 1
-				rows, _ := data.StcTransactionRecordRepoClient.DeleteByBlockNumber(nil, preHeight)
+				curHeight = preHeight
+				rows, _ := data.StcTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, preHeight + 1)
 				log.Info("出现分叉回滚数据", zap.Any("链类型", p.ChainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 			} else {
 				var txRecords []*data.StcTransactionRecord
@@ -210,7 +219,7 @@ func (p *Platform) IndexBlock() bool {
 					}
 				}
 				if txRecords != nil && len(txRecords) > 0 {
-					e := BatchSaveOrUpdate(txRecords)
+					e := BatchSaveOrUpdate(txRecords,strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
 					if e != nil {
 						// postgres出错 接入lark报警
 						log.Error("插入数据到数据库库中失败", zap.Any("current", curHeight), zap.Any("chain", p.ChainName))
@@ -235,7 +244,7 @@ func (p *Platform) IndexBlock() bool {
 
 func (p *Platform) GetTransactionResultByTxhash() {
 
-	records, err := data.StcTransactionRecordRepoClient.FindByStatus(nil, types.STATUSPENDING)
+	records, err := data.StcTransactionRecordRepoClient.FindByStatus(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX,types.STATUSPENDING)
 	if err != nil {
 		log.Error("STC查询数据库失败", zap.Any("error", err))
 		return
@@ -251,18 +260,18 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			bn, _ := strconv.Atoi(transactionInfo.BlockNumber)
 			record.BlockNumber = bn
 			record.BlockHash = transactionInfo.BlockHash
-			i, _ := data.StcTransactionRecordRepoClient.Update(nil, record)
+			i, _ := data.StcTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
 			log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
 
 		} else {
 			record.Status = types.STATUSFAIL
-			i, _ := data.StcTransactionRecordRepoClient.Update(nil, record)
+			i, _ := data.StcTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
 			log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
 		}
 	}
 }
 
-func BatchSaveOrUpdate(txRecords []*data.StcTransactionRecord) error {
+func BatchSaveOrUpdate(txRecords []*data.StcTransactionRecord,table string) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0
@@ -278,10 +287,10 @@ func BatchSaveOrUpdate(txRecords []*data.StcTransactionRecord) error {
 			stop = total
 		}
 
-		_, err := data.StcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, subTxRecords)
+		_, err := data.StcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table,subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.StcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, subTxRecords)
+			_, err = data.StcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table,subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

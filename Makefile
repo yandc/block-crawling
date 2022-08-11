@@ -52,7 +52,7 @@ build:
 .PHONY: generate
 # generate
 generate:
-    go mod tidy -compat=1.17
+    go mod tidy
 	go get github.com/google/wire/cmd/wire@latest
 	go generate ./...
 

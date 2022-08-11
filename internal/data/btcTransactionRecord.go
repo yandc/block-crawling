@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
 )
@@ -32,20 +33,19 @@ type BtcTransactionRecord struct {
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
-
 // BtcTransactionRecordRepo is a Greater repo.
 type BtcTransactionRecordRepo interface {
-	Save(context.Context, *BtcTransactionRecord) (int64, error)
-	BatchSave(context.Context, []*BtcTransactionRecord) (int64, error)
-	BatchSaveOrUpdate(context.Context, []*BtcTransactionRecord) (int64, error)
-	Update(context.Context, *BtcTransactionRecord) (int64, error)
-	FindByID(context.Context, int64) (*BtcTransactionRecord, error)
-	FindByStatus(context.Context, string) ([]*BtcTransactionRecord, error)
-	ListByID(context.Context, int64) ([]*BtcTransactionRecord, error)
-	ListAll(context.Context) ([]*BtcTransactionRecord, error)
-	DeleteByID(context.Context, int64) (int64, error)
-	DeleteByBlockNumber(context.Context, int) (int64, error)
-	FindLast(context.Context) (*BtcTransactionRecord, error)
+	Save(context.Context, string, *BtcTransactionRecord) (int64, error)
+	BatchSave(context.Context, string, []*BtcTransactionRecord) (int64, error)
+	BatchSaveOrUpdate(context.Context, string, []*BtcTransactionRecord) (int64, error)
+	Update(context.Context, string, *BtcTransactionRecord) (int64, error)
+	FindByID(context.Context, string, int64) (*BtcTransactionRecord, error)
+	FindByStatus(context.Context, string, string) ([]*BtcTransactionRecord, error)
+	ListByID(context.Context, string, int64) ([]*BtcTransactionRecord, error)
+	ListAll(context.Context, string) ([]*BtcTransactionRecord, error)
+	DeleteByID(context.Context, string, int64) (int64, error)
+	DeleteByBlockNumber(context.Context, string, int) (int64, error)
+	FindLast(context.Context, string) (*BtcTransactionRecord, error)
 }
 
 type BtcTransactionRecordRepoImpl struct {
@@ -62,8 +62,8 @@ func NewBtcTransactionRecordRepo(gormDB *gorm.DB) BtcTransactionRecordRepo {
 	return BtcTransactionRecordRepoClient
 }
 
-func (r *BtcTransactionRecordRepoImpl) Save(ctx context.Context, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
-	ret := r.gormDB.Create(btcTransactionRecord)
+func (r *BtcTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Create(btcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -80,8 +80,8 @@ func (r *BtcTransactionRecordRepoImpl) Save(ctx context.Context, btcTransactionR
 	return affected, err
 }
 
-func (r *BtcTransactionRecordRepoImpl) BatchSave(ctx context.Context, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
-	ret := r.gormDB.CreateInBatches(btcTransactionRecords, len(btcTransactionRecords))
+func (r *BtcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).CreateInBatches(btcTransactionRecords, len(btcTransactionRecords))
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -98,25 +98,11 @@ func (r *BtcTransactionRecordRepoImpl) BatchSave(ctx context.Context, btcTransac
 	return affected, err
 }
 
-func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
-	sqlStr := "insert into public.btc_transaction_record (block_hash, block_number, transaction_hash, from_address, to_address, " +
-		"from_uid, to_uid, fee_amount, amount, status, tx_time, confirm_count, dapp_data, client_data, created_at, updated_at) values "
-	btcTransactionRecordsLen := len(btcTransactionRecords)
-	for i := 0; i < btcTransactionRecordsLen; i++ {
-		btc := btcTransactionRecords[i]
-		sqlStr += "('" + btc.BlockHash + "', " + strconv.Itoa(btc.BlockNumber) + ", '" + btc.TransactionHash + "', '" + btc.FromAddress + "', '" +
-			btc.ToAddress + "', '" + btc.FromUid + "', '" + btc.ToUid + "', " + btc.FeeAmount.String() + ", " + btc.Amount.String() + ", '" +
-			btc.Status + "', " + strconv.Itoa(int(btc.TxTime)) + ", " + strconv.Itoa(int(btc.ConfirmCount)) + ", '" + btc.DappData + "', '" +
-			btc.ClientData + "', " + strconv.Itoa(int(btc.CreatedAt)) + ", " + strconv.Itoa(int(btc.UpdatedAt)) + "),"
-	}
-	sqlStr = sqlStr[0 : len(sqlStr)-1]
-	sqlStr += " on conflict (transaction_hash) do update set block_hash = excluded.block_hash, block_number = excluded.block_number, " +
-		"transaction_hash = excluded.transaction_hash, from_address = excluded.from_address, to_address = excluded.to_address, " +
-		"from_uid = excluded.from_uid, to_uid = excluded.to_uid, fee_amount = excluded.fee_amount, amount = excluded.amount, " +
-		"status = excluded.status, tx_time = excluded.tx_time, confirm_count = excluded.confirm_count, dapp_data = excluded.dapp_data, " +
-		"client_data = excluded.client_data, created_at = excluded.created_at, updated_at = excluded.updated_at"
-
-	ret := r.gormDB.Exec(sqlStr)
+func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: true,
+	}).Create(&btcTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update btcTransactionRecord failed", err)
@@ -127,8 +113,8 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, bt
 	return affected, err
 }
 
-func (r *BtcTransactionRecordRepoImpl) Update(ctx context.Context, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
-	ret := r.gormDB.Model(&BtcTransactionRecord{}).Where("id = ?", btcTransactionRecord.Id).Updates(btcTransactionRecord)
+func (r *BtcTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.Table(tableName).Model(&BtcTransactionRecord{}).Where("id = ?", btcTransactionRecord.Id).Updates(btcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update btcTransactionRecord failed", err)
@@ -138,9 +124,9 @@ func (r *BtcTransactionRecordRepoImpl) Update(ctx context.Context, btcTransactio
 	return affected, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) FindByID(ctx context.Context, tableName string, id int64) (*BtcTransactionRecord, error) {
 	var btcTransactionRecord *BtcTransactionRecord
-	ret := r.gormDB.First(&btcTransactionRecord, id)
+	ret := r.gormDB.Table(tableName).First(&btcTransactionRecord, id)
 	err := ret.Error
 	if err != nil {
 		if fmt.Sprintf("%s", err) == POSTGRES_NOT_FOUND {
@@ -153,9 +139,9 @@ func (r *BtcTransactionRecordRepoImpl) FindByID(ctx context.Context, id int64) (
 	return btcTransactionRecord, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status string) ([]*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, tableName string, status string) ([]*BtcTransactionRecord, error) {
 	var btcTransactionRecordList []*BtcTransactionRecord
-	ret := r.gormDB.Where("status = ?", status).Find(&btcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("status = ?", status).Find(&btcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query btcTransactionRecord failed", err)
@@ -164,9 +150,9 @@ func (r *BtcTransactionRecordRepoImpl) FindByStatus(ctx context.Context, status 
 	return btcTransactionRecordList, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) ([]*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) ListByID(ctx context.Context, tableName string, id int64) ([]*BtcTransactionRecord, error) {
 	var btcTransactionRecordList []*BtcTransactionRecord
-	ret := r.gormDB.Where("id > ?", id).Find(&btcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Where("id > ?", id).Find(&btcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query btcTransactionRecord failed", err)
@@ -175,9 +161,9 @@ func (r *BtcTransactionRecordRepoImpl) ListByID(ctx context.Context, id int64) (
 	return btcTransactionRecordList, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*BtcTransactionRecord, error) {
 	var btcTransactionRecordList []*BtcTransactionRecord
-	ret := r.gormDB.Find(&btcTransactionRecordList)
+	ret := r.gormDB.Table(tableName).Find(&btcTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query btcTransactionRecord failed", err)
@@ -186,8 +172,8 @@ func (r *BtcTransactionRecordRepoImpl) ListAll(ctx context.Context) ([]*BtcTrans
 	return btcTransactionRecordList, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
-	ret := r.gormDB.Delete(&BtcTransactionRecord{}, id)
+func (r *BtcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
+	ret := r.gormDB.Table(tableName).Delete(&BtcTransactionRecord{}, id)
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete btcTransactionRecord failed", err)
@@ -197,8 +183,8 @@ func (r *BtcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, id int64)
 	return affected, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, blockNumber int) (int64, error) {
-	ret := r.gormDB.Where("block_number >= ?", blockNumber).Delete(&BtcTransactionRecord{})
+func (r *BtcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, tableName string, blockNumber int) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("block_number >= ?", blockNumber).Delete(&BtcTransactionRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete btcTransactionRecord failed", err)
@@ -208,9 +194,9 @@ func (r *BtcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 	return affected, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) FindLast(context.Context) (*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName string) (*BtcTransactionRecord, error) {
 	var btcTransactionRecord *BtcTransactionRecord
-	ret := r.gormDB.Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&btcTransactionRecord)
+	ret := r.gormDB.Table(tableName).Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&btcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last btcTransactionRecord failed", err)

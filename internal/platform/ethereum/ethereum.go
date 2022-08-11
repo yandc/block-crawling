@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,7 +28,7 @@ import (
 
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 const WITHDRAWAL_TOPIC = "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"
-
+const BLOCK_NO_TRANSCATION = "server returned empty transaction list but block header indicates transactions"
 
 type Platform struct {
 	subhandle.CommPlatform
@@ -121,6 +122,21 @@ func (p *Platform) GetTransactions() {
 }
 
 func (p *Platform) IndexBlock() bool {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("IndexBlock error, chainName:{}"+p.ChainName, e)
+			} else {
+				log.Errore("IndexBlock panic, chainName:{}"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链爬块失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
 	url := p.NodeURL
 	client, err := NewClient(url)
 	if err != nil {
@@ -167,11 +183,12 @@ func (p *Platform) IndexBlock() bool {
 		alarmMsg := fmt.Sprintf("请注意：%s链查询redis块高没有结果", p.ChainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
+		log.Info("查询redis缓存报错",zap.Any("未查出",p.ChainName))
 		return true
 	}
 	if curHeight <= int(height) {
 		block, err := client.GetBlockByNumber(ctx, big.NewInt(int64(curHeight)))
-		for i := 1; err != nil && i <= 5; i++ {
+		for i := 1; err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && i <= 5; i++ {
 			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 			if len(url_list) == 0 {
 				alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
@@ -188,8 +205,9 @@ func (p *Platform) IndexBlock() bool {
 			}
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
-		if err != nil {
-			log.Warn("请注意：未查到块高数据", zap.Any("chain", p.ChainName), zap.Any("height", curHeight))
+		//
+		if err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION{
+			log.Warn("请注意：未查到块高数据", zap.Any("chain", p.ChainName), zap.Any("height", curHeight),zap.Any("error",err))
 			return true
 		}
 		if block != nil {
@@ -197,20 +215,12 @@ func (p *Platform) IndexBlock() bool {
 			//3
 			preHeight := curHeight - 1
 			preHash := block.ParentHash().String()
-			curPreBlockHash, err := data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
+			curPreBlockHash, _ := data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 
 			if curPreBlockHash == "" {
 				bh := preDBBlockHash[preHeight]
 				if bh != "" {
 					curPreBlockHash = bh
-				} else {
-					if err != nil {
-						// redis出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取区块hash失败", p.ChainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						return true
-					}
 				}
 			}
 
@@ -241,8 +251,8 @@ func (p *Platform) IndexBlock() bool {
 				curPreBlockHash, _ = data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 			}
 			if forked {
-				curHeight = preHeight + 1
-				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(ctx, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, preHeight)
+				curHeight = preHeight
+				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(ctx, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, preHeight + 1)
 				log.Info("出现分叉回滚数据", zap.Any("链类型", p.ChainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 			} else {
 				blockHash := ""
@@ -308,6 +318,7 @@ func (p *Platform) IndexBlock() bool {
 						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Info("查询redis缓存报错：用户中心获取",zap.Any(p.ChainName,fromAddress),zap.Any("error",errr))
 						return true
 					}
 					userToAddress, toUid, errt := biz.UserAddressSwitch(toAddress)
@@ -316,6 +327,7 @@ func (p *Platform) IndexBlock() bool {
 						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Info("查询redis缓存报错：用户中心获取",zap.Any(p.ChainName,toAddress),zap.Any("error",errt))
 						return true
 					}
 
@@ -535,16 +547,17 @@ func (p *Platform) IndexBlock() bool {
 						alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库库中失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Info("插入数据库报错：",zap.Any(p.ChainName,e))
 						return true
 					}
 				}
+
 				//保存对应块高hash
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), blockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 			}
-		} else {
-			return true
 		}
 	} else {
+		log.Info("开高不增长：",zap.Any(p.ChainName,"已是最高块"))
 		return true
 	}
 	data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, curHeight+1, 0)

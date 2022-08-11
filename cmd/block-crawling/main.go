@@ -84,10 +84,10 @@ func main() {
 		panic(err)
 	}
 	defer cleanup()
-	platform.MigrateRecord()
-	// start task
-	//start()
 
+	//platform.MigrateRecord()
+	// start task
+	start()
 	// start and wait for stop signal
 	if err := app.Run(); err != nil {
 		panic(err)
