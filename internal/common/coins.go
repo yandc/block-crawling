@@ -73,6 +73,7 @@ const (
 	FILECOIN     = 461
 	OASIS        = 474
 	STARCOIN     = 101010
+	APTOS        = 101011
 )
 
 var HandleMap = map[string]uint{
@@ -80,6 +81,7 @@ var HandleMap = map[string]uint{
 	"starcoin": STARCOIN,
 	"bitcoin":  BITCOIN,
 	"tron":     TRON,
+	"aptos":    APTOS,
 }
 
 var Coins = map[uint]Coin{
@@ -513,6 +515,14 @@ var Coins = map[uint]Coin{
 		Decimals:     9,
 		LiveInterval: 3000,
 	},
+	APTOS: {
+		ID:           101011,
+		Handle:       "aptos",
+		Symbol:       "APT",
+		Name:         "Aptos",
+		Decimals:     0,
+		LiveInterval: 1000,
+	},
 }
 
 func CoinByHandler(handler string) Coin {
@@ -680,4 +690,7 @@ func Oasis() Coin {
 }
 func Starcoin() Coin {
 	return Coins[STARCOIN]
+}
+func Aptos() Coin {
+	return Coins[APTOS]
 }

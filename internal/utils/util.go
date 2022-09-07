@@ -6,18 +6,38 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/btcsuite/btcutil/base58"
+	types2 "github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"strings"
 	"sync"
+	"time"
 )
 
 var recordRPCUrl sync.Map
+var dayFormat = "2006-01-02"
+var local, _ = time.LoadLocation("Asia/Shanghai")
 
-func BigIntString(balance *big.Int, decimals int64) string {
-	amount := bigIntFloat(balance, decimals)
-	deci := fmt.Sprintf("%%0.%vf", decimals)
-	return clean(fmt.Sprintf(deci, amount))
+func BigIntString(balance *big.Int, decimals int) string {
+	amount := balance.String()
+	return StringDecimals(amount, decimals)
+}
+
+func StringDecimals(amount string, decimals int) string {
+	var result string
+	if len(amount) > decimals {
+		result = fmt.Sprintf("%s.%s", amount[0:len(amount)-decimals], amount[len(amount)-decimals:])
+	} else {
+		sub := decimals - len(amount)
+		var zero string
+		for i := 0; i < sub; i++ {
+			zero += "0"
+		}
+		result = "0." + zero + amount
+	}
+	return clean(strings.TrimRight(result, "0"))
 }
 
 func bigIntFloat(balance *big.Int, decimals int64) *big.Float {
@@ -136,4 +156,60 @@ func GetRPCFailureRate(rpc string) int {
 	fail := r.SumCount - r.SuccessCount
 	failRate := int((fail * 100) / r.SumCount)
 	return failRate
+}
+
+func JsonEncode(source interface{}) (string, error) {
+	bytesBuffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(bytesBuffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(source)
+	if err != nil {
+		return "", err
+	}
+	jsons := string(bytesBuffer.Bytes())
+	tsjsons := strings.TrimSuffix(jsons, "\n")
+	return tsjsons, nil
+}
+
+func CopyProperties(source interface{}, target interface{}) error {
+	bytesBuffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(bytesBuffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(source)
+	if err != nil {
+		return err
+	}
+
+	decoder := json.NewDecoder(bytesBuffer)
+	err = decoder.Decode(&target)
+	return err
+}
+
+func ListToString(list interface{}) string {
+	listBytes, _ := json.Marshal(list)
+	var result = string(listBytes)
+	result = result[1 : len(result)-1]
+	return result
+}
+
+func HexToAddress(hexList []string) []string {
+	var addressList []string
+	if len(hexList) > 0 {
+		for _, addr := range hexList {
+			addressList = append(addressList, types2.HexToAddress(addr).Hex())
+		}
+	}
+	return addressList
+}
+
+func GetDayTime(t *time.Time) int64 {
+	var tm time.Time
+	if t == nil {
+		tm = time.Now()
+	} else {
+		tm = *t
+	}
+	day := tm.Format(dayFormat)
+	dayTime, _ := time.ParseInLocation(dayFormat, day, local)
+	return dayTime.Unix()
 }

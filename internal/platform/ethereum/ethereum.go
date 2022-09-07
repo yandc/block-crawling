@@ -28,7 +28,9 @@ import (
 
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 const WITHDRAWAL_TOPIC = "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"
+const DEPOST_TOPIC = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 const BLOCK_NO_TRANSCATION = "server returned empty transaction list but block header indicates transactions"
+const BLOCK_NONAL_TRANSCATION = "server returned non-empty transaction list but block header indicates no transactions"
 
 type Platform struct {
 	subhandle.CommPlatform
@@ -69,6 +71,16 @@ func GetPreferentialUrl(rpcURL []string, chainName string) []KVPair {
 	for i := 0; i < len(rpcURL); i++ {
 		wg.Add(1)
 		go func(index int) {
+			defer func() {
+				if err := recover(); err != nil {
+					if e, ok := err.(error); ok {
+						log.Errore("GetPreferentialUrl error, chainName:"+chainName, e)
+					} else {
+						log.Errore("GetPreferentialUrl panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+					}
+				}
+			}()
+
 			defer wg.Done()
 			url := rpcURL[index]
 			client, err := NewClient(url)
@@ -113,6 +125,7 @@ func (p *Platform) Coin() coins.Coin {
 }
 
 func (p *Platform) GetTransactions() {
+	log.Info("GetTransactions starting, chainName:" + p.ChainName)
 	for true {
 		h := p.IndexBlock()
 		if h {
@@ -125,9 +138,9 @@ func (p *Platform) IndexBlock() bool {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("IndexBlock error, chainName:{}"+p.ChainName, e)
+				log.Errore("IndexBlock error, chainName:"+p.ChainName, e)
 			} else {
-				log.Errore("IndexBlock panic, chainName:{}"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("IndexBlock panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -145,7 +158,7 @@ func (p *Platform) IndexBlock() bool {
 	}
 	defer client.Close()
 	ctx := context.Background()
-	height, err := client.GetBlockNumber(ctx)
+	heightu, err := client.GetBlockNumber(ctx)
 	for i := 1; err != nil && i <= 5; i++ {
 		url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 		if len(url_list) == 0 {
@@ -159,36 +172,48 @@ func (p *Platform) IndexBlock() bool {
 			if err != nil {
 				continue
 			}
-			height, err = client.GetBlockNumber(ctx)
+			heightu, err = client.GetBlockNumber(ctx)
 		}
 		time.Sleep(time.Duration(3*i) * time.Second)
 	}
+	height := int(heightu)
 
 	//获取本地当前块高
 	curHeight := -1
 	preDBBlockHash := make(map[int]string)
-
 	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + p.ChainName).Result()
 	if redisHeight != "" {
 		curHeight, _ = strconv.Atoi(redisHeight)
 	} else {
-		row, _ := data.EvmTransactionRecordRepoClient.FindLast(ctx, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
-		if row != nil && row.BlockNumber != 0 {
-			curHeight = row.BlockNumber + 1
-			preDBBlockHash[row.BlockNumber] = row.BlockHash
+		lastRecord, err := data.EvmTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(p.ChainName))
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			lastRecord, err = data.EvmTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(p.ChainName))
+		}
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中块高失败", p.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(p.ChainName+"扫块，从数据库中获取块高失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+			return true
+		}
+		if lastRecord == nil {
+			curHeight = height
+			log.Error(p.ChainName+"扫块，从数据库中获取的块高为空", zap.Any("curHeight", curHeight), zap.Any("new", height))
+			//return true
+		} else {
+			curHeight = lastRecord.BlockNumber + 1
+			preDBBlockHash[lastRecord.BlockNumber] = lastRecord.BlockHash
 		}
 	}
-	if curHeight == -1 {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询redis块高没有结果", p.ChainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
-		log.Info("查询redis缓存报错",zap.Any("未查出",p.ChainName))
+	if curHeight > height {
 		return true
 	}
-	if curHeight <= int(height) {
+
+	if curHeight <= height {
 		block, err := client.GetBlockByNumber(ctx, big.NewInt(int64(curHeight)))
-		for i := 1; err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && i <= 5; i++ {
+		for i := 1; err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION && i <= 5; i++ {
 			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 			if len(url_list) == 0 {
 				alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
@@ -206,11 +231,12 @@ func (p *Platform) IndexBlock() bool {
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
 		//
-		if err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION{
-			log.Warn("请注意：未查到块高数据", zap.Any("chain", p.ChainName), zap.Any("height", curHeight),zap.Any("error",err))
-			return true
+		if err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
+			log.Warn("请注意：未查到块高数据", zap.Any("chain", p.ChainName), zap.Any("height", curHeight), zap.Any("error", err))
 		}
+
 		if block != nil {
+			data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), block.Hash().String(), biz.BLOCK_HASH_EXPIRATION_KEY)
 			forked := false
 			//3
 			preHeight := curHeight - 1
@@ -252,37 +278,40 @@ func (p *Platform) IndexBlock() bool {
 			}
 			if forked {
 				curHeight = preHeight
-				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(ctx, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, preHeight + 1)
+				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(ctx, biz.GetTalbeName(p.ChainName), preHeight+1)
 				log.Info("出现分叉回滚数据", zap.Any("链类型", p.ChainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 			} else {
 				blockHash := ""
 				var txRecords []*data.EvmTransactionRecord
+				now := time.Now().Unix()
 				for _, transaction := range block.Transactions() {
-					receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
-					for i := 1; err != nil && i <= 5; i++ {
-						url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
-						if len(url_list) == 0 {
-							alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
-							alarmOpts := biz.WithMsgLevel("FATAL")
-							biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
-						}
-						for j := 0; err != nil && j < len(url_list); j++ {
-							url = url_list[j].Key
-							client, err = NewClient(url)
-							if err != nil {
-								continue
+					if blockHash == "" {
+						receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
+						for i := 1; err != nil && i <= 5; i++ {
+							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+							if len(url_list) == 0 {
+								alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+								alarmOpts := biz.WithMsgLevel("FATAL")
+								biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
 							}
-							receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
+							for j := 0; err != nil && j < len(url_list); j++ {
+								url = url_list[j].Key
+								client, err = NewClient(url)
+								if err != nil {
+									continue
+								}
+								receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
+							}
+							time.Sleep(time.Duration(3*i) * time.Second)
 						}
-						time.Sleep(time.Duration(3*i) * time.Second)
+						if receipt != nil && err == nil {
+							blockHash = receipt.BlockHash.String()
+						}
 					}
-					if receipt != nil && err == nil && blockHash == "" {
-						blockHash = receipt.BlockHash.String()
-					}
+
 					var from common.Address
 					var toAddress, feeAmount string
 					var tokenInfo types.TokenInfo
-					feeData := make(map[string]string)
 					from, err = types2.Sender(types2.NewLondonSigner(transaction.ChainId()), transaction)
 					if err != nil {
 						from, err = types2.Sender(types2.HomesteadSigner{}, transaction)
@@ -318,7 +347,7 @@ func (p *Platform) IndexBlock() bool {
 						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Info("查询redis缓存报错：用户中心获取",zap.Any(p.ChainName,fromAddress),zap.Any("error",errr))
+						log.Info("查询redis缓存报错：用户中心获取", zap.Any(p.ChainName, fromAddress), zap.Any("error", errr))
 						return true
 					}
 					userToAddress, toUid, errt := biz.UserAddressSwitch(toAddress)
@@ -327,7 +356,7 @@ func (p *Platform) IndexBlock() bool {
 						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Info("查询redis缓存报错：用户中心获取",zap.Any(p.ChainName,toAddress),zap.Any("error",errt))
+						log.Info("查询redis缓存报错：用户中心获取", zap.Any(p.ChainName, toAddress), zap.Any("error", errt))
 						return true
 					}
 
@@ -365,8 +394,8 @@ func (p *Platform) IndexBlock() bool {
 								}
 							}
 						}
-						receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
 
+						receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
 						for i := 1; err != nil && i <= 5; i++ {
 							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 							if len(url_list) == 0 {
@@ -387,12 +416,12 @@ func (p *Platform) IndexBlock() bool {
 						if err != nil {
 							continue
 						}
+
 						var eventLogs []types.EventLog
-						eventLogMap := make(map[types.EventLog]struct{})
 						if transactionType != "native" {
 							for _, log_ := range receipt.Logs {
 								if len(log_.Topics) > 1 && (log_.Topics[0].String() == TRANSFER_TOPIC ||
-									log_.Topics[0].String() == WITHDRAWAL_TOPIC) {
+									log_.Topics[0].String() == WITHDRAWAL_TOPIC || log_.Topics[0].String() == DEPOST_TOPIC) {
 									var token types.TokenInfo
 									amount := big.NewInt(0)
 									if len(log_.Data) >= 32 {
@@ -409,14 +438,33 @@ func (p *Platform) IndexBlock() bool {
 									}
 									eventFrom := common.HexToAddress(log_.Topics[1].String()).String()
 									var to string
+									//判断合约 转账， 提现， 兑换。
 									if len(log_.Topics) > 2 && log_.Topics[0].String() == TRANSFER_TOPIC {
 										to = common.HexToAddress(log_.Topics[2].String()).String()
 									} else if log_.Topics[0].String() == WITHDRAWAL_TOPIC {
-										to = fromAddress
-										if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-											token.Symbol = token.Symbol[1:]
+										//提现，判断 用户无需话费value 判断value是否为0
+										if value == "0" {
+											to = fromAddress
+											if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+												token.Symbol = token.Symbol[1:]
+											}
+										} else {
+											to = toAddress
+										}
+									} else if log_.Topics[0].String() == DEPOST_TOPIC {
+										//兑换时判断 交易金额不能为 0
+										//判断 value是否为0 不为 0 则增加记录
+										to = common.HexToAddress(log_.Topics[1].String()).String()
+										if value != "0" {
+											eventFrom = fromAddress
+											if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+												token.Symbol = token.Symbol[1:]
+											}
+										} else {
+											eventFrom = toAddress
 										}
 									}
+
 									eventLog := types.EventLog{
 										From:   eventFrom,
 										To:     to,
@@ -424,9 +472,6 @@ func (p *Platform) IndexBlock() bool {
 										Token:  token,
 									}
 									eventLogs = append(eventLogs, eventLog)
-									if log_.Topics[0].String() == WITHDRAWAL_TOPIC {
-										eventLogMap[eventLog] = struct{}{}
-									}
 								}
 							}
 						}
@@ -438,57 +483,68 @@ func (p *Platform) IndexBlock() bool {
 							"token": tokenInfo,
 						}
 						parseData, _ := json.Marshal(evmMap)
-						feeData["gas_limit"] = fmt.Sprintf("%v", transaction.Gas())
-						feeData["gas_used"] = fmt.Sprintf("%v", receipt.GasUsed)
-						feeData["gas_price"] = transaction.GasPrice().String()
-						feeData["base_fee"] = block.BaseFee().String()
+						var gasPrice = transaction.GasPrice().String()
+						var baseFee string
+						var maxFeePerGas string
+						var maxPriorityFeePerGas string
+						if block.BaseFee() != nil {
+							baseFee = block.BaseFee().String()
+						}
 						if transaction.Type() == types2.DynamicFeeTxType {
-							feeData["max_fee_per_gas"] = transaction.GasFeeCap().String()
-							feeData["max_priority_fee_per_gas"] = transaction.GasFeeCap().String()
+							if transaction.GasFeeCap() != nil {
+								maxFeePerGas = transaction.GasFeeCap().String()
+							}
+							if transaction.GasTipCap() != nil {
+								maxPriorityFeePerGas = transaction.GasTipCap().String()
+							}
 						}
 						feeAmount = fmt.Sprintf("%v", receipt.GasUsed*transaction.GasPrice().Uint64())
-						status := types.STATUSPENDING
+						status := biz.PENDING
 						if value, ok := types.Status[receipt.Status]; ok {
 							status = value
 						}
 						bn, _ := strconv.Atoi(receipt.BlockNumber.String())
 						fa, _ := decimal.NewFromString(feeAmount)
 						at, _ := decimal.NewFromString(value)
-						now := time.Now().Unix()
-						eventLogJson, _ := json.Marshal(eventLogs)
-						evmTransactionRecord := &data.EvmTransactionRecord{
-							BlockHash:       blockHash,
-							BlockNumber:     bn,
-							Nonce:           int64(transaction.Nonce()),
-							TransactionHash: transaction.Hash().String(),
-							FromAddress:     fromAddress,
-							ToAddress:       toAddress,
-							FromUid:         fromUid,
-							ToUid:           toUid,
-							FeeAmount:       fa,
-							Amount:          at,
-							Status:          status,
-							TxTime:          int64(block.Time()),
-							ContractAddress: tokenInfo.Address,
-							ParseData:       string(parseData),
-							Type:            fmt.Sprintf("%v", transaction.Type()),
-							GasLimit:        fmt.Sprintf("%v", transaction.Gas()),
-							GasUsed:         fmt.Sprintf("%v", receipt.GasUsed),
-							GasPrice:        transaction.GasPrice().String(),
-							BaseFee:         block.BaseFee().String(),
-							Data:            hex.EncodeToString(transaction.Data()),
-							EventLog:        string(eventLogJson),
-							TransactionType: transactionType,
-							DappData:        "",
-							ClientData:      "",
-							CreatedAt:       now,
-							UpdatedAt:       now,
+						var eventLog string
+						if eventLogs != nil {
+							eventLogJson, _ := json.Marshal(eventLogs)
+							eventLog = string(eventLogJson)
 						}
-
+						evmTransactionRecord := &data.EvmTransactionRecord{
+							BlockHash:            blockHash,
+							BlockNumber:          bn,
+							Nonce:                int64(transaction.Nonce()),
+							TransactionHash:      transaction.Hash().String(),
+							FromAddress:          fromAddress,
+							ToAddress:            toAddress,
+							FromUid:              fromUid,
+							ToUid:                toUid,
+							FeeAmount:            fa,
+							Amount:               at,
+							Status:               status,
+							TxTime:               int64(block.Time()),
+							ContractAddress:      tokenInfo.Address,
+							ParseData:            string(parseData),
+							Type:                 fmt.Sprintf("%v", transaction.Type()),
+							GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
+							GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+							GasPrice:             gasPrice,
+							BaseFee:              baseFee,
+							MaxFeePerGas:         maxFeePerGas,
+							MaxPriorityFeePerGas: maxPriorityFeePerGas,
+							Data:                 hex.EncodeToString(transaction.Data()),
+							EventLog:             eventLog,
+							TransactionType:      transactionType,
+							DappData:             "",
+							ClientData:           "",
+							CreatedAt:            now,
+							UpdatedAt:            now,
+						}
 						txRecords = append(txRecords, evmTransactionRecord)
+
 						if len(eventLogs) > 0 && transactionType == "contract" {
 							for index, eventLog := range eventLogs {
-
 								eventMap := map[string]interface{}{
 									"evm": map[string]string{
 										"nonce": fmt.Sprintf("%v", transaction.Nonce()),
@@ -501,55 +557,53 @@ func (p *Platform) IndexBlock() bool {
 								txHash := transaction.Hash().String() + "#result-" + fmt.Sprintf("%v", index+1)
 								txType := "eventLog"
 								contractAddress := eventLog.Token.Address
-								if _, ok := eventLogMap[eventLog]; ok {
-									txType = "native"
-									contractAddress = ""
-								}
 								evmlogTransactionRecord := &data.EvmTransactionRecord{
-									BlockHash:       blockHash,
-									BlockNumber:     bn,
-									Nonce:           int64(transaction.Nonce()),
-									TransactionHash: txHash,
-									FromAddress:     eventLog.From,
-									ToAddress:       eventLog.To,
-									FromUid:         fromUid,
-									ToUid:           toUid,
-									FeeAmount:       fa,
-									Amount:          at,
-									Status:          status,
-									TxTime:          int64(block.Time()),
-									ContractAddress: contractAddress,
-									ParseData:       string(eventParseData),
-									Type:            fmt.Sprintf("%v", transaction.Type()),
-									GasLimit:        fmt.Sprintf("%v", transaction.Gas()),
-									GasUsed:         fmt.Sprintf("%v", receipt.GasUsed),
-									GasPrice:        transaction.GasPrice().String(),
-									BaseFee:         block.BaseFee().String(),
-									Data:            hex.EncodeToString(transaction.Data()),
-									TransactionType: txType,
-									DappData:        "",
-									ClientData:      "",
-									CreatedAt:       now,
-									UpdatedAt:       now,
+									BlockHash:            blockHash,
+									BlockNumber:          bn,
+									Nonce:                int64(transaction.Nonce()),
+									TransactionHash:      txHash,
+									FromAddress:          eventLog.From,
+									ToAddress:            eventLog.To,
+									FromUid:              fromUid,
+									ToUid:                toUid,
+									FeeAmount:            fa,
+									Amount:               at,
+									Status:               status,
+									TxTime:               int64(block.Time()),
+									ContractAddress:      contractAddress,
+									ParseData:            string(eventParseData),
+									Type:                 fmt.Sprintf("%v", transaction.Type()),
+									GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
+									GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+									GasPrice:             gasPrice,
+									BaseFee:              baseFee,
+									MaxFeePerGas:         maxFeePerGas,
+									MaxPriorityFeePerGas: maxPriorityFeePerGas,
+									Data:                 hex.EncodeToString(transaction.Data()),
+									TransactionType:      txType,
+									DappData:             "",
+									ClientData:           "",
+									CreatedAt:            now,
+									UpdatedAt:            now,
 								}
 								txRecords = append(txRecords, evmlogTransactionRecord)
-
 							}
 						}
 					}
 				}
 
 				if txRecords != nil && len(txRecords) > 0 {
-					e := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
+					e := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 					if e != nil {
 						// postgres出错 接入lark报警
 						log.Error("插入数据到数据库库中失败", zap.Any("current", curHeight), zap.Any("chain", p.ChainName))
 						alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库库中失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Info("插入数据库报错：",zap.Any(p.ChainName,e))
+						log.Info("插入数据库报错：", zap.Any(p.ChainName, e))
 						return true
 					}
+					go HandleRecord(p.ChainName, client, txRecords)
 				}
 
 				//保存对应块高hash
@@ -557,19 +611,38 @@ func (p *Platform) IndexBlock() bool {
 			}
 		}
 	} else {
-		log.Info("开高不增长：",zap.Any(p.ChainName,"已是最高块"))
 		return true
 	}
 	data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, curHeight+1, 0)
 	return false
 }
+
 func (p *Platform) GetTransactionResultByTxhash() {
-	records, err := data.EvmTransactionRecordRepoClient.FindByStatus(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, types.STATUSPENDING)
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("GetTransactionsResult error, chainName:"+p.ChainName, e)
+			} else {
+				log.Errore("GetTransactionsResult panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理交易结果失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	records, err := data.EvmTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(p.ChainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(p.ChainName+"查询数据库失败", zap.Any("error", err))
 		return
 	}
 	log.Info(p.ChainName, zap.Any("records", records))
+	var txRecords []*data.EvmTransactionRecord
+	now := time.Now().Unix()
+
 	url := p.NodeURL
 	client, err := NewClient(url)
 	if err != nil {
@@ -579,8 +652,8 @@ func (p *Platform) GetTransactionResultByTxhash() {
 	ctx := context.Background()
 	for _, record := range records {
 		txhash := strings.Split(record.TransactionHash, "#")[0]
-		txByhash, _, err1 := client.GetTransactionByHash(ctx, common.HexToHash(txhash))
-		for i := 1; err1 != nil && i <= 5; i++ {
+		txByhash, isPending, err1 := client.GetTransactionByHash(ctx, common.HexToHash(txhash))
+		for i := 1; err1 != nil && err1 != ethereum.NotFound && i <= 5; i++ {
 			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 			if len(url_list) == 0 {
 				alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
@@ -593,92 +666,79 @@ func (p *Platform) GetTransactionResultByTxhash() {
 				if err1 != nil {
 					continue
 				}
-				txByhash, _, err1 = client.GetTransactionByHash(ctx, common.HexToHash(txhash))
-
+				txByhash, isPending, err1 = client.GetTransactionByHash(ctx, common.HexToHash(txhash))
 			}
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
-		if err1 != nil || txByhash == nil {
+		if err1 != nil && err1 != ethereum.NotFound {
+			continue
+		}
+
+		if isPending {
+			continue
+		}
+
+		if txByhash == nil {
 			//判断nonce 是否小于 当前链上的nonce
 			nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
 			if nonceErr != nil {
 				continue
 			}
 			if int(record.Nonce) < int(nonce) {
-				record.Status = types.STATUSFAIL
-				i, _ := data.EvmTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-				log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
+				record.Status = biz.DROPPED_REPLACED
+				txRecords = append(txRecords, record)
+				log.Info("更新txhash对象为丢弃置换状态", zap.Any("txId", record.TransactionHash))
 				continue
 			} else {
 				now := time.Now().Unix()
 				ctime := record.CreatedAt + 21600
 				if ctime < now {
-					record.Status = types.STATUSFAIL
-					i, _ := data.EvmTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-					log.Info("更新txhash对象为终态:交易被抛弃", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
+					record.Status = biz.FAIL
+					txRecords = append(txRecords, record)
+					log.Info("更新txhash对象为终态:交易被抛弃", zap.Any("txId", record.TransactionHash))
+					continue
+				} else {
+					record.Status = biz.NO_STATUS
+					txRecords = append(txRecords, record)
+					log.Info("更新txhash对象无状态", zap.Any("txId", record.TransactionHash))
 					continue
 				}
-				continue
 			}
 		}
 
-		receipt, err2 := client.GetTransactionReceipt(ctx, common.HexToHash(txhash))
-		if err2 == ethereum.NotFound {
-			record.Status = types.STATUSFAIL
-			i, _ := data.EvmTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-			log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
-			continue
-		}
-		if err2 != nil {
+		receipt, err := client.GetTransactionReceipt(ctx, common.HexToHash(txhash))
+		if err != nil {
 			continue
 		}
 
-		if receipt.Status == 1 {
-			block, err3 := client.GetBlockByNumber(ctx, receipt.BlockNumber)
-			if err3 != nil {
-				continue
+		curHeight := receipt.BlockNumber
+		blockHash := receipt.BlockHash.String()
+		block, err := client.GetBlockByNumber(ctx, curHeight)
+		for i := 1; err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION && i <= 5; i++ {
+			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+			if len(url_list) == 0 {
+				alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
 			}
-			tx, isPending1, err11 := client.GetTransactionByHash(ctx, common.HexToHash(txhash))
-			if err11 != nil || isPending1 {
-				continue
-			}
-			var from common.Address
-			var toAddress, feeAmount string
-			var tokenInfo types.TokenInfo
-			feeData := make(map[string]string)
-			from, err = types2.Sender(types2.NewLondonSigner(tx.ChainId()), tx)
-			if err != nil {
-				from, err = types2.Sender(types2.HomesteadSigner{}, tx)
-			}
-			if tx.To() != nil {
-				toAddress = tx.To().String()
-			}
-			fromAddress := from.String()
-			value := tx.Value().String()
-			transactionType := "native"
-			if len(tx.Data()) >= 68 && tx.To() != nil {
-				methodId := hex.EncodeToString(tx.Data()[:4])
-				if methodId == "a9059cbb" || methodId == "095ea7b3" {
-					toAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[4:36])).String()
-					amount := new(big.Int).SetBytes(tx.Data()[36:])
-					if methodId == "a9059cbb" {
-						transactionType = "transfer"
-					} else {
-						transactionType = "approve"
-					}
-					value = amount.String()
-				} else if methodId == "23b872dd" {
-					fromAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[4:36])).String()
-					toAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[36:68])).String()
-					amount := new(big.Int).SetBytes(tx.Data()[68:])
-					transactionType = "transferfrom"
-					value = amount.String()
+			for j := 0; err != nil && j < len(url_list); j++ {
+				url = url_list[j].Key
+				client, err = NewClient(url)
+				if err != nil {
+					continue
 				}
+				block, err = client.GetBlockByNumber(ctx, curHeight)
+			}
+			time.Sleep(time.Duration(3*i) * time.Second)
+		}
 
+		for _, transaction := range block.Transactions() {
+			if transaction.Hash().String() != record.TransactionHash {
+				continue
 			}
 
-			if tx.To() != nil {
-				codeAt, err := client.CodeAt(ctx, common.HexToAddress(tx.To().String()), nil)
+			/*if blockHash == "" {
+				receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
 				for i := 1; err != nil && i <= 5; i++ {
 					url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 					if len(url_list) == 0 {
@@ -692,97 +752,309 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						if err != nil {
 							continue
 						}
-						codeAt, err = client.CodeAt(ctx, common.HexToAddress(tx.To().String()), nil)
+						receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
 					}
 					time.Sleep(time.Duration(3*i) * time.Second)
 				}
-				if len(codeAt) > 0 {
-					if transactionType == "native" {
-						transactionType = "contract"
+				if receipt != nil && err == nil {
+					blockHash = receipt.BlockHash.String()
+				}
+			}*/
+
+			var from common.Address
+			var toAddress, feeAmount string
+			var tokenInfo types.TokenInfo
+			from, err = types2.Sender(types2.NewLondonSigner(transaction.ChainId()), transaction)
+			if err != nil {
+				from, err = types2.Sender(types2.HomesteadSigner{}, transaction)
+			}
+			if transaction.To() != nil {
+				toAddress = transaction.To().String()
+			}
+			fromAddress := from.String()
+			value := transaction.Value().String()
+			transactionType := "native"
+			if len(transaction.Data()) >= 68 && transaction.To() != nil {
+				methodId := hex.EncodeToString(transaction.Data()[:4])
+				if methodId == "a9059cbb" || methodId == "095ea7b3" {
+					toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+					amount := new(big.Int).SetBytes(transaction.Data()[36:])
+					if methodId == "a9059cbb" {
+						transactionType = "transfer"
 					} else {
-						decimals, symbol, err := GetTokenDecimals(tx.To().String(), client)
-						if err != nil || decimals == 0 || symbol == "" {
+						transactionType = "approve"
+					}
+					value = amount.String()
+				} else if methodId == "23b872dd" {
+					fromAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+					toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[36:68])).String()
+					amount := new(big.Int).SetBytes(transaction.Data()[68:])
+					transactionType = "transferfrom"
+					value = amount.String()
+				}
+			}
+			userFromAddress, fromUid, errr := biz.UserAddressSwitch(fromAddress)
+			if errr != nil {
+				// redis出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Info("查询redis缓存报错：用户中心获取", zap.Any(p.ChainName, fromAddress), zap.Any("error", errr))
+				return
+			}
+			userToAddress, toUid, errt := biz.UserAddressSwitch(toAddress)
+			if errt != nil {
+				// redis出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Info("查询redis缓存报错：用户中心获取", zap.Any(p.ChainName, toAddress), zap.Any("error", errt))
+				return
+			}
+
+			if userFromAddress || userToAddress {
+				if transaction.To() != nil {
+					codeAt, err := client.CodeAt(ctx, common.HexToAddress(transaction.To().String()), nil)
+					for i := 1; err != nil && i <= 5; i++ {
+						url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+						if len(url_list) == 0 {
+							alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
+						}
+						for j := 0; err != nil && j < len(url_list); j++ {
+							url = url_list[j].Key
+							client, err = NewClient(url)
+							if err != nil {
+								continue
+							}
+							codeAt, err = client.CodeAt(ctx, common.HexToAddress(transaction.To().String()), nil)
+						}
+						time.Sleep(time.Duration(3*i) * time.Second)
+					}
+					if len(codeAt) > 0 {
+						if transactionType == "native" {
 							transactionType = "contract"
 						} else {
-							tokenInfo = types.TokenInfo{Decimals: decimals, Amount: value, Symbol: symbol}
-						}
-						tokenInfo.Address = tx.To().String()
-					}
-				}
-			}
-
-			var eventLogs []types.EventLog
-			eventLogMap := make(map[types.EventLog]struct{})
-			if transactionType != "native" {
-				for _, log := range receipt.Logs {
-					if len(log.Topics) > 1 && (log.Topics[0].String() == TRANSFER_TOPIC ||
-						log.Topics[0].String() == WITHDRAWAL_TOPIC) {
-						var token types.TokenInfo
-						amount := big.NewInt(0)
-						if len(log.Data) >= 32 {
-							amount = new(big.Int).SetBytes(log.Data[:32])
-						}
-						if log.Address.String() != "" {
-							d, s, _ := GetTokenDecimals(log.Address.String(), client)
-							token = types.TokenInfo{
-								Address:  log.Address.String(),
-								Decimals: d,
-								Symbol:   s,
-								Amount:   amount.String(),
+							decimals, symbol, err := GetTokenDecimals(transaction.To().String(), client)
+							if err != nil || decimals == 0 || symbol == "" {
+								transactionType = "contract"
+							} else {
+								tokenInfo = types.TokenInfo{Decimals: decimals, Amount: value, Symbol: symbol}
 							}
-						}
-						eventFrom := common.HexToAddress(log.Topics[1].String()).String()
-						var to string
-						if len(log.Topics) > 2 && log.Topics[0].String() == TRANSFER_TOPIC {
-							to = common.HexToAddress(log.Topics[2].String()).String()
-						} else if log.Topics[0].String() == WITHDRAWAL_TOPIC {
-							to = fromAddress
-							if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-								token.Symbol = token.Symbol[1:]
-							}
-						}
-						eventLog := types.EventLog{
-							From:   eventFrom,
-							To:     to,
-							Amount: amount,
-							Token:  token,
-						}
-						eventLogs = append(eventLogs, eventLog)
-						if log.Topics[0].String() == WITHDRAWAL_TOPIC {
-							eventLogMap[eventLog] = struct{}{}
+							tokenInfo.Address = transaction.To().String()
 						}
 					}
 				}
-			}
 
-			feeData["gas_limit"] = fmt.Sprintf("%v", tx.Gas())
-			feeData["gas_used"] = fmt.Sprintf("%v", receipt.GasUsed)
-			feeData["gas_price"] = tx.GasPrice().String()
-			feeData["base_fee"] = block.BaseFee().String()
+				/*receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
+				for i := 1; err != nil && i <= 5; i++ {
+					url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+					if len(url_list) == 0 {
+						alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
+					}
+					for j := 0; err != nil && j < len(url_list); j++ {
+						url = url_list[j].Key
+						client, err = NewClient(url)
+						if err != nil {
+							continue
+						}
+						receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
+					}
+					time.Sleep(time.Duration(3*i) * time.Second)
+				}
+				if err != nil {
+					continue
+				}*/
 
-			if tx.Type() == types2.DynamicFeeTxType {
-				feeData["max_fee_per_gas"] = tx.GasFeeCap().String()
-				feeData["max_priority_fee_per_gas"] = tx.GasFeeCap().String()
-			}
-			feeAmount = fmt.Sprintf("%v", receipt.GasUsed*tx.GasPrice().Uint64())
-			status := types.STATUSPENDING
-			if value, ok := types.Status[receipt.Status]; ok {
-				status = value
-			}
+				var eventLogs []types.EventLog
+				if transactionType != "native" {
+					for _, log_ := range receipt.Logs {
+						if len(log_.Topics) > 1 && (log_.Topics[0].String() == TRANSFER_TOPIC ||
+							log_.Topics[0].String() == WITHDRAWAL_TOPIC || log_.Topics[0].String() == DEPOST_TOPIC) {
+							var token types.TokenInfo
+							amount := big.NewInt(0)
+							if len(log_.Data) >= 32 {
+								amount = new(big.Int).SetBytes(log_.Data[:32])
+							}
+							if log_.Address.String() != "" {
+								d, s, _ := GetTokenDecimals(log_.Address.String(), client)
+								token = types.TokenInfo{
+									Address:  log_.Address.String(),
+									Decimals: d,
+									Symbol:   s,
+									Amount:   amount.String(),
+								}
+							}
+							eventFrom := common.HexToAddress(log_.Topics[1].String()).String()
+							var to string
+							//判断合约 转账， 提现， 兑换。
+							if len(log_.Topics) > 2 && log_.Topics[0].String() == TRANSFER_TOPIC {
+								to = common.HexToAddress(log_.Topics[2].String()).String()
+							} else if log_.Topics[0].String() == WITHDRAWAL_TOPIC {
+								//提现，判断 用户无需话费value 判断value是否为0
+								if value == "0" {
+									to = fromAddress
+									if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+										token.Symbol = token.Symbol[1:]
+									}
+								} else {
+									to = toAddress
+								}
+							} else if log_.Topics[0].String() == DEPOST_TOPIC {
+								//兑换时判断 交易金额不能为 0
+								//判断 value是否为0 不为 0 则增加记录
+								to = common.HexToAddress(log_.Topics[1].String()).String()
+								if value != "0" {
+									eventFrom = fromAddress
+									if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+										token.Symbol = token.Symbol[1:]
+									}
+								} else {
+									eventFrom = toAddress
+								}
+							}
 
-			now := time.Now().Unix()
-			record.Status = status
-			record.BlockHash = block.Hash().String()
-			record.UpdatedAt = now
-			record.ToAddress = toAddress
-			record.FromAddress = feeAmount
-			i, _ := data.EvmTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-			log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
+							eventLog := types.EventLog{
+								From:   eventFrom,
+								To:     to,
+								Amount: amount,
+								Token:  token,
+							}
+							eventLogs = append(eventLogs, eventLog)
+						}
+					}
+				}
+				evmMap := map[string]interface{}{
+					"evm": map[string]string{
+						"nonce": fmt.Sprintf("%v", transaction.Nonce()),
+						"type":  fmt.Sprintf("%v", transaction.Type()),
+					},
+					"token": tokenInfo,
+				}
+				parseData, _ := json.Marshal(evmMap)
+				var gasPrice = transaction.GasPrice().String()
+				var baseFee string
+				var maxFeePerGas string
+				var maxPriorityFeePerGas string
+				if block.BaseFee() != nil {
+					baseFee = block.BaseFee().String()
+				}
+				if transaction.Type() == types2.DynamicFeeTxType {
+					if transaction.GasFeeCap() != nil {
+						maxFeePerGas = transaction.GasFeeCap().String()
+					}
+					if transaction.GasTipCap() != nil {
+						maxPriorityFeePerGas = transaction.GasTipCap().String()
+					}
+				}
+				feeAmount = fmt.Sprintf("%v", receipt.GasUsed*transaction.GasPrice().Uint64())
+				status := biz.PENDING
+				if value, ok := types.Status[receipt.Status]; ok {
+					status = value
+				}
+				bn, _ := strconv.Atoi(receipt.BlockNumber.String())
+				fa, _ := decimal.NewFromString(feeAmount)
+				at, _ := decimal.NewFromString(value)
+				var eventLog string
+				if eventLogs != nil {
+					eventLogJson, _ := json.Marshal(eventLogs)
+					eventLog = string(eventLogJson)
+				}
+				evmTransactionRecord := &data.EvmTransactionRecord{
+					BlockHash:            blockHash,
+					BlockNumber:          bn,
+					Nonce:                int64(transaction.Nonce()),
+					TransactionHash:      transaction.Hash().String(),
+					FromAddress:          fromAddress,
+					ToAddress:            toAddress,
+					FromUid:              fromUid,
+					ToUid:                toUid,
+					FeeAmount:            fa,
+					Amount:               at,
+					Status:               status,
+					TxTime:               int64(block.Time()),
+					ContractAddress:      tokenInfo.Address,
+					ParseData:            string(parseData),
+					Type:                 fmt.Sprintf("%v", transaction.Type()),
+					GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
+					GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+					GasPrice:             gasPrice,
+					BaseFee:              baseFee,
+					MaxFeePerGas:         maxFeePerGas,
+					MaxPriorityFeePerGas: maxPriorityFeePerGas,
+					Data:                 hex.EncodeToString(transaction.Data()),
+					EventLog:             eventLog,
+					TransactionType:      transactionType,
+					DappData:             "",
+					ClientData:           "",
+					CreatedAt:            now,
+					UpdatedAt:            now,
+				}
+				txRecords = append(txRecords, evmTransactionRecord)
+
+				if len(eventLogs) > 0 && transactionType == "contract" {
+					for index, eventLog := range eventLogs {
+						eventMap := map[string]interface{}{
+							"evm": map[string]string{
+								"nonce": fmt.Sprintf("%v", transaction.Nonce()),
+								"type":  fmt.Sprintf("%v", transaction.Type()),
+							},
+							"token": eventLog.Token,
+						}
+						eventParseData, _ := json.Marshal(eventMap)
+						//b, _ := json.Marshal(eventLog)
+						txHash := transaction.Hash().String() + "#result-" + fmt.Sprintf("%v", index+1)
+						txType := "eventLog"
+						contractAddress := eventLog.Token.Address
+						evmlogTransactionRecord := &data.EvmTransactionRecord{
+							BlockHash:            blockHash,
+							BlockNumber:          bn,
+							Nonce:                int64(transaction.Nonce()),
+							TransactionHash:      txHash,
+							FromAddress:          eventLog.From,
+							ToAddress:            eventLog.To,
+							FromUid:              fromUid,
+							ToUid:                toUid,
+							FeeAmount:            fa,
+							Amount:               at,
+							Status:               status,
+							TxTime:               int64(block.Time()),
+							ContractAddress:      contractAddress,
+							ParseData:            string(eventParseData),
+							Type:                 fmt.Sprintf("%v", transaction.Type()),
+							GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
+							GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+							GasPrice:             gasPrice,
+							BaseFee:              baseFee,
+							MaxFeePerGas:         maxFeePerGas,
+							MaxPriorityFeePerGas: maxPriorityFeePerGas,
+							Data:                 hex.EncodeToString(transaction.Data()),
+							TransactionType:      txType,
+							DappData:             "",
+							ClientData:           "",
+							CreatedAt:            now,
+							UpdatedAt:            now,
+						}
+						txRecords = append(txRecords, evmlogTransactionRecord)
+					}
+				}
+			}
 		}
-		if receipt.Status == 0 {
-			record.Status = types.STATUSFAIL
-			i, _ := data.EvmTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-			log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
+	}
+
+	if txRecords != nil && len(txRecords) > 0 {
+		//保存交易数据
+		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
+			return
 		}
 	}
 }
@@ -803,10 +1075,10 @@ func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string)
 			stop = total
 		}
 
-		_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, tableName, subTxRecords)
+		_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, tableName, subTxRecords)
+			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

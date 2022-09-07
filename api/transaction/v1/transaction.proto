@@ -1,0 +1,286 @@
+syntax = "proto3";
+
+package api.transaction.v1;
+
+option go_package = "block-crawling/api/transaction/v1;v1";
+option java_multiple_files = true;
+option java_package = "api.transaction.v1";
+
+import "validate/validate.proto";
+
+service Transaction {
+  rpc CreateRecordFromWallet(TransactionReq) returns (CreateResponse);
+  //分页查询交易记录列表
+  rpc PageList(PageListRequest) returns (PageListResponse);
+  //查询pending状态的总金额
+  rpc GetAmount(AmountRequest) returns (AmountResponse);
+  rpc GetDappList(DappListReq) returns (DappListResp);
+  rpc GetAllOpenAmount(OpenAmountReq) returns (OpenAmoutResp);
+  rpc GetNonce(NonceReq) returns (NonceResp);
+  rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
+  //分页查询用户资产列表
+  rpc PageListAsset (AssetRequest) returns (AssetResponse);
+  //交易数据看板查询金额趋势图
+  rpc StatisticFundAmount (StatisticFundRequest) returns (FundAmountListResponse);
+  //交易数据看板查询金额占比图
+  rpc StatisticFundRate (StatisticFundRequest) returns (FundRateListResponse);
+}
+
+message DappPageListReq{
+  string chainName = 1;
+  string contractAddress = 2;
+  int32 page = 3;// 默认1
+  int32 limit = 4;//  默认20
+  string fromuid = 5;
+  string fromAddress = 6;
+}
+
+message DappPageListResp{
+  bool ok = 1;
+  DappPageData data = 2;
+}
+
+message DappPageData{
+  int32 page = 1;
+  int32 limit = 2;
+  int64 total = 3;
+  repeated TransactionRecord data = 4;
+}
+
+
+message NonceReq{
+  string chainName = 1 [(validate.rules).string = {min_len: 1}];
+  string address = 2 [(validate.rules).string = {min_len: 1}];
+}
+
+message NonceResp{
+  bool ok = 1;
+  int64 nonce = 2;
+}
+
+message OpenAmountReq{
+  string uid = 1 ; //--非必输
+  string currency = 2; // -- 必输  法币标的物
+  string chainName = 3;//  -- 非必输
+  string address = 4; //-- 非必输
+  string contractAddress = 5;//  -- 非必输
+}
+
+message OpenAmoutResp{
+  bool ok = 1;
+  OpenAmountInfo data = 2;
+}
+
+message OpenAmountInfo {
+  string riskExposureAmount = 1;
+}
+
+
+message DappListReq {
+  string uid = 1 ;//-- 必输
+  string chainName = 2 ;//-- 必输
+  repeated string addresses = 3; //-- 非必输
+  string contractAddress = 4;// -- 非必输
+  bool isCancel = 5 ;
+}
+
+
+message DappListResp {
+  bool ok = 1;
+  repeated DappInfo data = 2;
+}
+
+message DappInfo {
+  string contractAddress = 1;
+  string chain = 2;
+  string uid = 3;
+  string lastTxhash = 4;
+  string decimals = 5;
+  string address = 6;
+  string token = 7;
+  string toAddress = 8;
+  string amount = 9;
+  string original = 10 ;
+  string symbol = 11;
+}
+
+
+message CreateResponse {
+  bool status = 1;
+  uint64 code = 2;
+  string mes = 3;
+}
+
+message TransactionReq {
+  string uid = 1 ;//-- 必输
+  string chainName = 2 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string transactionHash = 3 [(validate.rules).string = {min_len: 1}]; // -- 必输
+  string status = 4 [(validate.rules).string = {min_len: 1}]; // (status[success,fail,pending,refuse,no_status,cancel,invalid]) -- 必输
+  string fromAddress = 5 [(validate.rules).string = {min_len: 1}];//  -- 必输
+  string toAddress = 6 [(validate.rules).string = {min_len: 1}];//  -- 必输
+  string amount = 7 ; // -- 必输
+  string feeAmount = 8 ;//  -- 非必输
+  string transactionType = 9 ;//  -- 非必输
+  string contractAddress = 10;//   -- 非必输
+  int64 txTime = 11 ;// -- 非必输
+  int64 nonce = 12;//  -- 非必输
+  string gasLimit = 13 ;//  -- 非必输
+  string gasUsed = 14;// -- 非必输
+  string gasPrice = 15;//  -- 非必输
+  string baseFee = 16;// -- 非必输
+  string data = 17;//  -- 非必输
+  string dappData = 18;//  -- 非必输
+  string eventLog = 19;//  -- 非必输
+  string parseData = 20;//  -- 非必输
+  string netUsage = 21;//  -- 非必输
+  string feeLimit = 22;//  -- 非必输
+  string energyUsage = 23;//  -- 非必输
+  string blockHash = 24 ;//-- 非必输
+  int64 blockNumber = 25 ;//  -- 非必输
+  int64 createdAt = 26 ;// -- 非必输
+  int64 updatedAt = 27 ;// -- 非必输
+  string clientData = 28 ;
+  string maxFeePerGas =29;
+  string maxPriorityFeePerGas =30;
+  string feeData = 31;
+}
+
+message PageListRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string fromUid = 2;
+  string toUid = 3;
+  string uid = 4;
+  repeated string fromAddressList = 5;
+  repeated string toAddressList = 6;
+  string address = 7;
+  string contractAddress = 8;
+  repeated string statusList = 9;
+  repeated string statusNotInList = 10;
+  repeated string transactionTypeList = 11;
+  repeated string transactionTypeNotInList = 12;
+  repeated string transactionHashList = 13;
+  string orderBy = 14;
+  int32 dataDirection = 15 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 16 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 17 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 18 [(validate.rules).int32.gte = 0];
+  bool total = 19;
+  string platform = 20;
+}
+
+message PageListResponse {
+  int64 total = 1;
+  repeated TransactionRecord list = 2;
+}
+
+message TransactionRecord {
+  int64 id = 1;
+  string chainName = 2;
+  string transactionHash = 3;
+  string status = 4;
+  string fromAddress = 5;
+  string toAddress = 6;
+  string amount = 7;
+  string feeAmount = 8;
+  string transactionType = 9;
+  string contractAddress = 10;
+  int64 txTime = 11;
+  int64 nonce = 12;
+  string gasLimit = 13;
+  string gasUsed = 14;
+  string gasPrice = 15;
+  string baseFee = 16;
+  string maxFeePerGas =17;
+  string maxPriorityFeePerGas =18;
+  string data = 19;
+  string dappData = 20;
+  string eventLog = 21;
+  string parseData = 22;
+  string netUsage = 23;
+  string feeLimit = 24;
+  string energyUsage = 25;
+  string blockHash = 26;
+  int64 blockNumber = 27;
+  int64 createdAt = 28;
+  int64 updatedAt = 29;
+  string clientData = 30;
+  string feeData = 31;
+  int64 cursor = 32;
+}
+
+message AmountRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string fromUid = 2;
+  string toUid = 3;
+  repeated string fromAddressList = 4;
+  repeated string toAddressList = 5;
+  repeated string transactionTypeList = 6;
+}
+
+message AmountResponse {
+  string amount = 1;
+}
+
+message AssetRequest {
+  string chainName = 1;//-- 非必输
+  string uid = 2;
+  repeated string addressList = 3;
+  string currency = 4 [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
+  string orderBy = 5;
+  int32 dataDirection = 6 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 7 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 8 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 9 [(validate.rules).int32.gte = 0];
+  bool total = 10;
+}
+
+message AssetPageListResponse {
+  int64 total = 1;
+  int64 totalCurrencyAmount = 2;
+  repeated AssetResponse list = 3;
+}
+
+message AssetResponse {
+  string chainName = 1;
+  string uid = 2;
+  string address = 3;
+  string tokenAddress = 4;
+  string amount = 5;
+  string decimals = 6;
+  string symbol = 7;
+  string currencyAmount = 8;
+}
+
+message StatisticFundRequest {
+  string chainName = 1;//-- 非必输
+  repeated int32 fundDirectionList = 2;
+  int64 startTime = 3 [(validate.rules).int64.gt = 0];
+  int64 stopTime = 4 [(validate.rules).int64.gt = 0];
+}
+
+message FundAmountListResponse {
+  repeated FundAmountResponse list = 1;
+}
+
+message FundAmountResponse {
+  int32 fundDirection = 1;
+  string transactionQuantity = 2;
+  string amount = 3;
+  string cnyAmount = 4;
+  string usdAmount = 5;
+  int64 dt = 6;
+}
+
+message FundRateListResponse {
+  repeated FundRateResponse list = 1;
+}
+
+message FundRateResponse {
+  int32 fundDirection = 1;
+  int32 fundType = 2;
+  string transactionQuantity = 3;
+  string amount = 4;
+  string cnyAmount = 5;
+  string usdAmount = 6;
+  string rate = 7;
+}

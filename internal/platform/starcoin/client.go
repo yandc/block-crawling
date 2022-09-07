@@ -1,18 +1,20 @@
 package starcoin
 
 import (
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
 	"github.com/starcoinorg/starcoin-go/client"
-	"io/ioutil"
-	"net/http"
-	"strings"
+	"math/big"
 )
 
 const (
-	ID101 = 101
-	ID200 = 200
+	ID101          = 101
+	ID200          = 200
+	JSONRPC        = "2.0"
+	GAS_TOKEN_CODE = "0x1::STC::STC"
 )
 
 type Client struct {
@@ -24,46 +26,54 @@ func NewClient(rawUrl string) Client {
 	return Client{client: client.NewStarcoinClient(rawUrl), URL: rawUrl}
 }
 
-func (c *Client) Call(id int, method string, out interface{}, params []interface{}) error {
-	request := types.Request{
-		ID:      id,
-		Jsonrpc: "2.0",
-		Method:  method,
-		Params:  params,
+func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
+	var resp types.Response
+	var err error
+	if len(args) > 0 {
+		err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params, args[0].(int))
+	} else {
+		err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params)
 	}
-	str, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest("POST", c.URL, strings.NewReader(string(str)))
+	if resp.Error != nil {
+		return resp.Error
+	}
+	return json.Unmarshal(resp.Result, &out)
+}
+
+func (c *Client) GetBalance(address string) (string, error) {
+	return c.GetTokenBalance(address, GAS_TOKEN_CODE, 9)
+}
+
+func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (string, error) {
+	method := "state.get_resource"
+	d := map[string]bool{
+		"decode": true,
+	}
+	params := []interface{}{address, "0x00000000000000000000000000000001::Account::Balance<" + tokenAddress + ">", d}
+	balance := &types.Balance{}
+	err := c.call(ID101, method, balance, params)
 	if err != nil {
-		return err
+		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	var response types.Response
-	if err := json.Unmarshal(body, &response); err != nil {
-		return err
-	}
-	if response.Error != nil {
-		return response.Error
-	}
-	if err := json.Unmarshal(response.Result, out); err != nil {
-		return err
-	}
-	return nil
+	return utils.BigIntString(big.NewInt(balance.JSON.Token.Value), decimals), nil
 }
 
 func (c *Client) GetTransactionInfoByHash(transactionHash string) (*client.TransactionInfo, error) {
 	return c.client.GetTransactionInfoByHash(context.Background(), transactionHash)
+}
+
+func (c *Client) GetTransactionEventByHash(transactionHash string) ([]types.Event, error) {
+	method := "chain.get_events_by_txn_hash"
+	d := map[string]bool{
+		"decode": true,
+	}
+	params := []interface{}{transactionHash, d}
+	var result []types.Event
+	err := c.call(ID101, method, &result, params)
+	return result, err
 }
 
 func (c *Client) GetBlockByNumber(number int) (*types.Block, error) {
@@ -73,7 +83,7 @@ func (c *Client) GetBlockByNumber(number int) (*types.Block, error) {
 	}
 	params := []interface{}{number, d}
 	result := &types.Block{}
-	err := c.Call(ID101, method, result, params)
+	err := c.call(ID101, method, result, params)
 	return result, err
 }
 
@@ -81,7 +91,7 @@ func (c *Client) GetBlockTxnInfos(blockHash string) (*[]types.BlockTxnInfos, err
 	method := "chain.get_block_txn_infos"
 	params := []interface{}{blockHash}
 	result := &[]types.BlockTxnInfos{}
-	err := c.Call(101, method, result, params)
+	err := c.call(101, method, result, params)
 	return result, err
 }
 
@@ -92,14 +102,14 @@ func (c *Client) GetTransactionByHash(transactionHash string) (*types.Transactio
 	}
 	params := []interface{}{transactionHash, d}
 	result := &types.Transaction{}
-	err := c.Call(ID101, method, result, params)
+	err := c.call(ID101, method, result, params)
 	return result, err
 }
 
 func (c *Client) GetBlockHeight() (string, error) {
 	method := "node.info"
 	result := &types.NodeInfo{}
-	err := c.Call(ID200, method, result, nil)
+	err := c.call(ID200, method, result, nil)
 	if err != nil {
 		return "", err
 	}

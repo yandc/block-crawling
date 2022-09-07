@@ -21,7 +21,10 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, confAddressServer *conf.AddressServer, confLark *conf.Lark, confLogger *conf.Logger, confTransaction *conf.Transaction, confInnerNodeList map[string]*conf.PlatInfo, confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo, confPlatformTest map[string]*conf.PlatInfo, logLogger log.Logger) (*kratos.App, func(), error) {
+func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, confAddressServer *conf.AddressServer,
+	confLark *conf.Lark, confLogger *conf.Logger, confTransaction *conf.Transaction, confInnerNodeList map[string]*conf.PlatInfo,
+	confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo,
+	confPlatformTest map[string]*conf.PlatInfo, logLogger log.Logger) (*kratos.App, func(), error) {
 	logger.NewLogger(confLogger)
 	gormDB, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
@@ -36,10 +39,17 @@ func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, co
 	/*evmTransactionRecordRepo := */ data.NewEvmTransactionRecordRepo(gormDB)
 	/*stcTransactionRecordRepo := */ data.NewStcTransactionRecordRepo(gormDB)
 	/*trxTransactionRecordRepo := */ data.NewTrxTransactionRecordRepo(gormDB)
+	/*aptTransactionRecordRepo := */ data.NewAptTransactionRecordRepo(gormDB)
+	data.NewDappApproveRecordRepo(gormDB)
+	data.NewUserAssetRepo(gormDB)
+	data.NewTransactionStatisticRepo(gormDB)
 	bizLark := biz.NewLark(confLark)
 	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, bizLark, logLogger)
 	greeterService := service.NewGreeterService(greeterUsecase)
-	grpcServer := server.NewGRPCServer(confServer, greeterService, logLogger)
+	transactionUsecase := biz.NewTransactionUsecase(gormDB, bizLark)
+	transactionService := service.NewTransactionService(transactionUsecase)
+
+	grpcServer := server.NewGRPCServer(confServer, greeterService, transactionService, logLogger)
 	httpServer := server.NewHTTPServer(confServer, greeterService, logLogger)
 	kratosApp := newApp(logLogger, grpcServer, httpServer)
 	return kratosApp, func() {

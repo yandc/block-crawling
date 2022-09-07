@@ -25,7 +25,7 @@ func NewGreeterService(uc *biz.GreeterUsecase) *GreeterService {
 }
 
 // SayHello implements helloworld.GreeterServer.
-func (s *GreeterService) GetUser(ctx context.Context, in *v1.UserRequest) (*v1.UserRespose, error) {
+func (s *GreeterService) GetUser(ctx context.Context, in *v1.UserRequest) (*v1.UserResponse, error) {
 	greeterJson, _ := data.RedisClient.Get(strconv.FormatInt(in.Id, 10)).Result()
 	if greeterJson != "" {
 		log.Infof("GetUser greeterJson: %v", greeterJson)
@@ -37,7 +37,7 @@ func (s *GreeterService) GetUser(ctx context.Context, in *v1.UserRequest) (*v1.U
 	if err != nil || g == nil {
 		return nil, err
 	}
-	respose := &v1.UserRespose{Id: g.Id, Username: g.Username, Password: g.Password,
+	respose := &v1.UserResponse{Id: g.Id, Username: g.Username, Password: g.Password,
 		Remark: g.Remark, CreateTime: g.CreateTime, UpdateTime: g.UpdateTime}
 	return respose, err
 	/*var apiResponse = &common.ApiResponse{Code:200}
@@ -47,7 +47,7 @@ func (s *GreeterService) GetUser(ctx context.Context, in *v1.UserRequest) (*v1.U
 	} else {
 		if g != nil {
 			var data *anypb.Any
-			data, err = s.ConvertUserRespose(g)
+			data, err = s.ConvertUserResponse(g)
 			if err != nil {
 				apiResponse.Status = false
 				apiResponse.Msg = fmt.Sprintf("%s", err)
@@ -113,8 +113,8 @@ func (s *GreeterService) BatchAddOrUpdateUser(ctx context.Context, in *v1.UserRe
 	return apiResponse, err*/
 }
 
-func (s *GreeterService) ConvertUserRespose(g *data.Greeter) (*anypb.Any, error) {
-	helloRespose := &v1.UserRespose{Id: g.Id, Username: g.Username, Password: g.Password,
+func (s *GreeterService) ConvertUserResponse(g *data.Greeter) (*anypb.Any, error) {
+	helloRespose := &v1.UserResponse{Id: g.Id, Username: g.Username, Password: g.Password,
 		Remark: g.Remark, CreateTime: g.CreateTime, UpdateTime: g.UpdateTime}
 	data, err := anypb.New(helloRespose)
 	return data, err

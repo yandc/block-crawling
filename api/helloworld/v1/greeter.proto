@@ -13,7 +13,7 @@ option java_outer_classname = "HelloworldProtoV1";
 // The greeting service definition.
 service Greeter {
   // Sends a greeting
-  rpc GetUser (UserRequest) returns (UserRespose) {
+  rpc GetUser (UserRequest) returns (UserResponse) {
     option (google.api.http) = {
       get: "/user/get/{id}"
     };
@@ -46,7 +46,7 @@ message UserRequest {
 message UserRequests {
     repeated UserRequest userRequests = 1;
 }
-message UserRespose {
+message UserResponse {
   int64 id = 1;
   string username = 2;
   string password = 3;

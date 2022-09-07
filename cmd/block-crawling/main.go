@@ -1,17 +1,11 @@
 package main
 
 import (
+	"block-crawling/internal/conf"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/subhandle"
 	"flag"
-	"go.uber.org/zap"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"block-crawling/internal/conf"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -19,6 +13,9 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
+	"go.uber.org/zap"
+	"os"
+	"time"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -85,9 +82,10 @@ func main() {
 	}
 	defer cleanup()
 
-	//platform.MigrateRecord()
+	//platform.DappReset()
 	// start task
 	start()
+
 	// start and wait for stop signal
 	if err := app.Run(); err != nil {
 		panic(err)
@@ -100,37 +98,42 @@ func start() {
 			log.Error("main panic:", zap.Any("", err))
 		}
 	}()
-	var quitChan = make(chan os.Signal)
+	//var quitChan = make(chan os.Signal)
 	quit := make(chan int)
 	innerquit := make(chan int)
-	signal.Notify(quitChan, syscall.SIGTERM, os.Interrupt)
+	//signal.Notify(quitChan, syscall.SIGTERM, os.Interrupt)
 
 	go func() {
 		platforms := platform.Platforms
 		platformsLen := len(platforms)
 		for i := 0; i < platformsLen; i++ {
 			p := platforms[i]
+			if p == nil {
+				continue
+			}
 			go p.GetTransactions()
 		}
 	}()
 
-	// get transaction
+	// get inner memerypool
 	go func() {
 		platforms := platform.Platforms
 		platformsLen := len(platforms)
 		for i := 0; i < platformsLen; i++ {
 			p := platforms[i]
+			if p == nil {
+				continue
+			}
 			go func(p subhandle.Platform) {
 				log.Info("start main", zap.Any("platform", p))
-
 				// get result
-				resultPlan := time.NewTicker(time.Duration(1200000) * time.Millisecond)
+				resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
 				for true {
 					select {
 					case <-resultPlan.C:
-						if _, ok := p.(*bitcoin.Platform); !ok {
-							go p.GetTransactionResultByTxhash()
-						}
+						//if _, ok := p.(*bitcoin.Platform); !ok {
+						go p.GetTransactionResultByTxhash()
+						//}
 					case <-quit:
 						resultPlan.Stop()
 						return
@@ -145,21 +148,22 @@ func start() {
 		platformsLen := len(platforms)
 		for i := 0; i < platformsLen; i++ {
 			p := platforms[i]
+			if p == nil {
+				continue
+			}
 			go func(p subhandle.Platform) {
 				if btc, ok := p.(*bitcoin.Platform); ok {
-					go p.GetTransactionResultByTxhash()
+					//go p.GetTransactionResultByTxhash()
 					go btc.GetPendingTransactionsByInnerNode()
 				}
 				liveInterval := p.Coin().LiveInterval
 				log.Info("start inner main", zap.Any("platform", p))
-
 				pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
-
 				for true {
 					select {
 					case <-pendingTransactions.C:
 						if btc, ok := p.(*bitcoin.Platform); ok {
-							go p.GetTransactionResultByTxhash()
+							//go p.GetTransactionResultByTxhash()
 							go btc.GetPendingTransactionsByInnerNode()
 						}
 					case <-innerquit:
@@ -171,15 +175,4 @@ func start() {
 		}
 	}()
 
-	go func() {
-		select {
-		case <-quitChan:
-			for _, platform := range platform.Platforms {
-				platform.SetRedisHeight()
-			}
-			close(platform.PlatformChan)
-			close(quit)
-			close(innerquit)
-		}
-	}()
 }

@@ -41,7 +41,9 @@ func Init(handler, chain, chainName string, nodeUrl []string, height int) *Platf
 func (p *Platform) Coin() coins.Coin {
 	return coins.Coins[p.CoinIndex]
 }
+
 func (p *Platform) GetTransactions() {
+	log.Info("GetTransactions starting, chainName:" + p.ChainName)
 	for true {
 		h := p.IndexBlock()
 		if h {
@@ -49,13 +51,14 @@ func (p *Platform) GetTransactions() {
 		}
 	}
 }
+
 func (p *Platform) IndexBlock() bool {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("IndexBlock error, chainName:{}"+p.ChainName, e)
+				log.Errore("IndexBlock error, chainName:"+p.ChainName, e)
 			} else {
-				log.Errore("IndexBlock panic, chainName:{}"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("IndexBlock panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -70,22 +73,39 @@ func (p *Platform) IndexBlock() bool {
 	if err != nil || height <= 0 {
 		return true
 	}
+
 	curHeight := -1
 	preDBBlockHash := make(map[int]string)
 	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + p.ChainName).Result()
 	if redisHeight != "" {
 		curHeight, _ = strconv.Atoi(redisHeight)
 	} else {
-		row, _ := data.TrxTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
-		if row != nil && row.BlockNumber != 0 {
-			curHeight = row.BlockNumber + 1
-			preDBBlockHash[row.BlockNumber] = row.BlockHash
+		lastRecord, err := data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(p.ChainName))
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			lastRecord, err = data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(p.ChainName))
+		}
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中块高失败", p.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(p.ChainName+"扫块，从数据库中获取块高失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+			return true
+		}
+		if lastRecord == nil {
+			curHeight = height
+			log.Error(p.ChainName+"扫块，从数据库中获取的块高为空", zap.Any("curHeight", curHeight), zap.Any("new", height))
+			//return true
+		} else {
+			curHeight = lastRecord.BlockNumber + 1
+			preDBBlockHash[lastRecord.BlockNumber] = lastRecord.BlockHash
 		}
 	}
-
-	if curHeight == -1 {
+	if curHeight > height {
 		return true
 	}
+
 	if curHeight <= height {
 		block, err := p.client.GetBlockByNum(curHeight)
 		for i := 0; i < 10 && err != nil; i++ {
@@ -117,10 +137,11 @@ func (p *Platform) IndexBlock() bool {
 			}
 			if forked {
 				curHeight = preHeight
-				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, preHeight + 1)
+				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight+1)
 				log.Info("出现分叉回滚数据", zap.Any("链类型", p.ChainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 			} else {
 				var txRecords []*data.TrxTransactionRecord
+				now := time.Now().Unix()
 				for _, tx := range block.Transactions {
 					if len(tx.RawData.Contract) > 0 {
 						if tx.RawData.Contract[0].Type == TRC10TYPE || tx.RawData.Contract[0].Parameter.Value.AssetName != "" {
@@ -208,7 +229,10 @@ func (p *Platform) IndexBlock() bool {
 							}
 							parseData, _ := json.Marshal(tronMap)
 							exTime := tx.RawData.Timestamp / 1000
-							now := time.Now().Unix()
+							if tx.RawData.Timestamp == 0 {
+								exTime = block.BlockHeader.RawData.Timestamp / 1000
+							}
+
 							trxRecord := &data.TrxTransactionRecord{
 								BlockHash:       block.BlockID,
 								BlockNumber:     block.BlockHeader.RawData.Number,
@@ -236,8 +260,9 @@ func (p *Platform) IndexBlock() bool {
 						}
 					}
 				}
+
 				if txRecords != nil && len(txRecords) > 0 {
-					e := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX)
+					e := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 					if e != nil {
 						// postgres出错 接入lark报警
 						log.Error("插入数据到数据库库中失败", zap.Any("current", curHeight), zap.Any("chain", p.ChainName))
@@ -246,10 +271,10 @@ func (p *Platform) IndexBlock() bool {
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 						return true
 					}
+					go HandleRecord(p.ChainName, p.client, txRecords)
 				}
 				//保存对应块高hash
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), block.BlockID, biz.BLOCK_HASH_EXPIRATION_KEY)
-
 			}
 		} else {
 			return true
@@ -261,6 +286,7 @@ func (p *Platform) IndexBlock() bool {
 	data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, curHeight+1, 0)
 	return false
 }
+
 func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
 	var url string
 	if strings.Contains(chainName, "TEST") {
@@ -285,35 +311,206 @@ func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
 		Address:  token,
 	}, nil
 }
+
 func (p *Platform) GetTransactionResultByTxhash() {
-	records, err := data.TrxTransactionRecordRepoClient.FindByStatus(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, types.STATUSPENDING)
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("GetTransactionsResult error, chainName:"+p.ChainName, e)
+			} else {
+				log.Errore("GetTransactionsResult panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理交易结果失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	records, err := data.TrxTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(p.ChainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
-		log.Error("TRX查询数据库失败", zap.Any("error", err))
+		log.Error(p.ChainName+"查询数据库失败", zap.Any("error", err))
 		return
 	}
 	log.Info("", zap.Any("records", records))
+	var txRecords []*data.TrxTransactionRecord
+	now := time.Now().Unix()
+
 	for _, record := range records {
-		txInfo, err1 := p.client.GetTransactionInfoByHash(record.TransactionHash)
-		if err1 != nil {
-			log.Info("查询txhash对象", zap.Any("txId", record.TransactionHash), zap.Any("rpc-result", err1))
+		transactionInfo, err := p.client.GetTransactionInfoByHash(record.TransactionHash)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			transactionInfo, err = p.client.GetTransactionInfoByHash(record.TransactionHash)
+		}
+		if err != nil {
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("error", err))
 			continue
 		}
-		if txInfo.ContractResult == nil {
-			record.Status = types.STATUSFAIL
+
+		isPending := len(transactionInfo.ContractResult) == 0
+		if isPending {
+			continue
 		}
-		result := txInfo.ContractResult[0]
-		if result == "" {
-			record.Status = types.STATUSSUCCESS
-			record.BlockNumber = txInfo.BlockNumber
-		} else {
-			record.Status = types.STATUSFAIL
+
+		result := transactionInfo.ContractResult[0]
+		if result != "" && result != "SUCCESS" {
+			record.Status = biz.FAIL
+			txRecords = append(txRecords, record)
+			continue
 		}
-		i, _ := data.TrxTransactionRecordRepoClient.Update(nil, strings.ToLower(p.ChainName) + biz.TABLE_POSTFIX, record)
-		log.Info("更新txhash对象为终态", zap.Any("txId", record.TransactionHash), zap.Any("result", i))
+
+		curHeight := transactionInfo.BlockNumber
+		block, err := p.client.GetBlockByNum(curHeight)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			block, err = p.client.GetBlockByNum(curHeight)
+		}
+		if err != nil {
+			log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+			return
+		}
+
+		for _, tx := range block.Transactions {
+			if len(tx.RawData.Contract) > 0 {
+				if tx.TxID != record.TransactionHash {
+					continue
+				}
+
+				if tx.RawData.Contract[0].Type == TRC10TYPE || tx.RawData.Contract[0].Parameter.Value.AssetName != "" {
+					continue
+				}
+				txType := "native"
+				status := "pending"
+				if len(tx.Ret) > 0 {
+					if tx.Ret[0].ContractRet == "SUCCESS" {
+						status = "success"
+					} else {
+						status = "fail"
+					}
+				}
+				value := tx.RawData.Contract[0].Parameter.Value
+				fromAddress := value.OwnerAddress
+				var toAddress, contractAddress string
+				tokenAmount := "0"
+				var amount int
+				if value.ContractAddress != "" && len(value.Data) >= 136 {
+					methodId := value.Data[:8]
+					if methodId == "a9059cbb" {
+						txType = "transfer"
+						contractAddress = value.ContractAddress
+						toAddress = utils.TronHexToBase58(ADDRESS_PREFIX + value.Data[32:72])
+						banInt, b := new(big.Int).SetString(value.Data[72:], 16)
+						if b {
+							tokenAmount = banInt.String()
+						}
+					}
+				} else {
+					toAddress = value.ToAddress
+					amount = value.Amount
+				}
+				userFromAddress, fromUid, errr := biz.UserAddressSwitch(fromAddress)
+				if errr != nil {
+					// redis出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					return
+				}
+				userToAddress, toUid, errt := biz.UserAddressSwitch(toAddress)
+				if errt != nil {
+					// redis出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					return
+				}
+				if userFromAddress || userToAddress {
+					var tokenInfo types.TokenInfo
+					txInfo, err := p.client.GetTransactionInfoByHash(tx.TxID)
+					for i := 0; i < 10 && err != nil; i++ {
+						time.Sleep(time.Duration(i*5) * time.Second)
+						txInfo, err = p.client.GetTransactionInfoByHash(tx.TxID)
+					}
+					if err != nil {
+						return
+					}
+
+					if txType == "transfer" {
+						tokenInfo, _ = GetTokenInfo(p.ChainName, contractAddress)
+						tokenInfo.Amount = tokenAmount
+					}
+					feeData := map[string]interface{}{
+						"net_usage": txInfo.Receipt.NetUsage,
+					}
+					if contractAddress != "" {
+						feeData["fee_limit"] = tx.RawData.FeeLimit
+					}
+					if txInfo.Receipt.EnergyUsage > 0 {
+						feeData["energy_usage"] = txInfo.Receipt.EnergyUsage
+					}
+					feeAmount := 0
+					if txInfo.Fee > 0 {
+						feeAmount = txInfo.Fee
+					}
+					if txInfo.Receipt.NetFee > 0 && feeAmount == 0 {
+						feeAmount = txInfo.Receipt.NetFee
+					}
+					tronMap := map[string]interface{}{
+						"tvm":   map[string]string{},
+						"token": tokenInfo,
+					}
+					parseData, _ := json.Marshal(tronMap)
+					exTime := tx.RawData.Timestamp / 1000
+					if tx.RawData.Timestamp == 0 {
+						exTime = block.BlockHeader.RawData.Timestamp / 1000
+					}
+
+					trxRecord := &data.TrxTransactionRecord{
+						BlockHash:       block.BlockID,
+						BlockNumber:     block.BlockHeader.RawData.Number,
+						TransactionHash: tx.TxID,
+						FromAddress:     fromAddress,
+						ToAddress:       toAddress,
+						FromUid:         fromUid,
+						ToUid:           toUid,
+						FeeAmount:       decimal.NewFromInt(int64(feeAmount)),
+						Amount:          decimal.NewFromInt(int64(amount)),
+						Status:          status,
+						TxTime:          exTime,
+						ContractAddress: contractAddress,
+						ParseData:       string(parseData),
+						NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
+						FeeLimit:        strconv.Itoa(tx.RawData.FeeLimit),
+						EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+						TransactionType: txType,
+						DappData:        "",
+						ClientData:      "",
+						CreatedAt:       now,
+						UpdatedAt:       now,
+					}
+					txRecords = append(txRecords, trxRecord)
+				}
+			}
+		}
+	}
+
+	if txRecords != nil && len(txRecords) > 0 {
+		//保存交易数据
+		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
+			return
+		}
 	}
 }
 
-func BatchSaveOrUpdate(txRecords []*data.TrxTransactionRecord,table string) error {
+func BatchSaveOrUpdate(txRecords []*data.TrxTransactionRecord, table string) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0
@@ -329,10 +526,10 @@ func BatchSaveOrUpdate(txRecords []*data.TrxTransactionRecord,table string) erro
 			stop = total
 		}
 
-		_, err := data.TrxTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table,subTxRecords)
+		_, err := data.TrxTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, table, subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.TrxTransactionRecordRepoClient.BatchSaveOrUpdate(nil, table, subTxRecords)
+			_, err = data.TrxTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, table, subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

@@ -5,9 +5,11 @@ import (
 	"block-crawling/internal/log"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,17 +18,59 @@ const (
 	DEFAULT_ALARM_LEVEL    = 1
 	DEFAULT_ALARM_CYCLE    = true
 	DEFAULT_ALARM_INTERVAL = 3600
-	ROCKET_MSG_KEY         = "rocket:msg:%s"
 	LARK_MSG_KEY           = "lark:msg:%s"
 
-	PAGE_SIZE = 500
+	PAGE_SIZE = 200
 
 	REDIS_NIL_KEY             = "redis: nil"
 	BLOCK_HEIGHT_KEY          = "block:height:"
 	BLOCK_HASH_KEY            = "block:hash:"
 	USER_ADDRESS_KEY          = "usercore:"
 	BLOCK_HASH_EXPIRATION_KEY = 2 * time.Hour
-	TABLE_POSTFIX = "_transaction_record"
+	TABLE_POSTFIX             = "_transaction_record"
+	ADDRESS_DONE_NONCE        = "done:"    // + chainanme:address value-->nonce
+	ADDRESS_PENDING_NONCE     = "pending:" // + chainname:address:nonce --->过期时间六个小时
+)
+
+const (
+	STC = "STC"
+	BTC = "BTC"
+	EVM = "EVM"
+	TVM = "TVM"
+	DOGE = "UTXO"
+	LTC ="UTXO"
+	APTOS = "APTOS"
+)
+
+const (
+	WEB     = "web"
+	ANDROID = "android"
+	IOS     = "ios"
+)
+
+const (
+	SUCCESS          = "success"
+	FAIL             = "fail"
+	PENDING          = "pending"
+	NO_STATUS        = "no_status"
+	DROPPED_REPLACED = "dropped_replaced"
+)
+
+const (
+	NATIVE        = "native"
+	TRANSFER      = "transfer"
+	TRANSFERFROM  = "transferfrom"
+	APPROVE       = "approve"
+	CONTRACT      = "contract"
+	EVENTLOG      = "eventLog"
+	CREATEACCOUNT = "createAccount"
+	REGISTERTOKEN = "registerToken"
+)
+
+//币种
+const (
+	CNY = "CNY" //人民币
+	USD = "USD" //美元
 )
 
 var rocketMsgLevels = map[string]int{
@@ -109,6 +153,9 @@ func GetAlarmTimestamp(key string) (int64, error) {
 }
 
 func UserAddressSwitch(address string) (bool, string, error) {
+	if address == "" {
+		return false, "", nil
+	}
 	enable := true
 	uid, err := data.RedisClient.Get(USER_ADDRESS_KEY + address).Result()
 	for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY; i++ {
@@ -139,4 +186,26 @@ func BjNow() string {
 	now := time.Now().In(cstSh).Format("2006-01-02 15:04:05")
 
 	return now
+}
+
+func GetTalbeName(chainName string) string {
+	return strings.ToLower(chainName) + TABLE_POSTFIX
+}
+
+func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
+	paseDataJson := make(map[string]interface{})
+	err := json.Unmarshal([]byte(parseData), &paseDataJson)
+	if err != nil {
+		return 0, "", err
+	}
+	tokenInfoMap := paseDataJson["token"]
+	tokenInfo := tokenInfoMap.(map[string]interface{})
+	decimals := int32(tokenInfo["decimals"].(float64))
+	symbol := tokenInfo["symbol"].(string)
+	if symbol == "" {
+		platInfo := PlatInfoMap[chainName]
+		decimals = platInfo.Decimal
+		symbol = platInfo.Symbol
+	}
+	return decimals, symbol, nil
 }

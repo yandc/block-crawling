@@ -44,6 +44,16 @@ api:
 	       --openapi_out=fq_schema_naming=true,default_response=false:. \
 	       $(API_PROTO_FILES)
 
+.PHONY: validateApi
+# generate validate proto
+validateApi:
+	protoc --proto_path=./api \
+	       --proto_path=./third_party \
+	       --proto_path=$(GOPATH)/src \
+ 	       --go_out=paths=source_relative:./api \
+ 	       --validate_out=paths=source_relative,lang=go:./api \
+	       $(API_PROTO_FILES)
+
 .PHONY: build
 # build
 build:
@@ -52,7 +62,7 @@ build:
 .PHONY: generate
 # generate
 generate:
-    go mod tidy
+	go mod tidy
 	go get github.com/google/wire/cmd/wire@latest
 	go generate ./...
 
@@ -62,6 +72,11 @@ all:
 	make api;
 	make config;
 	make generate;
+
+.PHONY: protoc
+# run server
+protoc:
+	kratos proto client $(API_PROTO_FILES)
 
 .PHONY: run
 # run server
