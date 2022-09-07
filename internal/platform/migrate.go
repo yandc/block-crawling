@@ -15,15 +15,10 @@ import (
 )
 
 func MigrateRecord() {
-
 	source := biz.AppConfig.Source
-	target := biz.AppConfig.Target
-
 	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
-	dbTarget, err1 := gorm.Open(postgres.Open(target), &gorm.Config{})
-	if err != nil || err1 != nil {
+	if err != nil {
 		log.Errore("source DB error", err)
-		log.Errore("target DB error", err1)
 	}
 	var tbTransactionRecords []*data.TBTransactionRecord
 	ret := dbSource.Find(&tbTransactionRecords)
@@ -32,58 +27,83 @@ func MigrateRecord() {
 		fmt.Printf("init, err: %v\n", err)
 		log.Errore("init", err)
 	}
-	log.Info("同步元数据",zap.Any("size", len(tbTransactionRecords)))
+	log.Info("同步元数据", zap.Any("size", len(tbTransactionRecords)))
 	count := 0
 	for i, record := range tbTransactionRecords {
-		log.Info("index",zap.Any("同步元表数据",record),zap.Any("index",i))
-		fmt.Println("index"+record.TransactionHash)
+
+		if record.TxTime == 0 {
+			record.TxTime = record.CreatedAt.Unix()
+		}
+
+		log.Info("index", zap.Any("同步元表数据", record), zap.Any("index", i))
+		fmt.Println("index" + record.TransactionHash)
 		if record.ChainName == "Avalanche" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "BSC" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "ETH" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "Fantom" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "HECO" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "Klaytn" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "OEC" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "Optimism" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "Polygon" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
 		if record.ChainName == "Cronos" {
-			dbTarget.Table(strings.ToLower(record.ChainName) + biz.TABLE_POSTFIX).Create(initEvmModel(record))
+			var txRecords []*data.EvmTransactionRecord
+			txRecords = append(txRecords, initEvmModel(record))
+			data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, strings.ToLower(record.ChainName)+biz.TABLE_POSTFIX, txRecords)
 			count++
 			continue
 		}
@@ -133,6 +153,7 @@ func MigrateRecord() {
 				GasUsed:         gasUsed,
 				GasPrice:        gasPrice,
 				Data:            record.Data,
+				EventLog:        record.EventLog,
 				TransactionType: record.TransactionType,
 				DappData:        record.DappData,
 				ClientData:      record.ClientData,
@@ -140,7 +161,9 @@ func MigrateRecord() {
 				UpdatedAt:       record.UpdatedAt.Unix(),
 			}
 
-			dbTarget.Table("stc_transaction_record").Create(stcRecord)
+			var stc []*data.StcTransactionRecord
+			stc = append(stc, stcRecord)
+			data.StcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, "stc_transaction_record", stc)
 			count++
 
 			continue
@@ -148,7 +171,6 @@ func MigrateRecord() {
 		if record.ChainName == "TRX" {
 
 			feeData := make(map[string]interface{})
-
 
 			trxRecord := &data.TrxTransactionRecord{
 				BlockHash:       record.BlockHash,
@@ -175,26 +197,29 @@ func MigrateRecord() {
 				fd := feeData["net_usage"]
 				if fd != nil {
 					netUsage := fd.(float64)
-					trxRecord.NetUsage = strconv.FormatFloat(netUsage,'f',0,64)
+					trxRecord.NetUsage = strconv.FormatFloat(netUsage, 'f', 0, 64)
 				}
 				fe := feeData["fee_limit"]
 				if fe != nil {
 					feeLimit := fe.(float64)
-					trxRecord.FeeLimit = strconv.FormatFloat(feeLimit,'f',0,64)
+					trxRecord.FeeLimit = strconv.FormatFloat(feeLimit, 'f', 0, 64)
 				}
 				eu := feeData["energy_usage"]
 				if eu != nil {
 					energyUsage := eu.(float64)
-					trxRecord.EnergyUsage = strconv.FormatFloat(energyUsage,'f',0,64)
+					trxRecord.EnergyUsage = strconv.FormatFloat(energyUsage, 'f', 0, 64)
 				}
 			}
 
-			dbTarget.Table("trx_transaction_record").Create(trxRecord)
+			var trx []*data.TrxTransactionRecord
+			trx = append(trx, trxRecord)
+			data.TrxTransactionRecordRepoClient.BatchSaveOrUpdate(nil, "trx_transaction_record", trx)
 			count++
 
 			continue
 		}
-		if record.ChainName == "BTC" {
+		p1 := decimal.NewFromInt(100000000)
+		if record.ChainName == "BTC" || record.ChainName == "LTC" || record.ChainName == "DOGE" {
 			btcTransactionRecord := &data.BtcTransactionRecord{
 				BlockHash:       record.BlockHash,
 				BlockNumber:     bn,
@@ -203,8 +228,8 @@ func MigrateRecord() {
 				ToAddress:       record.ToObj,
 				FromUid:         fu,
 				ToUid:           tu,
-				FeeAmount:       fa,
-				Amount:          am,
+				FeeAmount:       fa.Mul(p1),
+				Amount:          am.Mul(p1),
 				Status:          record.Status,
 				TxTime:          record.TxTime,
 				ConfirmCount:    6,
@@ -213,7 +238,11 @@ func MigrateRecord() {
 				CreatedAt:       record.CreatedAt.Unix(),
 				UpdatedAt:       record.UpdatedAt.Unix(),
 			}
-			dbTarget.Table("btc_transaction_record").Create(btcTransactionRecord)
+
+			var btc []*data.BtcTransactionRecord
+			btc = append(btc, btcTransactionRecord)
+			data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, biz.GetTalbeName(record.ChainName), btc)
+
 			count++
 
 			continue
@@ -221,7 +250,7 @@ func MigrateRecord() {
 
 	}
 
-	log.Info("同步数据完成！",zap.Any("共同步数据", count))
+	log.Info("同步数据完成！", zap.Any("共同步数据", count))
 
 }
 
@@ -231,7 +260,7 @@ func initEvmModel(record *data.TBTransactionRecord) *data.EvmTransactionRecord {
 	paseJson := make(map[string]interface{})
 	if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
 		evmMap := paseJson["evm"]
-		if evmMap != nil{
+		if evmMap != nil {
 			ret := evmMap.(map[string]interface{})
 			ne := ret["nonce"]
 			if ne != nil {
@@ -246,11 +275,16 @@ func initEvmModel(record *data.TBTransactionRecord) *data.EvmTransactionRecord {
 	gasUsed := ""
 	gasPrice := ""
 	baseFee := ""
+	maxFeePerGas := ""
+	maxPriorityFeePerGas := ""
 	if jsonErr := json.Unmarshal([]byte(record.FeeData), &feeData); jsonErr == nil {
 		gaslimit = feeData["gas_limit"]
 		gasUsed = feeData["gas_used"]
 		gasPrice = feeData["gas_price"]
 		baseFee = feeData["base_fee"]
+		maxFeePerGas = feeData["max_fee_per_gas"]
+		maxPriorityFeePerGas = feeData["max_priority_fee_per_gas"]
+
 	}
 
 	nc, _ := strconv.Atoi(nonceStr)
@@ -269,31 +303,46 @@ func initEvmModel(record *data.TBTransactionRecord) *data.EvmTransactionRecord {
 	}
 
 	return &data.EvmTransactionRecord{
-		BlockHash:       record.BlockHash,
-		BlockNumber:     bn,
-		Nonce:           int64(nc),
-		TransactionHash: record.TransactionHash,
-		FromAddress:     record.FromObj,
-		ToAddress:       record.ToObj,
-		FeeAmount:       fa,
-		Amount:          am,
-		Status:          record.Status,
-		TxTime:          record.TxTime,
-		ContractAddress: record.ContractAddress,
-		ParseData:       record.ParseData,
-		Type:            "",
-		FromUid:         fu,
-		ToUid:           tu,
-		GasLimit:        gaslimit,
-		GasUsed:         gasUsed,
-		GasPrice:        gasPrice,
-		BaseFee:         baseFee,
-		Data:            record.Data,
-		EventLog:        record.EventLog,
-		TransactionType: record.TransactionType,
-		DappData:        record.DappData,
-		ClientData:      record.ClientData,
-		CreatedAt:       record.CreatedAt.Unix(),
-		UpdatedAt:       record.UpdatedAt.Unix(),
+		BlockHash:            record.BlockHash,
+		BlockNumber:          bn,
+		Nonce:                int64(nc),
+		TransactionHash:      record.TransactionHash,
+		FromAddress:          record.FromObj,
+		ToAddress:            record.ToObj,
+		FeeAmount:            fa,
+		Amount:               am,
+		Status:               record.Status,
+		TxTime:               record.TxTime,
+		ContractAddress:      record.ContractAddress,
+		ParseData:            record.ParseData,
+		Type:                 "",
+		FromUid:              fu,
+		ToUid:                tu,
+		GasLimit:             gaslimit,
+		GasUsed:              gasUsed,
+		GasPrice:             gasPrice,
+		BaseFee:              baseFee,
+		MaxFeePerGas:         maxFeePerGas,
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
+		Data:                 record.Data,
+		EventLog:             record.EventLog,
+		TransactionType:      record.TransactionType,
+		DappData:             record.DappData,
+		ClientData:           record.ClientData,
+		CreatedAt:            record.CreatedAt.Unix(),
+		UpdatedAt:            record.UpdatedAt.Unix(),
+	}
+}
+func DappReset() {
+	for key, platform := range biz.PlatInfoMap {
+		switch platform.Type {
+
+		case biz.EVM:
+			rs, e := data.EvmTransactionRecordRepoClient.ListByTransactionType(nil, biz.GetTalbeName(key), "approve")
+			if e == nil && len(rs) > 0 {
+
+				biz.DappApproveFilter(key, rs)
+			}
+		}
 	}
 }

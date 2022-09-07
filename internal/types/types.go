@@ -1,12 +1,5 @@
 package types
 
-const (
-	STATUSSUCCESS = "success"
-	STATUSFAIL    = "fail"
-	STATUSPENDING = "pending"
-	NOSTATUS      = "no_status"
-)
-
 type SessionInfo struct {
 	Session   string
 	Timestamp int64

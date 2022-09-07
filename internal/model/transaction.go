@@ -65,7 +65,6 @@ type JsonRpcRequest struct {
 	Id      string      `json:"id"`
 	Method  string      `json:"method"`
 	Params  interface{} `json:"params"`
-
 }
 type BTCCount struct {
 	Result int         `json:"result"`
@@ -78,4 +77,3 @@ type MemoryPoolTX struct {
 	Error  interface{} `json:"error"`
 	Id     string      `json:"id"`
 }
-

@@ -24,7 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GreeterClient interface {
 	// Sends a greeting
-	GetUser(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (*UserRespose, error)
+	GetUser(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (*UserResponse, error)
 	AddUser(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (*v1.Int64Response, error)
 	BatchAddOrUpdateUser(ctx context.Context, in *UserRequests, opts ...grpc.CallOption) (*v1.Int64Response, error)
 }
@@ -37,8 +37,8 @@ func NewGreeterClient(cc grpc.ClientConnInterface) GreeterClient {
 	return &greeterClient{cc}
 }
 
-func (c *greeterClient) GetUser(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (*UserRespose, error) {
-	out := new(UserRespose)
+func (c *greeterClient) GetUser(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (*UserResponse, error) {
+	out := new(UserResponse)
 	err := c.cc.Invoke(ctx, "/helloworld.v1.Greeter/GetUser", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (c *greeterClient) BatchAddOrUpdateUser(ctx context.Context, in *UserReques
 // for forward compatibility
 type GreeterServer interface {
 	// Sends a greeting
-	GetUser(context.Context, *UserRequest) (*UserRespose, error)
+	GetUser(context.Context, *UserRequest) (*UserResponse, error)
 	AddUser(context.Context, *UserRequest) (*v1.Int64Response, error)
 	BatchAddOrUpdateUser(context.Context, *UserRequests) (*v1.Int64Response, error)
 	mustEmbedUnimplementedGreeterServer()
@@ -79,7 +79,7 @@ type GreeterServer interface {
 type UnimplementedGreeterServer struct {
 }
 
-func (UnimplementedGreeterServer) GetUser(context.Context, *UserRequest) (*UserRespose, error) {
+func (UnimplementedGreeterServer) GetUser(context.Context, *UserRequest) (*UserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
 func (UnimplementedGreeterServer) AddUser(context.Context, *UserRequest) (*v1.Int64Response, error) {

@@ -1,9 +1,11 @@
 package platform
 
 import (
+	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/starcoin"
@@ -13,7 +15,6 @@ import (
 )
 
 var InnerPlatforms []subhandle.Platform
-var InnerPlatformChan chan subhandle.Platform
 
 func NewInnerNodeList(c map[string]*conf.PlatInfo) {
 	//var c InnerConfig
@@ -21,12 +22,9 @@ func NewInnerNodeList(c map[string]*conf.PlatInfo) {
 	//	log.Panic("get innerNodeList  error:", zap.Error(err))
 	//}
 
-	InnerPlatformChan = make(chan subhandle.Platform, len(c))
-
 	for _, value := range c {
 		platform := GetInnerPlatform(value.Chain, value.Handler, value.Chain, value.RpcURL[0])
 		InnerPlatforms = append(InnerPlatforms, platform)
-		go SetInnerPlatform(platform)
 	}
 }
 
@@ -42,19 +40,16 @@ func GetInnerPlatform(typ, chain, chainName string, nodeURL string) subhandle.Pl
 	nodeURLS = append(nodeURLS, nodeURL)
 
 	switch typ {
-	case STC:
+	case biz.STC:
 		return starcoin.Init(coins.Starcoin().Handle, chain, chainName, nodeURLS, height)
-	case EVM:
+	case biz.EVM:
 		return ethereum.Init(coins.Ethereum().Handle, chain, chainName, nodeURLS, height)
-	case BTC:
+	case biz.BTC:
 		return bitcoin.Init(coins.Bitcoin().Handle, chain, chainName, nodeURLS, height)
-	case TVM:
+	case biz.TVM:
 		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
-
+	case biz.APTOS:
+		return aptos.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
 	}
 	return nil
-}
-
-func SetInnerPlatform(platform subhandle.Platform) {
-	InnerPlatformChan <- platform
 }

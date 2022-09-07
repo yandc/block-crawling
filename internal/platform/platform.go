@@ -5,6 +5,7 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/starcoin"
@@ -15,35 +16,16 @@ import (
 )
 
 var Platforms []subhandle.Platform
-var PlatInfos []conf.PlatInfo
-var PlatformChan chan subhandle.Platform
-
-const (
-	STC = "STC"
-	BTC = "BTC"
-	EVM = "EVM"
-	TVM = "TVM"
-
-
-)
+var grpcPlatformInfos []biz.GrpcPlatformInfo
 
 func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string]*conf.PlatInfo, testConfig map[string]*conf.PlatInfo) {
-	//var c Config
-	//if err := config.GetChainConfig("platform").Unmarshal(&c.Platform); err != nil {
-	//	log.Panic("get platform  error:", zap.Error(err))
-	//}
 	if biz.AppConfig.Mode != "" {
 		if strings.ToLower(biz.AppConfig.Mode) == "debug" {
-			//var testConfig Config
-			//if err := config.GetChainConfig("platformTest").Unmarshal(&testConfig.Platform); err != nil {
-			//	log.Panic("get platform test  error:", zap.Error(err))
-			//}
 			for key, platInfo := range testConfig {
 				c[key] = platInfo
 			}
 		} else {
-			mode := strings.ToUpper(biz.AppConfig.Mode)
-			modes := strings.Split(mode, ",")
+			modes := strings.Split(biz.AppConfig.Mode, ",")
 			for _, chainName := range modes {
 				if platInfo := testConfig[chainName]; platInfo != nil {
 					c[chainName] = platInfo
@@ -57,35 +39,40 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 		if webConfig != nil {
 			webConfig.RpcURL = append(webConfig.RpcURL, value.RpcURL...)
 			c[key] = webConfig
+		} else {
+			c[key] = value
 		}
 	}
 
-	PlatformChan = make(chan subhandle.Platform, len(c))
-
+	var PlatInfos []*conf.PlatInfo
 	for _, value := range c {
-		PlatInfos = append(PlatInfos, *value)
+		PlatInfos = append(PlatInfos, value)
+
 		platform := GetPlatform(value.Type, value.Handler, value.Chain, value.RpcURL)
 		Platforms = append(Platforms, platform)
-		go SetPlatform(platform)
+
+		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
 	}
+	biz.PlatInfos = PlatInfos
+	biz.PlatInfoMap = c
 	DynamicCreateTable(PlatInfos)
 }
 
-func DynamicCreateTable(platInfos []conf.PlatInfo)  {
-	for _, platInfo := range PlatInfos {
+func DynamicCreateTable(platInfos []*conf.PlatInfo) {
+	for _, platInfo := range platInfos {
 		chain := strings.ToLower(platInfo.Chain) + biz.TABLE_POSTFIX
 		switch platInfo.Type {
-		case STC:
+		case biz.STC:
 			data.GormlDb.Table(chain).AutoMigrate(&data.StcTransactionRecord{})
-		case EVM:
+		case biz.EVM:
 			data.GormlDb.Table(chain).AutoMigrate(&data.EvmTransactionRecord{})
-		case BTC:
+		case biz.BTC:
 			data.GormlDb.Table(chain).AutoMigrate(&data.BtcTransactionRecord{})
-		case TVM:
+		case biz.TVM:
 			data.GormlDb.Table(chain).AutoMigrate(&data.TrxTransactionRecord{})
-
+		case biz.APTOS:
+			data.GormlDb.Table(chain).AutoMigrate(&data.AptTransactionRecord{})
 		}
-
 	}
 }
 
@@ -96,19 +83,16 @@ func GetPlatform(typ, chain, chainName string, nodeURL []string) subhandle.Platf
 		height, _ = strconv.Atoi(redisHeight)
 	}
 	switch typ {
-	case STC:
+	case biz.STC:
 		return starcoin.Init(coins.Starcoin().Handle, chain, chainName, nodeURL, height)
-	case EVM:
+	case biz.EVM:
 		return ethereum.Init(coins.Ethereum().Handle, chain, chainName, nodeURL, height)
-	case BTC:
+	case biz.BTC:
 		return bitcoin.Init(coins.Bitcoin().Handle, chain, chainName, nodeURL, height)
-	case TVM:
+	case biz.TVM:
 		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURL, height)
-
+	case biz.APTOS:
+		return aptos.Init(coins.Tron().Handle, chain, chainName, nodeURL, height)
 	}
 	return nil
-}
-
-func SetPlatform(platform subhandle.Platform) {
-	PlatformChan <- platform
 }

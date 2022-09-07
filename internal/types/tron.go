@@ -1,5 +1,15 @@
 package types
 
+type TronBalance struct {
+	Balance int64       `json:"balance"`
+	Error   interface{} `json:"error"`
+}
+
+type BalanceReq struct {
+	Address string `json:"address"`
+	Visible bool   `json:"visible"`
+}
+
 type NowBlock struct {
 	BlockHeader struct {
 		RawData struct {
@@ -11,6 +21,7 @@ type NowBlock struct {
 			Timestamp      uint64 `json:"timestamp"`
 		} `json:"raw_data"`
 	} `json:"block_header"`
+	Error interface{} `json:"error"`
 }
 
 type BlockReq struct {
@@ -60,6 +71,7 @@ type BlockResponse struct {
 			Timestamp     int64  `json:"timestamp"`
 		} `json:"raw_data"`
 	} `json:"transactions"`
+	Error interface{} `json:"error"`
 }
 
 type TronTxReq struct {
@@ -86,6 +98,7 @@ type TronTxInfoResponse struct {
 		Topics  []string `json:"topics"`
 		Data    string   `json:"data"`
 	} `json:"log"`
+	Error interface{} `json:"error"`
 }
 
 type TronTokenInfo struct {
@@ -99,4 +112,17 @@ type TronTokenInfo struct {
 			TokenType    string `json:"tokenType"`
 		} `json:"tokenInfo"`
 	} `json:"data"`
+}
+
+type TronTokenBalanceRes struct {
+	ConstantResult []string    `json:"constant_result"`
+	Error          interface{} `json:"error"`
+}
+
+type TronTokenBalanceReq struct {
+	OwnerAddress     string `json:"owner_address"`
+	ContractAddress  string `json:"contract_address"`
+	FunctionSelector string `json:"function_selector"`
+	Parameter        string `json:"parameter"`
+	Visible          bool   `json:"visible"`
 }

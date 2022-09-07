@@ -8,6 +8,7 @@ import (
 var RedisClient *redis.Client
 
 const CHAINNAME = "chain_name:"
+const PENDINGTX = "chain_name:pending_txids:"
 
 // NewRedisClient new a redisClient.
 func NewRedisClient(conf *conf.Data) *redis.Client {

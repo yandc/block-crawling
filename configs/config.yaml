@@ -9,6 +9,7 @@ data:
   database:
     driver: postgres
     source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+#    source: host=127.0.0.1 user=postgres password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
     pool:
       connMaxLifetime: 3
       maxOpenConns: 10
@@ -23,15 +24,27 @@ data:
 app:
   # Possible values: "debug", "release"
 #  mode: "debug"
-  mode: ""
+  mode: "debug"
+  #  mode: "AptosTEST"
   scanAll: false
+  addr: 127.0.0.1:9001
+  starScan: true
   target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
   source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
-
+  dogeKey:
+    - "Bearer bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd"
+    - "Bearer bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk"
+    - "Bearer bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz"
+    - "Bearer bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU"
+    - "Bearer bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ"
+    - "Bearer bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN"
+    - "Bearer bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn"
 
 lark:
-  larkAlarmTitle: "SubHandle 测试环境"
+
+  larkAlarmTitle: "BlockCrawling 测试环境"
   larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
+#  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
   lockNum: 64
 logger:
@@ -42,12 +55,38 @@ logger:
 innerNodeList:
   BTC:
     chain: "BTC"
+    decimal: 8
     fullName: "Bitcoin"
+    getPriceKey: "bitcoin"
+    chainName: "BTC"
     handler: "bitcoin"
     rpcURL:
       - "https://api.bixin.com/v1/btc/main"
     symbol: "BTC"
     type: "BTC"
+
+  DOGE:
+    chain: "dogecoin"
+    decimal: 8
+    fullName: "Dogecoin"
+    getPriceKey: "dogecoin"
+    chainName: "DOGE"
+    handler: "dogecoin"
+    rpcURL:
+     - "http://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@47.244.138.206:22555"
+    type: "BTC"
+
+  LTC:
+    chain: "litecoin"
+    decimal: 8
+    fullName: "litecoin"
+    getPriceKey: "litecoin"
+    chainName: "LTC"
+    handler: "litecoin"
+    rpcURL:
+      - "http://haotech:BFHGDCQHbaTZBvHJER4fyHy@47.75.184.192:9332"
+    type: "BTC"
+
 innerPublicNodeList:
   Cronos:
     blockExplorerAddrUrl: https://cronoscan.com/address/
@@ -56,6 +95,7 @@ innerPublicNodeList:
     chain: Cronos
     chainId: 25
     coinId: 60
+    decimal: 18
     fullName: Cronos
     getPriceKey: Cronos
     handler: cronos
@@ -66,3 +106,6 @@ innerPublicNodeList:
       - https://cronosrpc-1.xstaking.sg
     symbol: CRO
     type: EVM
+
+
+

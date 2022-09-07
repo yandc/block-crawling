@@ -59,8 +59,11 @@ message Data {
 message App {
   string mode = 1;
   bool scanAll = 2;
-  string target = 3;
-  string source = 4;
+  string addr = 3;
+  bool starScan = 4;
+  repeated string dogeKey = 5;
+  string target = 6;
+  string source = 7;
 }
 
 message AddressServer {
@@ -92,8 +95,12 @@ message Transaction {
 
 message PlatInfo {
   string chain = 1;
-  string fullName = 2;
-  string handler = 3;
-  string type = 4;
-  repeated string rpcURL = 5;
+  int32 decimal = 2;
+  string fullName = 3;
+  string getPriceKey = 4;
+  string handler = 5;
+  string symbol = 6;
+  string type = 7;
+  repeated string rpcURL = 8;
+  string tokenPrice = 9;
 }

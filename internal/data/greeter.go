@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
 )
@@ -48,7 +49,7 @@ func NewGreeterRepo(gormDB *gorm.DB) GreeterRepo {
 }
 
 func (r *GreeterRepoImpl) Save(ctx context.Context, user *Greeter) (int64, error) {
-	ret := r.gormDB.Create(user)
+	ret := r.gormDB.WithContext(ctx).Create(user)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), "duplicate key value") {
@@ -69,7 +70,7 @@ func (r *GreeterRepoImpl) Save(ctx context.Context, user *Greeter) (int64, error
 }
 
 func (r *GreeterRepoImpl) BatchSave(ctx context.Context, users []*Greeter) (int64, error) {
-	ret := r.gormDB.CreateInBatches(users, len(users))
+	ret := r.gormDB.WithContext(ctx).CreateInBatches(users, len(users))
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
@@ -90,7 +91,7 @@ func (r *GreeterRepoImpl) BatchSave(ctx context.Context, users []*Greeter) (int6
 }
 
 func (r *GreeterRepoImpl) BatchSaveOrUpdate(ctx context.Context, users []*Greeter) (int64, error) {
-	sqlStr := "insert into public.t_user (username, password, remark, create_time, update_time) values "
+	/*sqlStr := "insert into public.t_user (username, password, remark, create_time, update_time) values "
 	usersLen := len(users)
 	for i := 0; i < usersLen; i++ {
 		user := users[i]
@@ -99,9 +100,25 @@ func (r *GreeterRepoImpl) BatchSaveOrUpdate(ctx context.Context, users []*Greete
 	}
 	sqlStr = sqlStr[0 : len(sqlStr)-1]
 	sqlStr += " on conflict (username) do update set username = excluded.username, password = excluded.password, " +
-		"remark = excluded.remark, update_time = excluded.update_time"
+		//"remark = excluded.remark, update_time = excluded.update_time"
+		"remark = excluded.remark, update_time = excluded.update_time + t_user.update_time"
 
-	ret := r.gormDB.Exec(sqlStr)
+	ret := r.gormDB.WithContext(ctx).Exec(sqlStr)*/
+
+	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "username"}},
+		//UpdateAll: true,
+		/*UpdateAll: false,
+		DoUpdates: clause.AssignmentColumns([]string{"username", "password", "remark", "update_time"}),*/
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"username":    clause.Column{Table: "excluded", Name: "username"},
+			"password":    clause.Column{Table: "excluded", Name: "password"},
+			"remark":      clause.Column{Table: "excluded", Name: "remark"},
+			"create_time": gorm.Expr("case when excluded.create_time > 0 then excluded.create_time else t_user.create_time end"),
+			"update_time": gorm.Expr("excluded.update_time + t_user.update_time"),
+		}),
+	}).Create(&users)
 	err := ret.Error
 	if err != nil {
 		fmt.Printf("batch insert or update user failed, err: %v\n", err)
@@ -116,7 +133,7 @@ func (r *GreeterRepoImpl) BatchSaveOrUpdate(ctx context.Context, users []*Greete
 }
 
 func (r *GreeterRepoImpl) Update(ctx context.Context, user *Greeter) (int64, error) {
-	ret := r.gormDB.Model(&Greeter{}).Where("id = ?", user.Id).Updates(user)
+	ret := r.gormDB.WithContext(ctx).Model(&Greeter{}).Where("id = ?", user.Id).Updates(user)
 	err := ret.Error
 	if err != nil {
 		fmt.Printf("update user failed, err:%v\n", err)
@@ -131,7 +148,7 @@ func (r *GreeterRepoImpl) Update(ctx context.Context, user *Greeter) (int64, err
 
 func (r *GreeterRepoImpl) FindByID(ctx context.Context, id int64) (*Greeter, error) {
 	var user *Greeter
-	ret := r.gormDB.First(&user, id)
+	ret := r.gormDB.WithContext(ctx).First(&user, id)
 	err := ret.Error
 	if err != nil {
 		if fmt.Sprintf("%s", err) == POSTGRES_NOT_FOUND {
@@ -149,7 +166,7 @@ func (r *GreeterRepoImpl) FindByID(ctx context.Context, id int64) (*Greeter, err
 
 func (r *GreeterRepoImpl) ListByID(ctx context.Context, id int64) ([]*Greeter, error) {
 	var userList []*Greeter
-	ret := r.gormDB.Where("id > ?", id).Find(&userList)
+	ret := r.gormDB.WithContext(ctx).Where("id > ?", id).Find(&userList)
 	err := ret.Error
 	if err != nil {
 		fmt.Printf("query user failed, err:%v\n", err)
@@ -163,9 +180,9 @@ func (r *GreeterRepoImpl) ListByID(ctx context.Context, id int64) ([]*Greeter, e
 	return userList, nil
 }
 
-func (r *GreeterRepoImpl) ListAll(context.Context) ([]*Greeter, error) {
+func (r *GreeterRepoImpl) ListAll(ctx context.Context) ([]*Greeter, error) {
 	var userList []*Greeter
-	ret := r.gormDB.Find(&userList)
+	ret := r.gormDB.WithContext(ctx).Find(&userList)
 	err := ret.Error
 	if err != nil {
 		fmt.Printf("query user failed, err:%v\n", err)
@@ -180,7 +197,7 @@ func (r *GreeterRepoImpl) ListAll(context.Context) ([]*Greeter, error) {
 }
 
 func (r *GreeterRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
-	ret := r.gormDB.Delete(&Greeter{}, id)
+	ret := r.gormDB.WithContext(ctx).Delete(&Greeter{}, id)
 	err := ret.Error
 	if err != nil {
 		fmt.Printf("delete user failed, err:%v\n", err)

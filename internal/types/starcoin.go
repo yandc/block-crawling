@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 )
 
 //Request is a jsonrpc request
@@ -27,6 +28,15 @@ type Response struct {
 	Error  *ErrorObject    `json:"error,omitempty"`
 }
 
+type Balance struct {
+	Raw  string `json:"raw"`
+	JSON struct {
+		Token struct {
+			Value int64 `json:"value"`
+		} `json:"token"`
+	} `json:"json"`
+}
+
 // Error implements error interface
 func (e *ErrorObject) Error() string {
 	data, err := json.Marshal(e)
@@ -46,10 +56,34 @@ type BlockBody struct {
 }
 
 type BlockHeader struct {
-	BlockHash string `json:"block_hash"`
+	BlockHash  string `json:"block_hash"`
 	ParentHash string `json:"parent_hash"`
-	TimeStamp string `json:"timestamp"`
-	Height    string `json:"number"`
+	GasUsed    string `json:"gas_used"`
+	Nonce      int64  `json:"nonce"`
+	TimeStamp  string `json:"timestamp"`
+	Height     string `json:"number"`
+}
+
+type Event struct {
+	BlockHash       string `json:"block_hash"`
+	BlockNumber     string `json:"block_number"`
+	Data            string `json:"data"`
+	DecodeEventData struct {
+		Amount    *big.Int `json:"amount"`
+		Metadata  string   `json:"metadata"`
+		TokenCode struct {
+			Addr       string `json:"addr"`
+			ModuleName string `json:"module_name"`
+			Name       string `json:"name"`
+		} `json:"token_code"`
+	} `json:"decode_event_data"`
+	EventIndex             int    `json:"event_index"`
+	EventKey               string `json:"event_key"`
+	EventSeqNumber         string `json:"event_seq_number"`
+	TransactionGlobalIndex string `json:"transaction_global_index"`
+	TransactionHash        string `json:"transaction_hash"`
+	TransactionIndex       int    `json:"transaction_index"`
+	TypeTag                string `json:"type_tag"`
 }
 
 type Chain struct {

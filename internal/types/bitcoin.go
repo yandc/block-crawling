@@ -1,5 +1,11 @@
 package types
 
+import (
+	"github.com/blockcypher/gobcy"
+	"math/big"
+	"time"
+)
+
 type BTCTestBlockerInfo []struct {
 	Txid     string `json:"txid"`
 	Version  int    `json:"version"`
@@ -119,6 +125,37 @@ type TXResponse struct {
 	Amount                  string `json:"amount"`
 	ChainName               string `json:"chain_name"`
 	TransactionType         string `json:"transaction_type"`
+}
+
+type TX struct {
+	BlockHash     string           `json:"block_hash,omitempty"`
+	BlockHeight   int              `json:"block_height,omitempty"`
+	Hash          string           `json:"hash,omitempty"`
+	Addresses     []string         `json:"addresses,omitempty"`
+	Total         big.Int          `json:"total,omitempty"`
+	Fees          big.Int          `json:"fees,omitempty"`
+	Size          int              `json:"size"`
+	Preference    string           `json:"preference,omitempty"`
+	RelayedBy     string           `json:"relayed_by,omitempty"`
+	Received      time.Time        `json:"received,omitempty"`
+	Confirmed     time.Time        `json:"confirmed,omitempty"`
+	Confirmations int              `json:"confirmations,omitempty"`
+	Confidence    float64          `json:"confidence,omitempty"`
+	Ver           int              `json:"ver,omitempty"`
+	LockTime      int              `json:"lock_time,omitempty"`
+	DoubleSpend   bool             `json:"double_spend,omitempty"`
+	DoubleOf      string           `json:"double_of,omitempty"`
+	ReceiveCount  int              `json:"receive_count,omitempty"`
+	VinSize       int              `json:"vin_sz,omitempty"`
+	VoutSize      int              `json:"vout_sz,omitempty"`
+	Hex           string           `json:"hex,omitempty"`
+	DataProtocol  string           `json:"data_protocol,omitempty"`
+	ChangeAddress string           `json:"change_address,omitempty"`
+	NextInputs    string           `json:"next_inputs,omitempty"`
+	NextOutputs   string           `json:"next_outputs,omitempty"`
+	Inputs        []gobcy.TXInput  `json:"inputs"`
+	Outputs       []gobcy.TXOutput `json:"outputs"`
+	Error         string           `json:"error"`
 }
 
 type TXByHash struct {

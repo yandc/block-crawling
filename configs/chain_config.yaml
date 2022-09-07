@@ -1,4 +1,43 @@
 platform:
+  DOGE:
+    blockExplorerAddrUrl: https://dogechain.info/address/
+    blockExplorerTxUrl: https://dogechain.info/tx/
+    blockExplorerUrl: https://dogechain.info/
+    chain: DOGE
+    chainId: ''
+    coinId: 0
+    decimal: 8
+    fullName: Dogecoin
+    getPriceKey: dogecoin
+    handler: dogecoin
+    nativeCurrency: DOGE
+    netType: main
+    proxyCacheTime: 60
+    rpcURL:
+      - https://ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+    symbol: DOGE
+    type: BTC
+  LTC:
+    blockExplorerAddrUrl: https://live.blockcypher.com/ltc/address/
+    blockExplorerTxUrl: https://live.blockcypher.com/ltc/tx/
+    blockExplorerUrl: https://live.blockcypher.com/ltc/
+    bytes: 226
+    chain: LTC
+    chainId: ''
+    coinId: 2
+    decimal: 8
+    fullName: Litecoin
+    getPriceKey: litecoin
+    handler: litecoin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
+    nativeCurrency: LTC
+    netType: main
+    proxyCacheTime: 60
+    proxyKey: feeOracleLTC
+    rpcURL:
+      - https://ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+    symbol: LTC
+    type: BTC
   Avalanche:
     blockExplorerAddrUrl: https://snowtrace.io/address/
     blockExplorerTxUrl: https://snowtrace.io/tx/
@@ -6,10 +45,11 @@ platform:
     chain: Avalanche
     chainId: 43114
     coinId: 60
+    decimal: 18
     fullName: Avalanche
-    getPriceKey: Avalanche
+    getPriceKey: avalanche-2
     handler: avalanche
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Avalanche.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Avalanche.png
     nativeCurrency: AVAX
     netType: main
     proxyCacheTime: 5
@@ -26,10 +66,11 @@ platform:
     chain: BSC
     chainId: 56
     coinId: 60
+    decimal: 18
     fullName: Binance Smart Chain
-    getPriceKey: BNB
+    getPriceKey: binancecoin
     handler: bsc
-    icon: https://bxhp.243096.com/mili/images/currency/chain/BSC.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/BSC.png
     nativeCurrency: BNB
     netType: main
     proxyCacheTime: 15
@@ -51,12 +92,6 @@ platform:
     - https://binance.ankr.com
     - https://rpc.ankr.com/bsc
     - https://rpc.onekey.so/bsc
-    - https://bsc.mytokenpocket.vip
-    - https://bscrpc.com
-    - https://bsc-mainnet.nodereal.io/v1/64a9df0874fb4a93b9d0a3849de012d3
-    - https://binance.nodereal.io
-    - https://rpc-bsc.bnb48.club
-    - https://bscapi.terminet.io/rpc
     symbol: BSC
     type: EVM
   BTC:
@@ -67,14 +102,19 @@ platform:
     chain: BTC
     chainId: ''
     coinId: 0
+    decimal: 8
     fullName: Bitcoin
-    getPriceKey: Bitcoin
+    getPriceKey: bitcoin
     handler: bitcoin
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Bitcoin.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
     nativeCurrency: BTC
     netType: main
+    proxyCacheTime: 60
+    proxyKey: feeOracleBTC
     rpcURL:
     - https://api.blockcypher.com/v1/btc/main
+#    - https://chain.so
+#    - https://blockstream.info
     symbol: BTC
     type: BTC
   Cronos:
@@ -84,10 +124,11 @@ platform:
     chain: Cronos
     chainId: 25
     coinId: 60
+    decimal: 18
     fullName: Cronos
-    getPriceKey: Cronos
+    getPriceKey: crypto-com-chain
     handler: cronos
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Cronos.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cronos.png
     nativeCurrency: CRO
     netType: main
     rpcURL:
@@ -103,10 +144,11 @@ platform:
     chain: ETH
     chainId: 1
     coinId: 60
+    decimal: 18
     fullName: Ethereum
-    getPriceKey: Ethereum
+    getPriceKey: ethereum
     handler: ethereum
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Ethereum.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
     nativeCurrency: ETH
     netType: main
     proxyCacheTime: 15
@@ -129,10 +171,11 @@ platform:
     chain: Fantom
     chainId: 250
     coinId: 60
+    decimal: 18
     fullName: Fantom
-    getPriceKey: Fantom
+    getPriceKey: fantom
     handler: fantom
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Fantom.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Fantom.png
     nativeCurrency: FTM
     netType: main
     proxyCacheTime: 5
@@ -150,10 +193,11 @@ platform:
     chain: HECO
     chainId: 128
     coinId: 60
+    decimal: 18
     fullName: Huobi ECO Chain
-    getPriceKey: Huobi-Token
+    getPriceKey: huobi-token
     handler: heco
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Heco.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Heco.png
     nativeCurrency: HT
     netType: main
     proxyCacheTime: 5
@@ -170,10 +214,11 @@ platform:
     chain: Klaytn
     chainId: 8217
     coinId: 60
+    decimal: 18
     fullName: Klaytn
-    getPriceKey: Klaytn
+    getPriceKey: klay-token
     handler: klaytn
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Klaytn.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Klaytn.png
     nativeCurrency: KLAY
     netType: main
     rpcURL:
@@ -183,7 +228,6 @@ platform:
     - https://klaytn03.fandom.finance/
     - https://klaytn04.fandom.finance/
     - https://klaytn05.fandom.finance/
-    - https://cypress.fandom.finance/archive
     symbol: Klaytn
     type: EVM
   OEC:
@@ -193,10 +237,11 @@ platform:
     chain: OEC
     chainId: 66
     coinId: 60
+    decimal: 18
     fullName: Okex Chain
-    getPriceKey: OKC
+    getPriceKey: oec-token
     handler: okex
-    icon: https://bxhp.243096.com/mili/images/currency/chain/OEC.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/OEC.png
     nativeCurrency: OKT
     netType: main
     proxyCacheTime: 15
@@ -213,10 +258,11 @@ platform:
     chain: Optimism
     chainId: 10
     coinId: 60
+    decimal: 18
     fullName: Optimism
-    getPriceKey: Ethereum
+    getPriceKey: ethereum
     handler: optimism
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Optimism.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Optimism.png
     nativeCurrency: ETH
     netType: main
     rpcURL:
@@ -232,10 +278,11 @@ platform:
     chain: Polygon
     chainId: 137
     coinId: 60
+    decimal: 18
     fullName: Polygon
-    getPriceKey: Polygon
+    getPriceKey: matic-network
     handler: polygon
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Polygon.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
     nativeCurrency: MATIC
     netType: main
     proxyCacheTime: 5
@@ -257,10 +304,11 @@ platform:
     chain: STC
     chainId: 1
     coinId: 101010
+    decimal: 9
     fullName: Starcoin
-    getPriceKey: Starcoin
+    getPriceKey: starcoin
     handler: starcoin
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Starcoin.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Starcoin.png
     nativeCurrency: STC
     netType: main
     rpcURL:
@@ -274,10 +322,11 @@ platform:
     chain: TRX
     chainId: 1
     coinId: 195
+    decimal: 6
     fullName: Tron
-    getPriceKey: TRON
+    getPriceKey: tron
     handler: tron
-    icon: https://bxhp.243096.com/mili/images/currency/chain/TRON.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/TRON.png
     nativeCurrency: TRX
     netType: main
     rpcURL:
@@ -285,6 +334,24 @@ platform:
     symbol: TRX
     type: TVM
 platformTest:
+  AptosTEST:
+    blockExplorerAddrUrl: https://explorer.devnet.aptos.dev/account/
+    blockExplorerTxUrl: https://explorer.devnet.aptos.dev/txn/
+    blockExplorerUrl: https://explorer.devnet.aptos.dev/
+    chain: AptosTEST
+    chainId: 24
+    coinId: 101011
+    decimal: 0
+    fullName: Aptos Test Net
+    getPriceKey: ''
+    handler: aptos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
+    nativeCurrency: Aptos
+    netType: test
+    rpcURL:
+    - https://fullnode.devnet.aptoslabs.com/v1
+    symbol: APT
+    type: APTOS
   AvalancheTEST:
     blockExplorerAddrUrl: https:/https://testnet.snowtrace.io/address/
     blockExplorerTxUrl: https://testnet.snowtrace.io/tx/
@@ -292,10 +359,11 @@ platformTest:
     chain: AvalancheTEST
     chainId: 43113
     coinId: 60
+    decimal: 18
     fullName: Avalanche Test Net
-    getPriceKey: AVAX
+    getPriceKey: avalanche-2
     handler: avalanche
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Avalanche.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Avalanche.png
     nativeCurrency: AVAX
     netType: test
     rpcURL:
@@ -309,19 +377,15 @@ platformTest:
     chain: BSCTEST
     chainId: 97
     coinId: 60
+    decimal: 18
     fullName: Binance Smart Chain Test Net
-    getPriceKey: BNB
+    getPriceKey: binancecoin
     handler: bsc
-    icon: https://bxhp.243096.com/mili/images/currency/chain/BSC.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/BSC.png
     nativeCurrency: BNB
     netType: test
     rpcURL:
-    - https://data-seed-prebsc-1-s1.binance.org:8545
-    - https://data-seed-prebsc-1-s2.binance.org:8545
-    - https://data-seed-prebsc-1-s3.binance.org:8545
-    - https://data-seed-prebsc-2-s1.binance.org:8545
-    - https://data-seed-prebsc-2-s2.binance.org:8545
-    - https://data-seed-prebsc-2-s3.binance.org:8545
+    - https://data-seed-prebsc-1-s1.binance.org:8545/
     symbol: BSC
     type: EVM
   BTCTEST:
@@ -332,14 +396,17 @@ platformTest:
     chain: BTCTEST
     chainId: ''
     coinId: 10000
+    decimal: 8
     fullName: Bitcoin Test Net
-    getPriceKey: Bitcoin
+    getPriceKey: bitcoin
     handler: bitcoin
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Bitcoin.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
     nativeCurrency: BTC
     netType: test
     rpcURL:
     - https://api.blockcypher.com/v1/btc/test3
+    - https://chain.so
+    - https://blockstream.info/testnet
     symbol: BTC
     type: BTC
   CronosTEST:
@@ -349,15 +416,15 @@ platformTest:
     chain: CronosTEST
     chainId: 338
     coinId: 60
+    decimal: 18
     fullName: Cronos Test Net
-    getPriceKey: tCRO
+    getPriceKey: crypto-com-chain
     handler: cronos
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Cronos.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cronos.png
     nativeCurrency: tCRO
     netType: test
     rpcURL:
     - https://evm-t3.cronos.org/
-    - https://cronos-testnet-3.crypto.org:8545
     symbol: CRO
     type: EVM
   ETHTEST:
@@ -367,10 +434,11 @@ platformTest:
     chain: ETHTEST
     chainId: 3
     coinId: 60
+    decimal: 18
     fullName: Ethereum Test Net
-    getPriceKey: Ethereum
+    getPriceKey: ethereum
     handler: ethereum
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Ethereum.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
     nativeCurrency: ETH
     netType: test
     rpcURL:
@@ -384,10 +452,11 @@ platformTest:
     chain: FantomTEST
     chainId: 4002
     coinId: 60
+    decimal: 18
     fullName: Fantom Test Net
-    getPriceKey: Fantom
+    getPriceKey: fantom
     handler: fantom
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Fantom.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Fantom.png
     nativeCurrency: FTM
     netType: test
     rpcURL:
@@ -401,10 +470,11 @@ platformTest:
     chain: HECOTEST
     chainId: 256
     coinId: 60
+    decimal: 18
     fullName: Huobi ECO Chain Test Net
-    getPriceKey: Huobi-Token
+    getPriceKey: huobi-token
     handler: heco
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Heco.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Heco.png
     nativeCurrency: HT
     netType: test
     rpcURL:
@@ -418,10 +488,11 @@ platformTest:
     chain: KlaytnTEST
     chainId: 1001
     coinId: 60
+    decimal: 18
     fullName: Klaytn Test Net
-    getPriceKey: Klaytn
+    getPriceKey: klay-token
     handler: klaytn
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Klaytn.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Klaytn.png
     nativeCurrency: KLAY
     netType: test
     rpcURL:
@@ -437,10 +508,11 @@ platformTest:
     chain: OECTEST
     chainId: 65
     coinId: 60
+    decimal: 18
     fullName: Okex Chain Test Net
-    getPriceKey: OEC-Token
+    getPriceKey: oec-token
     handler: okex
-    icon: https://bxhp.243096.com/mili/images/currency/chain/OEC.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/OEC.png
     nativeCurrency: OKT
     netType: test
     rpcURL:
@@ -454,10 +526,11 @@ platformTest:
     chain: OptimismTEST
     chainId: 69
     coinId: 60
+    decimal: 18
     fullName: Optimism Test Net
-    getPriceKey: Ethereum
+    getPriceKey: ethereum
     handler: optimism
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Optimism.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Optimism.png
     nativeCurrency: ETH
     netType: test
     rpcURL:
@@ -472,19 +545,15 @@ platformTest:
     chain: PolygonTEST
     chainId: 80001
     coinId: 60
+    decimal: 18
     fullName: Polygon Test Net
-    getPriceKey: Polygon
+    getPriceKey: matic-network
     handler: polygon
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Polygon.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
     nativeCurrency: MATIC
     netType: test
     rpcURL:
     - https://rpc-mumbai.matic.today
-    - https://rpc.ankr.com/polygon_mumbai
-    - https://matic-testnet-archive-rpc.bwarelabs.com
-    - https://rpc-mumbai.maticvigil.com
-    - https://polygontestapi.terminet.io/rpc
-    - https://matic-mumbai.chainstacklabs.com
     symbol: Polygon
     type: EVM
   TRXTEST:
@@ -494,12 +563,13 @@ platformTest:
     chain: TRXTEST
     chainId: 1
     coinId: 195
+    decimal: 6
     fullName: Tron Test Net
-    getPriceKey: TRON
+    getPriceKey: tron
     handler: tron
-    icon: https://bxhp.243096.com/mili/images/currency/chain/TRON.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/TRON.png
     nativeCurrency: TRX
-    netType: main
+    netType: test
     rpcURL:
     - https://api.shasta.trongrid.io
     symbol: TRX
