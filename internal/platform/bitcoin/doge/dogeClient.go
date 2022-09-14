@@ -56,8 +56,6 @@ func GetBalance(address string, c *base.Client) (string, error) {
 		if len(balances) > 0 {
 			return balances[0].ConfirmedBalance, nil
 		}
-	} else {
-		return "", nil
 	}
 	return "", err
 }

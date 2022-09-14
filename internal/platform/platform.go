@@ -92,7 +92,7 @@ func GetPlatform(typ, chain, chainName string, nodeURL []string) subhandle.Platf
 	case biz.TVM:
 		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURL, height)
 	case biz.APTOS:
-		return aptos.Init(coins.Tron().Handle, chain, chainName, nodeURL, height)
+		return aptos.Init(coins.Aptos().Handle, chain, chainName, nodeURL, height)
 	}
 	return nil
 }

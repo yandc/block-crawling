@@ -145,8 +145,12 @@ type TransactionInfo struct {
 		Address      string `json:"address"`
 		StateKeyHash string `json:"state_key_hash"`
 		Data         struct {
-			Type string      `json:"type"`
-			Data interface{} `json:"data"`
+			Type string `json:"type"`
+			Data *struct {
+				Coin *struct {
+					Value string `json:"value"`
+				} `json:"coin"`
+			} `json:"data"`
 		} `json:"data"`
 	} `json:"changes"`
 	Sender                  string `json:"sender"`

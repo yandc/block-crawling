@@ -159,13 +159,15 @@ message PageListRequest {
   repeated string transactionTypeList = 11;
   repeated string transactionTypeNotInList = 12;
   repeated string transactionHashList = 13;
-  string orderBy = 14;
-  int32 dataDirection = 15 [(validate.rules).int32 = {in: [0, 1, 2]}];
-  int64 startIndex = 16 [(validate.rules).int64.gte = 0];
-  int32 pageNum = 17 [(validate.rules).int32.gte = 0];
-  int32 pageSize = 18 [(validate.rules).int32.gte = 0];
-  bool total = 19;
-  string platform = 20;
+  int64 startTime = 14 [(validate.rules).int64.gte = 0];
+  int64 stopTime = 15 [(validate.rules).int64.gte = 0];
+  string orderBy = 16;
+  int32 dataDirection = 17 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 18 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 19 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 20 [(validate.rules).int32.gte = 0];
+  bool total = 21;
+  string platform = 22;
 }
 
 message PageListResponse {
@@ -176,36 +178,38 @@ message PageListResponse {
 message TransactionRecord {
   int64 id = 1;
   string chainName = 2;
-  string transactionHash = 3;
-  string status = 4;
-  string fromAddress = 5;
-  string toAddress = 6;
-  string amount = 7;
-  string feeAmount = 8;
-  string transactionType = 9;
-  string contractAddress = 10;
-  int64 txTime = 11;
-  int64 nonce = 12;
-  string gasLimit = 13;
-  string gasUsed = 14;
-  string gasPrice = 15;
-  string baseFee = 16;
-  string maxFeePerGas =17;
-  string maxPriorityFeePerGas =18;
-  string data = 19;
-  string dappData = 20;
-  string eventLog = 21;
-  string parseData = 22;
-  string netUsage = 23;
-  string feeLimit = 24;
-  string energyUsage = 25;
-  string blockHash = 26;
-  int64 blockNumber = 27;
-  int64 createdAt = 28;
-  int64 updatedAt = 29;
-  string clientData = 30;
-  string feeData = 31;
-  int64 cursor = 32;
+  string blockHash = 3;
+  int64 blockNumber = 4;
+  string transactionHash = 5;
+  string fromAddress = 6;
+  string toAddress = 7;
+  string fromUid = 8;
+  string toUid = 9;
+  string amount = 10;
+  string feeAmount = 11;
+  string status = 12;
+  string transactionType = 13;
+  string contractAddress = 14;
+  int64 txTime = 15;
+  int64 nonce = 16;
+  string gasLimit = 17;
+  string gasUsed = 18;
+  string gasPrice = 19;
+  string baseFee = 20;
+  string maxFeePerGas =21;
+  string maxPriorityFeePerGas =22;
+  string data = 23;
+  string dappData = 24;
+  string eventLog = 25;
+  string parseData = 26;
+  string netUsage = 27;
+  string feeLimit = 28;
+  string energyUsage = 29;
+  int64 createdAt = 30;
+  int64 updatedAt = 31;
+  string clientData = 32;
+  string feeData = 33;
+  int64 cursor = 34;
 }
 
 message AmountRequest {

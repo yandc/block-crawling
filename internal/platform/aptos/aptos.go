@@ -265,7 +265,8 @@ func (p *Platform) DoGetTransactions() {
 					!strings.HasSuffix(tx.Payload.Function, "::rotate_authentication_key") &&
 					!strings.HasSuffix(tx.Payload.Function, "::create_collection_script") &&
 					!strings.HasSuffix(tx.Payload.Function, "::init") {
-					if strings.HasSuffix(tx.Payload.Function, "::transfer") {
+					if strings.HasSuffix(tx.Payload.Function, "::transfer") ||
+						tx.Payload.Function == "0x1::aptos_coin::mint" {
 						txType := biz.NATIVE
 						var tokenInfo types.TokenInfo
 						var amount, contractAddress string
@@ -311,6 +312,30 @@ func (p *Platform) DoGetTransactions() {
 							}
 						}
 
+						var changes = make(map[string]map[string]string)
+						for _, change := range tx.Changes {
+							dataType := change.Data.Type
+							if strings.HasPrefix(dataType, "0x1::coin::CoinStore<") {
+								tokenAddress := dataType[len("0x1::coin::CoinStore<") : len(dataType)-1]
+								var tokenBalance string
+								dataData := change.Data.Data
+								if dataData != nil {
+									dataDataCoin := dataData.Coin
+									if dataDataCoin != nil {
+										tokenBalance = dataDataCoin.Value
+									}
+								}
+								if tokenAddress != "" && tokenBalance != "" {
+									changeMap, ok := changes[change.Address]
+									if !ok {
+										changeMap = make(map[string]string)
+										changes[change.Address] = changeMap
+									}
+									changeMap[tokenAddress] = tokenBalance
+								}
+							}
+						}
+
 						if fromAddressExist || toAddressExist {
 							version, _ := strconv.Atoi(tx.Version)
 							nonce, _ := strconv.Atoi(tx.SequenceNumber)
@@ -319,7 +344,7 @@ func (p *Platform) DoGetTransactions() {
 							gasUsed, _ := strconv.Atoi(tx.GasUsed)
 							gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 							feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
-							payload, _ := utils.JsonEncode(tx.Payload)
+							payload, _ := utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 							contractAddressSplit := strings.Split(contractAddress, "::")
 							if len(contractAddressSplit) == 3 {
@@ -430,6 +455,33 @@ func (p *Platform) DoGetTransactions() {
 								return
 							}
 						}
+						if fromAddress == toAddress {
+							continue
+						}
+
+						var changes = make(map[string]map[string]string)
+						for _, change := range tx.Changes {
+							dataType := change.Data.Type
+							if strings.HasPrefix(dataType, "0x1::coin::CoinStore<") {
+								tokenAddress := dataType[len("0x1::coin::CoinStore<") : len(dataType)-1]
+								var tokenBalance string
+								dataData := change.Data.Data
+								if dataData != nil {
+									dataDataCoin := dataData.Coin
+									if dataDataCoin != nil {
+										tokenBalance = dataDataCoin.Value
+									}
+								}
+								if tokenAddress != "" && tokenBalance != "" {
+									changeMap, ok := changes[change.Address]
+									if !ok {
+										changeMap = make(map[string]string)
+										changes[change.Address] = changeMap
+									}
+									changeMap[tokenAddress] = tokenBalance
+								}
+							}
+						}
 
 						if fromAddressExist || toAddressExist {
 							version, _ = strconv.Atoi(tx.Version)
@@ -439,7 +491,7 @@ func (p *Platform) DoGetTransactions() {
 							gasUsed, _ = strconv.Atoi(tx.GasUsed)
 							gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 							feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-							payload, _ = utils.JsonEncode(tx.Payload)
+							payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 							flag = true
 
@@ -509,13 +561,7 @@ func (p *Platform) DoGetTransactions() {
 						txType = biz.EVENTLOG
 						index := 0
 						eventIndex := 0
-						withdrawEventNum := 0
 
-						for _, event := range tx.Events {
-							if event.Type == "0x1::coin::WithdrawEvent" {
-								withdrawEventNum++
-							}
-						}
 						for _, event := range tx.Events {
 							var tokenInfo types.TokenInfo
 							var amount, contractAddress string
@@ -527,47 +573,52 @@ func (p *Platform) DoGetTransactions() {
 								amount = event.Data.Amount
 								mode := strings.Split(tx.Payload.Function, "::")
 								if event.Type == "0x1::coin::WithdrawEvent" {
-									if len(tx.Payload.TypeArguments) > 0 {
-										if strings.HasSuffix(tx.Payload.Function, "::remove_liquidity") {
-											contractAddress = tx.Payload.TypeArguments[2]
-										} else {
-											if len(tx.Payload.TypeArguments) == 1 {
-												contractAddress = tx.Payload.TypeArguments[0]
-											} else {
-												if eventIndex < len(tx.Payload.TypeArguments) {
-													contractAddress = tx.Payload.TypeArguments[eventIndex]
-													eventIndex++
-												}
-											}
-										}
-									}
 									fromAddress = "0x" + event.Key[18:]
 									if len(mode) == 3 {
 										toAddress = mode[0]
 									}
 								} else if event.Type == "0x1::coin::DepositEvent" {
-									if len(tx.Payload.TypeArguments) > 0 {
-										if strings.HasSuffix(tx.Payload.Function, "::remove_liquidity") {
-											if eventIndex < len(tx.Payload.TypeArguments) {
-												contractAddress = tx.Payload.TypeArguments[eventIndex]
-												eventIndex++
-											}
-										} else {
-											if len(tx.Payload.TypeArguments) == 1 {
-												contractAddress = tx.Payload.TypeArguments[0]
-											} else {
-												if withdrawEventNum < len(tx.Payload.TypeArguments) {
-													contractAddress = tx.Payload.TypeArguments[withdrawEventNum]
-												}
-											}
-										}
-									}
 									toAddress = "0x" + event.Key[18:]
 									if len(mode) == 3 {
 										fromAddress = mode[0]
 									}
 								}
+
+								if len(tx.Payload.TypeArguments) > 0 {
+									typeArgumentIndex := eventIndex >> 1
+									if typeArgumentIndex < len(tx.Payload.TypeArguments) {
+										contractAddress = tx.Payload.TypeArguments[typeArgumentIndex]
+									} else {
+										changeMap, ok := changes[tx.Sender]
+										if !ok {
+											changeMap, ok = changes[fromAddress]
+										}
+										if ok {
+										f:
+											for tokenAddress, _ := range changeMap {
+												for _, typeArgument := range tx.Payload.TypeArguments {
+													if tokenAddress == typeArgument {
+														continue f
+													}
+												}
+												if tokenAddress == APT_CODE {
+													if contractAddress == "" {
+														contractAddress = tokenAddress
+													}
+												} else {
+													contractAddress = tokenAddress
+													break
+												}
+											}
+										}
+									}
+								}
+
+								eventIndex++
 							} else {
+								continue
+							}
+							if fromAddress == toAddress {
 								continue
 							}
 
@@ -607,7 +658,7 @@ func (p *Platform) DoGetTransactions() {
 									gasUsed, _ = strconv.Atoi(tx.GasUsed)
 									gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 									feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-									payload, _ = utils.JsonEncode(tx.Payload)
+									payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 									flag = true
 								}
@@ -908,7 +959,8 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					!strings.HasSuffix(tx.Payload.Function, "::rotate_authentication_key") &&
 					!strings.HasSuffix(tx.Payload.Function, "::create_collection_script") &&
 					!strings.HasSuffix(tx.Payload.Function, "::init") {
-					if strings.HasSuffix(tx.Payload.Function, "::transfer") {
+					if strings.HasSuffix(tx.Payload.Function, "::transfer") ||
+						tx.Payload.Function == "0x1::aptos_coin::mint" {
 						txType := biz.NATIVE
 						var tokenInfo types.TokenInfo
 						var amount, contractAddress string
@@ -954,6 +1006,30 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							}
 						}
 
+						var changes = make(map[string]map[string]string)
+						for _, change := range tx.Changes {
+							dataType := change.Data.Type
+							if strings.HasPrefix(dataType, "0x1::coin::CoinStore<") {
+								tokenAddress := dataType[len("0x1::coin::CoinStore<") : len(dataType)-1]
+								var tokenBalance string
+								dataData := change.Data.Data
+								if dataData != nil {
+									dataDataCoin := dataData.Coin
+									if dataDataCoin != nil {
+										tokenBalance = dataDataCoin.Value
+									}
+								}
+								if tokenAddress != "" && tokenBalance != "" {
+									changeMap, ok := changes[change.Address]
+									if !ok {
+										changeMap = make(map[string]string)
+										changes[change.Address] = changeMap
+									}
+									changeMap[tokenAddress] = tokenBalance
+								}
+							}
+						}
+
 						if fromAddressExist || toAddressExist {
 							version, _ := strconv.Atoi(tx.Version)
 							nonce, _ := strconv.Atoi(tx.SequenceNumber)
@@ -962,7 +1038,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							gasUsed, _ := strconv.Atoi(tx.GasUsed)
 							gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 							feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
-							payload, _ := utils.JsonEncode(tx.Payload)
+							payload, _ := utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 							contractAddressSplit := strings.Split(contractAddress, "::")
 							if len(contractAddressSplit) == 3 {
@@ -1073,6 +1149,33 @@ func (p *Platform) GetTransactionResultByTxhash() {
 								return
 							}
 						}
+						if fromAddress == toAddress {
+							continue
+						}
+
+						var changes = make(map[string]map[string]string)
+						for _, change := range tx.Changes {
+							dataType := change.Data.Type
+							if strings.HasPrefix(dataType, "0x1::coin::CoinStore<") {
+								tokenAddress := dataType[len("0x1::coin::CoinStore<") : len(dataType)-1]
+								var tokenBalance string
+								dataData := change.Data.Data
+								if dataData != nil {
+									dataDataCoin := dataData.Coin
+									if dataDataCoin != nil {
+										tokenBalance = dataDataCoin.Value
+									}
+								}
+								if tokenAddress != "" && tokenBalance != "" {
+									changeMap, ok := changes[change.Address]
+									if !ok {
+										changeMap = make(map[string]string)
+										changes[change.Address] = changeMap
+									}
+									changeMap[tokenAddress] = tokenBalance
+								}
+							}
+						}
 
 						if fromAddressExist || toAddressExist {
 							version, _ = strconv.Atoi(tx.Version)
@@ -1082,7 +1185,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							gasUsed, _ = strconv.Atoi(tx.GasUsed)
 							gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 							feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-							payload, _ = utils.JsonEncode(tx.Payload)
+							payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 							flag = true
 
@@ -1152,60 +1255,64 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						txType = biz.EVENTLOG
 						index := 0
 						eventIndex := 0
-						withdrawEventNum := 0
 
-						for _, event := range tx.Events {
-							if event.Type == "0x1::coin::WithdrawEvent" {
-								withdrawEventNum++
-							}
-						}
 						for _, event := range tx.Events {
 							var tokenInfo types.TokenInfo
 							var amount, contractAddress string
 							var fromAddress, toAddress, fromUid, toUid string
 							var fromAddressExist, toAddressExist bool
 
-							if event.Type == "0x1::coin::WithdrawEvent" {
+							if event.Type == "0x1::coin::WithdrawEvent" ||
+								event.Type == "0x1::coin::DepositEvent" {
+								amount = event.Data.Amount
+								mode := strings.Split(tx.Payload.Function, "::")
+								if event.Type == "0x1::coin::WithdrawEvent" {
+									fromAddress = "0x" + event.Key[18:]
+									if len(mode) == 3 {
+										toAddress = mode[0]
+									}
+								} else if event.Type == "0x1::coin::DepositEvent" {
+									toAddress = "0x" + event.Key[18:]
+									if len(mode) == 3 {
+										fromAddress = mode[0]
+									}
+								}
+
 								if len(tx.Payload.TypeArguments) > 0 {
-									if strings.HasSuffix(tx.Payload.Function, "::remove_liquidity") {
-										contractAddress = tx.Payload.TypeArguments[2]
+									typeArgumentIndex := eventIndex >> 1
+									if typeArgumentIndex < len(tx.Payload.TypeArguments) {
+										contractAddress = tx.Payload.TypeArguments[typeArgumentIndex]
 									} else {
-										if len(tx.Payload.TypeArguments) == 1 {
-											contractAddress = tx.Payload.TypeArguments[0]
-										} else {
-											contractAddress = tx.Payload.TypeArguments[eventIndex]
-											eventIndex++
+										changeMap, ok := changes[tx.Sender]
+										if !ok {
+											changeMap, ok = changes[fromAddress]
+										}
+										if ok {
+										f:
+											for tokenAddress, _ := range changeMap {
+												for _, typeArgument := range tx.Payload.TypeArguments {
+													if tokenAddress == typeArgument {
+														continue f
+													}
+												}
+												if tokenAddress == APT_CODE {
+													if contractAddress == "" {
+														contractAddress = tokenAddress
+													}
+												} else {
+													contractAddress = tokenAddress
+													break
+												}
+											}
 										}
 									}
 								}
-								fromAddress = "0x" + event.Key[18:]
-								amount = event.Data.Amount
 
-								mode := strings.Split(tx.Payload.Function, "::")
-								if len(mode) == 3 {
-									toAddress = mode[0]
-								}
-							} else if event.Type == "0x1::coin::DepositEvent" {
-								if len(tx.Payload.TypeArguments) > 0 {
-									if strings.HasSuffix(tx.Payload.Function, "::remove_liquidity") {
-										contractAddress = tx.Payload.TypeArguments[eventIndex]
-										eventIndex++
-									} else {
-										if len(tx.Payload.TypeArguments) == 1 {
-											contractAddress = tx.Payload.TypeArguments[0]
-										} else {
-											contractAddress = tx.Payload.TypeArguments[withdrawEventNum]
-										}
-									}
-								}
-								toAddress = "0x" + event.Key[18:]
-								amount = event.Data.Amount
-
-								mode := strings.Split(tx.Payload.Function, "::")
-								if len(mode) == 3 {
-									fromAddress = mode[0]
-								}
+								eventIndex++
 							} else {
+								continue
+							}
+							if fromAddress == toAddress {
 								continue
 							}
 
@@ -1245,7 +1352,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 									gasUsed, _ = strconv.Atoi(tx.GasUsed)
 									gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 									feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-									payload, _ = utils.JsonEncode(tx.Payload)
+									payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
 									flag = true
 								}

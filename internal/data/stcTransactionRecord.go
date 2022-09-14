@@ -38,7 +38,7 @@ type StcTransactionRecord struct {
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
-	CreatedAt       int64           `json:"createdAt" form:"createdAt"`
+	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
@@ -57,6 +57,7 @@ type StcTransactionRecordRepo interface {
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*StcTransactionRecord, error)
+	FindOneByBlockNumber(context.Context, string, int) (*StcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*StcTransactionRecord, error)
 }
@@ -325,6 +326,12 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
 	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
 
 	if req.Total {
 		// 统计总记录数
@@ -379,6 +386,22 @@ func (r *StcTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName s
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last stcTransactionRecord failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return stcTransactionRecord, nil
+		}
+	}
+}
+
+func (r *StcTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context, tableName string, blockNumber int) (*StcTransactionRecord, error) {
+	var stcTransactionRecord *StcTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number = ?", blockNumber).Limit(1).Find(&stcTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query one stcTransactionRecord by blockNumber failed", err)
 		return nil, err
 	} else {
 		if ret.RowsAffected == 0 {

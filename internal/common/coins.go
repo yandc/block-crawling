@@ -91,7 +91,7 @@ var Coins = map[uint]Coin{
 		Symbol:       "ETH",
 		Name:         "Ethereum",
 		Decimals:     18,
-		LiveInterval: 3000,
+		LiveInterval: 1000,
 	},
 	CLASSIC: {
 		ID:           61,
