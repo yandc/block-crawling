@@ -213,3 +213,18 @@ func GetDayTime(t *time.Time) int64 {
 	dayTime, _ := time.ParseInLocation(dayFormat, day, local)
 	return dayTime.Unix()
 }
+
+func HexStringToInt(hetStr string) (*big.Int, error) {
+	if strings.HasPrefix(hetStr, "0x") {
+		hetStr = hetStr[2:]
+	}
+	if len(hetStr)&1 == 1 {
+		hetStr = "0" + hetStr
+	}
+	byteValue, err := hex.DecodeString(hetStr)
+	if err != nil {
+		return nil, err
+	}
+	intValue := new(big.Int).SetBytes(byteValue)
+	return intValue, nil
+}

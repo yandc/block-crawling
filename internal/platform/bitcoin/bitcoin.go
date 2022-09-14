@@ -26,7 +26,7 @@ type Platform struct {
 func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
 	return &Platform{
 		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeURL[0],chainName),
+		client:       NewClient(nodeURL[0], chainName),
 		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
 	}
 }
@@ -78,7 +78,7 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 
 	result, err := p.client.GetMemoryPoolTXByNode(memoryTxId)
 	if err != nil || result.Error != nil {
-		log.Error(p.ChainName + "获取为上链交易hash报错", zap.Any("error", err))
+		log.Error(p.ChainName+"获取为上链交易hash报错", zap.Any("error", err))
 		return
 	}
 	if len(result.Result) == 0 {
@@ -139,7 +139,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 	var txRecords []*data.BtcTransactionRecord
 	now := time.Now().Unix()
 	for _, txid := range txIds {
-		redisTxid, _ := data.RedisClient.Get(data.PENDINGTX+p.ChainName+":"+txid).Result()
+		redisTxid, _ := data.RedisClient.Get(data.PENDINGTX + p.ChainName + ":" + txid).Result()
 		if len(redisTxid) != 0 {
 			continue
 		}
@@ -174,7 +174,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 				voutIndex := vin.Vout
 				btcPreTx, err1 := p.GetTransactionsByTXHash(preTxid)
 				if err1 != nil || btcPreTx.Error != nil {
-					log.Error(p.ChainName + "获取vin交易报错", zap.Any("error", err1))
+					log.Error(p.ChainName+"获取vin交易报错", zap.Any("error", err1))
 					return
 				}
 				pvout := btcPreTx.Result.Vout[voutIndex]
@@ -267,7 +267,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 				FeeAmount:       decimal.Zero,
 				Amount:          amount,
 				Status:          biz.PENDING,
-				TxTime:          int64(btcTx.Result.Time),
+				TxTime:          now,
 				ConfirmCount:    0,
 				DappData:        "",
 				ClientData:      "",
@@ -275,7 +275,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 				UpdatedAt:       now,
 			}
 			txRecords = append(txRecords, btcTransactionRecord)
-			data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid,60*time.Minute)
+			data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute)
 		}
 	}
 	if txRecords != nil && len(txRecords) > 0 {
@@ -283,7 +283,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			log.Error(p.ChainName +"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
+			log.Error(p.ChainName+"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
@@ -304,7 +304,7 @@ func (p *Platform) GetPendingTransactions() {
 	}
 	//err 判断
 	if err != nil {
-		log.Error(p.ChainName + "GetMempoolTxIdsRPC", zap.Any("error", err))
+		log.Error(p.ChainName+"GetMempoolTxIdsRPC", zap.Any("error", err))
 		return
 	}
 	//进行分批处理
@@ -326,7 +326,7 @@ func (p *Platform) SendTXIds(txIds []string) {
 	for _, txid := range txIds {
 		tx, err1 := p.client.GetTransactionByPendingHash(txid)
 		for i := 0; i < 10 && err1 != nil; i++ {
-			log.Warn(p.ChainName  + "节点报错", zap.Any("chainName", p.ChainName), zap.Any("chainUrl", p.client.DispatchClient.StreamURL), zap.Any("err", err1))
+			log.Warn(p.ChainName+"节点报错", zap.Any("chainName", p.ChainName), zap.Any("chainUrl", p.client.DispatchClient.StreamURL), zap.Any("err", err1))
 			time.Sleep(time.Duration(i*5) * time.Second)
 			tx, err1 = p.client.GetTransactionByPendingHash(txid)
 		}
@@ -336,7 +336,7 @@ func (p *Platform) SendTXIds(txIds []string) {
 		if tx.BlockHeight > 0 {
 			continue
 		}
-		redisTxid, _ := data.RedisClient.Get(data.PENDINGTX+p.ChainName+":"+txid).Result()
+		redisTxid, _ := data.RedisClient.Get(data.PENDINGTX + p.ChainName + ":" + txid).Result()
 		if len(redisTxid) != 0 {
 			continue
 		}
@@ -437,7 +437,7 @@ func (p *Platform) SendTXIds(txIds []string) {
 		}
 
 		//处理 数据 并存储到redia里面
-		data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute )
+		data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute)
 
 	}
 	if txRecords != nil && len(txRecords) > 0 {
@@ -445,7 +445,7 @@ func (p *Platform) SendTXIds(txIds []string) {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			log.Error(p.ChainName + "扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
+			log.Error(p.ChainName+"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
@@ -478,7 +478,7 @@ func (p *Platform) getBTCTransactions() {
 		height, err = p.client.GetBlockNumber()
 	}
 	if err != nil || height <= 0 {
-		log.Error(p.ChainName + "扫块，从链上获取最新块高失败", zap.Any("new", height), zap.Any("error", err))
+		log.Error(p.ChainName+"扫块，从链上获取最新块高失败", zap.Any("new", height), zap.Any("error", err))
 		return
 	}
 
@@ -491,48 +491,49 @@ func (p *Platform) getBTCTransactions() {
 	}
 	if err != nil {
 		if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
-			// 从数据库中查询最新一条数据
-			lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
+			// 从数据库中查询最新一条的数据
+			lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(p.ChainName))
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
+				lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(p.ChainName))
 			}
 			if err != nil {
 				// postgres出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中块高失败", p.ChainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(p.ChainName + "扫块，从数据库中获取块高失败", zap.Any("old", oldHeight), zap.Any("new", height), zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从数据库中获取块高失败", zap.Any("old", oldHeight), zap.Any("new", height), zap.Any("error", err))
 				return
 			}
 			if lastRecord == nil {
 				oldHeight = height - 1
-				log.Error(p.ChainName + "扫块，从数据库中获取的块高为空", zap.Any("old", oldHeight), zap.Any("new", height))
+				log.Error(p.ChainName+"扫块，从数据库中获取的块高为空", zap.Any("old", oldHeight), zap.Any("new", height))
 				//return
 			} else {
 				oldHeight = lastRecord.BlockNumber
+				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(oldHeight), lastRecord.BlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 			}
 		} else {
 			// redis出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链查询redis中块高失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(p.ChainName + "扫块，从redis中获取块高失败", zap.Any("old", oldHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，从redis中获取块高失败", zap.Any("old", oldHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 	} else {
 		if redisHeight != "" {
 			oldHeight, err = strconv.Atoi(redisHeight)
 			if err != nil {
-				log.Error(p.ChainName + "扫块，从redis获取的块高不合法", zap.Any("old", oldHeight), zap.Any("new", height))
+				log.Error(p.ChainName+"扫块，从redis获取的块高不合法", zap.Any("old", oldHeight), zap.Any("new", height))
 				return
 			}
 		} else {
-			log.Error(p.ChainName + "扫块，从redis获取的块高为空", zap.Any("old", oldHeight), zap.Any("new", height))
+			log.Error(p.ChainName+"扫块，从redis获取的块高为空", zap.Any("old", oldHeight), zap.Any("new", height))
 			return
 		}
 	}
-	log.Info(p.ChainName + "扫块，高度为", zap.Any("old", oldHeight), zap.Any("new", height))
+	log.Info(p.ChainName+"扫块，高度为", zap.Any("old", oldHeight), zap.Any("new", height))
 	if oldHeight >= height {
 		return
 	}
@@ -547,7 +548,7 @@ func (p *Platform) getBTCTransactions() {
 			block, err = p.client.GetBTCBlockByNumber(curHeight)
 		}
 		if err != nil {
-			log.Error(p.ChainName + "扫块，从链上获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 
@@ -562,22 +563,22 @@ func (p *Platform) getBTCTransactions() {
 		}
 		if err != nil {
 			if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
-				// 从数据库中查询最新一条数据
-				lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
+				// 从数据库中查询指定块高的数据
+				lastRecord, err := data.BtcTransactionRecordRepoClient.FindOneByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight)
 				for i := 0; i < 3 && err != nil; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
+					lastRecord, err = data.BtcTransactionRecordRepoClient.FindOneByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight)
 				}
 				if err != nil {
 					// postgres出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中区块hash失败", p.ChainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(p.ChainName + "扫块，从数据库中获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+					log.Error(p.ChainName+"扫块，从数据库中获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 					return
 				}
 				if lastRecord == nil {
-					log.Error(p.ChainName + "扫块，从数据库中获取的区块hash为空", zap.Any("current", curHeight), zap.Any("new", height))
+					log.Error(p.ChainName+"扫块，从数据库中获取的区块hash为空", zap.Any("current", curHeight), zap.Any("new", height))
 					//return
 				} else {
 					redisPreBlockHash = lastRecord.BlockHash
@@ -587,7 +588,7 @@ func (p *Platform) getBTCTransactions() {
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中区块hash失败", p.ChainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(p.ChainName + "扫块，从redis中获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从redis中获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 				return
 			}
 		}
@@ -605,7 +606,7 @@ func (p *Platform) getBTCTransactions() {
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 
-				log.Error(p.ChainName + "扫块，从链上获取区块hash失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
 				return
 			}
 
@@ -617,16 +618,43 @@ func (p *Platform) getBTCTransactions() {
 				redisPreBlockHash, err = data.RedisClient.Get(biz.BLOCK_HASH_KEY + p.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 			}
 			if err != nil {
-				//更新 redis中的块高和区块hash
-				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
-				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
+				if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
+					// 从数据库中查询指定块高的数据
+					lastRecord, err := data.BtcTransactionRecordRepoClient.FindOneByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight)
+					for i := 0; i < 3 && err != nil; i++ {
+						time.Sleep(time.Duration(i*1) * time.Second)
+						lastRecord, err = data.BtcTransactionRecordRepoClient.FindOneByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight)
+					}
+					if err != nil {
+						//更新 redis中的块高和区块hash
+						data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
+						data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中区块hash失败", p.ChainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(p.ChainName + "扫块，从redis中获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				return
+						// postgres出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中区块hash失败", p.ChainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(p.ChainName+"扫块，从数据库中获取区块hash失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
+						return
+					}
+					if lastRecord == nil {
+						log.Error(p.ChainName+"扫块，从数据库中获取的区块hash为空", zap.Any("prevent", preHeight), zap.Any("new", height))
+						//return
+					} else {
+						redisPreBlockHash = lastRecord.BlockHash
+					}
+				} else {
+					//更新 redis中的块高和区块hash
+					data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
+					data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
+
+					// redis出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中区块hash失败", p.ChainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(p.ChainName+"扫块，从redis中获取区块hash失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
+					return
+				}
 			}
 		}
 
@@ -635,10 +663,10 @@ func (p *Platform) getBTCTransactions() {
 		//处理分叉上的孤块
 		if forked {
 			//删除 DB中 比curHeight 高的 块交易数据
-			_, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX, curHeight)
+			_, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(p.ChainName), curHeight)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				_, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX, curHeight)
+				_, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(p.ChainName), curHeight)
 			}
 			if err != nil {
 				//更新 redis中的块高和区块hash
@@ -649,7 +677,7 @@ func (p *Platform) getBTCTransactions() {
 				alarmMsg := fmt.Sprintf("请注意：%s链删除数据库中分叉孤块数据失败", p.ChainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(p.ChainName + "扫块，从数据库中删除分叉孤块数据失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从数据库中删除分叉孤块数据失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 				return
 			}
 		}
@@ -679,7 +707,7 @@ func (p *Platform) getBTCTransactions() {
 					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", p.ChainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(p.ChainName + "扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+					log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 					return
 				}
 			}
@@ -701,7 +729,7 @@ func (p *Platform) getBTCTransactions() {
 						alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", p.ChainName)
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(p.ChainName + "扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+						log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 						return
 					}
 				}
@@ -767,11 +795,11 @@ func (p *Platform) getBTCTransactions() {
 			alarmMsg := fmt.Sprintf("请注意：%s链插入块高到redis中失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(p.ChainName + "扫块，将块高插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，将块高插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 		if result != "OK" {
-			log.Error(p.ChainName + "扫块，将块高插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("result", result))
+			log.Error(p.ChainName+"扫块，将块高插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("result", result))
 		}
 		result, err = data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), curBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY).Result()
 		for i := 0; i < 3 && err != nil; i++ {
@@ -783,11 +811,11 @@ func (p *Platform) getBTCTransactions() {
 			alarmMsg := fmt.Sprintf("请注意：%s链插入区块hash到redis中失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(p.ChainName + "扫块，将区块hash插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，将区块hash插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 		if result != "OK" {
-			log.Error(p.ChainName + "扫块，将区块hash插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("result", result))
+			log.Error(p.ChainName+"扫块，将区块hash插入到redis中失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("result", result))
 		}
 	}
 }
@@ -920,7 +948,7 @@ func (p *Platform) getBTCTestTransactions() {
 			err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 			if err != nil {
 				// postgres出错 接入lark报警
-				log.Error(p.ChainName+ "扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
+				log.Error(p.ChainName+"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
 				alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
@@ -1010,7 +1038,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", p.ChainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(p.ChainName + "扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
 				return
 			}
 		}
@@ -1032,7 +1060,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", p.ChainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(p.ChainName + "扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+					log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
 					return
 				}
 			}
@@ -1071,10 +1099,10 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
-		err := BatchSaveOrUpdate(txRecords, strings.ToLower(p.ChainName)+biz.TABLE_POSTFIX)
+		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			log.Error(p.ChainName + "扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
+			log.Error(p.ChainName+"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", p.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)

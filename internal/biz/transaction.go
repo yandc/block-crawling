@@ -196,13 +196,15 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	var result int64
 	var err error
 	var a, fa decimal.Decimal
+	chainType := chain2Type[pbb.ChainName]
+
 	p1 := decimal.NewFromInt(100000000)
 
 	if pbb.FeeAmount == "" {
 		fa = decimal.Zero
 	} else {
 		fa, _ = decimal.NewFromString(pbb.FeeAmount)
-		if pbb.ChainName == "BTC" {
+		if chainType == BTC {
 			fa = fa.Mul(p1).Round(0)
 		}
 	}
@@ -211,7 +213,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	} else {
 		a, _ = decimal.NewFromString(pbb.Amount)
 		//兼容 btc 0901
-		if pbb.ChainName == "BTC" {
+		if chainType == BTC {
 			a = a.Mul(p1).Round(0)
 		}
 	}
@@ -227,7 +229,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}
 
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":" + strconv.Itoa(int(pbb.Nonce))
-	chainType := chain2Type[pbb.ChainName]
 	switch chainType {
 	case STC:
 		stcRecord := &data.StcTransactionRecord{
@@ -416,6 +417,8 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					feeAmount := utils.StringDecimals(record.FeeAmount, 8)
 					record.Amount = amount
 					record.FeeAmount = feeAmount
+
+					record.TransactionType = NATIVE
 				}
 			}
 		}

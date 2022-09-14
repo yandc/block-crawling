@@ -97,7 +97,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 func doHandleUserAsset(chainName string, client Client, transactionType string, uid string, address string,
 	tokenAddress string, decimals int32, symbol string, nowTime int64) error {
-	if address == "" {
+	if address == "" || uid == "" {
 		return nil
 	}
 
@@ -113,10 +113,12 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return err
 	}
-	balance, err = decimal.NewFromString(balances)
-	if err != nil {
-		log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-		return err
+	if balances != "" {
+		balance, err = decimal.NewFromString(balances)
+		if err != nil {
+			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
+			return err
+		}
 	}
 
 	var userAsset = &data.UserAsset{

@@ -49,7 +49,7 @@ func GetInnerPlatform(typ, chain, chainName string, nodeURL string) subhandle.Pl
 	case biz.TVM:
 		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
 	case biz.APTOS:
-		return aptos.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
+		return aptos.Init(coins.Aptos().Handle, chain, chainName, nodeURLS, height)
 	}
 	return nil
 }

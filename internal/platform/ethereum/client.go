@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
 	"context"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	types2 "github.com/ethereum/go-ethereum/core/types"
@@ -47,9 +48,44 @@ func (c *Client) GetBalance(address string) (string, error) {
 	return ethValue, err
 }
 
+// Receipt represents the results of a transaction.
+type Receipt struct {
+	// Consensus fields: These fields are defined by the Yellow Paper
+	Type              string        `json:"type,omitempty"`
+	PostState         string        `json:"root,omitempty"`
+	Status            string        `json:"status,omitempty"`
+	From              string        `json:"from,omitempty"`
+	To                string        `json:"to,omitempty"`
+	CumulativeGasUsed string        `json:"cumulativeGasUsed" gencodec:"required"`
+	EffectiveGasPrice string        `json:"effectiveGasPrice,omitempty"`
+	Bloom             string        `json:"logsBloom" gencodec:"required"`
+	Logs              []*types2.Log `json:"logs" gencodec:"required"`
+
+	// Implementation fields: These fields are added by geth when processing a transaction.
+	// They are stored in the chain database.
+	TxHash          string `json:"transactionHash" gencodec:"required"`
+	ContractAddress string `json:"contractAddress,omitempty"`
+	GasUsed         string `json:"gasUsed" gencodec:"required"`
+
+	// Inclusion information: These fields provide information about the inclusion of the
+	// transaction corresponding to this receipt.
+	BlockHash        string `json:"blockHash,omitempty"`
+	BlockNumber      string `json:"blockNumber,omitempty"`
+	TransactionIndex string `json:"transactionIndex,omitempty"`
+}
+
 //2
-func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*types2.Receipt, error) {
-	return c.TransactionReceipt(ctx, txHash)
+func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*Receipt, error) {
+	//return c.TransactionReceipt(ctx, txHash)
+	var r *Receipt
+	rpcClient, err := rpc.DialHTTP(c.URL)
+	err = rpcClient.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	if err == nil {
+		if r == nil {
+			return nil, ethereum.NotFound
+		}
+	}
+	return r, err
 }
 
 //1

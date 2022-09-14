@@ -1703,6 +1703,28 @@ func (m *PageListRequest) validate(all bool) error {
 
 	// no validation rules for ContractAddress
 
+	if m.GetStartTime() < 0 {
+		err := PageListRequestValidationError{
+			field:  "StartTime",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStopTime() < 0 {
+		err := PageListRequestValidationError{
+			field:  "StopTime",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	// no validation rules for OrderBy
 
 	if _, ok := _PageListRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
@@ -1999,17 +2021,25 @@ func (m *TransactionRecord) validate(all bool) error {
 
 	// no validation rules for ChainName
 
-	// no validation rules for TransactionHash
+	// no validation rules for BlockHash
 
-	// no validation rules for Status
+	// no validation rules for BlockNumber
+
+	// no validation rules for TransactionHash
 
 	// no validation rules for FromAddress
 
 	// no validation rules for ToAddress
 
+	// no validation rules for FromUid
+
+	// no validation rules for ToUid
+
 	// no validation rules for Amount
 
 	// no validation rules for FeeAmount
+
+	// no validation rules for Status
 
 	// no validation rules for TransactionType
 
@@ -2044,10 +2074,6 @@ func (m *TransactionRecord) validate(all bool) error {
 	// no validation rules for FeeLimit
 
 	// no validation rules for EnergyUsage
-
-	// no validation rules for BlockHash
-
-	// no validation rules for BlockNumber
 
 	// no validation rules for CreatedAt
 

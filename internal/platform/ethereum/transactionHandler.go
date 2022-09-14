@@ -75,6 +75,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
+	userAssetMap := make(map[string]*data.UserAsset)
 	addressTokenMap := make(map[string]map[string]int)
 	tokenSymbolMap := make(map[string]string)
 	addressUidMap := make(map[string]string)
@@ -97,14 +98,14 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 		tokenAddress := record.ContractAddress
 		if record.TransactionType == biz.NATIVE || tokenAddress == "" {
-			if record.FromAddress != "" {
+			if record.FromAddress != "" && record.FromUid != "" {
 				_, ok := addressUidMap[record.FromAddress]
 				if !ok {
 					addressUidMap[record.FromAddress] = record.FromUid
 				}
 			}
 
-			if record.ToAddress != "" {
+			if record.ToAddress != "" && record.ToUid != "" {
 				_, ok := addressUidMap[record.ToAddress]
 				if !ok {
 					addressUidMap[record.ToAddress] = record.ToUid
@@ -118,7 +119,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			}
 		} else if tokenAddress != "" {
 			tokenSymbolMap[tokenAddress] = symbol
-			if record.FromAddress != "" {
+			if record.FromAddress != "" && record.FromUid != "" {
 				fromKey := record.FromUid + "," + record.FromAddress
 				tokenDecimalsMap, ok := addressTokenMap[fromKey]
 				if !ok {
@@ -128,7 +129,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 				tokenDecimalsMap[tokenAddress] = int(decimals)
 			}
 
-			if record.ToAddress != "" {
+			if record.ToAddress != "" && record.ToUid != "" {
 				toKey := record.ToUid + "," + record.ToAddress
 				tokenDecimalsMap, ok := addressTokenMap[toKey]
 				if !ok {
@@ -154,7 +155,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			log.Error(chainName+"查询用户资产失败", zap.Any("address", address), zap.Any("tokenAddress", mainTokenAddress), zap.Any("error", err))
 			return
 		}
-		userAssets = append(userAssets, userAsset)
+		if userAsset != nil {
+			userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
+			userAssetMap[userAssetKey] = userAsset
+		}
 	}
 
 	for key, tokenDecimalsMap := range addressTokenMap {
@@ -173,12 +177,18 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			return
 		}
 		for _, userAsset := range userAssetsList {
-			userAssets = append(userAssets, userAsset)
+			if userAsset != nil {
+				userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
+				userAssetMap[userAssetKey] = userAsset
+			}
 		}
 	}
 
-	if len(userAssets) == 0 {
+	if len(userAssetMap) == 0 {
 		return
+	}
+	for _, userAsset := range userAssetMap {
+		userAssets = append(userAssets, userAsset)
 	}
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
@@ -196,19 +206,22 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 func doHandleUserAsset(chainName string, client Client, uid string, address string,
 	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
-	if address == "" {
+	if address == "" || uid == "" {
 		return nil, nil
 	}
 
+	var balance decimal.Decimal
 	balances, err := client.GetBalance(address)
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
-	balance, err := decimal.NewFromString(balances)
-	if err != nil {
-		log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-		return nil, err
+	if balances != "" {
+		balance, err = decimal.NewFromString(balances)
+		if err != nil {
+			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
+			return nil, err
+		}
 	}
 
 	var userAsset = &data.UserAsset{
@@ -235,12 +248,14 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 		return nil, err
 	}
 	for tokenAddress, balancei := range balanceList {
+		var balance decimal.Decimal
 		balances := fmt.Sprintf("%v", balancei)
-
-		balance, err := decimal.NewFromString(balances)
-		if err != nil {
-			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-			return nil, err
+		if balances != "" {
+			balance, err = decimal.NewFromString(balances)
+			if err != nil {
+				log.Error("format token balance error", zap.Any("tokenAddress", tokenAddress), zap.Any("balance", balances), zap.Any("error", err))
+				return nil, err
+			}
 		}
 		decimals := int32(tokenDecimalsMap[tokenAddress])
 		symbol := tokenSymbolMap[tokenAddress]

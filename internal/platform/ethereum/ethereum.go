@@ -285,30 +285,6 @@ func (p *Platform) IndexBlock() bool {
 				var txRecords []*data.EvmTransactionRecord
 				now := time.Now().Unix()
 				for _, transaction := range block.Transactions() {
-					if blockHash == "" {
-						receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
-						for i := 1; err != nil && i <= 5; i++ {
-							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
-							if len(url_list) == 0 {
-								alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
-								alarmOpts := biz.WithMsgLevel("FATAL")
-								biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
-							}
-							for j := 0; err != nil && j < len(url_list); j++ {
-								url = url_list[j].Key
-								client, err = NewClient(url)
-								if err != nil {
-									continue
-								}
-								receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
-							}
-							time.Sleep(time.Duration(3*i) * time.Second)
-						}
-						if receipt != nil && err == nil {
-							blockHash = receipt.BlockHash.String()
-						}
-					}
-
 					var from common.Address
 					var toAddress, feeAmount string
 					var tokenInfo types.TokenInfo
@@ -416,6 +392,9 @@ func (p *Platform) IndexBlock() bool {
 						if err != nil {
 							continue
 						}
+						if blockHash == "" {
+							blockHash = receipt.BlockHash
+						}
 
 						var eventLogs []types.EventLog
 						if transactionType != "native" {
@@ -483,7 +462,13 @@ func (p *Platform) IndexBlock() bool {
 							"token": tokenInfo,
 						}
 						parseData, _ := json.Marshal(evmMap)
-						var gasPrice = transaction.GasPrice().String()
+						gasUsedInt, _ := utils.HexStringToInt(receipt.GasUsed)
+						gasUsed := gasUsedInt.String()
+						gasPriceInt := transaction.GasPrice()
+						if receipt.EffectiveGasPrice != "" {
+							gasPriceInt, _ = utils.HexStringToInt(receipt.EffectiveGasPrice)
+						}
+						gasPrice := gasPriceInt.String()
 						var baseFee string
 						var maxFeePerGas string
 						var maxPriorityFeePerGas string
@@ -498,12 +483,15 @@ func (p *Platform) IndexBlock() bool {
 								maxPriorityFeePerGas = transaction.GasTipCap().String()
 							}
 						}
-						feeAmount = fmt.Sprintf("%v", receipt.GasUsed*transaction.GasPrice().Uint64())
+						feeAmount = new(big.Int).Mul(gasUsedInt, gasPriceInt).String()
 						status := biz.PENDING
-						if value, ok := types.Status[receipt.Status]; ok {
-							status = value
+						if receipt.Status == "0x0" {
+							status = biz.FAIL
+						} else if receipt.Status == "0x1" {
+							status = biz.SUCCESS
 						}
-						bn, _ := strconv.Atoi(receipt.BlockNumber.String())
+						intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
+						bn := int(intBlockNumber.Int64())
 						fa, _ := decimal.NewFromString(feeAmount)
 						at, _ := decimal.NewFromString(value)
 						var eventLog string
@@ -528,7 +516,7 @@ func (p *Platform) IndexBlock() bool {
 							ParseData:            string(parseData),
 							Type:                 fmt.Sprintf("%v", transaction.Type()),
 							GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
-							GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+							GasUsed:              gasUsed,
 							GasPrice:             gasPrice,
 							BaseFee:              baseFee,
 							MaxFeePerGas:         maxFeePerGas,
@@ -574,7 +562,7 @@ func (p *Platform) IndexBlock() bool {
 									ParseData:            string(eventParseData),
 									Type:                 fmt.Sprintf("%v", transaction.Type()),
 									GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
-									GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+									GasUsed:              gasUsed,
 									GasPrice:             gasPrice,
 									BaseFee:              baseFee,
 									MaxFeePerGas:         maxFeePerGas,
@@ -606,6 +594,21 @@ func (p *Platform) IndexBlock() bool {
 					go HandleRecord(p.ChainName, client, txRecords)
 				}
 
+				if p.ChainName == "OEC" || p.ChainName == "Optimism" || p.ChainName == "Cronos" || p.ChainName == "Polygon" ||
+					p.ChainName == "Fantom" || p.ChainName == "Avalanche" || p.ChainName == "Klaytn" ||
+					p.ChainName == "OECTEST" || p.ChainName == "OptimismTEST" || p.ChainName == "CronosTEST" || p.ChainName == "PolygonTEST" ||
+					p.ChainName == "FantomTEST" || p.ChainName == "AvalancheTEST" || p.ChainName == "KlaytnTEST" {
+					if blockHash == "" && len(block.Transactions()) > 0 {
+						receipt, err := client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
+						if err != nil {
+							log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+						} else {
+							blockHash = receipt.BlockHash
+						}
+					}
+				} else {
+					blockHash = block.Hash().String()
+				}
 				//保存对应块高hash
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), blockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 			}
@@ -711,8 +714,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			continue
 		}
 
-		curHeight := receipt.BlockNumber
-		blockHash := receipt.BlockHash.String()
+		curHeight, _ := utils.HexStringToInt(receipt.BlockNumber)
 		block, err := client.GetBlockByNumber(ctx, curHeight)
 		for i := 1; err != nil && fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION && i <= 5; i++ {
 			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
@@ -732,34 +734,11 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
 
+		blockHash := ""
 		for _, transaction := range block.Transactions() {
 			if transaction.Hash().String() != record.TransactionHash {
 				continue
 			}
-
-			/*if blockHash == "" {
-				receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
-				for i := 1; err != nil && i <= 5; i++ {
-					url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
-					if len(url_list) == 0 {
-						alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
-					}
-					for j := 0; err != nil && j < len(url_list); j++ {
-						url = url_list[j].Key
-						client, err = NewClient(url)
-						if err != nil {
-							continue
-						}
-						receipt, err = client.GetTransactionReceipt(ctx, transaction.Hash())
-					}
-					time.Sleep(time.Duration(3*i) * time.Second)
-				}
-				if receipt != nil && err == nil {
-					blockHash = receipt.BlockHash.String()
-				}
-			}*/
 
 			var from common.Address
 			var toAddress, feeAmount string
@@ -868,6 +847,9 @@ func (p *Platform) GetTransactionResultByTxhash() {
 				if err != nil {
 					continue
 				}*/
+				if blockHash == "" {
+					blockHash = receipt.BlockHash
+				}
 
 				var eventLogs []types.EventLog
 				if transactionType != "native" {
@@ -935,7 +917,13 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					"token": tokenInfo,
 				}
 				parseData, _ := json.Marshal(evmMap)
-				var gasPrice = transaction.GasPrice().String()
+				gasUsedInt, _ := utils.HexStringToInt(receipt.GasUsed)
+				gasUsed := gasUsedInt.String()
+				gasPriceInt := transaction.GasPrice()
+				if receipt.EffectiveGasPrice != "" {
+					gasPriceInt, _ = utils.HexStringToInt(receipt.EffectiveGasPrice)
+				}
+				gasPrice := gasPriceInt.String()
 				var baseFee string
 				var maxFeePerGas string
 				var maxPriorityFeePerGas string
@@ -950,12 +938,15 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						maxPriorityFeePerGas = transaction.GasTipCap().String()
 					}
 				}
-				feeAmount = fmt.Sprintf("%v", receipt.GasUsed*transaction.GasPrice().Uint64())
+				feeAmount = new(big.Int).Mul(gasUsedInt, gasPriceInt).String()
 				status := biz.PENDING
-				if value, ok := types.Status[receipt.Status]; ok {
-					status = value
+				if receipt.Status == "0x0" {
+					status = biz.FAIL
+				} else if receipt.Status == "0x1" {
+					status = biz.SUCCESS
 				}
-				bn, _ := strconv.Atoi(receipt.BlockNumber.String())
+				intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
+				bn := int(intBlockNumber.Int64())
 				fa, _ := decimal.NewFromString(feeAmount)
 				at, _ := decimal.NewFromString(value)
 				var eventLog string
@@ -980,7 +971,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					ParseData:            string(parseData),
 					Type:                 fmt.Sprintf("%v", transaction.Type()),
 					GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
-					GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+					GasUsed:              gasUsed,
 					GasPrice:             gasPrice,
 					BaseFee:              baseFee,
 					MaxFeePerGas:         maxFeePerGas,
@@ -1026,7 +1017,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							ParseData:            string(eventParseData),
 							Type:                 fmt.Sprintf("%v", transaction.Type()),
 							GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
-							GasUsed:              fmt.Sprintf("%v", receipt.GasUsed),
+							GasUsed:              gasUsed,
 							GasPrice:             gasPrice,
 							BaseFee:              baseFee,
 							MaxFeePerGas:         maxFeePerGas,

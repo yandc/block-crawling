@@ -43,7 +43,7 @@ type EvmTransactionRecord struct {
 	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData             string          `json:"dappData" form:"dappData"`
 	ClientData           string          `json:"clientData" form:"clientData"`
-	CreatedAt            int64           `json:"createdAt" form:"createdAt"`
+	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
 }
 
@@ -62,6 +62,7 @@ type EvmTransactionRecordRepo interface {
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*EvmTransactionRecord, error)
+	FindOneByBlockNumber(context.Context, string, int) (*EvmTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
@@ -337,6 +338,12 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
 	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
 
 	if req.Total {
 		// 统计总记录数
@@ -391,6 +398,22 @@ func (r *EvmTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName s
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last "+tableName+" failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return evmTransactionRecord, nil
+		}
+	}
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context, tableName string, blockNumber int) (*EvmTransactionRecord, error) {
+	var evmTransactionRecord *EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number = ?", blockNumber).Limit(1).Find(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query one evmTransactionRecord by blockNumber failed", err)
 		return nil, err
 	} else {
 		if ret.RowsAffected == 0 {

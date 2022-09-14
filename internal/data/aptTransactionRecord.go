@@ -42,7 +42,7 @@ type AptTransactionRecord struct {
 	TransactionType     string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData            string          `json:"dappData" form:"dappData"`
 	ClientData          string          `json:"clientData" form:"clientData"`
-	CreatedAt           int64           `json:"createdAt" form:"createdAt"`
+	CreatedAt           int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt           int64           `json:"updatedAt" form:"updatedAt"`
 }
 
@@ -61,6 +61,7 @@ type AptTransactionRecordRepo interface {
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*AptTransactionRecord, error)
+	FindOneByBlockNumber(context.Context, string, int) (*AptTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*AptTransactionRecord, error)
 }
@@ -331,6 +332,12 @@ func (r *AptTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
 	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
 
 	if req.Total {
 		// 统计总记录数
@@ -383,13 +390,34 @@ func (r *AptTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 
 func (r *AptTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName string) (*AptTransactionRecord, error) {
 	var aptTransactionRecord *AptTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_version IS NOT NULL").Order("transaction_version DESC").Limit(1).Find(&aptTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number IS NOT NULL").Order("block_number DESC").Limit(1).Find(&aptTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last aptTransactionRecord failed", err)
 		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return aptTransactionRecord, nil
+		}
 	}
-	return aptTransactionRecord, nil
+}
+
+func (r *AptTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context, tableName string, blockNumber int) (*AptTransactionRecord, error) {
+	var aptTransactionRecord *AptTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number = ?", blockNumber).Limit(1).Find(&aptTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query one aptTransactionRecord by blockNumber failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return aptTransactionRecord, nil
+		}
+	}
 }
 
 func (r *AptTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName string, req *pb.AmountRequest, status string) (string, error) {
