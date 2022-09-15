@@ -73,6 +73,7 @@ func (p *Platform) IndexBlock() bool {
 	if err != nil || height <= 0 {
 		return true
 	}
+	data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+p.ChainName, height, 0)
 
 	curHeight := -1
 	preDBBlockHash := make(map[int]string)
@@ -102,6 +103,7 @@ func (p *Platform) IndexBlock() bool {
 			preDBBlockHash[lastRecord.BlockNumber] = lastRecord.BlockHash
 		}
 	}
+
 	if curHeight > height {
 		return true
 	}

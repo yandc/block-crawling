@@ -482,6 +482,7 @@ func (p *Platform) getBTCTransactions() {
 		return
 	}
 
+	data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+p.ChainName, height, 0)
 	//获取本地当前块高
 	oldHeight := -1
 	redisHeight, err := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + p.ChainName).Result()

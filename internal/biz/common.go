@@ -24,6 +24,7 @@ const (
 
 	REDIS_NIL_KEY             = "redis: nil"
 	BLOCK_HEIGHT_KEY          = "block:height:"
+	BLOCK_NODE_HEIGHT_KEY     = "block:height:node:"
 	BLOCK_HASH_KEY            = "block:hash:"
 	USER_ADDRESS_KEY          = "usercore:"
 	BLOCK_HASH_EXPIRATION_KEY = 2 * time.Hour
@@ -33,12 +34,12 @@ const (
 )
 
 const (
-	STC = "STC"
-	BTC = "BTC"
-	EVM = "EVM"
-	TVM = "TVM"
-	DOGE = "UTXO"
-	LTC ="UTXO"
+	STC   = "STC"
+	BTC   = "BTC"
+	EVM   = "EVM"
+	TVM   = "TVM"
+	DOGE  = "UTXO"
+	LTC   = "UTXO"
 	APTOS = "APTOS"
 )
 

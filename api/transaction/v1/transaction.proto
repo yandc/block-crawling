@@ -73,6 +73,7 @@ message OpenAmoutResp{
 
 message OpenAmountInfo {
   string riskExposureAmount = 1;
+  int64 dappCount = 2;
 }
 
 
@@ -82,6 +83,7 @@ message DappListReq {
   repeated string addresses = 3; //-- 非必输
   string contractAddress = 4;// -- 非必输
   bool isCancel = 5 ;
+  string isCancelStatus = 6 ;
 }
 
 
@@ -102,6 +104,8 @@ message DappInfo {
   string amount = 9;
   string original = 10 ;
   string symbol = 11;
+  string dappInfo = 12;
+  string status = 13;
 }
 
 
@@ -117,7 +121,7 @@ message TransactionReq {
   string transactionHash = 3 [(validate.rules).string = {min_len: 1}]; // -- 必输
   string status = 4 [(validate.rules).string = {min_len: 1}]; // (status[success,fail,pending,refuse,no_status,cancel,invalid]) -- 必输
   string fromAddress = 5 [(validate.rules).string = {min_len: 1}];//  -- 必输
-  string toAddress = 6 [(validate.rules).string = {min_len: 1}];//  -- 必输
+  string toAddress = 6 ;//  -- 必输
   string amount = 7 ; // -- 必输
   string feeAmount = 8 ;//  -- 非必输
   string transactionType = 9 ;//  -- 非必输

@@ -177,6 +177,7 @@ func (p *Platform) IndexBlock() bool {
 		time.Sleep(time.Duration(3*i) * time.Second)
 	}
 	height := int(heightu)
+	data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+p.ChainName, height, 0)
 
 	//获取本地当前块高
 	curHeight := -1
@@ -207,6 +208,7 @@ func (p *Platform) IndexBlock() bool {
 			preDBBlockHash[lastRecord.BlockNumber] = lastRecord.BlockHash
 		}
 	}
+
 	if curHeight > height {
 		return true
 	}
@@ -372,7 +374,7 @@ func (p *Platform) IndexBlock() bool {
 						}
 
 						receipt, err := client.GetTransactionReceipt(ctx, transaction.Hash())
-						for i := 1; err != nil && i <= 5; i++ {
+						for i := 1; err != nil && err != ethereum.NotFound && i <= 5; i++ {
 							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 							if len(url_list) == 0 {
 								alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
@@ -390,7 +392,12 @@ func (p *Platform) IndexBlock() bool {
 							time.Sleep(time.Duration(3*i) * time.Second)
 						}
 						if err != nil {
-							continue
+							if err == ethereum.NotFound {
+								continue
+							} else {
+								log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+								return true
+							}
 						}
 						if blockHash == "" {
 							blockHash = receipt.BlockHash
@@ -600,10 +607,28 @@ func (p *Platform) IndexBlock() bool {
 					p.ChainName == "FantomTEST" || p.ChainName == "AvalancheTEST" || p.ChainName == "KlaytnTEST" {
 					if blockHash == "" && len(block.Transactions()) > 0 {
 						receipt, err := client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
-						if err != nil {
-							log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
-						} else {
+						for i := 1; err != nil && err != ethereum.NotFound && i <= 5; i++ {
+							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+							if len(url_list) == 0 {
+								alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+								alarmOpts := biz.WithMsgLevel("FATAL")
+								biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
+							}
+							for j := 0; err != nil && j < len(url_list); j++ {
+								url = url_list[j].Key
+								client, err = NewClient(url)
+								if err != nil {
+									continue
+								}
+								receipt, err = client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
+							}
+							time.Sleep(time.Duration(3*i) * time.Second)
+						}
+						if err == nil {
 							blockHash = receipt.BlockHash
+						} else if err != ethereum.NotFound {
+							log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+							return true
 						}
 					}
 				} else {

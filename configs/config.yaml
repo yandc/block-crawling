@@ -46,6 +46,7 @@ lark:
   larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
 #  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
+  larkAtList: "9674c624"
   lockNum: 64
 logger:
   DEBUG: true
