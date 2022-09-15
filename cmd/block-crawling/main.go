@@ -133,6 +133,7 @@ func start() {
 					case <-resultPlan.C:
 						//if _, ok := p.(*bitcoin.Platform); !ok {
 						go p.GetTransactionResultByTxhash()
+						go p.MonitorHeight()
 						//}
 					case <-quit:
 						resultPlan.Stop()

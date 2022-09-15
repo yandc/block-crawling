@@ -1,8 +1,13 @@
 package subhandle
 
 import (
+	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
+	"errors"
+	"fmt"
+	"strconv"
 	"sync"
 )
 
@@ -11,6 +16,7 @@ type Platform interface {
 	GetTransactions()
 	SetRedisHeight()
 	GetTransactionResultByTxhash()
+ 	MonitorHeight()
 }
 
 type Platforms map[string]map[string]Platform
@@ -24,6 +30,40 @@ type CommPlatform struct {
 
 func (p *CommPlatform) SetRedisHeight() {
 	data.RedisClient.Set(data.CHAINNAME+p.ChainName, p.Height, 0)
+}
+
+func (p *CommPlatform) MonitorHeight() {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("MonitorHeight error, chainName:"+p.ChainName, e)
+			} else {
+				log.Errore("MonitorHeight panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理pending状态失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+	//节点 块高
+	nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + p.ChainName).Result()
+	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + p.ChainName).Result()
+
+	oldHeight, _ := strconv.Atoi(redisHeight)
+	height, _ := strconv.Atoi(nodeRedisHeight)
+
+	ret := height - oldHeight
+	if ret > 30 {
+
+		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于30,相差%d，链上块高：%d,业务块高：%d", p.ChainName, ret, height, oldHeight)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+
+	}
+
 }
 
 func (p *CommPlatform) GetHeight() int {

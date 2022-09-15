@@ -158,6 +158,7 @@ func postResponse(target string, encTarget interface{}, decTarget interface{}) (
 	return
 }
 
+
 func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, error) {
 	url := "https://blockchain.info/rawblock/" + fmt.Sprintf("%d", number)
 	var block types.BTCBlockerInfo

@@ -906,6 +906,8 @@ func (m *OpenAmountInfo) validate(all bool) error {
 
 	// no validation rules for RiskExposureAmount
 
+	// no validation rules for DappCount
+
 	if len(errors) > 0 {
 		return OpenAmountInfoMultiError(errors)
 	}
@@ -1013,6 +1015,8 @@ func (m *DappListReq) validate(all bool) error {
 	// no validation rules for ContractAddress
 
 	// no validation rules for IsCancel
+
+	// no validation rules for IsCancelStatus
 
 	if len(errors) > 0 {
 		return DappListReqMultiError(errors)
@@ -1270,6 +1274,10 @@ func (m *DappInfo) validate(all bool) error {
 
 	// no validation rules for Symbol
 
+	// no validation rules for DappInfo
+
+	// no validation rules for Status
+
 	if len(errors) > 0 {
 		return DappInfoMultiError(errors)
 	}
@@ -1521,16 +1529,7 @@ func (m *TransactionReq) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
-	if utf8.RuneCountInString(m.GetToAddress()) < 1 {
-		err := TransactionReqValidationError{
-			field:  "ToAddress",
-			reason: "value length must be at least 1 runes",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
+	// no validation rules for ToAddress
 
 	// no validation rules for Amount
 

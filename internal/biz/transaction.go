@@ -76,6 +76,7 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 	//返回空列表
 	if dapps == nil {
 		oai.RiskExposureAmount = amountTotal.String()
+		oai.DappCount = 0
 		return &pb.OpenAmoutResp{
 			Ok:   true,
 			Data: oai,
@@ -137,6 +138,7 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 			Ok: true,
 			Data: &pb.OpenAmountInfo{
 				RiskExposureAmount: amountTotal.String(),
+				DappCount:          int64(len(dapps)),
 			},
 		}, err
 	}
@@ -170,7 +172,40 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 
 	}
 	for _, da := range dapps {
+		//查询
+		dappInfo := ""
+		chainType := chain2Type[da.ChainName]
+		switch chainType {
+		case EVM:
+			evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && evm != nil {
+				dappInfo = evm.DappData
+			}
+		case STC:
+			stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && stc != nil {
+				dappInfo = stc.DappData
+			}
+		case TVM:
+			tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && tvm != nil {
+				dappInfo = tvm.DappData
+			}
+		case APTOS:
+			apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && apt != nil {
+				dappInfo = apt.DappData
+			}
+		}
+
 		ds := strconv.FormatInt(da.Decimals, 10)
+		status := ""
+		if da.Amount == "0" && da.Amount != "" {
+			status = "2"
+		}
+		if da.Amount != "0" && da.Amount != "" {
+			status = "1"
+		}
 		dif := &pb.DappInfo{
 			ContractAddress: da.ToAddress,
 			Chain:           da.ChainName,
@@ -183,6 +218,8 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			Amount:          da.Amount,
 			Original:        da.Original,
 			Symbol:          da.Symbol,
+			Status:          status,
+			DappInfo:        dappInfo,
 		}
 		dappALl = append(dappALl, dif)
 	}

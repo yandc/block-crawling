@@ -71,6 +71,7 @@ func (p *Platform) IndexBlock() bool {
 		return true
 	}
 	height, _ := strconv.Atoi(heights)
+	data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+p.ChainName, height, 0)
 
 	curHeight := -1
 	preDBBlockHash := make(map[int]string)

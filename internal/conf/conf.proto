@@ -76,6 +76,7 @@ message Lark {
   string larkHost = 2;
   string larkSecret = 3;
   uint64 lockNum = 4;
+  string larkAtList = 5;
 }
 
 message Logger {

@@ -101,9 +101,19 @@ func (r *DappApproveRecordRepoImpl) ListByCondition(ctx context.Context, req *pb
 	if req.ContractAddress != "" {
 		tx = tx.Where("to_address = ?", req.ContractAddress)
 	}
-	if !req.IsCancel {
-		tx = tx.Where("amount != '0' and amount !='' ")
+	if req.IsCancelStatus == ""{
+		if !req.IsCancel {
+			tx = tx.Where("amount != '0' and amount !='' ")
+		}
 	}
+	if req.IsCancelStatus == "1" {
+		tx = tx.Where("amount != '0' and amount !='' ")
+	} else if req.IsCancelStatus == "2" {
+		tx = tx.Where("amount = '0' and amount !='' ")
+	} else if req.IsCancelStatus == "0" {
+		tx = tx.Where("amount !='' ")
+	}
+
 	ret := tx.Find(&dars)
 	err := ret.Error
 	if err != nil {
