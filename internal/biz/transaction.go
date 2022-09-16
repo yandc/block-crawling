@@ -63,7 +63,7 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 	if req.ContractAddress != "" {
 		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
-	var oai *pb.OpenAmountInfo
+	var oai = &pb.OpenAmountInfo{}
 	amountTotal := decimal.Zero
 	//根据条件去数据库查询list，
 	dapps, err := data.DappApproveRecordRepoClient.GetAmountList(ctx, req)
@@ -200,7 +200,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 
 		ds := strconv.FormatInt(da.Decimals, 10)
 		status := ""
-		if da.Amount == "0" && da.Amount != "" {
+		if da.Amount == "0" {
 			status = "2"
 		}
 		if da.Amount != "0" && da.Amount != "" {
@@ -499,6 +499,10 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		result.List = list
 		if len(list) > 0 {
 			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
 				record.ChainName = req.ChainName
 
 				if strings.Contains(req.OrderBy, "id ") {
