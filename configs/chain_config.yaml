@@ -339,9 +339,9 @@ platformTest:
     blockExplorerTxUrl: https://explorer.devnet.aptos.dev/txn/
     blockExplorerUrl: https://explorer.devnet.aptos.dev/
     chain: AptosTEST
-    chainId: 24
+    chainId: 2
     coinId: 101011
-    decimal: 0
+    decimal: 8
     fullName: Aptos Test Net
     getPriceKey: ''
     handler: aptos
@@ -349,7 +349,7 @@ platformTest:
     nativeCurrency: Aptos
     netType: test
     rpcURL:
-    - https://fullnode.devnet.aptoslabs.com/v1
+    - https://testnet.aptoslabs.com/v1
     symbol: APT
     type: APTOS
   AvalancheTEST:

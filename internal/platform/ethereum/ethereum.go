@@ -601,38 +601,40 @@ func (p *Platform) IndexBlock() bool {
 					go HandleRecord(p.ChainName, client, txRecords)
 				}
 
-				if p.ChainName == "OEC" || p.ChainName == "Optimism" || p.ChainName == "Cronos" || p.ChainName == "Polygon" ||
-					p.ChainName == "Fantom" || p.ChainName == "Avalanche" || p.ChainName == "Klaytn" ||
-					p.ChainName == "OECTEST" || p.ChainName == "OptimismTEST" || p.ChainName == "CronosTEST" || p.ChainName == "PolygonTEST" ||
-					p.ChainName == "FantomTEST" || p.ChainName == "AvalancheTEST" || p.ChainName == "KlaytnTEST" {
-					if blockHash == "" && len(block.Transactions()) > 0 {
-						receipt, err := client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
-						for i := 1; err != nil && err != ethereum.NotFound && i <= 5; i++ {
-							url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
-							if len(url_list) == 0 {
-								alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
-								alarmOpts := biz.WithMsgLevel("FATAL")
-								biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
-							}
-							for j := 0; err != nil && j < len(url_list); j++ {
-								url = url_list[j].Key
-								client, err = NewClient(url)
-								if err != nil {
-									continue
+				if blockHash == "" {
+					if p.ChainName == "OEC" || p.ChainName == "Optimism" || p.ChainName == "Cronos" || p.ChainName == "Polygon" ||
+						p.ChainName == "Fantom" || p.ChainName == "Avalanche" || p.ChainName == "Klaytn" || p.ChainName == "xDai" ||
+						p.ChainName == "OECTEST" || p.ChainName == "OptimismTEST" || p.ChainName == "CronosTEST" || p.ChainName == "PolygonTEST" ||
+						p.ChainName == "FantomTEST" || p.ChainName == "AvalancheTEST" || p.ChainName == "KlaytnTEST" || p.ChainName == "xDaiTEST" {
+						if len(block.Transactions()) > 0 {
+							receipt, err := client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
+							for i := 1; err != nil && err != ethereum.NotFound && i <= 5; i++ {
+								url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
+								if len(url_list) == 0 {
+									alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", p.ChainName)
+									alarmOpts := biz.WithMsgLevel("FATAL")
+									biz.LarkClient.NotifyLark(alarmMsg, nil, p.UrlList, alarmOpts)
 								}
-								receipt, err = client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
+								for j := 0; err != nil && j < len(url_list); j++ {
+									url = url_list[j].Key
+									client, err = NewClient(url)
+									if err != nil {
+										continue
+									}
+									receipt, err = client.GetTransactionReceipt(ctx, block.Transactions()[0].Hash())
+								}
+								time.Sleep(time.Duration(3*i) * time.Second)
 							}
-							time.Sleep(time.Duration(3*i) * time.Second)
+							if err == nil {
+								blockHash = receipt.BlockHash
+							} else if err != ethereum.NotFound {
+								log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
+								return true
+							}
 						}
-						if err == nil {
-							blockHash = receipt.BlockHash
-						} else if err != ethereum.NotFound {
-							log.Error(p.ChainName+"扫块，从链上获取交易receipt失败", zap.Any("curHeight", curHeight), zap.Any("new", height), zap.Any("error", err))
-							return true
-						}
+					} else {
+						blockHash = block.Hash().String()
 					}
-				} else {
-					blockHash = block.Hash().String()
 				}
 				//保存对应块高hash
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(curHeight), blockHash, biz.BLOCK_HASH_EXPIRATION_KEY)

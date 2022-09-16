@@ -2,6 +2,7 @@ package server
 
 import (
 	v1 "block-crawling/api/helloworld/v1"
+	"block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/encoder"
 	"block-crawling/internal/service"
@@ -36,7 +37,7 @@ func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		http.ErrorEncoder(encoder.HttpErrorEncoder),
 
 		http.Middleware(
-			recovery.Recovery(),
+			recovery.Recovery(recovery.WithHandler(common.HandlerFunction)),
 			//selector.Server(auth.JWTAuth(jwtc.Secret)).Match(NewSkipRoutersMatcher()).Build(),
 			validate.Validator(),
 			logging.Server(logger),

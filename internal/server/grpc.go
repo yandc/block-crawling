@@ -3,6 +3,7 @@ package server
 import (
 	v1 "block-crawling/api/helloworld/v1"
 	transaction "block-crawling/api/transaction/v1"
+	"block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2/log"
@@ -15,7 +16,7 @@ import (
 func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, ts *service.TransactionService, logger log.Logger) *grpc.Server {
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
-			recovery.Recovery(),
+			recovery.Recovery(recovery.WithHandler(common.HandlerFunction)),
 			validate.Validator(),
 		),
 	}

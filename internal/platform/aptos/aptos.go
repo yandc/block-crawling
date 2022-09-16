@@ -103,7 +103,7 @@ func (p *Platform) DoGetTransactions() {
 				log.Error(p.ChainName+"扫块，从数据库中获取的块高为空", zap.Any("old", oldHeight), zap.Any("new", height))
 				//return
 			} else {
-				oldHeight = lastRecord.TransactionVersion
+				oldHeight = lastRecord.BlockNumber
 			}
 		} else {
 			// redis出错 接入lark报警
