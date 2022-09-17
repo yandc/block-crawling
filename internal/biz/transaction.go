@@ -220,6 +220,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			Symbol:          da.Symbol,
 			Status:          status,
 			DappInfo:        dappInfo,
+			TxTime:          da.TxTime,
 		}
 		dappALl = append(dappALl, dif)
 	}
@@ -265,14 +266,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 	}
 
-	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":" + strconv.Itoa(int(pbb.Nonce))
+	//pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":" + strconv.Itoa(int(pbb.Nonce))
+	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
 	switch chainType {
 	case STC:
+
+		//{"stc":{"sequence_number":53}
+
+		stc := make(map[string]interface{})
+		nonce := ""
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &stc); jsonErr == nil {
+			evmMap := stc["stc"]
+			ret := evmMap.(map[string]interface{})
+			nonce = ret["sequence_number"].(string)
+
+		}
+		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 		stcRecord := &data.StcTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
-			Nonce:           pbb.Nonce,
+			Nonce:           int64(dbNonce),
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
 			FromUid:         pbb.Uid,
@@ -296,7 +310,8 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.StcTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
-			data.RedisClient.Set(pendingNonceKey, pbb.Uid, 6*time.Hour)
+			key := pendingNonceKey+nonce
+			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case EVM:
 		evm := make(map[string]interface{})
@@ -348,9 +363,12 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), evmTransactionRecord)
+		log.Info("asdf",zap.Any("插入数据库结果",result))
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
-			data.RedisClient.Set(pendingNonceKey, pbb.Uid, 6*time.Hour)
+			key := pendingNonceKey+strconv.Itoa(int(dbNonce))
+			log.Info("asdf",zap.Any("插入缓存",key),zap.Any("result",pbb.Uid))
+			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case BTC:
 		btcTransactionRecord := &data.BtcTransactionRecord{
@@ -423,7 +441,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
-			data.RedisClient.Set(pendingNonceKey, pbb.Uid, 6*time.Hour)
+			key := pendingNonceKey+strconv.Itoa(int(pbb.Nonce))
+			log.Info("asdf",zap.Any("插入缓存",key),zap.Any("result",pbb.Uid))
+			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	}
 
@@ -711,10 +731,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
 	doneNonceKey := ADDRESS_DONE_NONCE + req.ChainName + ":" + req.Address
 	nonce, err := data.RedisClient.Get(doneNonceKey).Result()
-	for i := 0; i < 3 && err != redis.Nil; i++ {
-		time.Sleep(time.Duration(i*1) * time.Second)
-		nonce, err = data.RedisClient.Get(doneNonceKey).Result()
-	}
 	if err == redis.Nil {
 		return findNonce(0, req)
 	} else if err != nil {

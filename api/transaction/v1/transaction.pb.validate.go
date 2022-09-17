@@ -1278,6 +1278,8 @@ func (m *DappInfo) validate(all bool) error {
 
 	// no validation rules for Status
 
+	// no validation rules for TxTime
+
 	if len(errors) > 0 {
 		return DappInfoMultiError(errors)
 	}
