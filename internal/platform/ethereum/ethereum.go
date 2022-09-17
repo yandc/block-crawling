@@ -682,7 +682,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 	ctx := context.Background()
 	for _, record := range records {
 		txhash := strings.Split(record.TransactionHash, "#")[0]
-		txByhash, isPending, err1 := client.GetTransactionByHash(ctx, common.HexToHash(txhash))
+		txByhash, _, err1 := client.GetTransactionByHash(ctx, common.HexToHash(txhash))
 		for i := 1; err1 != nil && err1 != ethereum.NotFound && i <= 5; i++ {
 			url_list := GetPreferentialUrl(p.UrlList, p.ChainName)
 			if len(url_list) == 0 {
@@ -696,15 +696,11 @@ func (p *Platform) GetTransactionResultByTxhash() {
 				if err1 != nil {
 					continue
 				}
-				txByhash, isPending, err1 = client.GetTransactionByHash(ctx, common.HexToHash(txhash))
+				txByhash, _, err1 = client.GetTransactionByHash(ctx, common.HexToHash(txhash))
 			}
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
 		if err1 != nil && err1 != ethereum.NotFound {
-			continue
-		}
-
-		if isPending {
 			continue
 		}
 
@@ -737,9 +733,39 @@ func (p *Platform) GetTransactionResultByTxhash() {
 		}
 
 		receipt, err := client.GetTransactionReceipt(ctx, common.HexToHash(txhash))
-		if err != nil {
+		if err != nil && err != ethereum.NotFound{
 			continue
 		}
+
+		if receipt == nil {
+			//判断nonce 是否小于 当前链上的nonce
+			nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
+			if nonceErr != nil {
+				continue
+			}
+			if int(record.Nonce) < int(nonce) {
+				record.Status = biz.DROPPED_REPLACED
+				txRecords = append(txRecords, record)
+				log.Info("更新txhash对象为丢弃置换状态", zap.Any("txId", record.TransactionHash))
+				continue
+			} else {
+				now := time.Now().Unix()
+				ctime := record.CreatedAt + 21600
+				if ctime < now {
+					record.Status = biz.FAIL
+					txRecords = append(txRecords, record)
+					log.Info("更新txhash对象为终态:交易被抛弃", zap.Any("txId", record.TransactionHash))
+					continue
+				} else {
+					record.Status = biz.NO_STATUS
+					txRecords = append(txRecords, record)
+					log.Info("更新txhash对象无状态", zap.Any("txId", record.TransactionHash))
+					continue
+				}
+			}
+		}
+
+
 
 		curHeight, _ := utils.HexStringToInt(receipt.BlockNumber)
 		block, err := client.GetBlockByNumber(ctx, curHeight)
@@ -1074,6 +1100,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
+		go handleUserNonce(p.ChainName,txRecords)
 	}
 }
 

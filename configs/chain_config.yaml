@@ -271,6 +271,53 @@ platform:
     - https://optimism-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: Optimism
     type: EVM
+  ETC:
+    blockExplorerAddrUrl: https://blockscout.com/etc/mainnet/address/
+    blockExplorerTxUrl: https://blockscout.com/etc/mainnet/tx/
+    blockExplorerUrl: https://blockscout.com/etc/mainnet/
+    categoryName: EVM
+    chain: ETC
+    chainId: 61
+    coinId: 60
+    customNonce: true
+    fullName: Ethereum Classic
+    getPriceKey: ethereum-classic
+    handler: ETC
+    icon: https://obstatic.243096.com/mili/images/currency/chain/ETC.jpg
+    nativeCurrency: ETC
+    netType: main
+    rpcURL:
+      - https://etc.mytokenpocket.vip
+      - https://etc.etcdesktop.com
+      - https://www.ethercluster.com/etc
+    symbol: ETC
+    type: EVM
+  xDai:
+    blockExplorerAddrUrl: https://blockscout.com/xdai/mainnet/address/
+    blockExplorerTxUrl: https://blockscout.com/xdai/mainnet/tx/
+    blockExplorerUrl: https://blockscout.com/xdai/mainnet/
+    categoryName: EVM
+    chain: xDai
+    chainId: 100
+    coinId: 60
+    customNonce: true
+    fullName: Gnosis
+    getPriceKey: xdai
+    handler: xDai
+    icon: https://obstatic.243096.com/mili/images/currency/chain/XDAI.jpg
+    nativeCurrency: xDAI
+    netType: main
+    rpcURL:
+      - https://rpc.ankr.com/gnosis
+      - https://gnosischain-rpc.gateway.pokt.network
+      - https://xdai-rpc.gateway.pokt.network
+      - https://gnosis-mainnet.public.blastapi.io
+      - https://rpc.gnosischain.com
+      - https://rpc.ap-southeast-1.gateway.fm/v1/gnosis/non-archival/mainnet
+    symbol: xDai
+    type: EVM
+
+
   Polygon:
     blockExplorerAddrUrl: https://polygonscan.com/address/
     blockExplorerTxUrl: https://polygonscan.com/tx/

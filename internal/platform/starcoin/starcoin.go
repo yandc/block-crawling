@@ -248,11 +248,12 @@ func (p *Platform) IndexBlock() bool {
 							}
 							parseData, _ := utils.JsonEncode(stcMap)
 							amountValue, _ := decimal.NewFromString(amount)
+							nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 
 							stcRecord := &data.StcTransactionRecord{
 								BlockHash:       block.BlockHeader.BlockHash,
 								BlockNumber:     curHeight,
-								Nonce:           block.BlockHeader.Nonce,
+								Nonce:           int64(nonce),
 								TransactionHash: userTransaction.TransactionHash,
 								FromAddress:     fromAddress,
 								ToAddress:       toAddress,
@@ -388,11 +389,12 @@ func (p *Platform) IndexBlock() bool {
 							}
 							parseData, _ := utils.JsonEncode(stcMap)
 							amountValue, _ := decimal.NewFromString(amount)
+							nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 
 							stcContractRecord = &data.StcTransactionRecord{
 								BlockHash:       block.BlockHeader.BlockHash,
 								BlockNumber:     curHeight,
-								Nonce:           block.BlockHeader.Nonce,
+								Nonce:           int64(nonce),
 								TransactionHash: userTransaction.TransactionHash,
 								FromAddress:     fromAddress,
 								ToAddress:       toAddress,
@@ -549,11 +551,11 @@ func (p *Platform) IndexBlock() bool {
 								}
 								eventLogs = append(eventLogs, eventLogInfo)
 								eventLog, _ := utils.JsonEncode(eventLogInfo)
-
+								nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 								stcRecord := &data.StcTransactionRecord{
 									BlockHash:       block.BlockHeader.BlockHash,
 									BlockNumber:     curHeight,
-									Nonce:           block.BlockHeader.Nonce,
+									Nonce:           int64(nonce),
 									TransactionHash: txHash,
 									FromAddress:     fromAddress,
 									ToAddress:       toAddress,
@@ -767,11 +769,11 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					}
 					parseData, _ := utils.JsonEncode(stcMap)
 					amountValue, _ := decimal.NewFromString(amount)
-
+					nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 					stcRecord := &data.StcTransactionRecord{
 						BlockHash:       block.BlockHeader.BlockHash,
 						BlockNumber:     curHeight,
-						Nonce:           block.BlockHeader.Nonce,
+						Nonce:           int64(nonce),
 						TransactionHash: userTransaction.TransactionHash,
 						FromAddress:     fromAddress,
 						ToAddress:       toAddress,
@@ -907,11 +909,12 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					}
 					parseData, _ := utils.JsonEncode(stcMap)
 					amountValue, _ := decimal.NewFromString(amount)
+					nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 
 					stcContractRecord = &data.StcTransactionRecord{
 						BlockHash:       block.BlockHeader.BlockHash,
 						BlockNumber:     curHeight,
-						Nonce:           block.BlockHeader.Nonce,
+						Nonce:           int64(nonce),
 						TransactionHash: userTransaction.TransactionHash,
 						FromAddress:     fromAddress,
 						ToAddress:       toAddress,
@@ -1068,11 +1071,12 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						}
 						eventLogs = append(eventLogs, eventLogInfo)
 						eventLog, _ := utils.JsonEncode(eventLogInfo)
+						nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 
 						stcRecord := &data.StcTransactionRecord{
 							BlockHash:       block.BlockHeader.BlockHash,
 							BlockNumber:     curHeight,
-							Nonce:           block.BlockHeader.Nonce,
+							Nonce:           int64(nonce),
 							TransactionHash: txHash,
 							FromAddress:     fromAddress,
 							ToAddress:       toAddress,
@@ -1118,6 +1122,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
+		go handleUserNonce(p.ChainName,txRecords)
 	}
 }
 

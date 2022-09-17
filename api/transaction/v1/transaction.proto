@@ -106,6 +106,7 @@ message DappInfo {
   string symbol = 11;
   string dappInfo = 12;
   string status = 13;
+  int64  txTime =14;
 }
 
 

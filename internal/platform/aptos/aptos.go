@@ -216,7 +216,7 @@ func (p *Platform) DoGetTransactions() {
 					version, _ := strconv.Atoi(tx.Version)
 					nonce, _ := strconv.Atoi(tx.SequenceNumber)
 					txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ := strconv.Atoi(tx.GasUsed)
 					gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 					feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -336,7 +336,7 @@ func (p *Platform) DoGetTransactions() {
 					version, _ := strconv.Atoi(tx.Version)
 					nonce, _ := strconv.Atoi(tx.SequenceNumber)
 					txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ := strconv.Atoi(tx.GasUsed)
 					gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 					feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -483,7 +483,7 @@ func (p *Platform) DoGetTransactions() {
 					version, _ = strconv.Atoi(tx.Version)
 					nonce, _ = strconv.Atoi(tx.SequenceNumber)
 					txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ = strconv.Atoi(tx.GasUsed)
 					gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 					feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -650,7 +650,7 @@ func (p *Platform) DoGetTransactions() {
 							version, _ = strconv.Atoi(tx.Version)
 							nonce, _ = strconv.Atoi(tx.SequenceNumber)
 							txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-							txTime = txTime / 1000
+							txTime = txTime / 1000000
 							gasUsed, _ = strconv.Atoi(tx.GasUsed)
 							gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 							feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -905,7 +905,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					version, _ := strconv.Atoi(tx.Version)
 					nonce, _ := strconv.Atoi(tx.SequenceNumber)
 					txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ := strconv.Atoi(tx.GasUsed)
 					gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 					feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -1025,7 +1025,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					version, _ := strconv.Atoi(tx.Version)
 					nonce, _ := strconv.Atoi(tx.SequenceNumber)
 					txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ := strconv.Atoi(tx.GasUsed)
 					gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
 					feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -1172,7 +1172,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					version, _ = strconv.Atoi(tx.Version)
 					nonce, _ = strconv.Atoi(tx.SequenceNumber)
 					txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000
+					txTime = txTime / 1000000
 					gasUsed, _ = strconv.Atoi(tx.GasUsed)
 					gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 					feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -1339,7 +1339,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							version, _ = strconv.Atoi(tx.Version)
 							nonce, _ = strconv.Atoi(tx.SequenceNumber)
 							txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-							txTime = txTime / 1000
+							txTime = txTime / 1000000
 							gasUsed, _ = strconv.Atoi(tx.GasUsed)
 							gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
 							feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
@@ -1439,6 +1439,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
+		go handleUserNonce(p.ChainName,txRecords)
 	}
 }
 
