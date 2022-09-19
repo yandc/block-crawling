@@ -50,7 +50,7 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	return btcValue, nil
 }
 
-func  GetBlockNumber(c *base.Client) (int, error) {
+func GetBlockNumber(c *base.Client) (int, error) {
 	u, err := c.BuildURL("", nil)
 	if err != nil {
 		return 0, err
@@ -60,14 +60,14 @@ func  GetBlockNumber(c *base.Client) (int, error) {
 	return chain.Height, err
 }
 
-func  GetBlockHeight(c *base.Client) (int, error) {
+func GetBlockHeight(c *base.Client) (int, error) {
 	url := c.StreamURL + "/blocks/tip/height"
 	var height int
 	err := httpclient2.HttpsGetForm(url, nil, &height)
 	return height, err
 }
 
-func  GetMempoolTxIds(c *base.Client) ([]string, error) {
+func GetMempoolTxIds(c *base.Client) ([]string, error) {
 	url := c.StreamURL + "/mempool/txids"
 	var txIds []string
 	err := httpclient2.HttpsGetForm(url, nil, &txIds)
@@ -81,7 +81,7 @@ func GetBlockHashByNumber(number int, c *base.Client) (string, error) {
 
 func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlockerInfo, err error) {
 	//get block hash
-	hash, err := GetBlockHashByNumber(height,c)
+	hash, err := GetBlockHashByNumber(height, c)
 	if err != nil {
 		return result, err
 	}
@@ -101,6 +101,27 @@ func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlock
 }
 
 func GetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
+	tx, err = DoGetTransactionByHash(hash+"?instart=0&outstart=0&limit=500", c)
+	if err != nil {
+		return
+	}
+	putsTx := tx
+	for (putsTx.NextInputs != "" && len(putsTx.Inputs) > 80) || (putsTx.NextOutputs != "" && len(putsTx.Outputs) > 80) {
+		putsTx, err = DoGetTransactionByHash(hash+"?instart="+strconv.Itoa(len(putsTx.Inputs))+"&outstart="+strconv.Itoa(len(putsTx.Outputs))+"&limit=500", c)
+		if err != nil {
+			return
+		}
+		for _, input := range putsTx.Inputs {
+			tx.Inputs = append(tx.Inputs, input)
+		}
+		for _, output := range putsTx.Outputs {
+			tx.Outputs = append(tx.Outputs, output)
+		}
+	}
+	return
+}
+
+func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
 	u, err := c.BuildURL("/txs/"+hash, nil)
 	if err != nil {
 		return
@@ -157,7 +178,6 @@ func postResponse(target string, encTarget interface{}, decTarget interface{}) (
 	}
 	return
 }
-
 
 func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, error) {
 	url := "https://blockchain.info/rawblock/" + fmt.Sprintf("%d", number)
