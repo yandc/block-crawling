@@ -414,8 +414,19 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.TrxTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), trxRecord)
 	case APTOS:
+
+		apt := make(map[string]interface{})
+		nonce := ""
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &apt); jsonErr == nil {
+			evmMap := apt["aptos"]
+			ret := evmMap.(map[string]interface{})
+			nonce = ret["sequence_number"].(string)
+
+		}
+		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
+
 		stcRecord := &data.AptTransactionRecord{
-			Nonce:              pbb.Nonce,
+			Nonce:              int64(dbNonce),
 			TransactionVersion: int(pbb.BlockNumber),
 			TransactionHash:    pbb.TransactionHash,
 			FromAddress:        pbb.FromAddress,
@@ -440,8 +451,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
-			//插入redis 并设置过期时间为6个小时
-			key := pendingNonceKey+strconv.Itoa(int(pbb.Nonce))
+			key := pendingNonceKey+nonce
 			log.Info("asdf",zap.Any("插入缓存",key),zap.Any("result",pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
