@@ -24,7 +24,7 @@ type Platform struct {
 }
 
 const APT_CODE = "0x1::aptos_coin::AptosCoin"
-const APT_CREATE_ACCOUNT = "0x1::account::create_account"
+const APT_CREATE_ACCOUNT = "0x1::aptos_account::create_account"
 const APT_REGISTER = "0x1::coins::register"
 
 func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
@@ -1439,7 +1439,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
-		go handleUserNonce(p.ChainName,txRecords)
+		go handleUserNonce(p.ChainName, txRecords)
 	}
 }
 

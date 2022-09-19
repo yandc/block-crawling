@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -57,10 +58,11 @@ func (p *CommPlatform) MonitorHeight() {
 
 	ret := height - oldHeight
 	if ret > 30 {
-
-		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于30,相差%d，链上块高：%d,业务块高：%d", p.ChainName, ret, height, oldHeight)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		if p.ChainName != "Optimism" && p.ChainName != "Klaytn" && !strings.Contains(p.ChainName,"TEST"){
+			alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于30,相差%d，链上块高：%d,业务块高：%d", p.ChainName, ret, height, oldHeight)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		}
 
 	}
 
