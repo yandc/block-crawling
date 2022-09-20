@@ -356,7 +356,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			continue
 		}
 
-		result := transactionInfo.ContractResult[0]
+		result := transactionInfo.Receipt.Result
 		if result != "" && result != "SUCCESS" {
 			record.Status = biz.FAIL
 			txRecords = append(txRecords, record)

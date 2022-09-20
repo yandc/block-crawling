@@ -23,8 +23,8 @@ type TransactionStatistic struct {
 	FundType            int16           `json:"fundType" form:"fundType" gorm:"type:smallint;index:,unique,composite:unique_dt_chain_name_token_address_fund_direction_fund_type"`
 	TransactionQuantity int64           `json:"transactionQuantity" form:"transactionQuantity"`
 	Amount              decimal.Decimal `json:"amount" form:"amount" gorm:"type:decimal(256,0);"`
-	CnyAmount           decimal.Decimal `json:"cnyAmount" form:"cnyAmount" gorm:"type:decimal(256,0);"`
-	UsdAmount           decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,0);"`
+	CnyAmount           decimal.Decimal `json:"cnyAmount" form:"cnyAmount" gorm:"type:decimal(256,2);"`
+	UsdAmount           decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`
 	Dt                  int64           `json:"dt" form:"dt" gorm:"type:bigint;index:,unique,composite:unique_dt_chain_name_token_address_fund_direction_fund_type"`
 	CreatedAt           int64           `json:"createdAt" form:"createdAt"`
 	UpdatedAt           int64           `json:"updatedAt" form:"updatedAt"`
