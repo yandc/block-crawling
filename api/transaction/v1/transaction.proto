@@ -33,6 +33,9 @@ message DappPageListReq{
   int32 limit = 4;//  默认20
   string fromuid = 5;
   string fromAddress = 6;
+  string orderBy = 7;
+  int32 dataDirection = 8 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 9 [(validate.rules).int64.gte = 0];
 }
 
 message DappPageListResp{

@@ -69,6 +69,30 @@ func (m *DappPageListReq) validate(all bool) error {
 
 	// no validation rules for FromAddress
 
+	// no validation rules for OrderBy
+
+	if _, ok := _DappPageListReq_DataDirection_InLookup[m.GetDataDirection()]; !ok {
+		err := DappPageListReqValidationError{
+			field:  "DataDirection",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStartIndex() < 0 {
+		err := DappPageListReqValidationError{
+			field:  "StartIndex",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	if len(errors) > 0 {
 		return DappPageListReqMultiError(errors)
 	}
@@ -146,6 +170,12 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = DappPageListReqValidationError{}
+
+var _DappPageListReq_DataDirection_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
+}
 
 // Validate checks the field values on DappPageListResp with the rules defined
 // in the proto definition for this message. If any rules are violated, the
