@@ -285,7 +285,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 	tm := time.Now()
 	nowTime := tm.Unix()
 	var dt = utils.GetDayTime(&tm)
-	//资金流向: 1:充值, 2:提现
+	//资金流向: 1:充值, 2:提现, 3:内部转账
 
 	//资金类型: 1:次中单, 2:小单提现, 3:中单提现, 4:大单提现, 5:超大单提现
 	//小单：金额<1K
@@ -331,7 +331,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 			alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币价格失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Errore(chainName+"交易记录统计，从nodeProxy中获取代币价格失败", err)
+			log.Error(chainName+"交易记录统计，从nodeProxy中获取代币价格失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 			return
 		}
 

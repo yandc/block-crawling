@@ -146,7 +146,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.BtcT
 	nowTime := tm.Unix()
 	var decimals int32 = 8
 	var dt = utils.GetDayTime(&tm)
-	//资金流向: 1:充值, 2:提现
+	//资金流向: 1:充值, 2:提现, 3:内部转账
 
 	//资金类型: 1:次中单, 2:小单提现, 3:中单提现, 4:大单提现, 5:超大单提现
 	//小单：金额<1K

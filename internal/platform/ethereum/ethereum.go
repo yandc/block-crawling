@@ -552,6 +552,7 @@ func (p *Platform) IndexBlock() bool {
 								txHash := transaction.Hash().String() + "#result-" + fmt.Sprintf("%v", index+1)
 								txType := "eventLog"
 								contractAddress := eventLog.Token.Address
+								amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 								evmlogTransactionRecord := &data.EvmTransactionRecord{
 									BlockHash:            blockHash,
 									BlockNumber:          bn,
@@ -562,7 +563,7 @@ func (p *Platform) IndexBlock() bool {
 									FromUid:              fromUid,
 									ToUid:                toUid,
 									FeeAmount:            fa,
-									Amount:               at,
+									Amount:               amountValue,
 									Status:               status,
 									TxTime:               int64(block.Time()),
 									ContractAddress:      contractAddress,
@@ -733,7 +734,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 		}
 
 		receipt, err := client.GetTransactionReceipt(ctx, common.HexToHash(txhash))
-		if err != nil && err != ethereum.NotFound{
+		if err != nil && err != ethereum.NotFound {
 			continue
 		}
 
@@ -764,8 +765,6 @@ func (p *Platform) GetTransactionResultByTxhash() {
 				}
 			}
 		}
-
-
 
 		curHeight, _ := utils.HexStringToInt(receipt.BlockNumber)
 		block, err := client.GetBlockByNumber(ctx, curHeight)
@@ -1100,7 +1099,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
-		go handleUserNonce(p.ChainName,txRecords)
+		go handleUserNonce(p.ChainName, txRecords)
 	}
 }
 
