@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"strings"
 )
 
 type DappApproveRecord struct {
@@ -101,7 +102,7 @@ func (r *DappApproveRecordRepoImpl) ListByCondition(ctx context.Context, req *pb
 	if req.ContractAddress != "" {
 		tx = tx.Where("to_address = ?", req.ContractAddress)
 	}
-	if req.IsCancelStatus == ""{
+	if req.IsCancelStatus == "" {
 		if !req.IsCancel {
 			tx = tx.Where("amount != '0' and amount !='' ")
 		}
@@ -137,8 +138,20 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 	if req.Fromuid != "" {
 		tx = tx.Where("uid = ?", req.Fromuid)
 	}
-	tx = tx.Offset(int(req.Page-1) * int(req.Limit))
-	tx = tx.Limit(int(req.Limit))
+	if req.DataDirection > 0 {
+		dataDirection := ">"
+		if req.DataDirection == 1 {
+			dataDirection = "<"
+		}
+		if req.OrderBy != "" {
+			orderBys := strings.Split(req.OrderBy, " ")
+			tx = tx.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
+		}
+	}
+	if req.DataDirection == 0 {
+		tx = tx.Offset(int(req.Page-1) * int(req.Limit))
+		tx = tx.Limit(int(req.Limit))
+	}
 	ret := tx.Find(&dars)
 	err := ret.Error
 	if err != nil {

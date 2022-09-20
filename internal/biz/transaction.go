@@ -627,6 +627,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	if req.FromAddress != "" {
 		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 	}
+	if req.OrderBy == ""{
+		req.OrderBy = "tx_time desc"
+	}
+
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
 	log.Info("yd", zap.Any("dapp", dapps))
 	if err != nil {
@@ -660,6 +664,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					var r *pb.TransactionRecord
 					utils.CopyProperties(btc, &r)
 					r.ChainName = value.ChainName
+					r.Cursor = btc.TxTime
+					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
 			case EVM:
@@ -683,6 +689,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					r.ChainName = value.ChainName
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
+					r.Cursor = evm.TxTime
+					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
 			case STC:
@@ -696,6 +704,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["gas_price"] = r.GasPrice
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
+					r.Cursor = stc.TxTime
+					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
 			case TVM:
@@ -709,6 +719,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["energy_usage"] = r.EnergyUsage
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
+					r.Cursor = tvm.TxTime
+					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
 			case APTOS:
@@ -722,6 +734,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["gas_price"] = r.GasPrice
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
+					r.Cursor = apt.TxTime
+					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
 			}
