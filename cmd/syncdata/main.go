@@ -48,8 +48,8 @@ func main() {
 		panic(err)
 	}
 	defer cleanup()
-	platform.MigrateRecord()
-	platform.DappReset()
+	//platform.MigrateRecord()
+	//platform.DappReset()
 
 
 }

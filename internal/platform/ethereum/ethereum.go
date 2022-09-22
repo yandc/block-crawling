@@ -671,6 +671,9 @@ func (p *Platform) GetTransactionResultByTxhash() {
 		return
 	}
 	log.Info(p.ChainName, zap.Any("records", records))
+
+
+	var txNonceRecords []*data.EvmTransactionRecord
 	var txRecords []*data.EvmTransactionRecord
 	now := time.Now().Unix()
 
@@ -1037,6 +1040,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					UpdatedAt:            now,
 				}
 				txRecords = append(txRecords, evmTransactionRecord)
+				txNonceRecords = append(txNonceRecords, evmTransactionRecord)
 
 				if len(eventLogs) > 0 && transactionType == "contract" {
 					for index, eventLog := range eventLogs {
@@ -1082,6 +1086,8 @@ func (p *Platform) GetTransactionResultByTxhash() {
 							UpdatedAt:            now,
 						}
 						txRecords = append(txRecords, evmlogTransactionRecord)
+						txNonceRecords = append(txNonceRecords, evmTransactionRecord)
+
 					}
 				}
 			}
@@ -1099,7 +1105,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
-		go handleUserNonce(p.ChainName, txRecords)
+		go handleUserNonce(p.ChainName, txNonceRecords)
 	}
 }
 
