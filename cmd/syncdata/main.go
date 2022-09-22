@@ -2,7 +2,6 @@ package main
 
 import (
 	"block-crawling/internal/conf"
-	"block-crawling/internal/platform"
 	"flag"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
