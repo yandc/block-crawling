@@ -41,6 +41,9 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
 
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
