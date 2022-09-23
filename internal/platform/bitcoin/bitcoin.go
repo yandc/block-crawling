@@ -549,7 +549,7 @@ func (p *Platform) getBTCTransactions() {
 			block, err = p.client.GetBTCBlockByNumber(curHeight)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，从链上获取区块信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 
@@ -607,7 +607,7 @@ func (p *Platform) getBTCTransactions() {
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
 				data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)
 
-				log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
+				log.Error(p.ChainName+"扫块，从链上获取区块信息失败", zap.Any("prevent", preHeight), zap.Any("new", height), zap.Any("error", err))
 				return
 			}
 
@@ -992,7 +992,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			tx, err = p.client.GetTransactionByHash(record.TransactionHash)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"查询链上数据失败", zap.Any("error", err))
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("txHash", record.TransactionHash), zap.Any("error", err))
 			continue
 		}
 

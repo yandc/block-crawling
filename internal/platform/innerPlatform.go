@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/starcoin"
+	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/subhandle"
 	"strconv"
@@ -50,6 +51,8 @@ func GetInnerPlatform(typ, chain, chainName string, nodeURL string) subhandle.Pl
 		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
 	case biz.APTOS:
 		return aptos.Init(coins.Aptos().Handle, chain, chainName, nodeURLS, height)
+	case biz.SUI:
+		return sui.Init(coins.Sui().Handle, chain, chainName, nodeURLS, height)
 	}
 	return nil
 }

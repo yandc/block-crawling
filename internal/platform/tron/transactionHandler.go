@@ -30,7 +30,8 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 		}
 	}()
 
-	//go handleUserAsset(chainName, client, txRecords)
+	client = NewClient("https://api.tronstack.io")
+	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
 }
 
@@ -101,24 +102,16 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil
 	}
 
-	var balance decimal.Decimal
-	var balances string
+	var balance string
 	var err error
 	if transactionType == biz.NATIVE || tokenAddress == "" {
-		balances, err = client.GetBalance(address)
+		balance, err = client.GetBalance(address)
 	} else if tokenAddress != "" {
-		balances, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
+		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
 	}
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return err
-	}
-	if balances != "" {
-		balance, err = decimal.NewFromString(balances)
-		if err != nil {
-			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-			return err
-		}
 	}
 
 	var userAsset = &data.UserAsset{
@@ -126,7 +119,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
-		Amount:       balance,
+		Balance:      balance,
 		Decimals:     decimals,
 		Symbol:       symbol,
 		CreatedAt:    nowTime,
@@ -177,6 +170,9 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.TrxT
 	var transactionStatisticList []*data.TransactionStatistic
 	for _, record := range txRecords {
 		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 

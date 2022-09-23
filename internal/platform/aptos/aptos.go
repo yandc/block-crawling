@@ -140,7 +140,7 @@ func (p *Platform) DoGetTransactions() {
 			block, err = p.client.GetBlockByNumber(curHeight)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，从链上获取区块信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			return
 		}
 
@@ -805,7 +805,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			transactionInfo, err = p.client.GetTransactionByHash(record.TransactionHash)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"查询链上数据失败", zap.Any("error", err))
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("txHash", record.TransactionHash), zap.Any("error", err))
 			continue
 		}
 
@@ -826,7 +826,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			block, err = p.client.GetBlockByVersion(transactionVersion)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"扫块，从链上获取区块hash失败", zap.Any("transactionVersion", transactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
+			log.Error(p.ChainName+"扫块，从链上获取区块信息失败", zap.Any("transactionVersion", transactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
 		curHeight, _ := strconv.Atoi(block.BlockHeight)

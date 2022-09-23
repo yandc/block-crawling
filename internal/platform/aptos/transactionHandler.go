@@ -113,22 +113,13 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		if changeMapi, ok := changes[record.FromAddress]; ok {
 			changeMap := changeMapi.(map[string]interface{})
 			if balancei, ok := changeMap[tokenAddress]; ok {
-				balances := balancei.(string)
-				balance, err := decimal.NewFromString(balances)
-				if err != nil {
-					// 更新用户资产出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-					return
-				}
+				balance := balancei.(string)
 				var userAsset = &data.UserAsset{
 					ChainName:    chainName,
 					Uid:          record.FromUid,
 					Address:      record.FromAddress,
 					TokenAddress: record.ContractAddress,
-					Amount:       balance,
+					Balance:      balance,
 					Decimals:     decimals,
 					Symbol:       symbol,
 					CreatedAt:    now,
@@ -160,22 +151,13 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		if changeMapi, ok := changes[record.ToAddress]; ok {
 			changeMap := changeMapi.(map[string]interface{})
 			if balancei, ok := changeMap[tokenAddress]; ok {
-				balances := balancei.(string)
-				balance, err := decimal.NewFromString(balances)
-				if err != nil {
-					// 更新用户资产出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-					return
-				}
+				balance := balancei.(string)
 				var userAsset = &data.UserAsset{
 					ChainName:    chainName,
 					Uid:          record.ToUid,
 					Address:      record.ToAddress,
 					TokenAddress: record.ContractAddress,
-					Amount:       balance,
+					Balance:      balance,
 					Decimals:     decimals,
 					Symbol:       symbol,
 					CreatedAt:    now,
@@ -231,24 +213,16 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil, nil
 	}
 
-	var balance decimal.Decimal
-	var balances string
+	var balance string
 	var err error
 	if transactionType == biz.NATIVE || tokenAddress == APT_CODE || tokenAddress == "" {
-		balances, err = client.GetBalance(address)
+		balance, err = client.GetBalance(address)
 	} else if tokenAddress != APT_CODE && tokenAddress != "" {
-		balances, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
+		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
 	}
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
-	}
-	if balances != "" {
-		balance, err = decimal.NewFromString(balances)
-		if err != nil {
-			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-			return nil, err
-		}
 	}
 
 	var userAsset = &data.UserAsset{
@@ -256,7 +230,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
-		Amount:       balance,
+		Balance:      balance,
 		Decimals:     decimals,
 		Symbol:       symbol,
 		CreatedAt:    nowTime,
@@ -297,7 +271,10 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 	var transactionStatisticMap = make(map[string]*data.TransactionStatistic)
 	var transactionStatisticList []*data.TransactionStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 

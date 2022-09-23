@@ -347,7 +347,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			transactionInfo, err = p.client.GetTransactionInfoByHash(record.TransactionHash)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"查询链上数据失败", zap.Any("error", err))
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("txHash", record.TransactionHash), zap.Any("error", err))
 			continue
 		}
 

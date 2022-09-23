@@ -89,25 +89,17 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 		return nil
 	}
 
-	var balance decimal.Decimal
-	balances, err := client.GetBalance(address)
+	balance, err := client.GetBalance(address)
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("error", err))
 		return err
-	}
-	if balances != "" {
-		balance, err = decimal.NewFromString(balances)
-		if err != nil {
-			log.Error("format balance error", zap.Any("balance", balances), zap.Any("error", err))
-			return err
-		}
 	}
 
 	var userAsset = &data.UserAsset{
 		ChainName: chainName,
 		Uid:       uid,
 		Address:   address,
-		Amount:    balance,
+		Balance:   balance,
 		Decimals:  decimals,
 		Symbol:    symbol,
 		CreatedAt: nowTime,

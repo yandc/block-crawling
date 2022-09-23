@@ -41,6 +41,7 @@ const (
 	DOGE  = "UTXO"
 	LTC   = "UTXO"
 	APTOS = "APTOS"
+	SUI   = "SUI"
 )
 
 const (
