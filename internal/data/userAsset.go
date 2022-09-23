@@ -99,7 +99,7 @@ func (r *UserAssetRepoImpl) SaveOrUpdate(ctx context.Context, userAsset *UserAss
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"amount", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"balance", "updated_at"}),
 	}).Create(&userAsset)
 	err := ret.Error
 	if err != nil {
@@ -115,7 +115,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAssets []
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"amount", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"balance", "updated_at"}),
 	}).Create(&userAssets)
 	err := ret.Error
 	if err != nil {
