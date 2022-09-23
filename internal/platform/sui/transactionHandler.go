@@ -1,4 +1,4 @@
-package ethereum
+package sui
 
 import (
 	"block-crawling/internal/biz"
@@ -10,11 +10,10 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
-	"strings"
 	"time"
 )
 
-func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleRecord(chainName string, client Client, txRecords []*data.SuiTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -31,35 +30,11 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 		}
 	}()
 
-	go biz.DappApproveFilter(chainName, txRecords)
 	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
-	handleUserNonce(chainName, txRecords)
 }
 
-func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
-	doneNonce := make(map[string]int)
-
-	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
-			continue
-		}
-		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
-		bh := doneNonce[nonceKey]
-		if bh == 0 {
-			doneNonce[nonceKey] = int(record.Nonce)
-		} else {
-			if bh < int(record.Nonce) {
-				doneNonce[nonceKey] = int(record.Nonce)
-			}
-		}
-	}
-	for k, v := range doneNonce {
-		data.RedisClient.Set(k, strconv.Itoa(v), 0)
-	}
-}
-
-func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func handleUserAsset(chainName string, client Client, txRecords []*data.SuiTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -79,13 +54,8 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
-	addressTokenMap := make(map[string]map[string]int)
-	tokenSymbolMap := make(map[string]string)
-	addressUidMap := make(map[string]string)
-	var mainDecimals int32
-	var mainTokenAddress, mainSymbol string
 	for _, record := range txRecords {
-		if record.TransactionType == biz.APPROVE || record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT {
 			continue
 		}
 
@@ -95,95 +65,44 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error(chainName+"解析parseData失败", zap.Any("transactionVersion", record.TransactionVersion), zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			return
 		}
 
-		tokenAddress := record.ContractAddress
-		if record.TransactionType == biz.NATIVE || tokenAddress == "" {
-			if record.FromAddress != "" && record.FromUid != "" {
-				_, ok := addressUidMap[record.FromAddress]
-				if !ok {
-					addressUidMap[record.FromAddress] = record.FromUid
-				}
-			}
-
-			if record.ToAddress != "" && record.ToUid != "" {
-				_, ok := addressUidMap[record.ToAddress]
-				if !ok {
-					addressUidMap[record.ToAddress] = record.ToUid
-				}
-			}
-
-			if mainSymbol == "" {
-				mainTokenAddress = tokenAddress
-				mainDecimals = decimals
-				mainSymbol = symbol
-			}
-		} else if tokenAddress != "" {
-			tokenSymbolMap[tokenAddress] = symbol
-			if record.FromAddress != "" && record.FromUid != "" {
-				fromKey := record.FromUid + "," + record.FromAddress
-				tokenDecimalsMap, ok := addressTokenMap[fromKey]
-				if !ok {
-					tokenDecimalsMap = make(map[string]int)
-					addressTokenMap[fromKey] = tokenDecimalsMap
-				}
-				tokenDecimalsMap[tokenAddress] = int(decimals)
-			}
-
-			if record.ToAddress != "" && record.ToUid != "" {
-				toKey := record.ToUid + "," + record.ToAddress
-				tokenDecimalsMap, ok := addressTokenMap[toKey]
-				if !ok {
-					tokenDecimalsMap = make(map[string]int)
-					addressTokenMap[toKey] = tokenDecimalsMap
-				}
-				tokenDecimalsMap[tokenAddress] = int(decimals)
-			}
-		}
-	}
-
-	for address, uid := range addressUidMap {
-		userAsset, err := doHandleUserAsset(chainName, client, uid, address, mainTokenAddress, mainDecimals, mainSymbol, now)
+		fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, record.ContractAddress, decimals, symbol, now)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
-			userAsset, err = doHandleUserAsset(chainName, client, uid, address, mainTokenAddress, mainDecimals, mainSymbol, now)
+			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, record.ContractAddress, decimals, symbol, now)
 		}
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"查询用户资产失败", zap.Any("address", address), zap.Any("tokenAddress", mainTokenAddress), zap.Any("error", err))
+			log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", record.ContractAddress), zap.Any("error", err))
 			return
 		}
-		if userAsset != nil {
-			userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
-			userAssetMap[userAssetKey] = userAsset
+		if fromUserAsset != nil {
+			userAssetKey := fromUserAsset.ChainName + fromUserAsset.Address + fromUserAsset.TokenAddress
+			userAssetMap[userAssetKey] = fromUserAsset
 		}
-	}
 
-	for key, tokenDecimalsMap := range addressTokenMap {
-		uidAddress := strings.Split(key, ",")
-		userAssetsList, err := doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenSymbolMap, now)
+		toUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, record.ContractAddress, decimals, symbol, now)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
-			userAssetsList, err = doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenSymbolMap, now)
+			toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, record.ContractAddress, decimals, symbol, now)
 		}
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"查询用户资产失败", zap.Any("address", uidAddress[1]), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
+			log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", record.ContractAddress), zap.Any("error", err))
 			return
 		}
-		for _, userAsset := range userAssetsList {
-			if userAsset != nil {
-				userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
-				userAssetMap[userAssetKey] = userAsset
-			}
+		if toUserAsset != nil {
+			userAssetKey := toUserAsset.ChainName + toUserAsset.Address + toUserAsset.TokenAddress
+			userAssetMap[userAssetKey] = toUserAsset
 		}
 	}
 
@@ -203,17 +122,23 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("transactionVersion", txRecords[0].TransactionVersion), zap.Any("error", err))
 	}
 }
 
-func doHandleUserAsset(chainName string, client Client, uid string, address string,
+func doHandleUserAsset(chainName string, client Client, transactionType string, uid string, address string,
 	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
 	if address == "" || uid == "" {
 		return nil, nil
 	}
 
-	balance, err := client.GetBalance(address)
+	var balance string
+	var err error
+	if transactionType == biz.NATIVE || tokenAddress == SUI_CODE || tokenAddress == "" {
+		balance, err = client.GetBalance(address)
+	} else if tokenAddress != SUI_CODE && tokenAddress != "" {
+		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
+	}
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
@@ -233,37 +158,7 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 	return userAsset, nil
 }
 
-func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
-	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
-
-	var userAssets []*data.UserAsset
-	balanceList, err := client.BatchTokenBalance(address, tokenDecimalsMap)
-	if err != nil {
-		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
-		return nil, err
-	}
-	for tokenAddress, balancei := range balanceList {
-		balance := fmt.Sprintf("%v", balancei)
-		decimals := int32(tokenDecimalsMap[tokenAddress])
-		symbol := tokenSymbolMap[tokenAddress]
-
-		var userAsset = &data.UserAsset{
-			ChainName:    chainName,
-			Uid:          uid,
-			Address:      address,
-			TokenAddress: tokenAddress,
-			Balance:      balance,
-			Decimals:     decimals,
-			Symbol:       symbol,
-			CreatedAt:    nowTime,
-			UpdatedAt:    nowTime,
-		}
-		userAssets = append(userAssets, userAsset)
-	}
-	return userAssets, nil
-}
-
-func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func handleUserStatistic(chainName string, client Client, txRecords []*data.SuiTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -285,7 +180,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 	var dt = utils.GetDayTime(&tm)
 	//资金流向: 1:充值, 2:提现, 3:内部转账
 
-	//资金类型: 1:次中单, 2:小单提现, 3:中单提现, 4:大单提现, 5:超大单提现
+	//资金类型: 1:小单提现, 2:次中单提现, 3:中单提现, 4:大单提现, 5:超大单提现
 	//小单：金额<1K
 	//次中单：1K=<金额<1W
 	//中单：1W=<金额<10W
@@ -295,7 +190,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 	var transactionStatisticMap = make(map[string]*data.TransactionStatistic)
 	var transactionStatisticList []*data.TransactionStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.APPROVE {
+		if record.TransactionType == biz.CONTRACT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -319,6 +214,9 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 			fundDirection = 3
 		}
 
+		if tokenAddress == SUI_CODE {
+			tokenAddress = ""
+		}
 		price, err := biz.GetTokenPrice(nil, chainName, biz.CNY, tokenAddress)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
@@ -339,7 +237,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("transactionVersion", record.TransactionVersion), zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
 		prices, _ := decimal.NewFromString(price)
@@ -399,6 +297,6 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("transactionVersion", txRecords[0].TransactionVersion), zap.Any("error", err))
 	}
 }

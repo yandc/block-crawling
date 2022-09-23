@@ -417,6 +417,24 @@ platformTest:
     - https://testnet.aptoslabs.com/v1
     symbol: APT
     type: APTOS
+  SuiTEST:
+    blockExplorerAddrUrl: https://explorer.devnet.sui.io/addresses/
+    blockExplorerTxUrl: https://explorer.devnet.sui.io/transactions/
+    blockExplorerUrl: https://explorer.devnet.sui.io/
+    chain: SuiTEST
+    chainId: 24
+    coinId: 101012
+    decimal: 0
+    fullName: Sui Test Net
+    getPriceKey: ''
+    handler: sui
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
+    nativeCurrency: Sui
+    netType: test
+    rpcURL:
+    - https://gateway.devnet.sui.io
+    symbol: SUI
+    type: SUI
   AvalancheTEST:
     blockExplorerAddrUrl: https:/https://testnet.snowtrace.io/address/
     blockExplorerTxUrl: https://testnet.snowtrace.io/tx/

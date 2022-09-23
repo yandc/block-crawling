@@ -646,7 +646,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			transactionInfo, err = p.client.GetTransactionInfoByHash(record.TransactionHash)
 		}
 		if err != nil {
-			log.Error(p.ChainName+"查询链上数据失败", zap.Any("error", err))
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("txHash", record.TransactionHash), zap.Any("error", err))
 			continue
 		}
 
@@ -1122,7 +1122,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
-		go handleUserNonce(p.ChainName,txRecords)
+		go handleUserNonce(p.ChainName, txRecords)
 	}
 }
 

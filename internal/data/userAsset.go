@@ -6,7 +6,6 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"strconv"
@@ -15,16 +14,16 @@ import (
 
 // UserAsset is a UserAsset model.
 type UserAsset struct {
-	Id           int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	ChainName    string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
-	Uid          string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
-	Address      string          `json:"address" form:"address" gorm:"type:character varying(66);index:,unique,composite:unique_chain_name_address_token_address"`
-	TokenAddress string          `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
-	Amount       decimal.Decimal `json:"amount" form:"amount" gorm:"type:character varying(256);"`
-	Decimals     int32           `json:"decimals" form:"decimals"`
-	Symbol       string          `json:"symbol" form:"symbol" gorm:"type:character varying(72);index"`
-	CreatedAt    int64           `json:"createdAt" form:"createdAt"`
-	UpdatedAt    int64           `json:"updatedAt" form:"updatedAt"`
+	Id           int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	ChainName    string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
+	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Address      string `json:"address" form:"address" gorm:"type:character varying(66);index:,unique,composite:unique_chain_name_address_token_address"`
+	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
+	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
+	Decimals     int32  `json:"decimals" form:"decimals"`
+	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(72);index"`
+	CreatedAt    int64  `json:"createdAt" form:"createdAt"`
+	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`
 }
 
 func (userAsset UserAsset) TableName() string {

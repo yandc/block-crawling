@@ -705,6 +705,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			time.Sleep(time.Duration(3*i) * time.Second)
 		}
 		if err1 != nil && err1 != ethereum.NotFound {
+			log.Error(p.ChainName+"查询链上数据失败", zap.Any("txHash", record.TransactionHash), zap.Any("error", err))
 			continue
 		}
 

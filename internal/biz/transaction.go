@@ -196,6 +196,11 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && apt != nil {
 				dappInfo = apt.DappData
 			}
+		case SUI:
+			apt, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && apt != nil {
+				dappInfo = apt.DappData
+			}
 		}
 
 		ds := strconv.FormatInt(da.Decimals, 10)
@@ -310,7 +315,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.StcTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
-			key := pendingNonceKey+nonce
+			key := pendingNonceKey + nonce
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case EVM:
@@ -363,11 +368,11 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), evmTransactionRecord)
-		log.Info("asdf",zap.Any("插入数据库结果",result))
+		log.Info("asdf", zap.Any("插入数据库结果", result))
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
-			key := pendingNonceKey+strconv.Itoa(int(dbNonce))
-			log.Info("asdf",zap.Any("插入缓存",key),zap.Any("result",pbb.Uid))
+			key := pendingNonceKey + strconv.Itoa(int(dbNonce))
+			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case BTC:
@@ -414,47 +419,71 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.TrxTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), trxRecord)
 	case APTOS:
-
 		apt := make(map[string]interface{})
 		nonce := ""
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &apt); jsonErr == nil {
 			evmMap := apt["aptos"]
 			ret := evmMap.(map[string]interface{})
 			nonce = ret["sequence_number"].(string)
-
 		}
 		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 
 		stcRecord := &data.AptTransactionRecord{
-			Nonce:              int64(dbNonce),
-			TransactionVersion: int(pbb.BlockNumber),
-			TransactionHash:    pbb.TransactionHash,
-			FromAddress:        pbb.FromAddress,
-			ToAddress:          pbb.ToAddress,
-			FromUid:            pbb.Uid,
-			FeeAmount:          fa,
-			Amount:             a,
-			Status:             pbb.Status,
-			TxTime:             pbb.TxTime,
-			ContractAddress:    pbb.ContractAddress,
-			ParseData:          pbb.ParseData,
-			GasLimit:           pbb.GasLimit,
-			GasUsed:            pbb.GasUsed,
-			GasPrice:           pbb.GasPrice,
-			Data:               pbb.Data,
-			TransactionType:    pbb.TransactionType,
-			DappData:           pbb.DappData,
-			ClientData:         pbb.ClientData,
-			CreatedAt:          pbb.CreatedAt,
-			UpdatedAt:          pbb.UpdatedAt,
+			BlockHash:   pbb.BlockHash,
+			BlockNumber: int(pbb.BlockNumber),
+			Nonce:       int64(dbNonce),
+			//TransactionVersion: int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			GasLimit:        pbb.GasLimit,
+			GasUsed:         pbb.GasUsed,
+			GasPrice:        pbb.GasPrice,
+			Data:            pbb.Data,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
 		}
 
 		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
-			key := pendingNonceKey+nonce
-			log.Info("asdf",zap.Any("插入缓存",key),zap.Any("result",pbb.Uid))
+			key := pendingNonceKey + nonce
+			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
+	case SUI:
+		stcRecord := &data.SuiTransactionRecord{
+			//TransactionVersion: int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			GasLimit:        pbb.GasLimit,
+			GasUsed:         pbb.GasUsed,
+			Data:            pbb.Data,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+
+		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 	}
 
 	flag := result == 1
@@ -522,6 +551,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
+	case SUI:
+		var recordList []*data.SuiTransactionRecord
+		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
 	}
 
 	if err == nil {
@@ -571,6 +606,9 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					feeData["fee_limit"] = record.FeeLimit
 					feeData["net_usage"] = record.NetUsage
 					feeData["energy_usage"] = record.EnergyUsage
+				case SUI:
+					feeData["gas_limit"] = record.GasLimit
+					feeData["gas_used"] = record.GasUsed
 				default:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
@@ -627,7 +665,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	if req.FromAddress != "" {
 		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 	}
-	if req.OrderBy == ""{
+	if req.OrderBy == "" {
 		req.OrderBy = "tx_time desc"
 	}
 
@@ -735,6 +773,20 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
 					r.Cursor = apt.TxTime
+					r.Amount = value.Amount
+					trs = append(trs, r)
+				}
+			case SUI:
+				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
+				if err == nil && sui != nil {
+					var r *pb.TransactionRecord
+					utils.CopyProperties(sui, &r)
+					r.ChainName = value.ChainName
+					feeData["gas_limit"] = r.GasLimit
+					feeData["gas_used"] = r.GasUsed
+					feeDataStr, _ := utils.JsonEncode(feeData)
+					r.FeeData = feeDataStr
+					r.Cursor = sui.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
