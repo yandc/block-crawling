@@ -296,7 +296,13 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			txType := "eventLog"
 			contractAddress := eventLog.Token.Address
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
+			var eventFromUid, eventToUid string
 
+			userMeta, err := h.matchUser(eventLog.From, eventLog.To)
+			if err == nil {
+				eventFromUid = userMeta.fromUid
+				eventToUid = userMeta.toUid
+			}
 			evmlogTransactionRecord := &data.EvmTransactionRecord{
 				BlockHash:            h.blockHash,
 				BlockNumber:          bn,
@@ -304,8 +310,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				TransactionHash:      txHash,
 				FromAddress:          eventLog.From,
 				ToAddress:            eventLog.To,
-				FromUid:              meta.user.fromUid,
-				ToUid:                meta.user.toUid,
+				FromUid:              eventFromUid,
+				ToUid:                eventToUid,
 				FeeAmount:            fa,
 				Amount:               amountValue,
 				Status:               status,
@@ -379,7 +385,7 @@ func (h *txDecoder) parseTxMeta(tx *chain.Transaction) (meta *txMeta, err error)
 		toAddress:       tx.ToAddress,
 		transactionType: string(tx.TxType),
 	}
-	user, err := h.matchUser(meta)
+	user, err := h.matchUser(meta.fromAddress, meta.toAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -387,23 +393,23 @@ func (h *txDecoder) parseTxMeta(tx *chain.Transaction) (meta *txMeta, err error)
 	return meta, nil
 }
 
-func (h *txDecoder) matchUser(meta *txMeta) (*userMeta, error) {
-	userFromAddress, fromUid, err := biz.UserAddressSwitch(meta.fromAddress)
+func (h *txDecoder) matchUser(fromAddress, toAddress string) (*userMeta, error) {
+	userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
 	if err != nil {
 		// redis出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, meta.fromAddress), zap.Any("error", err))
+		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, fromAddress), zap.Any("error", err))
 		return nil, err
 	}
-	userToAddress, toUid, err := biz.UserAddressSwitch(meta.toAddress)
+	userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
 	if err != nil {
 		// redis出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, meta.toAddress), zap.Any("error", err))
+		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, toAddress), zap.Any("error", err))
 		return nil, err
 	}
 	return &userMeta{
