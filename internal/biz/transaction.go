@@ -578,7 +578,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.Cursor = record.Nonce
 				} else if strings.Contains(req.OrderBy, "tx_time ") {
 					record.Cursor = record.TxTime
-				} else if strings.Contains(req.OrderBy, "create_at ") {
+				} else if strings.Contains(req.OrderBy, "created_at ") {
 					record.Cursor = record.CreatedAt
 				} else if strings.Contains(req.OrderBy, "updated_at ") {
 					record.Cursor = record.UpdatedAt
@@ -846,6 +846,40 @@ func findNonce(start int, req *pb.NonceReq) (*pb.NonceResp, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (s *TransactionUsecase) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
+	var result = &pb.PageListStatisticResponse{}
+	var total int64
+	var list []*pb.StatisticResponse
+	var err error
+
+	var recordList []*data.TransactionStatistic
+	recordList, total, err = data.TransactionStatisticRepoClient.PageList(ctx, req)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		result.Total = total
+		result.List = list
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				if strings.Contains(req.OrderBy, "id ") {
+					record.Cursor = record.Id
+				} else if strings.Contains(req.OrderBy, "created_at ") {
+					record.Cursor = record.CreatedAt
+				} else if strings.Contains(req.OrderBy, "updated_at ") {
+					record.Cursor = record.UpdatedAt
+				}
+			}
+		}
+	}
+	return result, err
 }
 
 func (s *TransactionUsecase) StatisticFundAmount(ctx context.Context, req *pb.StatisticFundRequest) (*pb.FundAmountListResponse, error) {

@@ -344,7 +344,7 @@ func (p *Platform) DoGetTransactions() {
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
 					if len(contractAddressSplit) == 3 {
-						var decimals int64 = 0
+						var decimals int64 = 8
 						if txType == biz.TRANSFER {
 							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 							for i := 0; i < 3 && err != nil; i++ {
@@ -493,7 +493,7 @@ func (p *Platform) DoGetTransactions() {
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
 					if len(contractAddressSplit) == 3 {
-						var decimals int64 = 0
+						var decimals int64 = 8
 						if contractAddress != APT_CODE && contractAddress != "" {
 							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 							for i := 0; i < 3 && err != nil; i++ {
@@ -661,7 +661,7 @@ func (p *Platform) DoGetTransactions() {
 
 						contractAddressSplit := strings.Split(contractAddress, "::")
 						if len(contractAddressSplit) == 3 {
-							var decimals int64 = 0
+							var decimals int64 = 8
 							if contractAddress != APT_CODE && contractAddress != "" {
 								getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 								for i := 0; i < 3 && err != nil; i++ {
@@ -1033,7 +1033,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
 					if len(contractAddressSplit) == 3 {
-						var decimals int64 = 0
+						var decimals int64 = 8
 						if txType == biz.TRANSFER {
 							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 							for i := 0; i < 3 && err != nil; i++ {
@@ -1182,7 +1182,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
 					if len(contractAddressSplit) == 3 {
-						var decimals int64 = 0
+						var decimals int64 = 8
 						if contractAddress != APT_CODE && contractAddress != "" {
 							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 							for i := 0; i < 3 && err != nil; i++ {
@@ -1350,7 +1350,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 						contractAddressSplit := strings.Split(contractAddress, "::")
 						if len(contractAddressSplit) == 3 {
-							var decimals int64 = 0
+							var decimals int64 = 8
 							if contractAddress != APT_CODE && contractAddress != "" {
 								getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 								for i := 0; i < 3 && err != nil; i++ {

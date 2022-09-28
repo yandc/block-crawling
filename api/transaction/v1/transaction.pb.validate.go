@@ -2413,22 +2413,22 @@ var _ interface {
 	ErrorName() string
 } = AmountResponseValidationError{}
 
-// Validate checks the field values on AssetRequest with the rules defined in
-// the proto definition for this message. If any rules are violated, the first
-// error encountered is returned, or nil if there are no violations.
-func (m *AssetRequest) Validate() error {
+// Validate checks the field values on PageListAssetRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PageListAssetRequest) Validate() error {
 	return m.validate(false)
 }
 
-// ValidateAll checks the field values on AssetRequest with the rules defined
-// in the proto definition for this message. If any rules are violated, the
-// result is a list of violation errors wrapped in AssetRequestMultiError, or
-// nil if none found.
-func (m *AssetRequest) ValidateAll() error {
+// ValidateAll checks the field values on PageListAssetRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PageListAssetRequestMultiError, or nil if none found.
+func (m *PageListAssetRequest) ValidateAll() error {
 	return m.validate(true)
 }
 
-func (m *AssetRequest) validate(all bool) error {
+func (m *PageListAssetRequest) validate(all bool) error {
 	if m == nil {
 		return nil
 	}
@@ -2439,8 +2439,8 @@ func (m *AssetRequest) validate(all bool) error {
 
 	// no validation rules for Uid
 
-	if _, ok := _AssetRequest_Currency_InLookup[m.GetCurrency()]; !ok {
-		err := AssetRequestValidationError{
+	if _, ok := _PageListAssetRequest_Currency_InLookup[m.GetCurrency()]; !ok {
+		err := PageListAssetRequestValidationError{
 			field:  "Currency",
 			reason: "value must be in list [CNY USD]",
 		}
@@ -2452,8 +2452,8 @@ func (m *AssetRequest) validate(all bool) error {
 
 	// no validation rules for OrderBy
 
-	if _, ok := _AssetRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
-		err := AssetRequestValidationError{
+	if _, ok := _PageListAssetRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
+		err := PageListAssetRequestValidationError{
 			field:  "DataDirection",
 			reason: "value must be in list [0 1 2]",
 		}
@@ -2464,7 +2464,7 @@ func (m *AssetRequest) validate(all bool) error {
 	}
 
 	if m.GetStartIndex() < 0 {
-		err := AssetRequestValidationError{
+		err := PageListAssetRequestValidationError{
 			field:  "StartIndex",
 			reason: "value must be greater than or equal to 0",
 		}
@@ -2475,7 +2475,7 @@ func (m *AssetRequest) validate(all bool) error {
 	}
 
 	if m.GetPageNum() < 0 {
-		err := AssetRequestValidationError{
+		err := PageListAssetRequestValidationError{
 			field:  "PageNum",
 			reason: "value must be greater than or equal to 0",
 		}
@@ -2486,7 +2486,7 @@ func (m *AssetRequest) validate(all bool) error {
 	}
 
 	if m.GetPageSize() < 0 {
-		err := AssetRequestValidationError{
+		err := PageListAssetRequestValidationError{
 			field:  "PageSize",
 			reason: "value must be greater than or equal to 0",
 		}
@@ -2499,18 +2499,19 @@ func (m *AssetRequest) validate(all bool) error {
 	// no validation rules for Total
 
 	if len(errors) > 0 {
-		return AssetRequestMultiError(errors)
+		return PageListAssetRequestMultiError(errors)
 	}
 
 	return nil
 }
 
-// AssetRequestMultiError is an error wrapping multiple validation errors
-// returned by AssetRequest.ValidateAll() if the designated constraints aren't met.
-type AssetRequestMultiError []error
+// PageListAssetRequestMultiError is an error wrapping multiple validation
+// errors returned by PageListAssetRequest.ValidateAll() if the designated
+// constraints aren't met.
+type PageListAssetRequestMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
-func (m AssetRequestMultiError) Error() string {
+func (m PageListAssetRequestMultiError) Error() string {
 	var msgs []string
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
@@ -2519,11 +2520,11 @@ func (m AssetRequestMultiError) Error() string {
 }
 
 // AllErrors returns a list of validation violation errors.
-func (m AssetRequestMultiError) AllErrors() []error { return m }
+func (m PageListAssetRequestMultiError) AllErrors() []error { return m }
 
-// AssetRequestValidationError is the validation error returned by
-// AssetRequest.Validate if the designated constraints aren't met.
-type AssetRequestValidationError struct {
+// PageListAssetRequestValidationError is the validation error returned by
+// PageListAssetRequest.Validate if the designated constraints aren't met.
+type PageListAssetRequestValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -2531,22 +2532,24 @@ type AssetRequestValidationError struct {
 }
 
 // Field function returns field value.
-func (e AssetRequestValidationError) Field() string { return e.field }
+func (e PageListAssetRequestValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e AssetRequestValidationError) Reason() string { return e.reason }
+func (e PageListAssetRequestValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e AssetRequestValidationError) Cause() error { return e.cause }
+func (e PageListAssetRequestValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e AssetRequestValidationError) Key() bool { return e.key }
+func (e PageListAssetRequestValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e AssetRequestValidationError) ErrorName() string { return "AssetRequestValidationError" }
+func (e PageListAssetRequestValidationError) ErrorName() string {
+	return "PageListAssetRequestValidationError"
+}
 
 // Error satisfies the builtin error interface
-func (e AssetRequestValidationError) Error() string {
+func (e PageListAssetRequestValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -2558,14 +2561,14 @@ func (e AssetRequestValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sAssetRequest.%s: %s%s",
+		"invalid %sPageListAssetRequest.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = AssetRequestValidationError{}
+var _ error = PageListAssetRequestValidationError{}
 
 var _ interface {
 	Field() string
@@ -2573,35 +2576,35 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = AssetRequestValidationError{}
+} = PageListAssetRequestValidationError{}
 
-var _AssetRequest_Currency_InLookup = map[string]struct{}{
+var _PageListAssetRequest_Currency_InLookup = map[string]struct{}{
 	"CNY": {},
 	"USD": {},
 }
 
-var _AssetRequest_DataDirection_InLookup = map[int32]struct{}{
+var _PageListAssetRequest_DataDirection_InLookup = map[int32]struct{}{
 	0: {},
 	1: {},
 	2: {},
 }
 
-// Validate checks the field values on AssetPageListResponse with the rules
+// Validate checks the field values on PageListAssetResponse with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
-func (m *AssetPageListResponse) Validate() error {
+func (m *PageListAssetResponse) Validate() error {
 	return m.validate(false)
 }
 
-// ValidateAll checks the field values on AssetPageListResponse with the rules
+// ValidateAll checks the field values on PageListAssetResponse with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the result is a list of violation errors wrapped in
-// AssetPageListResponseMultiError, or nil if none found.
-func (m *AssetPageListResponse) ValidateAll() error {
+// PageListAssetResponseMultiError, or nil if none found.
+func (m *PageListAssetResponse) ValidateAll() error {
 	return m.validate(true)
 }
 
-func (m *AssetPageListResponse) validate(all bool) error {
+func (m *PageListAssetResponse) validate(all bool) error {
 	if m == nil {
 		return nil
 	}
@@ -2619,7 +2622,7 @@ func (m *AssetPageListResponse) validate(all bool) error {
 			switch v := interface{}(item).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, AssetPageListResponseValidationError{
+					errors = append(errors, PageListAssetResponseValidationError{
 						field:  fmt.Sprintf("List[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -2627,7 +2630,7 @@ func (m *AssetPageListResponse) validate(all bool) error {
 				}
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
-					errors = append(errors, AssetPageListResponseValidationError{
+					errors = append(errors, PageListAssetResponseValidationError{
 						field:  fmt.Sprintf("List[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -2636,7 +2639,7 @@ func (m *AssetPageListResponse) validate(all bool) error {
 			}
 		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
-				return AssetPageListResponseValidationError{
+				return PageListAssetResponseValidationError{
 					field:  fmt.Sprintf("List[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -2647,19 +2650,19 @@ func (m *AssetPageListResponse) validate(all bool) error {
 	}
 
 	if len(errors) > 0 {
-		return AssetPageListResponseMultiError(errors)
+		return PageListAssetResponseMultiError(errors)
 	}
 
 	return nil
 }
 
-// AssetPageListResponseMultiError is an error wrapping multiple validation
-// errors returned by AssetPageListResponse.ValidateAll() if the designated
+// PageListAssetResponseMultiError is an error wrapping multiple validation
+// errors returned by PageListAssetResponse.ValidateAll() if the designated
 // constraints aren't met.
-type AssetPageListResponseMultiError []error
+type PageListAssetResponseMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
-func (m AssetPageListResponseMultiError) Error() string {
+func (m PageListAssetResponseMultiError) Error() string {
 	var msgs []string
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
@@ -2668,11 +2671,11 @@ func (m AssetPageListResponseMultiError) Error() string {
 }
 
 // AllErrors returns a list of validation violation errors.
-func (m AssetPageListResponseMultiError) AllErrors() []error { return m }
+func (m PageListAssetResponseMultiError) AllErrors() []error { return m }
 
-// AssetPageListResponseValidationError is the validation error returned by
-// AssetPageListResponse.Validate if the designated constraints aren't met.
-type AssetPageListResponseValidationError struct {
+// PageListAssetResponseValidationError is the validation error returned by
+// PageListAssetResponse.Validate if the designated constraints aren't met.
+type PageListAssetResponseValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -2680,24 +2683,24 @@ type AssetPageListResponseValidationError struct {
 }
 
 // Field function returns field value.
-func (e AssetPageListResponseValidationError) Field() string { return e.field }
+func (e PageListAssetResponseValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e AssetPageListResponseValidationError) Reason() string { return e.reason }
+func (e PageListAssetResponseValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e AssetPageListResponseValidationError) Cause() error { return e.cause }
+func (e PageListAssetResponseValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e AssetPageListResponseValidationError) Key() bool { return e.key }
+func (e PageListAssetResponseValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e AssetPageListResponseValidationError) ErrorName() string {
-	return "AssetPageListResponseValidationError"
+func (e PageListAssetResponseValidationError) ErrorName() string {
+	return "PageListAssetResponseValidationError"
 }
 
 // Error satisfies the builtin error interface
-func (e AssetPageListResponseValidationError) Error() string {
+func (e PageListAssetResponseValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -2709,14 +2712,14 @@ func (e AssetPageListResponseValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sAssetPageListResponse.%s: %s%s",
+		"invalid %sPageListAssetResponse.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = AssetPageListResponseValidationError{}
+var _ error = PageListAssetResponseValidationError{}
 
 var _ interface {
 	Field() string
@@ -2724,7 +2727,7 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = AssetPageListResponseValidationError{}
+} = PageListAssetResponseValidationError{}
 
 // Validate checks the field values on AssetResponse with the rules defined in
 // the proto definition for this message. If any rules are violated, the first
@@ -2841,6 +2844,454 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = AssetResponseValidationError{}
+
+// Validate checks the field values on PageListStatisticRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PageListStatisticRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PageListStatisticRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PageListStatisticRequestMultiError, or nil if none found.
+func (m *PageListStatisticRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PageListStatisticRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for TokenAddress
+
+	if m.GetStartTime() < 0 {
+		err := PageListStatisticRequestValidationError{
+			field:  "StartTime",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStopTime() < 0 {
+		err := PageListStatisticRequestValidationError{
+			field:  "StopTime",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for OrderBy
+
+	if _, ok := _PageListStatisticRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
+		err := PageListStatisticRequestValidationError{
+			field:  "DataDirection",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStartIndex() < 0 {
+		err := PageListStatisticRequestValidationError{
+			field:  "StartIndex",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetPageNum() < 0 {
+		err := PageListStatisticRequestValidationError{
+			field:  "PageNum",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetPageSize() < 0 {
+		err := PageListStatisticRequestValidationError{
+			field:  "PageSize",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for Total
+
+	if len(errors) > 0 {
+		return PageListStatisticRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// PageListStatisticRequestMultiError is an error wrapping multiple validation
+// errors returned by PageListStatisticRequest.ValidateAll() if the designated
+// constraints aren't met.
+type PageListStatisticRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PageListStatisticRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PageListStatisticRequestMultiError) AllErrors() []error { return m }
+
+// PageListStatisticRequestValidationError is the validation error returned by
+// PageListStatisticRequest.Validate if the designated constraints aren't met.
+type PageListStatisticRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PageListStatisticRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PageListStatisticRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PageListStatisticRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PageListStatisticRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PageListStatisticRequestValidationError) ErrorName() string {
+	return "PageListStatisticRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PageListStatisticRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPageListStatisticRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PageListStatisticRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PageListStatisticRequestValidationError{}
+
+var _PageListStatisticRequest_DataDirection_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
+}
+
+// Validate checks the field values on PageListStatisticResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PageListStatisticResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PageListStatisticResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PageListStatisticResponseMultiError, or nil if none found.
+func (m *PageListStatisticResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PageListStatisticResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Total
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, PageListStatisticResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, PageListStatisticResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return PageListStatisticResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return PageListStatisticResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// PageListStatisticResponseMultiError is an error wrapping multiple validation
+// errors returned by PageListStatisticResponse.ValidateAll() if the
+// designated constraints aren't met.
+type PageListStatisticResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PageListStatisticResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PageListStatisticResponseMultiError) AllErrors() []error { return m }
+
+// PageListStatisticResponseValidationError is the validation error returned by
+// PageListStatisticResponse.Validate if the designated constraints aren't met.
+type PageListStatisticResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PageListStatisticResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PageListStatisticResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PageListStatisticResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PageListStatisticResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PageListStatisticResponseValidationError) ErrorName() string {
+	return "PageListStatisticResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PageListStatisticResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPageListStatisticResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PageListStatisticResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PageListStatisticResponseValidationError{}
+
+// Validate checks the field values on StatisticResponse with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *StatisticResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on StatisticResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// StatisticResponseMultiError, or nil if none found.
+func (m *StatisticResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *StatisticResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for ChainName
+
+	// no validation rules for TokenAddress
+
+	// no validation rules for FundDirection
+
+	// no validation rules for FundType
+
+	// no validation rules for TransactionQuantity
+
+	// no validation rules for Amount
+
+	// no validation rules for CnyAmount
+
+	// no validation rules for UsdAmount
+
+	// no validation rules for Dt
+
+	// no validation rules for CreatedAt
+
+	// no validation rules for UpdatedAt
+
+	// no validation rules for Cursor
+
+	if len(errors) > 0 {
+		return StatisticResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// StatisticResponseMultiError is an error wrapping multiple validation errors
+// returned by StatisticResponse.ValidateAll() if the designated constraints
+// aren't met.
+type StatisticResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m StatisticResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m StatisticResponseMultiError) AllErrors() []error { return m }
+
+// StatisticResponseValidationError is the validation error returned by
+// StatisticResponse.Validate if the designated constraints aren't met.
+type StatisticResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e StatisticResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e StatisticResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e StatisticResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e StatisticResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e StatisticResponseValidationError) ErrorName() string {
+	return "StatisticResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e StatisticResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sStatisticResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = StatisticResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = StatisticResponseValidationError{}
 
 // Validate checks the field values on StatisticFundRequest with the rules
 // defined in the proto definition for this message. If any rules are

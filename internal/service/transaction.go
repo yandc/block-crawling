@@ -95,6 +95,14 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 	return result, err
 }
 
+func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
+	if req.StartTime >= req.StopTime {
+		return nil, errors.New("startTime is greater than stopTime")
+	}
+	result, err := s.ts.PageListStatistic(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) StatisticFundAmount(ctx context.Context, req *pb.StatisticFundRequest) (*pb.FundAmountListResponse, error) {
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")

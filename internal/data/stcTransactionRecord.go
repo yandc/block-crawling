@@ -314,6 +314,18 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+
+	if req.Total {
+		// 统计总记录数
+		db.Count(&total)
+	}
+
 	if req.DataDirection > 0 {
 		dataDirection := ">"
 		if req.DataDirection == 1 {
@@ -325,17 +337,6 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			orderBys := strings.Split(req.OrderBy, " ")
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
-	}
-	if req.StartTime > 0 {
-		db = db.Where("created_at >= ?", req.StartTime)
-	}
-	if req.StopTime > 0 {
-		db = db.Where("created_at < ?", req.StopTime)
-	}
-
-	if req.Total {
-		// 统计总记录数
-		db.Count(&total)
 	}
 
 	db = db.Order(req.OrderBy)

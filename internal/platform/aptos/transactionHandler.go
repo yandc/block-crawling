@@ -261,7 +261,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 	var dt = utils.GetDayTime(&tm)
 	//资金流向: 1:充值, 2:提现, 3:内部转账
 
-	//资金类型: 1:次中单, 2:小单提现, 3:中单提现, 4:大单提现, 5:超大单提现
+	//资金类型: 1:小单提现, 2:次中单提现, 3:中单提现, 4:大单提现, 5:超大单提现
 	//小单：金额<1K
 	//次中单：1K=<金额<1W
 	//中单：1W=<金额<10W
