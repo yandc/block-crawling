@@ -539,8 +539,8 @@ github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRT
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
-gitlab.bixin.com/mili/node-driver v0.0.0-20220928023347-ed8aa1dbd5b9 h1:vau/8tgonL9AgifSOM7Z76XPf1qa/x17lnF/GegruWY=
-gitlab.bixin.com/mili/node-driver v0.0.0-20220928023347-ed8aa1dbd5b9/go.mod h1:KOnksSGljzXcay+NJaH+G61ZRVo7i/NU3cWAs9XLEnI=
+gitlab.bixin.com/mili/node-driver v0.0.0-20220928071922-7c58f64fda1e h1:nd1VhCdeql1CxlE+naPXCBOmC7m72zvRJWHlUbt3yaw=
+gitlab.bixin.com/mili/node-driver v0.0.0-20220928071922-7c58f64fda1e/go.mod h1:KOnksSGljzXcay+NJaH+G61ZRVo7i/NU3cWAs9XLEnI=
 go.dedis.ch/fixbuf v1.0.3 h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=
 go.dedis.ch/fixbuf v1.0.3/go.mod h1:yzJMt34Wa5xD37V5RTdmp38cz3QhMagdGoem9anUalw=
 go.dedis.ch/kyber/v3 v3.0.4/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
