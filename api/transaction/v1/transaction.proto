@@ -19,7 +19,9 @@ service Transaction {
   rpc GetNonce(NonceReq) returns (NonceResp);
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
   //分页查询用户资产列表
-  rpc PageListAsset (AssetRequest) returns (AssetResponse);
+  rpc PageListAsset (PageListAssetRequest) returns (PageListAssetResponse);
+  //分页查询交易数据统计列表
+  rpc PageListStatistic (PageListStatisticRequest) returns (PageListStatisticResponse);
   //交易数据看板查询金额趋势图
   rpc StatisticFundAmount (StatisticFundRequest) returns (FundAmountListResponse);
   //交易数据看板查询金额占比图
@@ -233,7 +235,7 @@ message AmountResponse {
   string amount = 1;
 }
 
-message AssetRequest {
+message PageListAssetRequest {
   string chainName = 1;//-- 非必输
   string uid = 2;
   repeated string addressList = 3;
@@ -246,7 +248,7 @@ message AssetRequest {
   bool total = 10;
 }
 
-message AssetPageListResponse {
+message PageListAssetResponse {
   int64 total = 1;
   int64 totalCurrencyAmount = 2;
   repeated AssetResponse list = 3;
@@ -261,6 +263,41 @@ message AssetResponse {
   string decimals = 6;
   string symbol = 7;
   string currencyAmount = 8;
+}
+
+message PageListStatisticRequest {
+  string chainName = 1;//-- 非必输
+  repeated int32 fundDirectionList = 2;
+  string tokenAddress = 3;
+  int64 startTime = 4 [(validate.rules).int64.gte = 0];
+  int64 stopTime = 5 [(validate.rules).int64.gte = 0];
+  string orderBy = 6;
+  int32 dataDirection = 7 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 8 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 9 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 10 [(validate.rules).int32.gte = 0];
+  bool total = 11;
+}
+
+message PageListStatisticResponse {
+  int64 total = 1;
+  repeated StatisticResponse list = 2;
+}
+
+message StatisticResponse {
+  int64 id = 1;
+  string chainName = 2;
+  string tokenAddress = 3;
+  int32 fundDirection = 4;
+  int32 fundType = 5;
+  int64 transactionQuantity = 6;
+  string amount = 7;
+  string cnyAmount = 8;
+  string usdAmount = 9;
+  int64 dt = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+  int64 cursor = 13;
 }
 
 message StatisticFundRequest {

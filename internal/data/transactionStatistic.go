@@ -47,7 +47,7 @@ type TransactionStatisticRepo interface {
 	FindByID(context.Context, int64) (*TransactionStatistic, error)
 	ListByID(context.Context, int64) ([]*TransactionStatistic, error)
 	ListAll(context.Context) ([]*TransactionStatistic, error)
-	PageList(context.Context, *pb.PageListRequest) ([]*TransactionStatistic, int64, error)
+	PageList(context.Context, *pb.PageListStatisticRequest) ([]*TransactionStatistic, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	StatisticFundAmount(context.Context, *pb.StatisticFundRequest) ([]*pb.FundAmountResponse, error)
 	StatisticFundRate(context.Context, *pb.StatisticFundRequest) ([]*pb.FundRateResponse, error)
@@ -257,87 +257,32 @@ func (r *TransactionStatisticRepoImpl) ListAll(ctx context.Context) ([]*Transact
 	return transactionStatisticList, nil
 }
 
-func (r *TransactionStatisticRepoImpl) PageList(ctx context.Context, req *pb.PageListRequest) ([]*TransactionStatistic, int64, error) {
+func (r *TransactionStatisticRepoImpl) PageList(ctx context.Context, req *pb.PageListStatisticRequest) ([]*TransactionStatistic, int64, error) {
 	var transactionStatisticList []*TransactionStatistic
 	var total int64
-	db := r.gormDB.WithContext(ctx)
+	db := r.gormDB.WithContext(ctx).Table("transaction_statistic")
 
-	/*if req.FromUid != "" || len(req.FromAddressList) > 0 || req.ToUid != "" || len(req.ToAddressList) > 0 {
-		if req.FromUid == "" && len(req.FromAddressList) == 0 {
-			if req.ToUid != "" {
-				db = db.Where("to_uid = ?", req.ToUid)
-			}
-			if len(req.ToAddressList) > 0 {
-				db = db.Where("to_address in(?)", req.ToAddressList)
-			}
-		} else if req.ToUid == "" && len(req.ToAddressList) == 0 {
-			if req.FromUid != "" {
-				db = db.Where("from_uid = ?", req.FromUid)
-			}
-			if len(req.FromAddressList) > 0 {
-				db = db.Where("from_address in(?)", req.FromAddressList)
-			}
-		} else {
-			fromToSql := "(("
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if len(req.FundDirectionList) > 0 {
+		db = db.Where("fund_direction in(?)", req.FundDirectionList)
+	}
+	if req.TokenAddress != "" {
+		db = db.Where("token_address = ?", req.TokenAddress)
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
 
-			if req.FromUid != "" && len(req.FromAddressList) > 0 {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += " and from_address in(" + addressLists + ")"
-			} else if req.FromUid != "" {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-			} else if len(req.FromAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += "from_address in(" + addressLists + ")"
-			}
+	if req.Total {
+		// 统计总记录数
+		db.Count(&total)
+	}
 
-			fromToSql += ") or ("
-
-			if req.ToUid != "" && len(req.ToAddressList) > 0 {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += " and to_address in(" + addressLists + ")"
-			} else if req.ToUid != "" {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-			} else if len(req.ToAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += "to_address in(" + addressLists + ")"
-			}
-
-			fromToSql += "))"
-			db = db.Where(fromToSql)
-		}
-	}*/
-	if req.FromUid != "" {
-		db = db.Where("from_uid = ?", req.FromUid)
-	}
-	if req.ToUid != "" {
-		db = db.Where("to_uid = ?", req.ToUid)
-	}
-	if len(req.FromAddressList) > 0 {
-		db = db.Where("from_address in(?)", req.FromAddressList)
-	}
-	if len(req.ToAddressList) > 0 {
-		db = db.Where("to_address in(?)", req.ToAddressList)
-	}
-	if req.Uid != "" {
-		db = db.Where("(from_uid = ? or to_uid = ?)", req.Uid, req.Uid)
-	}
-	if req.Address != "" {
-		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
-	}
-	/*if req.ContractAddress != "" {
-		db = db.Where("contract_address = ?", req.ContractAddress)
-	}*/
-	if len(req.StatusList) > 0 {
-		db = db.Where("status in(?)", req.StatusList)
-	}
-	/*if len(req.TransactionTypeList) > 0 {
-		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
-	}*/
-	if len(req.TransactionHashList) > 0 {
-		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
-	}
 	if req.DataDirection > 0 {
 		dataDirection := ">"
 		if req.DataDirection == 1 {
@@ -349,11 +294,6 @@ func (r *TransactionStatisticRepoImpl) PageList(ctx context.Context, req *pb.Pag
 			orderBys := strings.Split(req.OrderBy, " ")
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
-	}
-
-	if req.Total {
-		// 统计总记录数
-		db.Count(&total)
 	}
 
 	db = db.Order(req.OrderBy)
