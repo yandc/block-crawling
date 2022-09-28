@@ -215,7 +215,7 @@ func (p *Platform) IndexBlock() bool {
 							}
 
 							if txType == "transfer" {
-								tokenInfo, _ = GetTokenInfo(p.ChainName, contractAddress)
+								tokenInfo, _ = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 								tokenInfo.Amount = tokenAmount
 							}
 							feeData := map[string]interface{}{
@@ -449,7 +449,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					}
 
 					if txType == "transfer" {
-						tokenInfo, _ = GetTokenInfo(p.ChainName, contractAddress)
+						tokenInfo, _ = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
 						tokenInfo.Amount = tokenAmount
 					}
 					feeData := map[string]interface{}{
