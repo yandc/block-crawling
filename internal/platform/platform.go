@@ -49,7 +49,7 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 	for _, value := range c {
 		PlatInfos = append(PlatInfos, value)
 
-		platform := GetPlatform(value.Type, value.Handler, value.Chain, value.RpcURL)
+		platform := GetPlatform(value)
 		Platforms = append(Platforms, platform)
 
 		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
@@ -79,7 +79,11 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 	}
 }
 
-func GetPlatform(typ, chain, chainName string, nodeURL []string) subhandle.Platform {
+func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
+	typ := value.Type        // EVM
+	chainName := value.Chain // ETH
+	nodeURL := value.RpcURL
+
 	height := -1
 	redisHeight, _ := data.RedisClient.Get(data.CHAINNAME + chainName).Result()
 	if redisHeight != "" {
@@ -87,17 +91,17 @@ func GetPlatform(typ, chain, chainName string, nodeURL []string) subhandle.Platf
 	}
 	switch typ {
 	case biz.STC:
-		return starcoin.Init(coins.Starcoin().Handle, chain, chainName, nodeURL, height)
+		return starcoin.Init(coins.Starcoin().Handle, value, nodeURL, height)
 	case biz.EVM:
-		return ethereum.Init(coins.Ethereum().Handle, chain, chainName, nodeURL, height)
+		return ethereum.Init(coins.Ethereum().Handle, value, nodeURL, height)
 	case biz.BTC:
-		return bitcoin.Init(coins.Bitcoin().Handle, chain, chainName, nodeURL, height)
+		return bitcoin.Init(coins.Bitcoin().Handle, value, nodeURL, height)
 	case biz.TVM:
-		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURL, height)
+		return tron.Init(coins.Tron().Handle, value, nodeURL, height)
 	case biz.APTOS:
-		return aptos.Init(coins.Aptos().Handle, chain, chainName, nodeURL, height)
+		return aptos.Init(coins.Aptos().Handle, value, nodeURL, height)
 	case biz.SUI:
-		return sui.Init(coins.Sui().Handle, chain, chainName, nodeURL, height)
+		return sui.Init(coins.Sui().Handle, value, nodeURL, height)
 	}
 	return nil
 }

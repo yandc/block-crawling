@@ -1,13 +1,15 @@
 package biz
 
 import (
-	"block-crawling/internal/client"
+	v1 "block-crawling/internal/client"
 	"block-crawling/internal/common"
 	"block-crawling/internal/types"
 	"context"
 	"encoding/json"
-	"google.golang.org/grpc"
+	"strings"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 var TokenInfoMap = make(map[string]types.TokenInfo)
@@ -64,6 +66,88 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 	return "", nil
 }
 
+func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
+	var coinNames string
+	var coinAddresses string
+	var getPriceKeyMap = make(map[string]string)
+	var handlerMap = make(map[string]string)
+	var resultMap = make(map[string]map[string]string)
+
+	for chainName, tokenAddressList := range chainNameTokenAddressMap {
+		if platInfo, ok := PlatInfoMap[chainName]; ok {
+			getPriceKey := platInfo.GetPriceKey
+			handler := platInfo.Handler
+			getPriceKeyMap[getPriceKey] = chainName
+			handlerMap[handler] = chainName
+
+			for _, tokenAddress := range tokenAddressList {
+				if tokenAddress == "" {
+					if coinNames == "" {
+						coinNames = getPriceKey
+					} else {
+						coinNames = coinNames + "," + getPriceKey
+					}
+				} else {
+					if coinAddresses == "" {
+						coinAddresses = handler + "_" + tokenAddress
+					} else {
+						coinAddresses = coinAddresses + "," + handler + "_" + tokenAddress
+					}
+				}
+			}
+		}
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return resultMap, err
+	}
+	defer conn.Close()
+	client := v1.NewTokenlistClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		ctx = context
+		defer cancel()
+	}
+	priceResp, err := client.GetPrice(ctx, &v1.PriceReq{
+		Currency:      currency,
+		CoinNames:     coinNames,
+		CoinAddresses: coinAddresses,
+	})
+	if err != nil {
+		return resultMap, err
+	}
+
+	result := make(map[string]map[string]string)
+	err = json.Unmarshal(priceResp.Data, &result)
+	if err != nil {
+		return resultMap, err
+	}
+	for key, value := range result {
+		chainName := getPriceKeyMap[key]
+		price := value[currency]
+		var tokenAddress string
+		if chainName == "" {
+			handlerTokenAddressList := strings.Split(key, "_")
+			handler := handlerTokenAddressList[0]
+			chainName = handlerMap[handler]
+			tokenAddress = handlerTokenAddressList[1]
+		}
+		tokenAddressPriceMap, ok := resultMap[chainName]
+		if !ok {
+			tokenAddressPriceMap = make(map[string]string)
+			resultMap[chainName] = tokenAddressPriceMap
+		}
+		if tokenAddress == "" {
+			tokenAddressPriceMap[chainName] = price
+		} else {
+			tokenAddressPriceMap[tokenAddress] = price
+		}
+	}
+	return resultMap, nil
+}
+
 func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
 	var key = chainName + tokenAddress
 	tokenInfo, ok := TokenInfoMap[key]
@@ -72,8 +156,19 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	}
 
 	lock.Lock(key)
+	defer lock.Unlock(key)
 	tokenInfo, ok = TokenInfoMap[key]
 	if ok {
+		return tokenInfo, nil
+	}
+
+	if tokenAddress == "" {
+		if platInfo, ok := PlatInfoMap[chainName]; ok {
+			decimal := platInfo.Decimal
+			symbol := platInfo.Symbol
+			tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(decimal), Symbol: symbol}
+		}
+		TokenInfoMap[key] = tokenInfo
 		return tokenInfo, nil
 	}
 
@@ -106,6 +201,5 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 		TokenInfoMap[key] = tokenInfo
 		return tokenInfo, nil
 	}
-	lock.Unlock(key)
 	return tokenInfo, nil
 }

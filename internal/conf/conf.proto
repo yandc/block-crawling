@@ -104,4 +104,14 @@ message PlatInfo {
   string type = 7;
   repeated string rpcURL = 8;
   string tokenPrice = 9;
+
+  // 可以安全的进行并发爬块的高度差（即不用考虑分叉的高度），即：
+  // 「链上高度 - 当前高度」大于此值才开始并发爬块。
+  optional int32 safelyConcurrentBlockDelta = 10;
+
+  // 爬块最大并发
+  optional int32 maxConcurrency = 11;
+
+  // 块高差报警阈值，爬块高度和链上高度的差大于此值进行报警。
+  optional int32 monitorHeightAlarmThr = 12;
 }

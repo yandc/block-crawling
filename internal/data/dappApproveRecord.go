@@ -71,7 +71,7 @@ func (r *DappApproveRecordRepoImpl) UpdateAmout(ctx context.Context, dappApprove
 	for _, dar := range dappApproveRecords {
 		var dappApproveRecord *DappApproveRecord
 		r.gormDB.Where(" address = ? and token = ? and to_address = ? ", dar.Address, dar.Token, dar.ToAddress).Find(&dappApproveRecord)
-		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40 {
+		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40  || dappApproveRecord.Amount =="0"{
 			continue
 		}
 		//dappApproveRecord.Amount

@@ -3,6 +3,7 @@ package tron
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
@@ -12,13 +13,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 const ADDRESS_PREFIX = "41"
@@ -30,11 +32,18 @@ type Platform struct {
 	CoinIndex uint
 }
 
-func Init(handler, chain, chainName string, nodeUrl []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeUrl []string, height int) *Platform {
+	chain := value.Handler
+	chainName := value.Chain
 	return &Platform{
-		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeUrl[0]),
-		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
+		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeUrl[0]),
+		CommPlatform: subhandle.CommPlatform{
+			Height:         height,
+			Chain:          chain,
+			ChainName:      chainName,
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
+		},
 	}
 }
 

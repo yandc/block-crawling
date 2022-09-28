@@ -17,6 +17,9 @@ platform:
       - https://mainnet.ethereumpow.org
     symbol: ETHW
     type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 21
   DOGE:
     blockExplorerAddrUrl: https://dogechain.info/address/
     blockExplorerTxUrl: https://dogechain.info/tx/
@@ -77,6 +80,9 @@ platform:
     - https://rpc.ankr.com/avalanche
     symbol: AVAX
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 146
   BSC:
     blockExplorerAddrUrl: https://bscscan.com/address/
     blockExplorerTxUrl: https://bscscan.com/tx/
@@ -112,6 +118,9 @@ platform:
     - https://rpc.onekey.so/bsc
     symbol: BSC
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
   BTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/btc/address/
     blockExplorerTxUrl: https://live.blockcypher.com/btc/tx/
@@ -155,6 +164,8 @@ platform:
     - https://rpc.vvs.finance/
     symbol: CRO
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   ETH:
     blockExplorerAddrUrl: https://etherscan.io/address/
     blockExplorerTxUrl: https://etherscan.io/tx/
@@ -182,6 +193,9 @@ platform:
     - https://rpc.ankr.com/eth
     symbol: ETH
     type: EVM
+    safelyConcurrentBlockDelta: 30
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 30
   Fantom:
     blockExplorerAddrUrl: https://ftmscan.com/address/
     blockExplorerTxUrl: https://ftmscan.com/tx/
@@ -204,6 +218,9 @@ platform:
     - https://rpc.ankr.com/fantom
     symbol: Fantom
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 300
   HECO:
     blockExplorerAddrUrl: https://hecoinfo.com/address/
     blockExplorerTxUrl: https://hecoinfo.com/tx/
@@ -225,6 +242,9 @@ platform:
     - https://http-mainnet-node.defibox.com
     symbol: HECO
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 130
   Klaytn:
     blockExplorerAddrUrl: https://scope.klaytn.com/address/
     blockExplorerTxUrl: https://scope.klaytn.com/tx/
@@ -248,6 +268,9 @@ platform:
     - https://klaytn05.fandom.finance/
     symbol: Klaytn
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 300
   OEC:
     blockExplorerAddrUrl: https://www.oklink.com/okexchain/address/
     blockExplorerTxUrl: https://www.oklink.com/okexchain/tx/
@@ -269,6 +292,9 @@ platform:
     - https://okchain.mytokenpocket.vip/
     symbol: OEC
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
   Optimism:
     blockExplorerAddrUrl: https://optimistic.etherscan.io/address/
     blockExplorerTxUrl: https://optimistic.etherscan.io/tx/
@@ -285,10 +311,16 @@ platform:
     netType: main
     rpcURL:
     - https://mainnet.optimism.io
-    - https://optimism-mainnet.public.blastapi.io
+    # 从香港访问会出现返回块高 0x175dfe3 但实际块高已经是 0x187b124 @2022-09-27
+    # - https://optimism-mainnet.public.blastapi.io
     - https://optimism-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    - https://opt-mainnet.g.alchemy.com/v2/Jf5Wy7l2wJcNqaNP517J2iAsXiooKGBI
+    - https://opt-mainnet.g.alchemy.com/v2/ev1v-c_M3nWCYZTCl5pSpdEGdo14bWsX
     symbol: Optimism
     type: EVM
+    safelyConcurrentBlockDelta: 30
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 420
   ETC:
     blockExplorerAddrUrl: https://blockscout.com/etc/mainnet/address/
     blockExplorerTxUrl: https://blockscout.com/etc/mainnet/tx/
@@ -297,6 +329,7 @@ platform:
     chain: ETC
     chainId: 61
     coinId: 60
+    decimal: 18
     customNonce: true
     fullName: Ethereum Classic
     getPriceKey: ethereum-classic
@@ -310,6 +343,9 @@ platform:
       - https://www.ethercluster.com/etc
     symbol: ETC
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
   xDai:
     blockExplorerAddrUrl: https://blockscout.com/xdai/mainnet/address/
     blockExplorerTxUrl: https://blockscout.com/xdai/mainnet/tx/
@@ -318,6 +354,7 @@ platform:
     chain: xDai
     chainId: 100
     coinId: 60
+    decimal: 18
     customNonce: true
     fullName: Gnosis
     getPriceKey: xdai
@@ -334,8 +371,9 @@ platform:
       - https://rpc.ap-southeast-1.gateway.fm/v1/gnosis/non-archival/mainnet
     symbol: xDai
     type: EVM
-
-
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
   Polygon:
     blockExplorerAddrUrl: https://polygonscan.com/address/
     blockExplorerTxUrl: https://polygonscan.com/tx/
@@ -362,6 +400,9 @@ platform:
     - https://rpc.ankr.com/polygon
     symbol: Polygon
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 180
   STC:
     blockExplorerAddrUrl: https://stcscan.io/main/address/
     blockExplorerTxUrl: https://stcscan.io/main/transactions/detail/
@@ -398,6 +439,7 @@ platform:
     - https://api.trongrid.io
     symbol: TRX
     type: TVM
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.devnet.aptos.dev/account/
@@ -453,6 +495,8 @@ platformTest:
     - https://api.avax-test.network/ext/bc/C/rpc
     symbol: AVAX
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   BSCTEST:
     blockExplorerAddrUrl: https://testnet.bscscan.com/address/
     blockExplorerTxUrl: https://testnet.bscscan.com/tx/
@@ -471,6 +515,8 @@ platformTest:
     - https://data-seed-prebsc-1-s1.binance.org:8545/
     symbol: BSC
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   BTCTEST:
     blockExplorerAddrUrl: https://live.blockcypher.com/btc-testnet/address/
     blockExplorerTxUrl: https://live.blockcypher.com/btc-testnet/tx/
@@ -510,6 +556,8 @@ platformTest:
     - https://evm-t3.cronos.org/
     symbol: CRO
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   ETHTEST:
     blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
     blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
@@ -528,6 +576,8 @@ platformTest:
     - https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: ETH
     type: EVM
+    safelyConcurrentBlockDelta: 30
+    maxConcurrency: 5
   FantomTEST:
     blockExplorerAddrUrl: https://testnet.ftmscan.com/address/
     blockExplorerTxUrl: https://testnet.ftmscan.com/tx/
@@ -546,6 +596,8 @@ platformTest:
     - https://xapi.testnet.fantom.network/lachesis
     symbol: Fantom
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   HECOTEST:
     blockExplorerAddrUrl: https://testnet.hecoinfo.com/address/
     blockExplorerTxUrl: https://testnet.hecoinfo.com/tx/
@@ -564,6 +616,8 @@ platformTest:
     - https://http-testnet.hecochain.com/
     symbol: HECO
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   KlaytnTEST:
     blockExplorerAddrUrl: https://baobab.scope.klaytn.com/address/
     blockExplorerTxUrl: https://baobab.scope.klaytn.com/tx/
@@ -584,6 +638,8 @@ platformTest:
     - https://baobab02.fandom.finance
     symbol: Klaytn
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   OECTEST:
     blockExplorerAddrUrl: https://www.oklink.com/zh-cn/oec-test/address/
     blockExplorerTxUrl: https://www.oklink.com/zh-cn/oec-test/tx/
@@ -602,6 +658,8 @@ platformTest:
     - https://exchaintestrpc.okex.org
     symbol: OEC
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   OptimismTEST:
     blockExplorerAddrUrl: https://kovan-optimistic.etherscan.io/address/
     blockExplorerTxUrl: https://kovan-optimistic.etherscan.io/tx/
@@ -621,6 +679,8 @@ platformTest:
     - https://optimism-kovan.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: Optimism
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   PolygonTEST:
     blockExplorerAddrUrl: https://mumbai.polygonscan.com/address/
     blockExplorerTxUrl: https://mumbai.polygonscan.com/tx/
@@ -639,6 +699,8 @@ platformTest:
     - https://rpc-mumbai.matic.today
     symbol: Polygon
     type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
   TRXTEST:
     blockExplorerAddrUrl: https://shasta.tronscan.org/#/address/
     blockExplorerTxUrl: https://shasta.tronscan.org/#/transaction/

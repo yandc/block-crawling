@@ -3,6 +3,7 @@ package aptos
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/subhandle"
@@ -10,11 +11,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -27,11 +29,18 @@ const APT_CODE = "0x1::aptos_coin::AptosCoin"
 const APT_CREATE_ACCOUNT = "0x1::aptos_account::create_account"
 const APT_REGISTER = "0x1::coins::register"
 
-func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	chain, chainName := value.Handler, value.Chain
+
 	return &Platform{
-		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeURL[0]),
-		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
+		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeURL[0]),
+		CommPlatform: subhandle.CommPlatform{
+			Height:         height,
+			Chain:          chain,
+			ChainName:      chainName,
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
+		},
 	}
 }
 
