@@ -51,7 +51,7 @@ lark:
 logger:
   DEBUG: true
   fileName: "block-crawling.log"
-  level: "debug"
+  level: "info"
 
 innerNodeList:
   BTC:
@@ -107,6 +107,3 @@ innerPublicNodeList:
       - https://cronosrpc-1.xstaking.sg
     symbol: CRO
     type: EVM
-
-
-
