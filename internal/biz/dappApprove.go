@@ -92,7 +92,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 		eventLogs := txhashEventLogMap[k]
 		for _, log_ := range eventLogs {
 			dar := &data.DappApproveRecord{}
-			dar.Address = v.FromAddress
+			dar.Address = log_.FromAddress
 			dar.ToAddress = v.ToAddress
 			dar.Token = log_.ContractAddress
 			dar.LastTxhash = v.TransactionHash

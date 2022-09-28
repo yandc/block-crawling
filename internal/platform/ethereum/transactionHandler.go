@@ -7,11 +7,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -145,22 +146,25 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	}
 
 	for address, uid := range addressUidMap {
-		userAsset, err := doHandleUserAsset(chainName, client, uid, address, mainTokenAddress, mainDecimals, mainSymbol, now)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
+		var err error
+		userAssetKey := chainName + address + mainTokenAddress
+		if userAsset, ok := userAssetMap[userAssetKey]; !ok {
 			userAsset, err = doHandleUserAsset(chainName, client, uid, address, mainTokenAddress, mainDecimals, mainSymbol, now)
-		}
-		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"查询用户资产失败", zap.Any("address", address), zap.Any("tokenAddress", mainTokenAddress), zap.Any("error", err))
-			return
-		}
-		if userAsset != nil {
-			userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
-			userAssetMap[userAssetKey] = userAsset
+			for i := 0; i < 10 && err != nil; i++ {
+				time.Sleep(time.Duration(i*5) * time.Second)
+				userAsset, err = doHandleUserAsset(chainName, client, uid, address, mainTokenAddress, mainDecimals, mainSymbol, now)
+			}
+			if err != nil {
+				// 更新用户资产出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"查询用户资产失败", zap.Any("address", address), zap.Any("tokenAddress", mainTokenAddress), zap.Any("error", err))
+				return
+			}
+			if userAsset != nil {
+				userAssetMap[userAssetKey] = userAsset
+			}
 		}
 	}
 

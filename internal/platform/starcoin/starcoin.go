@@ -3,6 +3,7 @@ package starcoin
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/subhandle"
@@ -11,12 +12,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -27,11 +29,19 @@ type Platform struct {
 
 const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
 
-func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	chain := value.Handler
+	chainName := value.Chain
+
 	return &Platform{
-		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeURL[0]),
-		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
+		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeURL[0]),
+		CommPlatform: subhandle.CommPlatform{
+			Height:         height,
+			Chain:          chain,
+			ChainName:      chainName,
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
+		},
 	}
 }
 

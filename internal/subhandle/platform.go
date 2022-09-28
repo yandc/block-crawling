@@ -17,7 +17,7 @@ type Platform interface {
 	GetTransactions()
 	SetRedisHeight()
 	GetTransactionResultByTxhash()
- 	MonitorHeight()
+	MonitorHeight()
 }
 
 type Platforms map[string]map[string]Platform
@@ -27,6 +27,8 @@ type CommPlatform struct {
 	Chain     string
 	ChainName string
 	Lock      sync.RWMutex
+
+	HeightAlarmThr int
 }
 
 func (p *CommPlatform) SetRedisHeight() {
@@ -56,10 +58,15 @@ func (p *CommPlatform) MonitorHeight() {
 	oldHeight, _ := strconv.Atoi(redisHeight)
 	height, _ := strconv.Atoi(nodeRedisHeight)
 
+	thr := 30
+	if p.HeightAlarmThr > 0 {
+		thr = p.HeightAlarmThr
+	}
+
 	ret := height - oldHeight
-	if ret > 30 {
-		if p.ChainName != "Optimism" && p.ChainName != "Klaytn" && !strings.Contains(p.ChainName,"TEST"){
-			alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于30,相差%d，链上块高：%d,业务块高：%d", p.ChainName, ret, height, oldHeight)
+	if ret > thr {
+		if !strings.Contains(p.ChainName, "TEST") {
+			alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		}

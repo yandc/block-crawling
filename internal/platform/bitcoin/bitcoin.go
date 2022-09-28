@@ -3,6 +3,7 @@ package bitcoin
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/model"
@@ -10,11 +11,12 @@ import (
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -23,11 +25,19 @@ type Platform struct {
 	CoinIndex uint
 }
 
-func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	chain := value.Handler
+	chainName := value.Chain
+
 	return &Platform{
-		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeURL[0], chainName),
-		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
+		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeURL[0], chainName),
+		CommPlatform: subhandle.CommPlatform{
+			Height:         height,
+			Chain:          chain,
+			ChainName:      chainName,
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
+		},
 	}
 }
 
@@ -696,7 +706,11 @@ func (p *Platform) getBTCTransactions() {
 			var fromAddressExist, toAddressExist bool
 
 			//openblock钱包转账中tx.Inputs只会有一笔
-			fromAddress = tx.Inputs[0].PrevOut.Addr
+			if len(tx.Inputs) > 0{
+				fromAddress = tx.Inputs[0].PrevOut.Addr
+			}else {
+				log.Error(p.ChainName+"扫块，txInputs为0", zap.Any("current", curHeight), zap.Any("new", height))
+			}
 			if fromAddress != "" {
 				fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
 				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {

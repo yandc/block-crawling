@@ -3,6 +3,7 @@ package sui
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/subhandle"
@@ -10,11 +11,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -27,11 +29,19 @@ const SUI_CODE = "0x2::sui::SUI"
 const TYPE_PREFIX = "0x2::coin::Coin"
 const NATIVE_TYPE = "0x2::coin::Coin<0x2::sui::SUI>"
 
-func Init(handler, chain, chainName string, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	chain := value.Handler
+	chainName := value.Chain
+
 	return &Platform{
-		CoinIndex:    coins.HandleMap[handler],
-		client:       NewClient(nodeURL[0]),
-		CommPlatform: subhandle.CommPlatform{Height: height, Chain: chain, ChainName: chainName},
+		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeURL[0]),
+		CommPlatform: subhandle.CommPlatform{
+			Height:         height,
+			Chain:          chain,
+			ChainName:      chainName,
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
+		},
 	}
 }
 

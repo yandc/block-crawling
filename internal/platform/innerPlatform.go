@@ -24,12 +24,13 @@ func NewInnerNodeList(c map[string]*conf.PlatInfo) {
 	//}
 
 	for _, value := range c {
-		platform := GetInnerPlatform(value.Chain, value.Handler, value.Chain, value.RpcURL[0])
+		platform := GetInnerPlatform(value)
 		InnerPlatforms = append(InnerPlatforms, platform)
 	}
 }
 
-func GetInnerPlatform(typ, chain, chainName string, nodeURL string) subhandle.Platform {
+func GetInnerPlatform(value *conf.PlatInfo) subhandle.Platform {
+	typ, chainName, nodeURL := value.Chain, value.Chain, value.RpcURL[0]
 	height := -1
 	redisHeight, _ := data.RedisClient.Get(data.CHAINNAME + chainName).Result()
 	if redisHeight != "" {
@@ -42,17 +43,17 @@ func GetInnerPlatform(typ, chain, chainName string, nodeURL string) subhandle.Pl
 
 	switch typ {
 	case biz.STC:
-		return starcoin.Init(coins.Starcoin().Handle, chain, chainName, nodeURLS, height)
+		return starcoin.Init(coins.Starcoin().Handle, value, nodeURLS, height)
 	case biz.EVM:
-		return ethereum.Init(coins.Ethereum().Handle, chain, chainName, nodeURLS, height)
+		return ethereum.Init(coins.Ethereum().Handle, value, nodeURLS, height)
 	case biz.BTC:
-		return bitcoin.Init(coins.Bitcoin().Handle, chain, chainName, nodeURLS, height)
+		return bitcoin.Init(coins.Bitcoin().Handle, value, nodeURLS, height)
 	case biz.TVM:
-		return tron.Init(coins.Tron().Handle, chain, chainName, nodeURLS, height)
+		return tron.Init(coins.Tron().Handle, value, nodeURLS, height)
 	case biz.APTOS:
-		return aptos.Init(coins.Aptos().Handle, chain, chainName, nodeURLS, height)
+		return aptos.Init(coins.Aptos().Handle, value, nodeURLS, height)
 	case biz.SUI:
-		return sui.Init(coins.Sui().Handle, chain, chainName, nodeURLS, height)
+		return sui.Init(coins.Sui().Handle, value, nodeURLS, height)
 	}
 	return nil
 }
