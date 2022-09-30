@@ -140,7 +140,7 @@ func (p *Platform) DoGetTransactions() {
 		return
 	}
 
-	curHeight := 590504
+	curHeight := oldHeight
 	for curHeight < height {
 		curHeight++
 
@@ -151,6 +151,7 @@ func (p *Platform) DoGetTransactions() {
 		}
 		if err != nil {
 			if fmt.Sprintf("%s", err) == "not found" {
+				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, curHeight, 0)
 				log.Warn(p.ChainName+"扫块，从链上获取区块信息为空", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 				continue
 			} else {

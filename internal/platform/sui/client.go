@@ -201,9 +201,9 @@ type TransactionInfo struct {
 		} `json:"data"`
 		TxSignature  string `json:"txSignature"`
 		AuthSignInfo struct {
-			Epoch      int      `json:"epoch"`
-			Signature  []string `json:"signature"`
-			SignersMap []int    `json:"signers_map"`
+			Epoch      int         `json:"epoch"`
+			Signature  interface{} `json:"signature"`
+			SignersMap []int       `json:"signers_map"`
 		} `json:"authSignInfo"`
 	} `json:"certificate"`
 	Effects struct {
