@@ -578,12 +578,14 @@ func (p *Platform) DoGetTransactions() {
 						amount = event.Data.Amount
 						mode := strings.Split(tx.Payload.Function, "::")
 						if event.Type == "0x1::coin::WithdrawEvent" {
-							fromAddress = "0x" + event.Key[18:]
+							//fromAddress = "0x" + event.Key[18:]
+							fromAddress = event.Guid.AccountAddress
 							if len(mode) == 3 {
 								toAddress = mode[0]
 							}
 						} else if event.Type == "0x1::coin::DepositEvent" {
-							toAddress = "0x" + event.Key[18:]
+							//toAddress = "0x" + event.Key[18:]
+							toAddress = event.Guid.AccountAddress
 							if len(mode) == 3 {
 								fromAddress = mode[0]
 							}
@@ -1267,12 +1269,14 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						amount = event.Data.Amount
 						mode := strings.Split(tx.Payload.Function, "::")
 						if event.Type == "0x1::coin::WithdrawEvent" {
-							fromAddress = "0x" + event.Key[18:]
+							//fromAddress = "0x" + event.Key[18:]
+							fromAddress = event.Guid.AccountAddress
 							if len(mode) == 3 {
 								toAddress = mode[0]
 							}
 						} else if event.Type == "0x1::coin::DepositEvent" {
-							toAddress = "0x" + event.Key[18:]
+							//toAddress = "0x" + event.Key[18:]
+							toAddress = event.Guid.AccountAddress
 							if len(mode) == 3 {
 								fromAddress = mode[0]
 							}
