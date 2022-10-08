@@ -14,6 +14,7 @@ import (
 )
 
 const TYPE_PREFIX = "0x1::coin::CoinStore"
+const APTOS_DECIMALS = 8
 
 type Client struct {
 	URL string
@@ -73,7 +74,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 	if len(activeFlag) == 0 {
 		return "0", nil
 	}
-	balance, err := c.GetTokenBalance(address, APT_CODE, 0)
+	balance, err := c.GetTokenBalance(address, APT_CODE, APTOS_DECIMALS)
 	return balance, err
 }
 
@@ -170,7 +171,11 @@ type TransactionInfo struct {
 		Signature string `json:"signature"`
 	} `json:"signature"`
 	Events []struct {
-		Key            string `json:"key"`
+		//Key            string `json:"key"`
+		Guid struct {
+			CreationNumber string `json:"creation_number"`
+			AccountAddress string `json:"account_address"`
+		} `json:"guid"`
 		SequenceNumber string `json:"sequence_number"`
 		Type           string `json:"type"`
 		Data           struct {

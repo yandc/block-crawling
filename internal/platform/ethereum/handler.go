@@ -102,16 +102,11 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(err error) error {
 	// DO NOT RETRY
-	if err == ethereum.NotFound {
+	if err == nil || err == ethereum.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
 		return err
 	}
 
-	if err != nil {
-		if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
-			return common.Retry(err)
-		}
-	}
-	return err
+	return common.Retry(err)
 }
 
 func (h *handler) OnError(err error) (incrHeight bool) {

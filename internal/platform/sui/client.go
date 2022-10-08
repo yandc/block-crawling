@@ -167,7 +167,7 @@ type TransactionInfo struct {
 				TransferSui *struct {
 					Recipient string `json:"recipient"`
 					Amount    int    `json:"amount"`
-				} `json:"TransferSui"`
+				} `json:"TransferSui,omitempty"`
 				TransferObject *struct {
 					Recipient string `json:"recipient"`
 					ObjectRef struct {
@@ -175,7 +175,7 @@ type TransactionInfo struct {
 						Version  int    `json:"version"`
 						Digest   string `json:"digest"`
 					} `json:"objectRef"`
-				} `json:"TransferObject"`
+				} `json:"TransferObject,omitempty"`
 				Call *struct {
 					Package struct {
 						ObjectId string `json:"objectId"`
@@ -186,10 +186,10 @@ type TransactionInfo struct {
 					Function      string        `json:"function"`
 					TypeArguments []string      `json:"typeArguments"`
 					Arguments     []interface{} `json:"arguments"`
-				} `json:"Call"`
+				} `json:"Call,omitempty"`
 				Publish *struct {
 					Disassembled map[string]string `json:"disassembled"`
-				} `json:"Publish"`
+				} `json:"Publish,omitempty"`
 			} `json:"transactions"`
 			Sender     string `json:"sender"`
 			GasPayment struct {
