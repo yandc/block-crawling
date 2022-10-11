@@ -13,18 +13,18 @@ import (
 	"go.uber.org/zap"
 )
 
-type stateStore struct {
+type StateStore struct {
 	chainName    string
 	dbBlockHashs map[uint64]string
 }
 
-func newStateStore(chainName string) chain.StateStore {
-	return &stateStore{
+func NewStateStore(chainName string) chain.StateStore {
+	return &StateStore{
 		chainName: chainName,
 	}
 }
 
-func (store *stateStore) LoadHeight() (uint64, error) {
+func (store *StateStore) LoadHeight() (uint64, error) {
 	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + store.chainName).Result()
 	if redisHeight != "" {
 		curHeight, err := strconv.Atoi(redisHeight)
@@ -41,7 +41,7 @@ func (store *stateStore) LoadHeight() (uint64, error) {
 	return store.loadHeightFromDB()
 }
 
-func (store *stateStore) loadHeightFromDB() (uint64, error) {
+func (store *StateStore) loadHeightFromDB() (uint64, error) {
 	ctx := context.Background()
 	lastRecord, err := data.EvmTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(store.chainName))
 
@@ -73,15 +73,15 @@ func (store *stateStore) loadHeightFromDB() (uint64, error) {
 	return uint64(curHeight), nil
 }
 
-func (store *stateStore) StoreHeight(height uint64) error {
+func (store *StateStore) StoreHeight(height uint64) error {
 	return data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+store.chainName, height, 0).Err()
 }
 
-func (store *stateStore) StoreNodeHeight(height uint64) error {
+func (store *StateStore) StoreNodeHeight(height uint64) error {
 	return data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+store.chainName, height, 0).Err()
 }
 
-func (store *stateStore) LoadBlockHash(height uint64) (string, error) {
+func (store *StateStore) LoadBlockHash(height uint64) (string, error) {
 	curPreBlockHash, _ := data.RedisClient.Get(biz.BLOCK_HASH_KEY + store.chainName + ":" + strconv.Itoa(int(height))).Result()
 
 	if curPreBlockHash == "" {
@@ -93,12 +93,12 @@ func (store *stateStore) LoadBlockHash(height uint64) (string, error) {
 	return curPreBlockHash, nil
 }
 
-func (store *stateStore) StoreBlockHash(height uint64, blockHash string) error {
+func (store *StateStore) StoreBlockHash(height uint64, blockHash string) error {
 	return data.RedisClient.Set(biz.BLOCK_HASH_KEY+store.chainName+":"+strconv.Itoa(int(height)), blockHash, biz.BLOCK_HASH_EXPIRATION_KEY).Err()
 
 }
 
-func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
+func (store *StateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
 	records, err := data.EvmTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))

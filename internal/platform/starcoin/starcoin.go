@@ -230,23 +230,21 @@ func (p *Platform) IndexBlock() bool {
 							}
 
 							contractAddressSplit := strings.Split(contractAddress, "::")
-							if len(contractAddressSplit) == 3 {
+							if len(contractAddressSplit) == 3 && txType == biz.TRANSFER {
 								var decimals int64 = 9
-								if txType == biz.TRANSFER {
-									getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-									for i := 0; i < 3 && err != nil; i++ {
-										time.Sleep(time.Duration(i*1) * time.Second)
-										getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-									}
-									if err != nil {
-										// nodeProxy出错 接入lark报警
-										alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-										alarmOpts := biz.WithMsgLevel("FATAL")
-										biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-										log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-									} else if getTokenInfo.Symbol != "" {
-										decimals = getTokenInfo.Decimals
-									}
+								getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+								for i := 0; i < 3 && err != nil; i++ {
+									time.Sleep(time.Duration(i*1) * time.Second)
+									getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+								}
+								if err != nil {
+									// nodeProxy出错 接入lark报警
+									alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+									alarmOpts := biz.WithMsgLevel("FATAL")
+									biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+									log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+								} else if getTokenInfo.Symbol != "" {
+									decimals = getTokenInfo.Decimals
 								}
 								tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
 							}
@@ -371,23 +369,21 @@ func (p *Platform) IndexBlock() bool {
 							flag = true
 
 							contractAddressSplit := strings.Split(contractAddress, "::")
-							if len(contractAddressSplit) == 3 {
+							if len(contractAddressSplit) == 3 && contractAddress != STC_CODE && contractAddress != "" {
 								var decimals int64 = 9
-								if contractAddress != STC_CODE && contractAddress != "" {
-									getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-									for i := 0; i < 3 && err != nil; i++ {
-										time.Sleep(time.Duration(i*1) * time.Second)
-										getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-									}
-									if err != nil {
-										// nodeProxy出错 接入lark报警
-										alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-										alarmOpts := biz.WithMsgLevel("FATAL")
-										biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-										log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-									} else if getTokenInfo.Symbol != "" {
-										decimals = getTokenInfo.Decimals
-									}
+								getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+								for i := 0; i < 3 && err != nil; i++ {
+									time.Sleep(time.Duration(i*1) * time.Second)
+									getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+								}
+								if err != nil {
+									// nodeProxy出错 接入lark报警
+									alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+									alarmOpts := biz.WithMsgLevel("FATAL")
+									biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+									log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+								} else if getTokenInfo.Symbol != "" {
+									decimals = getTokenInfo.Decimals
 								}
 								tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
 							}
@@ -521,23 +517,21 @@ func (p *Platform) IndexBlock() bool {
 								}
 
 								contractAddressSplit := strings.Split(contractAddress, "::")
-								if len(contractAddressSplit) == 3 {
+								if len(contractAddressSplit) == 3 && contractAddress != STC_CODE && contractAddress != "" {
 									var decimals int64 = 9
-									if contractAddress != STC_CODE && contractAddress != "" {
-										getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-										for i := 0; i < 3 && err != nil; i++ {
-											time.Sleep(time.Duration(i*1) * time.Second)
-											getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-										}
-										if err != nil {
-											// nodeProxy出错 接入lark报警
-											alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-											alarmOpts := biz.WithMsgLevel("FATAL")
-											biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-											log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-										} else if getTokenInfo.Symbol != "" {
-											decimals = getTokenInfo.Decimals
-										}
+									getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+									for i := 0; i < 3 && err != nil; i++ {
+										time.Sleep(time.Duration(i*1) * time.Second)
+										getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+									}
+									if err != nil {
+										// nodeProxy出错 接入lark报警
+										alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+										alarmOpts := biz.WithMsgLevel("FATAL")
+										biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+										log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+									} else if getTokenInfo.Symbol != "" {
+										decimals = getTokenInfo.Decimals
 									}
 									var amountStr string
 									if amount != nil {
@@ -751,23 +745,21 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					}
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
-					if len(contractAddressSplit) == 3 {
+					if len(contractAddressSplit) == 3 && txType == biz.TRANSFER {
 						var decimals int64 = 9
-						if txType == biz.TRANSFER {
-							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-							for i := 0; i < 3 && err != nil; i++ {
-								time.Sleep(time.Duration(i*1) * time.Second)
-								getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-							}
-							if err != nil {
-								// nodeProxy出错 接入lark报警
-								alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-								alarmOpts := biz.WithMsgLevel("FATAL")
-								biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-								log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-							} else if getTokenInfo.Symbol != "" {
-								decimals = getTokenInfo.Decimals
-							}
+						getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+						} else if getTokenInfo.Symbol != "" {
+							decimals = getTokenInfo.Decimals
 						}
 						tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
 					}
@@ -891,23 +883,21 @@ func (p *Platform) GetTransactionResultByTxhash() {
 					flag = true
 
 					contractAddressSplit := strings.Split(contractAddress, "::")
-					if len(contractAddressSplit) == 3 {
+					if len(contractAddressSplit) == 3 && contractAddress != STC_CODE && contractAddress != "" {
 						var decimals int64 = 9
-						if contractAddress != STC_CODE && contractAddress != "" {
-							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-							for i := 0; i < 3 && err != nil; i++ {
-								time.Sleep(time.Duration(i*1) * time.Second)
-								getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-							}
-							if err != nil {
-								// nodeProxy出错 接入lark报警
-								alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-								alarmOpts := biz.WithMsgLevel("FATAL")
-								biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-								log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-							} else if getTokenInfo.Symbol != "" {
-								decimals = getTokenInfo.Decimals
-							}
+						getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+						} else if getTokenInfo.Symbol != "" {
+							decimals = getTokenInfo.Decimals
 						}
 						tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
 					}
@@ -1041,23 +1031,21 @@ func (p *Platform) GetTransactionResultByTxhash() {
 						}
 
 						contractAddressSplit := strings.Split(contractAddress, "::")
-						if len(contractAddressSplit) == 3 {
+						if len(contractAddressSplit) == 3 && contractAddress != STC_CODE && contractAddress != "" {
 							var decimals int64 = 9
-							if contractAddress != STC_CODE && contractAddress != "" {
-								getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-								for i := 0; i < 3 && err != nil; i++ {
-									time.Sleep(time.Duration(i*1) * time.Second)
-									getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
-								}
-								if err != nil {
-									// nodeProxy出错 接入lark报警
-									alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
-									alarmOpts := biz.WithMsgLevel("FATAL")
-									biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-									log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-								} else if getTokenInfo.Symbol != "" {
-									decimals = getTokenInfo.Decimals
-								}
+							getTokenInfo, err := biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+							for i := 0; i < 3 && err != nil; i++ {
+								time.Sleep(time.Duration(i*1) * time.Second)
+								getTokenInfo, err = biz.GetTokenInfo(nil, p.ChainName, contractAddress)
+							}
+							if err != nil {
+								// nodeProxy出错 接入lark报警
+								alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", p.ChainName)
+								alarmOpts := biz.WithMsgLevel("FATAL")
+								biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+								log.Error(p.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+							} else if getTokenInfo.Symbol != "" {
+								decimals = getTokenInfo.Decimals
 							}
 							var amountStr string
 							if amount != nil {

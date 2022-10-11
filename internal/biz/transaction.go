@@ -848,6 +848,118 @@ func findNonce(start int, req *pb.NonceReq) (*pb.NonceResp, error) {
 	return nil, nil
 }
 
+func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	}
+
+	var result = &pb.PageListAssetResponse{}
+	var total int64
+	var totalCurrencyAmount decimal.Decimal
+	var list []*pb.AssetResponse
+	var err error
+	var chainNameTokenAddressMap = make(map[string][]string)
+
+	var recordList []*data.UserAsset
+	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, req)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	var recordGroupList []*data.UserAsset
+	if err == nil {
+		recordGroupList, err = data.UserAssetRepoClient.GroupListBalance(ctx, req)
+	}
+
+	if err == nil && len(recordGroupList) > 0 {
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, asset := range recordList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+		for _, asset := range recordGroupList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key, _ := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
+		if err != nil {
+			return result, err
+		}
+
+		result.Total = total
+		result.List = list
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				if strings.Contains(req.OrderBy, "id ") {
+					record.Cursor = record.Id
+				} else if strings.Contains(req.OrderBy, "created_at ") {
+					record.Cursor = record.CreatedAt
+				} else if strings.Contains(req.OrderBy, "updated_at ") {
+					record.Cursor = record.UpdatedAt
+				}
+
+				chainName := record.ChainName
+				tokenAddress := record.TokenAddress
+				var price string
+				tokenAddressPriceMap := resultMap[chainName]
+				if tokenAddress == "" {
+					price = tokenAddressPriceMap[chainName]
+				} else {
+					price = tokenAddressPriceMap[tokenAddress]
+				}
+				prices, _ := decimal.NewFromString(price)
+				balances, _ := decimal.NewFromString(record.Balance)
+				cnyAmount := prices.Mul(balances)
+				record.CurrencyAmount = cnyAmount.String()
+			}
+		}
+
+		if len(recordGroupList) > 0 {
+			for _, record := range recordGroupList {
+				chainName := record.ChainName
+				tokenAddress := record.TokenAddress
+				var price string
+				tokenAddressPriceMap := resultMap[chainName]
+				if tokenAddress == "" {
+					price = tokenAddressPriceMap[chainName]
+				} else {
+					price = tokenAddressPriceMap[tokenAddress]
+				}
+				prices, _ := decimal.NewFromString(price)
+				balances, _ := decimal.NewFromString(record.Balance)
+				cnyAmount := prices.Mul(balances)
+				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
+			}
+		}
+		result.TotalCurrencyAmount = totalCurrencyAmount.String()
+	}
+	return result, err
+}
+
 func (s *TransactionUsecase) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
 	var result = &pb.PageListStatisticResponse{}
 	var total int64

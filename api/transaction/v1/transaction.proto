@@ -19,13 +19,13 @@ service Transaction {
   rpc GetNonce(NonceReq) returns (NonceResp);
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
   //分页查询用户资产列表
-  rpc PageListAsset (PageListAssetRequest) returns (PageListAssetResponse);
+  rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //分页查询交易数据统计列表
-  rpc PageListStatistic (PageListStatisticRequest) returns (PageListStatisticResponse);
+  rpc PageListStatistic(PageListStatisticRequest) returns (PageListStatisticResponse);
   //交易数据看板查询金额趋势图
-  rpc StatisticFundAmount (StatisticFundRequest) returns (FundAmountListResponse);
+  rpc StatisticFundAmount(StatisticFundRequest) returns (FundAmountListResponse);
   //交易数据看板查询金额占比图
-  rpc StatisticFundRate (StatisticFundRequest) returns (FundRateListResponse);
+  rpc StatisticFundRate(StatisticFundRequest) returns (FundRateListResponse);
 }
 
 message DappPageListReq{
@@ -238,31 +238,37 @@ message AmountResponse {
 message PageListAssetRequest {
   string chainName = 1;//-- 非必输
   string uid = 2;
-  repeated string addressList = 3;
-  string currency = 4 [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
-  string orderBy = 5;
-  int32 dataDirection = 6 [(validate.rules).int32 = {in: [0, 1, 2]}];
-  int64 startIndex = 7 [(validate.rules).int64.gte = 0];
-  int32 pageNum = 8 [(validate.rules).int32.gte = 0];
-  int32 pageSize = 9 [(validate.rules).int32.gte = 0];
-  bool total = 10;
+  repeated string addressList = 3;// [(validate.rules).repeated = {min_items: 1}];
+  repeated string tokenAddressList = 4;
+  string currency = 5 [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
+  int32 amountType = 6 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  string orderBy = 7;
+  int32 dataDirection = 8 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 9 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 10 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 11 [(validate.rules).int32.gte = 0];
+  bool total = 12;
 }
 
 message PageListAssetResponse {
   int64 total = 1;
-  int64 totalCurrencyAmount = 2;
+  string totalCurrencyAmount = 2;
   repeated AssetResponse list = 3;
 }
 
 message AssetResponse {
-  string chainName = 1;
-  string uid = 2;
-  string address = 3;
-  string tokenAddress = 4;
-  string amount = 5;
-  string decimals = 6;
-  string symbol = 7;
-  string currencyAmount = 8;
+  int64 id = 1;
+  string chainName = 2;
+  string uid = 3;
+  string address = 4;
+  string tokenAddress = 5;
+  string balance = 6;
+  int32 decimals = 7;
+  string symbol = 8;
+  string currencyAmount = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+  int64 cursor = 12;
 }
 
 message PageListStatisticRequest {

@@ -12,19 +12,18 @@ import (
 	"block-crawling/internal/data"
 	logger "block-crawling/internal/log"
 	"block-crawling/internal/platform"
-
 )
 
 // Injectors from wire.go:
 
 // wireApp init kratos application.
 
-func wireApp(confLogger *conf.Logger,confData *conf.Data, confApp *conf.App, confInnerNodeList map[string]*conf.PlatInfo, confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo,
+func wireApp(confLogger *conf.Logger, confData *conf.Data, confApp *conf.App, confInnerNodeList map[string]*conf.PlatInfo, confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo,
 	confPlatformTest map[string]*conf.PlatInfo) (func(), error) {
 	logger.NewLogger(confLogger)
 	gormDB, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	data.NewRedisClient(confData)
 	biz.NewConfig(confApp)
@@ -35,6 +34,7 @@ func wireApp(confLogger *conf.Logger,confData *conf.Data, confApp *conf.App, con
 	data.NewStcTransactionRecordRepo(gormDB)
 	data.NewTrxTransactionRecordRepo(gormDB)
 	data.NewDappApproveRecordRepo(gormDB)
+	data.NewUserAssetRepo(gormDB)
 
 	return func() {
 		cleanup()

@@ -4,14 +4,23 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/starcoin"
+	"block-crawling/internal/platform/tron"
 	"encoding/json"
+	"errors"
 	"fmt"
+	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"gitlab.bixin.com/mili/node-driver/common"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func MigrateRecord() {
@@ -345,4 +354,459 @@ func DappReset() {
 			}
 		}
 	}
+}
+
+func HandleAsset() {
+	log.Info("补数据更新用户资产开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+
+	var userAssetList []*data.UserAsset
+
+	sqlStr := "with t as(" +
+		"    select chain_name, from_uid, from_address, to_uid, to_address, contract_address from (" +
+		"    select 'BTC' as chain_name, from_uid, from_address, to_uid, to_address, '' as contract_address from btc_transaction_record       " +
+		"    union all" +
+		"    select 'DOGE' as chain_name, from_uid, from_address, to_uid, to_address, '' as contract_address from doge_transaction_record      " +
+		"    union all" +
+		"    select 'LTC' as chain_name, from_uid, from_address, to_uid, to_address, '' as contract_address from ltc_transaction_record       " +
+		"    union all" +
+		"    select 'Avalanche' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from avalanche_transaction_record " +
+		"    union all" +
+		"    select 'BSC' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from bsc_transaction_record       " +
+		"    union all" +
+		"    select 'Cronos' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from cronos_transaction_record    " +
+		"    union all" +
+		"    select 'ETC' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from etc_transaction_record       " +
+		"    union all" +
+		"    select 'ETH' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from eth_transaction_record       " +
+		"    union all" +
+		"    select 'ETHW' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from ethw_transaction_record      " +
+		"    union all" +
+		"    select 'Fantom' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from fantom_transaction_record    " +
+		"    union all" +
+		"    select 'HECO' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from heco_transaction_record      " +
+		"    union all" +
+		"    select 'Klaytn' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from klaytn_transaction_record    " +
+		"    union all" +
+		"    select 'OEC' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from oec_transaction_record       " +
+		"    union all" +
+		"    select 'Optimism' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from optimism_transaction_record  " +
+		"    union all" +
+		"    select 'Polygon' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from polygon_transaction_record   " +
+		"    union all" +
+		"    select 'STC' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from stc_transaction_record      " +
+		"    union all" +
+		"    select 'TRX' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from trx_transaction_record       " +
+		"    union all" +
+		"    select 'xDai' as chain_name, from_uid, from_address, to_uid, to_address, contract_address from xdai_transaction_record      " +
+		"    ) as t" +
+		"    group by chain_name, from_uid, from_address, to_uid, to_address, contract_address" +
+		")" +
+		"select chain_name, uid, address, contract_address as token_address from (" +
+		"	select chain_name, from_uid as uid, from_address as address, contract_address from t" +
+		"	where from_address != '' and from_uid != ''" +
+		"	union all" +
+		"	select chain_name, to_uid as uid, to_address as address, contract_address from t" +
+		"	where to_address != '' and to_uid != ''" +
+		") as tt " +
+		"group by chain_name, uid, address, contract_address;"
+
+	ret := dbSource.Raw(sqlStr).Find(&userAssetList)
+	err = ret.Error
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		ret = dbSource.Raw(sqlStr).Find(&userAssetList)
+		err = ret.Error
+	}
+	if err != nil {
+		log.Errore("migrate page query userAsset failed", err)
+		return
+	}
+
+	var userAssetMap = make(map[string]*data.UserAsset)
+	for _, userAsset := range userAssetList {
+		chainType := biz.ChainNameType[userAsset.ChainName]
+		switch chainType {
+		case biz.EVM:
+			userAsset.Address = types2.HexToAddress(userAsset.Address).Hex()
+			userAsset.TokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
+		case biz.STC:
+			if userAsset.TokenAddress == starcoin.STC_CODE {
+				userAsset.TokenAddress = ""
+			}
+		}
+
+		key := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
+		asset, ok := userAssetMap[key]
+		if !ok {
+			userAssetMap[key] = userAsset
+		} else {
+			log.Warn("补数据更新用户资产uid冲突", zap.Any("oldAsset", asset), zap.Any("newAsset", userAsset))
+		}
+	}
+
+	var userAssets []*data.UserAsset
+	for _, userAsset := range userAssetMap {
+		userAssets = append(userAssets, userAsset)
+	}
+
+	log.Info("补数据更新用户资产中", zap.Any("size", len(userAssets)))
+	for {
+		userAssets = doHandleAsset(userAssets)
+		if len(userAssets) > 0 {
+			time.Sleep(time.Duration(300) * time.Second)
+		} else {
+			break
+		}
+	}
+
+	log.Info("补数据更新用户资产结束")
+}
+
+func doHandleAsset(userAssetList []*data.UserAsset) []*data.UserAsset {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleAsset error, size:"+strconv.Itoa(len(userAssetList)), e)
+			} else {
+				log.Errore("HandleAsset panic, size:"+strconv.Itoa(len(userAssetList)), errors.New(fmt.Sprintf("%s", err)))
+			}
+			return
+		}
+	}()
+
+	var successUserAssetList []*data.UserAsset
+	var failedUserAssetList []*data.UserAsset
+
+	for i, record := range userAssetList {
+		if i%5 == 0 {
+			log.Info("补数据更新用户资产中", zap.Any("index", i), zap.Any("size", len(userAssetList)))
+		}
+		if record.ChainName == "BTC" || record.ChainName == "DOGE" || record.ChainName == "LTC" {
+			userAsset, err := GetBtcBalance(record.ChainName, record.Uid, record.Address)
+			if err != nil {
+				failedUserAssetList = append(failedUserAssetList, record)
+				log.Error(record.ChainName+"补数据更新用户资产失败", zap.Any("userAssets", userAsset), zap.Any("error", err))
+				continue
+			}
+			record.Balance = userAsset.Balance
+			record.Decimals = userAsset.Decimals
+			record.Symbol = userAsset.Symbol
+			successUserAssetList = append(successUserAssetList, record)
+		} else if record.ChainName == "STC" {
+			userAsset, err := GetStcBalance(record.ChainName, record.Uid, record.Address, record.TokenAddress)
+			if err != nil {
+				failedUserAssetList = append(failedUserAssetList, record)
+				log.Error(record.ChainName+"补数据更新用户资产失败", zap.Any("userAssets", userAsset), zap.Any("error", err))
+				continue
+			}
+			record.Balance = userAsset.Balance
+			record.Decimals = userAsset.Decimals
+			record.Symbol = userAsset.Symbol
+			successUserAssetList = append(successUserAssetList, record)
+		} else if record.ChainName == "TRX" {
+			userAsset, err := GetTrxBalance(record.ChainName, record.Uid, record.Address, record.TokenAddress)
+			if err != nil {
+				failedUserAssetList = append(failedUserAssetList, record)
+				log.Error(record.ChainName+"补数据更新用户资产失败", zap.Any("userAssets", userAsset), zap.Any("error", err))
+				continue
+			}
+			record.Balance = userAsset.Balance
+			record.Decimals = userAsset.Decimals
+			record.Symbol = userAsset.Symbol
+			successUserAssetList = append(successUserAssetList, record)
+		} else {
+			userAssets, err := GetBalance(record.ChainName, record.Uid, record.Address, record.TokenAddress)
+			if err != nil {
+				failedUserAssetList = append(failedUserAssetList, record)
+				log.Error(record.ChainName+"补数据更新用户资产失败", zap.Any("userAssets", userAssets[0]), zap.Any("error", err))
+				continue
+			}
+			record.Balance = userAssets[0].Balance
+			record.Decimals = userAssets[0].Decimals
+			record.Symbol = userAssets[0].Symbol
+			successUserAssetList = append(successUserAssetList, record)
+		}
+	}
+
+	count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, successUserAssetList, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, successUserAssetList, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("补数据更新用户资产，将数据插入到数据库中失败", zap.Any("size", len(userAssetList)), zap.Any("successSize", len(successUserAssetList)), zap.Any("failedSize", len(failedUserAssetList)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("补数据更新用户资产", zap.Any("size", len(userAssetList)), zap.Any("successSize", len(successUserAssetList)), zap.Any("failedSize", len(failedUserAssetList)), zap.Any("count", count), zap.Any("error", err))
+	return failedUserAssetList
+}
+
+func GetBalance(chainName string, uid string, address string, tokenAddress string) ([]*data.UserAsset, error) {
+	nowTime := time.Now().Unix()
+	var userAsset []*data.UserAsset
+	var err error
+
+	nodeURL := biz.PlatInfoMap[chainName].RpcURL
+	clients := make([]chain.Clienter, 0, len(nodeURL))
+	for _, url := range nodeURL {
+		c, err := ethereum.NewClient(url, chainName)
+		if err != nil {
+			panic(err)
+		}
+		clients = append(clients, c)
+	}
+	spider := chain.NewBlockSpider(ethereum.NewStateStore(chainName), clients...)
+	err = spider.WithRetry(func(client chain.Clienter) error {
+		c, _ := client.(*ethereum.Client)
+		userAsset, err = handleUserAsset(chainName, *c, uid, address, tokenAddress, nowTime)
+		if err != nil {
+			return common.Retry(err)
+		}
+		return nil
+	})
+	return userAsset, err
+}
+
+func handleUserAsset(chainName string, client ethereum.Client, uid string, address string,
+	tokenAddress string, nowTime int64) ([]*data.UserAsset, error) {
+	getTokenInfo, err := biz.GetTokenInfo(nil, chainName, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		getTokenInfo, err = biz.GetTokenInfo(nil, chainName, tokenAddress)
+	}
+	if err != nil {
+		return nil, err
+	}
+	decimals := getTokenInfo.Decimals
+	symbol := getTokenInfo.Symbol
+	if tokenAddress == "" {
+		userAsset, err := doHandleUserAsset(chainName, client, uid, address, tokenAddress, int32(decimals), symbol, nowTime)
+		return []*data.UserAsset{userAsset}, err
+	}
+
+	return doHandleUserTokenAsset(chainName, client, uid, address, map[string]int{tokenAddress: int(decimals)}, map[string]string{tokenAddress: symbol}, nowTime)
+}
+
+func doHandleUserAsset(chainName string, client ethereum.Client, uid string, address string,
+	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	if address == "" || uid == "" {
+		return nil, nil
+	}
+
+	balance, err := client.GetBalance(address)
+	if err != nil {
+		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		return nil, err
+	}
+
+	var userAsset = &data.UserAsset{
+		ChainName:    chainName,
+		Uid:          uid,
+		Address:      address,
+		TokenAddress: tokenAddress,
+		Balance:      balance,
+		Decimals:     decimals,
+		Symbol:       symbol,
+		CreatedAt:    nowTime,
+		UpdatedAt:    nowTime,
+	}
+	return userAsset, nil
+}
+
+func doHandleUserTokenAsset(chainName string, client ethereum.Client, uid string, address string,
+	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
+
+	var userAssets []*data.UserAsset
+	balanceList, err := client.BatchTokenBalance(address, tokenDecimalsMap)
+	if err != nil {
+		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
+		return nil, err
+	}
+	for tokenAddress, balancei := range balanceList {
+		balance := fmt.Sprintf("%v", balancei)
+		decimals := int32(tokenDecimalsMap[tokenAddress])
+		symbol := tokenSymbolMap[tokenAddress]
+
+		var userAsset = &data.UserAsset{
+			ChainName:    chainName,
+			Uid:          uid,
+			Address:      address,
+			TokenAddress: tokenAddress,
+			Balance:      balance,
+			Decimals:     decimals,
+			Symbol:       symbol,
+			CreatedAt:    nowTime,
+			UpdatedAt:    nowTime,
+		}
+		userAssets = append(userAssets, userAsset)
+	}
+	return userAssets, nil
+}
+
+func GetStcBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
+	nowTime := time.Now().Unix()
+	client := starcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0])
+	userAsset, err := handleStcUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		userAsset, err = handleStcUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
+	}
+	return userAsset, err
+}
+
+func handleStcUserAsset(chainName string, client starcoin.Client, uid string, address string,
+	tokenAddress string, nowTime int64) (*data.UserAsset, error) {
+	getTokenInfo, err := biz.GetTokenInfo(nil, chainName, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		getTokenInfo, err = biz.GetTokenInfo(nil, chainName, tokenAddress)
+	}
+	if err != nil {
+		return nil, err
+	}
+	decimals := getTokenInfo.Decimals
+	symbol := getTokenInfo.Symbol
+	if tokenAddress == starcoin.STC_CODE {
+		tokenAddress = ""
+	}
+	userAsset, err := doHandleStcUserAsset(chainName, client, uid, address, tokenAddress, int32(decimals), symbol, nowTime)
+	return userAsset, err
+}
+
+func doHandleStcUserAsset(chainName string, client starcoin.Client, uid string, address string,
+	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	if address == "" || uid == "" {
+		return nil, nil
+	}
+
+	var balance string
+	var err error
+	if tokenAddress == starcoin.STC_CODE || tokenAddress == "" {
+		balance, err = client.GetBalance(address)
+	} else if tokenAddress != starcoin.STC_CODE && tokenAddress != "" {
+		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
+	}
+	if err != nil {
+		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		return nil, err
+	}
+
+	var userAsset = &data.UserAsset{
+		ChainName:    chainName,
+		Uid:          uid,
+		Address:      address,
+		TokenAddress: tokenAddress,
+		Balance:      balance,
+		Decimals:     decimals,
+		Symbol:       symbol,
+		CreatedAt:    nowTime,
+		UpdatedAt:    nowTime,
+	}
+	return userAsset, nil
+}
+
+func GetTrxBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
+	nowTime := time.Now().Unix()
+	client := tron.NewClient("https://api.tronstack.io")
+	userAsset, err := handleTrxUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		userAsset, err = handleTrxUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
+	}
+	return userAsset, err
+}
+
+func handleTrxUserAsset(chainName string, client tron.Client, uid string, address string,
+	tokenAddress string, nowTime int64) (*data.UserAsset, error) {
+	getTokenInfo, err := biz.GetTokenInfo(nil, chainName, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		getTokenInfo, err = biz.GetTokenInfo(nil, chainName, tokenAddress)
+	}
+	if err != nil {
+		return nil, err
+	}
+	decimals := getTokenInfo.Decimals
+	symbol := getTokenInfo.Symbol
+	userAsset, err := doHandleTrxUserAsset(chainName, client, uid, address, tokenAddress, int32(decimals), symbol, nowTime)
+	return userAsset, err
+}
+
+func doHandleTrxUserAsset(chainName string, client tron.Client, uid string, address string,
+	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	if address == "" || uid == "" {
+		return nil, nil
+	}
+
+	var balance string
+	var err error
+	if tokenAddress == "" {
+		balance, err = client.GetBalance(address)
+	} else if tokenAddress != "" {
+		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
+	}
+	if err != nil {
+		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		return nil, err
+	}
+
+	var userAsset = &data.UserAsset{
+		ChainName:    chainName,
+		Uid:          uid,
+		Address:      address,
+		TokenAddress: tokenAddress,
+		Balance:      balance,
+		Decimals:     decimals,
+		Symbol:       symbol,
+		CreatedAt:    nowTime,
+		UpdatedAt:    nowTime,
+	}
+	return userAsset, nil
+}
+
+func GetBtcBalance(chainName string, uid string, address string) (*data.UserAsset, error) {
+	nowTime := time.Now().Unix()
+	client := bitcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0], chainName)
+	userAsset, err := handleBtcUserAsset(chainName, client, uid, address, nowTime)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		userAsset, err = handleBtcUserAsset(chainName, client, uid, address, nowTime)
+	}
+	return userAsset, err
+}
+
+func handleBtcUserAsset(chainName string, client bitcoin.Client, uid string, address string,
+	nowTime int64) (*data.UserAsset, error) {
+	decimals := 8
+	symbol := "BTC"
+	userAsset, err := doHandleBtcUserAsset(chainName, client, uid, address, int32(decimals), symbol, nowTime)
+	return userAsset, err
+}
+
+func doHandleBtcUserAsset(chainName string, client bitcoin.Client, uid string, address string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	if address == "" || uid == "" {
+		return nil, nil
+	}
+
+	balance, err := client.GetBalance(address)
+	if err != nil {
+		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("error", err))
+		return nil, err
+	}
+
+	var userAsset = &data.UserAsset{
+		ChainName: chainName,
+		Uid:       uid,
+		Address:   address,
+		Balance:   balance,
+		Decimals:  decimals,
+		Symbol:    symbol,
+		CreatedAt: nowTime,
+		UpdatedAt: nowTime,
+	}
+	return userAsset, nil
 }

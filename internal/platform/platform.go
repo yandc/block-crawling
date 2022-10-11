@@ -46,15 +46,18 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 	}
 
 	var PlatInfos []*conf.PlatInfo
+	var chainNameType = make(map[string]string)
 	for _, value := range c {
 		PlatInfos = append(PlatInfos, value)
 
 		platform := GetPlatform(value)
 		Platforms = append(Platforms, platform)
 
+		chainNameType[value.Chain] = value.Type
 		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
 	}
 	biz.PlatInfos = PlatInfos
+	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
 	DynamicCreateTable(PlatInfos)
 }

@@ -305,8 +305,11 @@ func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map
 	for index, b := range be {
 		token := tokenAddrs[index]
 		hexAmount := b.Result.(*string)
-		bi := new(big.Int)
-		bi.SetBytes(common.FromHex(*hexAmount))
+		newHexAmount := *hexAmount
+		if len(newHexAmount) > 66 {
+			newHexAmount = newHexAmount[0:66]
+		}
+		bi := new(big.Int).SetBytes(common.FromHex(newHexAmount))
 		var balance string
 		if tokenMap[token] == 0 {
 			balance = bi.String()

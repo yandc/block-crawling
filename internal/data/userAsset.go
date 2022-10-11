@@ -4,6 +4,7 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/common"
 	"block-crawling/internal/log"
+	"block-crawling/internal/utils"
 	"context"
 	"fmt"
 	"gorm.io/gorm"
@@ -41,7 +42,8 @@ type UserAssetRepo interface {
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
-	PageList(context.Context, *pb.PageListRequest) ([]*UserAsset, int64, error)
+	PageList(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, int64, error)
+	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
 }
 
@@ -201,87 +203,36 @@ func (r *UserAssetRepoImpl) ListAll(ctx context.Context) ([]*UserAsset, error) {
 	return userAssetList, nil
 }
 
-func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListRequest) ([]*UserAsset, int64, error) {
+func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetRequest) ([]*UserAsset, int64, error) {
 	var userAssetList []*UserAsset
 	var total int64
-	db := r.gormDB.WithContext(ctx)
+	db := r.gormDB.WithContext(ctx).Table("user_asset")
 
-	/*if req.FromUid != "" || len(req.FromAddressList) > 0 || req.ToUid != "" || len(req.ToAddressList) > 0 {
-		if req.FromUid == "" && len(req.FromAddressList) == 0 {
-			if req.ToUid != "" {
-				db = db.Where("to_uid = ?", req.ToUid)
-			}
-			if len(req.ToAddressList) > 0 {
-				db = db.Where("to_address in(?)", req.ToAddressList)
-			}
-		} else if req.ToUid == "" && len(req.ToAddressList) == 0 {
-			if req.FromUid != "" {
-				db = db.Where("from_uid = ?", req.FromUid)
-			}
-			if len(req.FromAddressList) > 0 {
-				db = db.Where("from_address in(?)", req.FromAddressList)
-			}
-		} else {
-			fromToSql := "(("
-
-			if req.FromUid != "" && len(req.FromAddressList) > 0 {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += " and from_address in(" + addressLists + ")"
-			} else if req.FromUid != "" {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-			} else if len(req.FromAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += "from_address in(" + addressLists + ")"
-			}
-
-			fromToSql += ") or ("
-
-			if req.ToUid != "" && len(req.ToAddressList) > 0 {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += " and to_address in(" + addressLists + ")"
-			} else if req.ToUid != "" {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-			} else if len(req.ToAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += "to_address in(" + addressLists + ")"
-			}
-
-			fromToSql += "))"
-			db = db.Where(fromToSql)
-		}
-	}*/
-	if req.FromUid != "" {
-		db = db.Where("from_uid = ?", req.FromUid)
-	}
-	if req.ToUid != "" {
-		db = db.Where("to_uid = ?", req.ToUid)
-	}
-	if len(req.FromAddressList) > 0 {
-		db = db.Where("from_address in(?)", req.FromAddressList)
-	}
-	if len(req.ToAddressList) > 0 {
-		db = db.Where("to_address in(?)", req.ToAddressList)
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
 	}
 	if req.Uid != "" {
-		db = db.Where("(from_uid = ? or to_uid = ?)", req.Uid, req.Uid)
+		db = db.Where("uid = ?", req.Uid)
 	}
-	if req.Address != "" {
-		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
+	if len(req.AddressList) > 0 {
+		db = db.Where("address in(?)", req.AddressList)
 	}
-	/*if req.ContractAddress != "" {
-		db = db.Where("contract_address = ?", req.ContractAddress)
-	}*/
-	if len(req.StatusList) > 0 {
-		db = db.Where("status in(?)", req.StatusList)
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
 	}
-	/*if len(req.TransactionTypeList) > 0 {
-		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
-	}*/
-	if len(req.TransactionHashList) > 0 {
-		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			db = db.Where("(balance is null or balance = '' or balance = '0')")
+		} else if req.AmountType == 2 {
+			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
 	}
+
+	if req.Total {
+		// 统计总记录数
+		db.Count(&total)
+	}
+
 	if req.DataDirection > 0 {
 		dataDirection := ">"
 		if req.DataDirection == 1 {
@@ -293,11 +244,6 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListReques
 			orderBys := strings.Split(req.OrderBy, " ")
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
-	}
-
-	if req.Total {
-		// 统计总记录数
-		db.Count(&total)
 	}
 
 	db = db.Order(req.OrderBy)
@@ -318,6 +264,44 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListReques
 		return nil, 0, err
 	}
 	return userAssetList, total, nil
+}
+
+func (r *UserAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageListAssetRequest) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+
+	sqlStr := "select chain_name, token_address, sum(cast(balance as numeric)) as balance " +
+		"from user_asset " +
+		"where 1=1 "
+	if req.ChainName != "" {
+		sqlStr += " and chain_name = '" + req.ChainName + "'"
+	}
+	if req.Uid != "" {
+		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if len(req.AddressList) > 0 {
+		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
+		sqlStr += " and address in (" + addressList + ")"
+	}
+	if len(req.TokenAddressList) > 0 {
+		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
+		sqlStr += " and token_address in (" + tokenAddressList + ")"
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			sqlStr += " and (balance is null or balance = '' or balance = '0')"
+		} else if req.AmountType == 2 {
+			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+	sqlStr += " group by chain_name, token_address"
+
+	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query userAsset failed", err)
+		return nil, err
+	}
+	return userAssetList, nil
 }
 
 func (r *UserAssetRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
