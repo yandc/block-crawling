@@ -2,6 +2,7 @@ package main
 
 import (
 	"block-crawling/internal/conf"
+	"block-crawling/internal/platform"
 	"flag"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -37,18 +38,17 @@ func main() {
 		panic(err)
 	}
 
-
 	var bc conf.Bootstrap
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-	cleanup, err := wireApp(bc.Logger,bc.Data, bc.App,bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest)
+	cleanup, err := wireApp(bc.Logger, bc.Data, bc.App, bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest)
 	if err != nil {
 		panic(err)
 	}
 	defer cleanup()
 	//platform.MigrateRecord()
 	//platform.DappReset()
-
+	platform.HandleAsset()
 
 }

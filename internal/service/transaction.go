@@ -95,6 +95,14 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 	return result, err
 }
 
+func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	if req.Uid == "" && len(req.AddressList) == 0 {
+		return nil, errors.New("uid or addressList is required")
+	}
+	result, err := s.ts.PageListAsset(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")

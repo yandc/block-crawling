@@ -202,12 +202,14 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	}
 	tokenInfoMap := paseDataJson["token"]
 	tokenInfo := tokenInfoMap.(map[string]interface{})
+	address := tokenInfo["address"].(string)
 	decimals := int32(tokenInfo["decimals"].(float64))
 	symbol := tokenInfo["symbol"].(string)
-	if symbol == "" {
-		platInfo := PlatInfoMap[chainName]
-		decimals = platInfo.Decimal
-		symbol = platInfo.Symbol
+	if address == "" {
+		if platInfo, ok := PlatInfoMap[chainName]; ok {
+			decimals = platInfo.Decimal
+			symbol = platInfo.Symbol
+		}
 	}
 	return decimals, symbol, nil
 }

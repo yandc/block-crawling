@@ -88,7 +88,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		}
 		clients = append(clients, c)
 	}
-	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
+	spider := chain.NewBlockSpider(NewStateStore(chainName), clients...)
 	spider.WatchDetector(&detectorZapWatcher{
 		chainName: chainName,
 	})

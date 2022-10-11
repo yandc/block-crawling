@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -51,7 +52,7 @@ func GetBlockByNumber(number int, index int, c *base.Client) (types.Dogecoin, er
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &block)
 
 	if strings.Contains(fmt.Sprintf("%s", err), "504") {
-		preHeight := number -1
+		preHeight := number - 1
 		redisPreBlockHash, err := data.RedisClient.Get(biz.BLOCK_HASH_KEY + c.ChainName + ":" + strconv.Itoa(preHeight)).Result()
 		for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
@@ -70,8 +71,8 @@ func GetBlockByNumber(number int, index int, c *base.Client) (types.Dogecoin, er
 					alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中区块hash失败", c.ChainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(c.ChainName+"扫块，从数据库中获取区块hash失败", zap.Any("current", number),zap.Any("error", err))
-					return block,err
+					log.Error(c.ChainName+"扫块，从数据库中获取区块hash失败", zap.Any("current", number), zap.Any("error", err))
+					return block, err
 				}
 				if lastRecord == nil {
 					log.Error(c.ChainName+"扫块，从数据库中获取的区块hash为空", zap.Any("current", number))
@@ -85,7 +86,7 @@ func GetBlockByNumber(number int, index int, c *base.Client) (types.Dogecoin, er
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(c.ChainName+"扫块，从redis中获取区块hash失败", zap.Any("current", number), zap.Any("error", err))
-				return block,err
+				return block, err
 			}
 		}
 		block.ParentId = redisPreBlockHash
@@ -101,7 +102,10 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &balances)
 	if err == nil {
 		if len(balances) > 0 {
-			return balances[0].ConfirmedBalance, nil
+			balanceInfo := balances[0]
+			balance := balanceInfo.ConfirmedBalance
+			balance = utils.StringDecimals(balance, balanceInfo.Currency.Decimals)
+			return balance, nil
 		}
 	}
 	return "", err

@@ -2450,6 +2450,17 @@ func (m *PageListAssetRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	if _, ok := _PageListAssetRequest_AmountType_InLookup[m.GetAmountType()]; !ok {
+		err := PageListAssetRequestValidationError{
+			field:  "AmountType",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	// no validation rules for OrderBy
 
 	if _, ok := _PageListAssetRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
@@ -2581,6 +2592,12 @@ var _ interface {
 var _PageListAssetRequest_Currency_InLookup = map[string]struct{}{
 	"CNY": {},
 	"USD": {},
+}
+
+var _PageListAssetRequest_AmountType_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
 }
 
 var _PageListAssetRequest_DataDirection_InLookup = map[int32]struct{}{
@@ -2751,6 +2768,8 @@ func (m *AssetResponse) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for Id
+
 	// no validation rules for ChainName
 
 	// no validation rules for Uid
@@ -2759,13 +2778,19 @@ func (m *AssetResponse) validate(all bool) error {
 
 	// no validation rules for TokenAddress
 
-	// no validation rules for Amount
+	// no validation rules for Balance
 
 	// no validation rules for Decimals
 
 	// no validation rules for Symbol
 
 	// no validation rules for CurrencyAmount
+
+	// no validation rules for CreatedAt
+
+	// no validation rules for UpdatedAt
+
+	// no validation rules for Cursor
 
 	if len(errors) > 0 {
 		return AssetResponseMultiError(errors)

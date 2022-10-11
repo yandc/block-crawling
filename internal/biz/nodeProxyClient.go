@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -14,8 +15,12 @@ import (
 
 var TokenInfoMap = make(map[string]types.TokenInfo)
 var lock = common.NewSyncronized(0)
+var mutex = new(sync.Mutex)
 
 func GetTokenPrice(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
+	if strings.HasSuffix(chainName, "TEST") {
+		return "", nil
+	}
 	var getPriceKey string
 	var handler string
 	if platInfo, ok := PlatInfoMap[chainName]; ok {
@@ -74,6 +79,9 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 	var resultMap = make(map[string]map[string]string)
 
 	for chainName, tokenAddressList := range chainNameTokenAddressMap {
+		if strings.HasSuffix(chainName, "TEST") {
+			continue
+		}
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			getPriceKey := platInfo.GetPriceKey
 			handler := platInfo.Handler
@@ -168,7 +176,9 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 			symbol := platInfo.Symbol
 			tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(decimal), Symbol: symbol}
 		}
+		mutex.Lock()
 		TokenInfoMap[key] = tokenInfo
+		mutex.Unlock()
 		return tokenInfo, nil
 	}
 
@@ -198,7 +208,9 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	if len(data) > 0 {
 		respData := data[0]
 		tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(respData.Decimals), Symbol: respData.Symbol}
+		mutex.Lock()
 		TokenInfoMap[key] = tokenInfo
+		mutex.Unlock()
 		return tokenInfo, nil
 	}
 	return tokenInfo, nil
