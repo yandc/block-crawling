@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/solana"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
@@ -78,6 +79,8 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 			data.GormlDb.Table(chain).AutoMigrate(&data.AptTransactionRecord{})
 		case biz.SUI:
 			data.GormlDb.Table(chain).AutoMigrate(&data.SuiTransactionRecord{})
+		case biz.SOLANA:
+			data.GormlDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
 		}
 	}
 }
@@ -105,6 +108,8 @@ func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
 		return aptos.Init(coins.Aptos().Handle, value, nodeURL, height)
 	case biz.SUI:
 		return sui.Init(coins.Sui().Handle, value, nodeURL, height)
+	case biz.SOLANA:
+		return solana.Init(coins.Solana().Handle, value, nodeURL, height)
 	}
 	return nil
 }

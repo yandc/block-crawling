@@ -34,14 +34,13 @@ const (
 )
 
 const (
-	STC   = "STC"
-	BTC   = "BTC"
-	EVM   = "EVM"
-	TVM   = "TVM"
-	DOGE  = "UTXO"
-	LTC   = "UTXO"
-	APTOS = "APTOS"
-	SUI   = "SUI"
+	STC    = "STC"
+	BTC    = "BTC"
+	EVM    = "EVM"
+	TVM    = "TVM"
+	APTOS  = "APTOS"
+	SUI    = "SUI"
+	SOLANA = "SOL"
 )
 
 const (
