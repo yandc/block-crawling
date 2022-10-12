@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/platform/bitcoin/doge"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
@@ -29,6 +30,7 @@ const SUCCESS_STATUS = "completed"
 var errIrrationalHeight = errors.New("irrational height, zero or less than zero")
 
 type Client struct {
+	*common.NodeRecoverIn
 	nodeURL        string
 	chainName      string
 	DispatchClient base.Client
@@ -43,6 +45,9 @@ func NewClient(nodeUrl string, chainName string) Client {
 	}
 	r.ChainName = chainName
 	return Client{
+		NodeRecoverIn: &common.NodeRecoverIn{
+			ChainName: chainName,
+		},
 		nodeURL:        nodeUrl,
 		chainName:      chainName,
 		DispatchClient: r,
@@ -507,7 +512,7 @@ func (c *Client) GetBTCBlockByNumber(number int) (types.BTCBlockerInfo, error) {
 				amount := valueNum.Mul(utxo)
 				vinAmount = vinAmount.Add(amount)
 				val := amount.IntPart()
-				pAdds :=pvout.ScriptPubKey.Addresses
+				pAdds := pvout.ScriptPubKey.Addresses
 				var pAddr string
 				if len(pAdds) > 0 {
 					pAddr = pAdds[0]

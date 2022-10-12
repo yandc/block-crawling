@@ -456,10 +456,12 @@ func (h *txDecoder) getBlockHashFromReceipt(client *Client, transaction *types2.
 	return "", nil
 }
 
-func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawReceipt interface{}) error {
+func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) error {
 	client := c.(*Client)
 
-	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
+	rawReceipt := txByHash.Raw
+
+	meta, err := pCommon.AttemptMatchUser(h.chainName, txByHash)
 	if err != nil {
 		return err
 	}
@@ -470,9 +472,9 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawRecei
 			"PENDING TX COULD NOT MATCH USER",
 			meta.WrapFields(
 				zap.String("chainName", h.chainName),
-				zap.Uint64("height", tx.BlockNumber),
+				zap.Uint64("height", txByHash.BlockNumber),
 				zap.String("nodeUrl", client.URL()),
-				zap.String("txHash", tx.Hash),
+				zap.String("txHash", txByHash.Hash),
 			)...,
 		)
 		return nil
@@ -482,14 +484,14 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawRecei
 		"PENDING TX HAS SEALED",
 		meta.WrapFields(
 			zap.String("chainName", h.chainName),
-			zap.Uint64("height", tx.BlockNumber),
+			zap.Uint64("height", txByHash.BlockNumber),
 			zap.String("nodeUrl", client.URL()),
-			zap.String("txHash", tx.Hash),
+			zap.String("txHash", txByHash.Hash),
 		)...,
 	)
 
 	var block *chain.Block
-	curHeight := tx.BlockNumber
+	curHeight := txByHash.BlockNumber
 	if blk, ok := h.blocksStore[curHeight]; ok {
 		block = blk
 	} else {
@@ -502,10 +504,10 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawRecei
 	}
 
 	for _, blkTx := range block.Transactions {
-		if tx.Hash == blkTx.Hash {
+		if txByHash.Hash == blkTx.Hash {
 			job := &txHandleJob{
 				block:       block,
-				tx:          tx,
+				tx:          txByHash,
 				transaction: blkTx.Raw.(*types2.Transaction),
 				meta:        meta,
 				receipt:     rawReceipt.(*Receipt),

@@ -132,11 +132,20 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 	}
 
 	if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
-		log.Error(
-			"ERROR OCCURRED WHILE HANDLING BLOCK",
-			zap.String("chainName", h.chainName),
-			zap.Error(err),
-		)
+		if isNonstandardEVM(h.chainName) && err == ethereum.NotFound {
+			// Use Info to avoid stacktrace.
+			log.Info(
+				"SOMETHING MISSED IN NONSTANDARD EVM CHAIN, WILL TRY LATER",
+				zap.String("chainName", h.chainName),
+				zap.Error(err),
+			)
+		} else {
+			log.Error(
+				"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
+				zap.String("chainName", h.chainName),
+				zap.Error(err),
+			)
+		}
 		return false
 	}
 	log.Warn(

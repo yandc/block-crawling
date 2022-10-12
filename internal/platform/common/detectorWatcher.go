@@ -1,7 +1,10 @@
 package common
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/log"
+	"errors"
+	"fmt"
 	"sync"
 
 	"gitlab.bixin.com/mili/node-driver/detector"
@@ -49,4 +52,26 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 		zap.String("next", next.URL()),
 		zap.Strings("nodeUrls", d.urls),
 	)
+}
+
+// NodeRecoverIn common recover to embed into Node implementation.
+type NodeRecoverIn struct {
+	ChainName string
+}
+
+// Recover handle panic.
+func (p *NodeRecoverIn) Recover(r interface{}) (err error) {
+	if e, ok := r.(error); ok {
+		log.Errore("IndexBlock error, chainName:"+p.ChainName, e)
+		err = e
+	} else {
+		err = errors.New(fmt.Sprintf("%s", err))
+		log.Errore("IndexBlock panic, chainName:"+p.ChainName, err)
+	}
+
+	// 程序出错 接入lark报警
+	alarmMsg := fmt.Sprintf("请注意：%s链爬块失败, error：%s", p.ChainName, fmt.Sprintf("%s", r))
+	alarmOpts := biz.WithMsgLevel("FATAL")
+	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	return
 }
