@@ -197,9 +197,14 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 				dappInfo = apt.DappData
 			}
 		case SUI:
-			apt, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
-			if err == nil && apt != nil {
-				dappInfo = apt.DappData
+			sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && sui != nil {
+				dappInfo = sui.DappData
+			}
+		case SOLANA:
+			sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
+			if err == nil && sol != nil {
+				dappInfo = sol.DappData
 			}
 		}
 
@@ -428,7 +433,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 
-		stcRecord := &data.AptTransactionRecord{
+		aptRecord := &data.AptTransactionRecord{
 			BlockHash:   pbb.BlockHash,
 			BlockNumber: int(pbb.BlockNumber),
 			Nonce:       int64(dbNonce),
@@ -454,14 +459,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
-		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
+		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), aptRecord)
 		if result == 1 {
 			key := pendingNonceKey + nonce
 			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
-		stcRecord := &data.SuiTransactionRecord{
+		suiRecord := &data.SuiTransactionRecord{
 			//TransactionVersion: int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
@@ -483,7 +488,31 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
-		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
+		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), suiRecord)
+	case SOLANA:
+		solRecord := &data.SolTransactionRecord{
+			//SlotNumber:   int(pbb.BlockNumber),
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			Data:            pbb.Data,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+
+		result, err = data.SolTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), solRecord)
 	}
 
 	flag := result == 1
@@ -557,6 +586,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
+	case SOLANA:
+		var recordList []*data.SolTransactionRecord
+		recordList, total, err = data.SolTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
 	}
 
 	if err == nil {
@@ -609,6 +644,8 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 				case SUI:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
+				case SOLANA:
+					feeData = nil
 				default:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
@@ -787,6 +824,16 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
 					r.Cursor = sui.TxTime
+					r.Amount = value.Amount
+					trs = append(trs, r)
+				}
+			case SOLANA:
+				sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
+				if err == nil && sol != nil {
+					var r *pb.TransactionRecord
+					utils.CopyProperties(sol, &r)
+					r.ChainName = value.ChainName
+					r.Cursor = sol.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}

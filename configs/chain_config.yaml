@@ -439,6 +439,30 @@ platform:
     - https://api.trongrid.io
     symbol: TRX
     type: TVM
+  Solana:
+    blockExplorerAddrUrl: https://solscan.io/account/
+    blockExplorerTxUrl: https://solscan.io/tx/
+    blockExplorerUrl: https://solscan.io/
+    chain: Solana
+    chainId: 0
+    coinId: 501
+    decimal: 9
+    fullName: Solana
+    getPriceKey: solana
+    handler: solana
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
+    nativeCurrency: SOL
+    netType: main
+    proxyCacheTime: 15
+    rpcURL:
+      - https://ssc-dao.genesysgo.net
+      - https://api.mainnet-beta.solana.com
+      - https://solana-api.projectserum.com
+    symbol: Solana
+    type: SOL
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 100
 
 platformTest:
   AptosTEST:
@@ -719,3 +743,26 @@ platformTest:
     - https://api.shasta.trongrid.io
     symbol: TRX
     type: TVM
+  SolanaTEST:
+    blockExplorerAddrUrl: https://solscan.io/account/
+    blockExplorerTxUrl: https://solscan.io/tx/
+    blockExplorerUrl: https://solscan.io/
+    chain: SolanaTEST
+    chainId: 0
+    coinId: 501
+    decimal: 9
+    fullName: Solana Test Net
+    getPriceKey: solana
+    handler: solana
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
+    nativeCurrency: SOL
+    netType: test
+    proxyCacheTime: 15
+    rpcURL:
+      - https://api.testnet.solana.com
+    symbol: Solana
+    type: SOL
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 100
+

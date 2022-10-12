@@ -84,6 +84,7 @@ var HandleMap = map[string]uint{
 	"tron":     TRON,
 	"aptos":    APTOS,
 	"sui":      SUI,
+	"solana":   SOLANA,
 }
 
 var Coins = map[uint]Coin{
