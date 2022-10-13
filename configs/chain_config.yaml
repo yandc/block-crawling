@@ -610,11 +610,11 @@ platformTest:
 #    type: EVM
 #    safelyConcurrentBlockDelta: 30
 #    maxConcurrency: 5
-  ETHGoerli:
+  ETHGoerliTEST:
     blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
     blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
     blockExplorerUrl: https://ropsten.etherscan.io/
-    chain: ETHGoerli
+    chain: ETHGoerliTEST
     chainId: 3
     coinId: 60
     decimal: 18
