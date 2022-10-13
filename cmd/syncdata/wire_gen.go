@@ -34,6 +34,7 @@ func wireApp(confLogger *conf.Logger, confData *conf.Data, confApp *conf.App, co
 	data.NewStcTransactionRecordRepo(gormDB)
 	data.NewTrxTransactionRecordRepo(gormDB)
 	data.NewDappApproveRecordRepo(gormDB)
+	data.NewUtxoUnspentRecordRepo(gormDB)
 	data.NewUserAssetRepo(gormDB)
 
 	return func() {

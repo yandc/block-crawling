@@ -35,6 +35,374 @@ var (
 	_ = sort.Sort
 )
 
+// Validate checks the field values on UnspentReq with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *UnspentReq) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on UnspentReq with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in UnspentReqMultiError, or
+// nil if none found.
+func (m *UnspentReq) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *UnspentReq) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for IsUnspent
+
+	// no validation rules for Uid
+
+	// no validation rules for Address
+
+	// no validation rules for TxHash
+
+	if len(errors) > 0 {
+		return UnspentReqMultiError(errors)
+	}
+
+	return nil
+}
+
+// UnspentReqMultiError is an error wrapping multiple validation errors
+// returned by UnspentReq.ValidateAll() if the designated constraints aren't met.
+type UnspentReqMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m UnspentReqMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m UnspentReqMultiError) AllErrors() []error { return m }
+
+// UnspentReqValidationError is the validation error returned by
+// UnspentReq.Validate if the designated constraints aren't met.
+type UnspentReqValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UnspentReqValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UnspentReqValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UnspentReqValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UnspentReqValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UnspentReqValidationError) ErrorName() string { return "UnspentReqValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UnspentReqValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUnspentReq.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UnspentReqValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UnspentReqValidationError{}
+
+// Validate checks the field values on UnspentResponse with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *UnspentResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on UnspentResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// UnspentResponseMultiError, or nil if none found.
+func (m *UnspentResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *UnspentResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Ok
+
+	for idx, item := range m.GetData() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UnspentResponseValidationError{
+						field:  fmt.Sprintf("Data[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UnspentResponseValidationError{
+						field:  fmt.Sprintf("Data[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UnspentResponseValidationError{
+					field:  fmt.Sprintf("Data[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return UnspentResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// UnspentResponseMultiError is an error wrapping multiple validation errors
+// returned by UnspentResponse.ValidateAll() if the designated constraints
+// aren't met.
+type UnspentResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m UnspentResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m UnspentResponseMultiError) AllErrors() []error { return m }
+
+// UnspentResponseValidationError is the validation error returned by
+// UnspentResponse.Validate if the designated constraints aren't met.
+type UnspentResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UnspentResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UnspentResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UnspentResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UnspentResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UnspentResponseValidationError) ErrorName() string { return "UnspentResponseValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UnspentResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUnspentResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UnspentResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UnspentResponseValidationError{}
+
+// Validate checks the field values on UnspentList with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *UnspentList) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on UnspentList with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in UnspentListMultiError, or
+// nil if none found.
+func (m *UnspentList) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *UnspentList) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for Uid
+
+	// no validation rules for Hash
+
+	// no validation rules for Index
+
+	// no validation rules for ChainName
+
+	// no validation rules for Address
+
+	// no validation rules for Script
+
+	// no validation rules for Unspent
+
+	// no validation rules for Amount
+
+	// no validation rules for TxTime
+
+	// no validation rules for CreatedAt
+
+	// no validation rules for UpdatedAt
+
+	if len(errors) > 0 {
+		return UnspentListMultiError(errors)
+	}
+
+	return nil
+}
+
+// UnspentListMultiError is an error wrapping multiple validation errors
+// returned by UnspentList.ValidateAll() if the designated constraints aren't met.
+type UnspentListMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m UnspentListMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m UnspentListMultiError) AllErrors() []error { return m }
+
+// UnspentListValidationError is the validation error returned by
+// UnspentList.Validate if the designated constraints aren't met.
+type UnspentListValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UnspentListValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UnspentListValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UnspentListValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UnspentListValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UnspentListValidationError) ErrorName() string { return "UnspentListValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UnspentListValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUnspentList.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UnspentListValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UnspentListValidationError{}
+
 // Validate checks the field values on DappPageListReq with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.

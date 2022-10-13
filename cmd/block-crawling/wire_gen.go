@@ -44,6 +44,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, co
 	/*solTransactionRecordRepo := */ data.NewSolTransactionRecordRepo(gormDB)
 	data.NewDappApproveRecordRepo(gormDB)
 	data.NewUserAssetRepo(gormDB)
+	data.NewUtxoUnspentRecordRepo(gormDB)
 	data.NewTransactionStatisticRepo(gormDB)
 	bizLark := biz.NewLark(confLark)
 	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, bizLark, logLogger)

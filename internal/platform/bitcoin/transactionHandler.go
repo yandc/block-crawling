@@ -4,14 +4,22 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
+
+var urlMap = map[string]string{
+	"DOGE": "http://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@47.244.138.206:22555",
+	"BTC":  "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332",
+	"LTC":  "http://haotech:BFHGDCQHbaTZBvHJER4fyHy@47.75.184.192:9332",
+}
 
 func HandleRecord(chainName string, client Client, txRecords []*data.BtcTransactionRecord) {
 	defer func() {
@@ -32,6 +40,134 @@ func HandleRecord(chainName string, client Client, txRecords []*data.BtcTransact
 
 	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
+	go UnspentTx(chainName, client, txRecords)
+}
+
+func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("unspentTx error, chainName:"+chainName, e)
+			} else {
+				log.Errore("unspentTx panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链更用户utxo失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	baseClient := client.DispatchClient
+	baseClient.StreamURL = urlMap[chainName]
+	p1 := decimal.NewFromInt(100000000)
+
+	for _, record := range txRecords {
+
+		if record.Status != biz.SUCCESS {
+			continue
+		}
+
+		ret := strings.Split(record.TransactionHash, "#")[0]
+
+		txRecord, err := baseClient.GetTransactionsByTXHash(ret)
+		log.Info(chainName, zap.Any("ydUTXO", txRecord))
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			txRecord, err = baseClient.GetTransactionsByTXHash(ret)
+		}
+		if txRecord.Error != nil {
+			log.Error(chainName, zap.Any("err", txRecord.Error))
+			continue
+		}
+		for _, vout := range txRecord.Result.Vout {
+			//增加 未消费的utxo
+			var fromAdd string
+
+			if chainName == "BTC" {
+				fromAdd = vout.ScriptPubKey.Address
+			}
+
+			if chainName == "LTC" || chainName == "DOGE" {
+				if len(vout.ScriptPubKey.Addresses) > 0 {
+					fromAdd = vout.ScriptPubKey.Addresses[0]
+				}
+			}
+			fromUid := ""
+			userMeta, err := pCommon.MatchUser(fromAdd, "", chainName)
+			if err == nil {
+				fromUid = userMeta.FromUid
+			}
+			if fromUid == "" {
+				continue
+			}
+			value := decimal.NewFromFloat(vout.Value)
+			var utxoUnspentRecord = &data.UtxoUnspentRecord{
+				Uid:       fromUid,
+				Hash:      record.TransactionHash,
+				N:         vout.N,
+				ChainName: chainName,
+				Address:   fromAdd,
+				Script:    vout.ScriptPubKey.Hex,
+				Unspent:   1, //1 未花费 2 已花费 联合索引
+				Amount:    value.Mul(p1).String(),
+				TxTime:    int64(txRecord.Result.Time),
+				UpdatedAt: time.Now().Unix(),
+			}
+			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+		}
+
+		//vin 消耗的utxo
+		for _, vin := range txRecord.Result.Vin {
+
+			txVinRecord, err1 := baseClient.GetTransactionsByTXHash(vin.Txid)
+			for i := 0; i < 10 && err1 != nil; i++ {
+				time.Sleep(time.Duration(i*5) * time.Second)
+				txVinRecord, err1 = baseClient.GetTransactionsByTXHash(vin.Txid)
+			}
+			if txVinRecord.Error != nil {
+				log.Error(chainName, zap.Any("err", txRecord.Error))
+				continue
+			}
+			// 角标
+			inVout := txVinRecord.Result.Vout[vin.Vout]
+			spentValue := decimal.NewFromFloat(inVout.Value)
+
+			var fromAdd string
+
+			if chainName == "BTC" {
+				fromAdd = inVout.ScriptPubKey.Address
+			}
+
+			if chainName == "LTC" || chainName == "DOGE" {
+				if len(inVout.ScriptPubKey.Addresses) > 0 {
+					fromAdd = inVout.ScriptPubKey.Addresses[0]
+				}
+			}
+
+			uid := ""
+			userMeta, err := pCommon.MatchUser(fromAdd, "", chainName)
+			if err == nil {
+				uid = userMeta.FromUid
+			}
+
+			var utxoUnspentRecord = &data.UtxoUnspentRecord{
+				Uid:       uid,
+				Hash:      vin.Txid,
+				N:         vin.Vout,
+				ChainName: chainName,
+				Address:   fromAdd,
+				Script:    inVout.ScriptPubKey.Hex,
+				Unspent:   2, //1 未花费 2 已花费 联合索引
+				Amount:    spentValue.Mul(p1).String(),
+				TxTime:    int64(txVinRecord.Result.Time),
+				UpdatedAt: time.Now().Unix(),
+			}
+			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+		}
+	}
 }
 
 func handleUserAsset(chainName string, client Client, txRecords []*data.BtcTransactionRecord) {

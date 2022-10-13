@@ -23,9 +23,9 @@ type Client struct {
 }
 
 var urlMap = map[string]string{
-	"https://api.blockcypher.com/v1/btc/main":  "https://blockstream.info/api",
-	"https://api.blockcypher.com/v1/btc/test3": "https://blockstream.info/testnet/api",
-	"https://api.bixin.com/v1/btc/main":        "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332",
+	"https://api.blockcypher.com/v1/btc/main":                     "https://blockstream.info/api",
+	"https://api.blockcypher.com/v1/btc/test3":                    "https://blockstream.info/testnet/api",
+	"http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332",
 }
 
 func NewClient(nodeUrl string) Client {
@@ -37,7 +37,7 @@ func NewClient(nodeUrl string) Client {
 }
 
 func GetBalance(address string, c *base.Client) (string, error) {
-	u, err := c.BuildURL("/addrs/"+address+"/balance", nil)
+	u, err := c.BuildURLBTC("/addrs/"+address+"/balance", "https://api.blockcypher.com/v1/btc/main", nil)
 	if err != nil {
 		return "", err
 	}

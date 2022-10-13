@@ -61,6 +61,7 @@ message App {
   bool scanAll = 2;
   string addr = 3;
   bool starScan = 4;
+  // Deprecated @ 2022-09-29
   repeated string dogeKey = 5;
   string target = 6;
   string source = 7;

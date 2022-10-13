@@ -11,6 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -18,9 +22,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func MigrateRecord() {
@@ -351,6 +352,20 @@ func DappReset() {
 			if e == nil && len(rs) > 0 {
 
 				biz.DappApproveFilter(key, rs)
+			}
+		}
+	}
+}
+
+func BtcReset() {
+	for key, platform := range biz.PlatInfoMap {
+		switch platform.Type {
+
+		case biz.BTC:
+			rs, e := data.BtcTransactionRecordRepoClient.ListAll(nil, biz.GetTalbeName(key))
+			if e == nil && len(rs) > 0 {
+				client := bitcoin.NewClient(platform.RpcURL[0], key)
+				bitcoin.UnspentTx(key, client, rs)
 			}
 		}
 	}

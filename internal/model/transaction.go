@@ -44,10 +44,11 @@ type BTCTX struct {
 			Value        float64 `json:"value"`
 			N            int     `json:"n"`
 			ScriptPubKey struct {
-				Asm     string `json:"asm"`
-				Hex     string `json:"hex"`
-				Address string `json:"address"`
-				Type    string `json:"type"`
+				Asm       string   `json:"asm"`
+				Hex       string   `json:"hex"`
+				Address   string   `json:"address"`
+				Addresses []string `json:"addresses"`
+				Type      string   `json:"type"`
 			} `json:"scriptPubKey"`
 		} `json:"vout"`
 		Hex           string `json:"hex"`
@@ -71,6 +72,11 @@ type BTCCount struct {
 	Error  interface{} `json:"error"`
 	Id     string      `json:"id"`
 }
+type UTXOBlockHash struct {
+	Result string      `json:"result"`
+	Error  interface{} `json:"error"`
+	Id     string      `json:"id"`
+}
 
 
 type MemoryPoolTX struct {
@@ -79,7 +85,7 @@ type MemoryPoolTX struct {
 	Id     string      `json:"id"`
 }
 
-type UTXOBlock struct {
+type BTCBlockInfo struct {
 	Result struct {
 		Hash              string  `json:"hash"`
 		Confirmations     int     `json:"confirmations"`
@@ -131,6 +137,105 @@ type UTXOBlock struct {
 			Hex string  `json:"hex"`
 			Fee float64 `json:"fee,omitempty"`
 		} `json:"tx"`
+	} `json:"result"`
+	Error interface{} `json:"error"`
+	Id    string      `json:"id"`
+}
+type UnSpent struct {
+	Result struct {
+		Bestblock     string  `json:"bestblock"`
+		Confirmations int     `json:"confirmations"`
+		Value         float64 `json:"value"`
+		ScriptPubKey  struct {
+			Asm     string `json:"asm"`
+			Hex     string `json:"hex"`
+			Address string `json:"address"`
+			Type    string `json:"type"`
+		} `json:"scriptPubKey"`
+		Coinbase bool `json:"coinbase"`
+	} `json:"result"`
+	Error interface{} `json:"error"`
+	Id    string      `json:"id"`
+}
+
+type DogeBlockInfo struct {
+	Result struct {
+		Hash          string   `json:"hash"`
+		Confirmations int      `json:"confirmations"`
+		Strippedsize  int      `json:"strippedsize"`
+		Size          int      `json:"size"`
+		Weight        int      `json:"weight"`
+		Height        int      `json:"height"`
+		Version       int      `json:"version"`
+		VersionHex    string   `json:"versionHex"`
+		Merkleroot    string   `json:"merkleroot"`
+		Tx            []string `json:"tx"`
+		Time          int      `json:"time"`
+		Mediantime    int      `json:"mediantime"`
+		Nonce         int      `json:"nonce"`
+		Bits          string   `json:"bits"`
+		Difficulty    float64  `json:"difficulty"`
+		Chainwork     string   `json:"chainwork"`
+		Auxpow        struct {
+			Tx struct {
+				Hex      string `json:"hex"`
+				Txid     string `json:"txid"`
+				Hash     string `json:"hash"`
+				Size     int    `json:"size"`
+				Vsize    int    `json:"vsize"`
+				Version  int    `json:"version"`
+				Locktime int    `json:"locktime"`
+				Vin      []struct {
+					Coinbase string `json:"coinbase"`
+					Sequence int64  `json:"sequence"`
+				} `json:"vin"`
+				Vout []struct {
+					Value        float64 `json:"value"`
+					N            int     `json:"n"`
+					ScriptPubKey struct {
+						Asm       string   `json:"asm"`
+						Hex       string   `json:"hex"`
+						ReqSigs   int      `json:"reqSigs,omitempty"`
+						Type      string   `json:"type"`
+						Addresses []string `json:"addresses,omitempty"`
+					} `json:"scriptPubKey"`
+				} `json:"vout"`
+				Blockhash string `json:"blockhash"`
+			} `json:"tx"`
+			Index             int      `json:"index"`
+			Chainindex        int      `json:"chainindex"`
+			Merklebranch      []string `json:"merklebranch"`
+			Chainmerklebranch []string `json:"chainmerklebranch"`
+			Parentblock       string   `json:"parentblock"`
+		} `json:"auxpow"`
+		Previousblockhash string `json:"previousblockhash"`
+		Nextblockhash     string `json:"nextblockhash"`
+	} `json:"result"`
+	Error interface{} `json:"error"`
+	Id    string      `json:"id"`
+}
+
+type UTXOBlockInfo struct {
+	Result struct {
+		Hash              string   `json:"hash"`
+		Confirmations     int      `json:"confirmations"`
+		Strippedsize      int      `json:"strippedsize"`
+		Size              int      `json:"size"`
+		Weight            int      `json:"weight"`
+		Height            int      `json:"height"`
+		Version           int      `json:"version"`
+		VersionHex        string   `json:"versionHex"`
+		Merkleroot        string   `json:"merkleroot"`
+		Tx                []string `json:"tx"`
+		Time              int      `json:"time"`
+		Mediantime        int      `json:"mediantime"`
+		Nonce             int      `json:"nonce"`
+		Bits              string   `json:"bits"`
+		Difficulty        float64  `json:"difficulty"`
+		Chainwork         string   `json:"chainwork"`
+		NTx               int      `json:"nTx"`
+		Previousblockhash string   `json:"previousblockhash"`
+		Nextblockhash     string   `json:"nextblockhash"`
 	} `json:"result"`
 	Error interface{} `json:"error"`
 	Id    string      `json:"id"`

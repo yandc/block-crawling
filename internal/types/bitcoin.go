@@ -1,12 +1,15 @@
 package types
 
 import (
-	"github.com/blockcypher/gobcy"
 	"math/big"
 	"time"
+
+	"github.com/blockcypher/gobcy"
 )
 
-type BTCTestBlockerInfo []struct {
+type BTCTestBlockerInfo = []BTCTestBlock
+
+type BTCTestBlock struct {
 	Txid     string `json:"txid"`
 	Version  int    `json:"version"`
 	Locktime int    `json:"locktime"`

@@ -32,7 +32,7 @@ func (h *handler) BlockMayFork() bool {
 	return true
 }
 
-func (h *handler) OnNewBlock(client chain.Clienter, block *chain.Block) (chain.TxHandler, error) {
+func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	decoder := &txDecoder{
 		ChainName: h.ChainName,
 		block:     block,
@@ -94,7 +94,7 @@ func (h *handler) WrapsError(err error) error {
 	return common.Retry(err)
 }
 
-func (h *handler) OnError(err error) (incrHeight bool) {
+func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err == NotFound {
 		return true
 	}

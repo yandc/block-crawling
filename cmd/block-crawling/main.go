@@ -127,6 +127,7 @@ func start() {
 			go func(p subhandle.Platform) {
 				log.Info("start main", zap.Any("platform", p))
 				// get result
+				go p.GetTransactionResultByTxhash()
 				resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
 				for true {
 					select {
