@@ -141,12 +141,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 
 	return &chain.Transaction{
 		Hash:        txHash,
-		Nonce:       tx.Nonce,
-		BlockNumber: tx.BlockNumber,
-		TxType:      "",
-		FromAddress: tx.FromAddress,
-		ToAddress:   tx.ToAddress,
-		Value:       tx.Value,
+		BlockNumber: uint64(rawTx.BlockHeight),
 		Raw:         rawTx,
 		Record:      nil,
 	}, nil

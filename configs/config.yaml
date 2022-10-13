@@ -24,7 +24,7 @@ data:
 app:
   # Possible values: "debug", "release"
   #  mode: "debug"
-  mode: "ETHTEST,BSCTEST,AptosTEST,SuiTEST"
+  mode: "ETHGoerli,BSCTEST,AptosTEST,SuiTEST"
   #  mode: "AptosTEST"
   scanAll: false
   addr: 127.0.0.1:9001
