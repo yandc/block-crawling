@@ -53,7 +53,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			if status == biz.PENDING {
 				req.StatusList = append(req.StatusList, biz.NO_STATUS)
 			} else if status == biz.FAIL {
-				req.StatusList = append(req.StatusList, biz.DROPPED_REPLACED)
+				req.StatusList = append(req.StatusList, biz.DROPPED_REPLACED, biz.DROPPED)
 			}
 		}
 	}
@@ -126,3 +126,10 @@ func (s *TransactionService) StatisticFundRate(ctx context.Context, req *pb.Stat
 	result, err := s.ts.StatisticFundRate(ctx, req)
 	return result, err
 }
+func (s *TransactionService) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error) {
+	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	result, err := s.ts.GetUnspentTx(subctx, req)
+	return result, err
+}
+

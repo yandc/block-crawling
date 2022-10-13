@@ -524,26 +524,27 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func (h *txDecoder) OnSealedTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction, rawTxByHash interface{}) error {
+func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawTxByHash interface{}) error {
 	var err error
 	client := c.(*Client)
-	if block == nil {
-		tx, err = client.GetTxByHash(tx.Hash)
-		if err != nil {
-			return err
-		}
-		block, err = client.GetBlock(tx.BlockNumber)
-		if err != nil {
-			return err
-		}
+	var block *chain.Block
+
+	tx, err = client.GetTxByHash(tx.Hash)
+	if err != nil {
+		return err
 	}
+	block, err = client.GetBlock(tx.BlockNumber)
+	if err != nil {
+		return err
+	}
+
 	err = h.OnNewTx(c, block, tx)
 
 	h.newTxs = false
 	return err
 }
 
-func (h *txDecoder) OnDroppedTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
+func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	// client := c.(*Client)
 	record := tx.Record.(*data.SolTransactionRecord)
 

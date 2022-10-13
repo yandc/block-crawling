@@ -66,6 +66,7 @@ type EvmTransactionRecordRepo interface {
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
+	UpdateStatusByNonce(context.Context, string, string, int64, string) (int64, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -514,4 +515,15 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 	}
 	return evmTransactionRecords, nil
 
+}
+
+func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and from_address = ? and nonce = ? and transaction_hash not like ? ", address, nonce, transactionHash+"%").Update("status", "dropped_replaced")
+	err := ret.Error
+	if err != nil {
+		log.Errore("update "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
 }

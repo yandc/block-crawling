@@ -155,19 +155,19 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 	if req.ContractAddress != "" {
 		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
-	var dappALl []*pb.DappInfo
+	var dappAll []*pb.DappInfo
 	dapps, err := data.DappApproveRecordRepoClient.ListByCondition(ctx, req)
 	if err != nil {
 		log.Errore("返回授权dapp列表报错！", err)
 		return &pb.DappListResp{
 			Ok:   false,
-			Data: dappALl,
+			Data: dappAll,
 		}, err
 	}
 	if dapps == nil {
 		return &pb.DappListResp{
 			Ok:   true,
-			Data: dappALl,
+			Data: dappAll,
 		}, err
 
 	}
@@ -232,11 +232,11 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			DappInfo:        dappInfo,
 			TxTime:          da.TxTime,
 		}
-		dappALl = append(dappALl, dif)
+		dappAll = append(dappAll, dif)
 	}
 	return &pb.DappListResp{
 		Ok:   true,
-		Data: dappALl,
+		Data: dappAll,
 	}, err
 }
 
@@ -288,8 +288,13 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &stc); jsonErr == nil {
 			evmMap := stc["stc"]
 			ret := evmMap.(map[string]interface{})
-			nonce = ret["sequence_number"].(string)
-
+			if _, ok := ret["sequence_number"].(float64); ok {
+				decimal := ret["sequence_number"].(float64)
+				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
+			}
+			if _, ok := ret["sequence_number"].(string); ok {
+				nonce = ret["sequence_number"].(string)
+			}
 		}
 		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 		stcRecord := &data.StcTransactionRecord{
@@ -429,7 +434,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &apt); jsonErr == nil {
 			evmMap := apt["aptos"]
 			ret := evmMap.(map[string]interface{})
-			nonce = ret["sequence_number"].(string)
+			if _, ok := ret["sequence_number"].(float64); ok {
+				decimal := ret["sequence_number"].(float64)
+				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
+			}
+			if _, ok := ret["sequence_number"].(string); ok {
+				nonce = ret["sequence_number"].(string)
+			}
+
 		}
 		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 
@@ -619,7 +631,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.Cursor = record.UpdatedAt
 				}
 
-				if record.Status == DROPPED_REPLACED {
+				if record.Status == DROPPED_REPLACED  || record.Status == DROPPED{
 					record.Status = FAIL
 				}
 				if record.Status == NO_STATUS {
@@ -1065,4 +1077,25 @@ func (s *TransactionUsecase) StatisticFundRate(ctx context.Context, req *pb.Stat
 		result.List = fundRateResponse
 	}
 	return result, err
+}
+
+func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error){
+	var result = &pb.UnspentResponse{}
+	var unspentList []*pb.UnspentList
+
+	dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx,req)
+	if err != nil {
+		result.Ok = false
+		return result,err
+	}
+
+	for _ , db:= range dbUnspentRecord {
+		var r *pb.UnspentList
+		utils.CopyProperties(db,&r)
+		unspentList = append(unspentList, r)
+	}
+
+	result.Ok = true
+	result.Data = unspentList
+	return result,nil
 }

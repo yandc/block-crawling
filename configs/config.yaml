@@ -31,7 +31,7 @@ app:
   starScan: true
   target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
   source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
-  dogeKey:
+  dogeKey:  # DEPRECATED @2022-09-29: HAVE BEEN MOVED TO THERE URL.
     - "Bearer bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd"
     - "Bearer bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk"
     - "Bearer bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz"
@@ -62,7 +62,7 @@ innerNodeList:
     chainName: "BTC"
     handler: "bitcoin"
     rpcURL:
-      - "https://api.bixin.com/v1/btc/main"
+      - "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332"
     symbol: "BTC"
     type: "BTC"
 

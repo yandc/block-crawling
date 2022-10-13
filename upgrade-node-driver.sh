@@ -10,6 +10,6 @@ then
     $GO download
 fi
 
-cat go.mod | grep -v 'gitlab.bixin.com' | tee go.mod
+cat go.mod | grep -v 'gitlab.bixin.com' | tee go.mod.1 && mv go.mod.1 go.mod
 $GO clean -modcache
 $GO mod tidy

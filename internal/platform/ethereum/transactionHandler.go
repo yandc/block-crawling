@@ -35,7 +35,32 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	go biz.DappApproveFilter(chainName, txRecords)
 	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
-	handleUserNonce(chainName, txRecords)
+	go handleUserNonce(chainName, txRecords)
+	go HandleRecordStatus(chainName, txRecords)
+}
+
+func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord) {
+
+	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		if record.Type == biz.EVENTLOG {
+			continue
+		}
+		txHashs := strings.Split(record.TransactionHash, "#")
+
+		ret, _ := data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0])
+
+		if ret >= 1 {
+			if (record.Amount.String() == "0" || record.Amount == decimal.Zero) && record.DappData == "" {
+				record.TransactionType = biz.CANCEL
+			} else {
+				record.TransactionType = biz.SPEED_UP
+			}
+			data.EvmTransactionRecordRepoClient.Update(nil, biz.GetTalbeName(chainName), record)
+		}
+	}
 }
 
 func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
@@ -56,7 +81,11 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 		}
 	}
 	for k, v := range doneNonce {
-		data.RedisClient.Set(k, strconv.Itoa(v), 0)
+		nonceStr, _ := data.RedisClient.Get(k).Result()
+		nonce, _ := strconv.Atoi(nonceStr)
+		if v > nonce {
+			data.RedisClient.Set(k, strconv.Itoa(v), 0)
+		}
 	}
 }
 

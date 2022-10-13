@@ -52,9 +52,12 @@ const (
 const (
 	SUCCESS          = "success"
 	FAIL             = "fail"
-	PENDING          = "pending"
-	NO_STATUS        = "no_status"
-	DROPPED_REPLACED = "dropped_replaced"
+	PENDING          = "pending"//-- 中间状态
+	NO_STATUS        = "no_status" //-- 中间状态
+	DROPPED_REPLACED = "dropped_replaced"//--被丢弃或被置换 -- fail
+	DROPPED          = "dropped" //--被丢弃 -- fail
+	CANCEL           = "cancel" //中心化操作 --- value CANCEL --success
+	SPEED_UP         = "speed_up" //success
 )
 
 const (

@@ -1,10 +1,7 @@
 package doge
 
 import (
-	"block-crawling/internal/biz"
-	"block-crawling/internal/data"
 	httpclient2 "block-crawling/internal/httpclient"
-	"block-crawling/internal/log"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
@@ -13,12 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
-	"strings"
-	"time"
 )
 
 type Client struct {
@@ -37,67 +32,49 @@ func GetMempoolTxIds(c *base.Client) ([]string, error) {
 	return txIds, err
 }
 
-func GetBlockNumber(index int, c *base.Client) (int, error) {
-	url := c.URL + "sync/block_number"
+func GetBlockNumber(c *base.Client) (int, error) {
+	key, baseURL := parseKeyFromNodeURL(c.URL)
+	url := baseURL + "sync/block_number"
 	var height int
-	key := biz.AppConfig.GetDogeKey()[index]
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &height)
 	return height, err
 }
 
-func GetBlockByNumber(number int, index int, c *base.Client) (types.Dogecoin, error) {
-	url := c.URL + "block/" + fmt.Sprintf("%d", number)
-	key := biz.AppConfig.GetDogeKey()[index]
+func parseKeyFromNodeURL(nodeURL string) (key, restURL string) {
+	parsed, err := url.Parse(nodeURL)
+	if err != nil {
+		return "", nodeURL
+	}
+	if parsed.User != nil {
+		password, _ := parsed.User.Password()
+		key = fmt.Sprintf("%s %s", parsed.User.Username(), password)
+		parsed.User = nil
+		restURL = parsed.String()
+		// log.Debug("DOGE PARSED KEY FROM URL", zap.String("key", key), zap.String("url", restURL))
+		return
+	}
+	return "", nodeURL
+}
+
+func GetBlockByNumber(number int, c *base.Client) (types.Dogecoin, error) {
+	key, baseURL := parseKeyFromNodeURL(c.URL)
+	url := baseURL + "block/" + fmt.Sprintf("%d", number)
 	var block types.Dogecoin
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &block)
 
-	if strings.Contains(fmt.Sprintf("%s", err), "504") {
-		preHeight := number - 1
-		redisPreBlockHash, err := data.RedisClient.Get(biz.BLOCK_HASH_KEY + c.ChainName + ":" + strconv.Itoa(preHeight)).Result()
-		for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
-			time.Sleep(time.Duration(i*1) * time.Second)
-			redisPreBlockHash, err = data.RedisClient.Get(biz.BLOCK_HASH_KEY + c.ChainName + ":" + strconv.Itoa(preHeight)).Result()
-		}
-		if err != nil {
-			if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
-				// 从数据库中查询最新一条数据
-				lastRecord, err := data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(c.ChainName)+biz.TABLE_POSTFIX)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					lastRecord, err = data.BtcTransactionRecordRepoClient.FindLast(nil, strings.ToLower(c.ChainName)+biz.TABLE_POSTFIX)
-				}
-				if err != nil {
-					// postgres出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询数据库中区块hash失败", c.ChainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(c.ChainName+"扫块，从数据库中获取区块hash失败", zap.Any("current", number), zap.Any("error", err))
-					return block, err
-				}
-				if lastRecord == nil {
-					log.Error(c.ChainName+"扫块，从数据库中获取的区块hash为空", zap.Any("current", number))
-					//return
-				} else {
-					redisPreBlockHash = lastRecord.BlockHash
-				}
-			} else {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中区块hash失败", c.ChainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(c.ChainName+"扫块，从redis中获取区块hash失败", zap.Any("current", number), zap.Any("error", err))
-				return block, err
-			}
-		}
-		block.ParentId = redisPreBlockHash
-		return block, nil
-	}
 	return block, err
 }
 
 func GetBalance(address string, c *base.Client) (string, error) {
-	url := c.URL + "account/" + address
-	key := biz.AppConfig.GetDogeKey()[4]
+	var nodeUrl string
+	if c.ChainName == "LTC" {
+		nodeUrl = "https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/"
+	}
+	if c.ChainName == "DOGE" {
+		nodeUrl = "https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/"
+	}
+	key, baseURL := parseKeyFromNodeURL(nodeUrl)
+	url := baseURL + "account/" + address
 	var balances []types.Balances
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &balances)
 	if err == nil {
@@ -111,8 +88,8 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	return "", err
 }
 func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
-	url := c.URL + "tx/" + tx
-	key := biz.AppConfig.GetDogeKey()[4]
+	key, baseURL := parseKeyFromNodeURL(c.URL)
+	url := baseURL + "tx/" + tx
 	var txInfo types.TxInfo
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &txInfo)
 	return txInfo, err

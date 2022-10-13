@@ -35,9 +35,11 @@ platform:
     netType: main
     proxyCacheTime: 60
     rpcURL:
-      - https://ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - http://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@47.244.138.206:22555
     symbol: DOGE
     type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
   LTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/ltc/address/
     blockExplorerTxUrl: https://live.blockcypher.com/ltc/tx/
@@ -56,9 +58,11 @@ platform:
     proxyCacheTime: 60
     proxyKey: feeOracleLTC
     rpcURL:
-      - https://ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - http://haotech:BFHGDCQHbaTZBvHJER4fyHy@47.75.184.192:9332
     symbol: LTC
     type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
   Avalanche:
     blockExplorerAddrUrl: https://snowtrace.io/address/
     blockExplorerTxUrl: https://snowtrace.io/tx/
@@ -139,11 +143,13 @@ platform:
     proxyCacheTime: 60
     proxyKey: feeOracleBTC
     rpcURL:
-    - https://api.blockcypher.com/v1/btc/main
+    - http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332
 #    - https://chain.so
 #    - https://blockstream.info
     symbol: BTC
     type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
   Cronos:
     blockExplorerAddrUrl: https://cronoscan.com/address/
     blockExplorerTxUrl: https://cronoscan.com/tx/
@@ -562,6 +568,8 @@ platformTest:
     - https://blockstream.info/testnet
     symbol: BTC
     type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
   CronosTEST:
     blockExplorerAddrUrl: https://testnet.cronoscan.com/address/
     blockExplorerTxUrl: https://testnet.cronoscan.com/tx/
@@ -765,4 +773,3 @@ platformTest:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
     monitorHeightAlarmThr: 100
-

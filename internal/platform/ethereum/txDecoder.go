@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	pCommon "block-crawling/internal/platform/common"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	types2 "github.com/ethereum/go-ethereum/core/types"
@@ -30,13 +32,13 @@ type txDecoder struct {
 	newTxs    bool
 
 	blockHashRetrieved bool
+	blocksStore        map[uint64]*chain.Block
 
 	txRecords      []*data.EvmTransactionRecord
 	txNonceRecords []*data.EvmTransactionRecord
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
-	h.newTxs = true
 	transaction := tx.Raw.(*types2.Transaction)
 	client := c.(*Client)
 
@@ -85,19 +87,19 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 }
 
 func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Transaction, transaction *types2.Transaction) error {
-	meta, err := h.parseTxMeta(tx)
+	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
 	}
 
 	// Ignore this transaction.
-	if !(meta.user.matchFrom || meta.user.matchTo) {
+	if !(meta.User.MatchFrom || meta.User.MatchTo) {
 		return nil
 	}
 
 	log.Info(
 		"GOT NEW TX THAT MATCHED OUR USER",
-		meta.wrapFields(
+		meta.WrapFields(
 			zap.String("chainName", h.chainName),
 			zap.Uint64("height", tx.BlockNumber),
 			zap.String("nodeUrl", client.URL()),
@@ -112,7 +114,7 @@ func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Tran
 		if err == ethereum.NotFound {
 			log.Warn(
 				"THE RECEIPT OF TX IS NOT FOUND, THIS BLOCK WILL BE HANDLED LATER",
-				meta.wrapFields(
+				meta.WrapFields(
 					zap.String("chainName", h.chainName),
 					zap.String("txHash", tx.Hash),
 					zap.Uint64("curHeight", block.Number),
@@ -124,7 +126,7 @@ func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Tran
 		}
 		log.Error(
 			h.chainName+"扫块，从链上获取交易receipt失败",
-			meta.wrapFields(
+			meta.WrapFields(
 				zap.String("chainName", h.chainName),
 				zap.Any("curHeight", block.Number),
 				zap.String("txHash", tx.Hash),
@@ -150,7 +152,7 @@ type txHandleJob struct {
 	block       *chain.Block
 	tx          *chain.Transaction
 	transaction *types2.Transaction
-	meta        *txMeta
+	meta        *pCommon.TxMeta
 	receipt     *Receipt
 }
 
@@ -169,8 +171,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			return err
 		}
 		if len(codeAt) > 0 {
-			if meta.transactionType == "native" {
-				meta.transactionType = "contract"
+			if meta.TransactionType == "native" {
+				meta.TransactionType = "contract"
 			} else {
 				ctx := context.Background()
 				getTokenInfo, err := biz.GetTokenInfo(ctx, h.chainName, transaction.To().String())
@@ -186,9 +188,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
 				}
 				if err != nil || getTokenInfo.Decimals == 0 || getTokenInfo.Symbol == "" {
-					meta.transactionType = "contract"
+					meta.TransactionType = "contract"
 				} else {
-					tokenInfo = types.TokenInfo{Decimals: getTokenInfo.Decimals, Amount: meta.value, Symbol: getTokenInfo.Symbol}
+					tokenInfo = types.TokenInfo{Decimals: getTokenInfo.Decimals, Amount: meta.Value, Symbol: getTokenInfo.Symbol}
 				}
 
 				tokenInfo.Address = transaction.To().String()
@@ -202,7 +204,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 
 	var eventLogs []types.EventLog
-	if meta.transactionType != "native" {
+	if meta.TransactionType != "native" {
 		eventLogs = h.extractEventLogs(client, meta, receipt)
 	}
 	evmMap := map[string]interface{}{
@@ -240,7 +242,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
 	bn := int(intBlockNumber.Int64())
 	fa, _ := decimal.NewFromString(feeAmount)
-	at, _ := decimal.NewFromString(meta.value)
+	at, _ := decimal.NewFromString(meta.Value)
 	var eventLog string
 	if eventLogs != nil {
 		eventLogJson, _ := json.Marshal(eventLogs)
@@ -251,10 +253,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		BlockNumber:          bn,
 		Nonce:                int64(transaction.Nonce()),
 		TransactionHash:      transaction.Hash().String(),
-		FromAddress:          meta.fromAddress,
-		ToAddress:            meta.toAddress,
-		FromUid:              meta.user.fromUid,
-		ToUid:                meta.user.toUid,
+		FromAddress:          meta.FromAddress,
+		ToAddress:            meta.ToAddress,
+		FromUid:              meta.User.FromUid,
+		ToUid:                meta.User.ToUid,
 		FeeAmount:            fa,
 		Amount:               at,
 		Status:               status,
@@ -270,7 +272,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		Data:                 hex.EncodeToString(transaction.Data()),
 		EventLog:             eventLog,
-		TransactionType:      meta.transactionType,
+		TransactionType:      meta.TransactionType,
 		DappData:             "",
 		ClientData:           "",
 		CreatedAt:            h.now.Unix(),
@@ -281,7 +283,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
 	}
 
-	if len(eventLogs) > 0 && meta.transactionType == "contract" {
+	if len(eventLogs) > 0 && meta.TransactionType == "contract" {
 		for index, eventLog := range eventLogs {
 			eventMap := map[string]interface{}{
 				"evm": map[string]string{
@@ -298,10 +300,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 			var eventFromUid, eventToUid string
 
-			userMeta, err := h.matchUser(eventLog.From, eventLog.To)
+			userMeta, err := pCommon.MatchUser(eventLog.From, eventLog.To, h.chainName)
 			if err == nil {
-				eventFromUid = userMeta.fromUid
-				eventToUid = userMeta.toUid
+				eventFromUid = userMeta.FromUid
+				eventToUid = userMeta.ToUid
 			}
 			evmlogTransactionRecord := &data.EvmTransactionRecord{
 				BlockHash:            h.blockHash,
@@ -341,86 +343,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	return nil
 }
 
-type txMeta struct {
-	fromAddress string
-	value       string
-	toAddress   string
-
-	transactionType string
-
-	user *userMeta
-}
-
-func (meta *txMeta) wrapFields(results ...zap.Field) []zap.Field {
-	results = append(
-		results,
-		zap.String("fromAddr", meta.fromAddress),
-		zap.String("toAddr", meta.toAddress),
-		zap.String("txType", meta.transactionType),
-	)
-	if meta.user != nil {
-		results = append(
-			results,
-			zap.Bool("matchFrom", meta.user.matchFrom),
-			zap.Bool("matchTo", meta.user.matchTo),
-			zap.String("fromUid", meta.user.fromUid),
-			zap.String("toUid", meta.user.toUid),
-		)
-	}
-	return results
-}
-
-type userMeta struct {
-	matchFrom bool
-	fromUid   string
-
-	matchTo bool
-	toUid   string
-}
-
-func (h *txDecoder) parseTxMeta(tx *chain.Transaction) (meta *txMeta, err error) {
-	meta = &txMeta{
-		fromAddress:     tx.FromAddress,
-		value:           tx.Value,
-		toAddress:       tx.ToAddress,
-		transactionType: string(tx.TxType),
-	}
-	user, err := h.matchUser(meta.fromAddress, meta.toAddress)
-	if err != nil {
-		return nil, err
-	}
-	meta.user = user
-	return meta, nil
-}
-
-func (h *txDecoder) matchUser(fromAddress, toAddress string) (*userMeta, error) {
-	userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, fromAddress), zap.Any("error", err))
-		return nil, err
-	}
-	userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.chainName, toAddress), zap.Any("error", err))
-		return nil, err
-	}
-	return &userMeta{
-		matchFrom: userFromAddress,
-		fromUid:   fromUid,
-
-		matchTo: userToAddress,
-		toUid:   toUid,
-	}, nil
-}
-
 func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	txNonceRecords := h.txNonceRecords
@@ -439,12 +361,13 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			go HandleRecord(h.chainName, *(client.(*Client)), txRecords)
 		} else {
 			go handleUserNonce(h.chainName, txNonceRecords)
+			go HandleRecordStatus(h.chainName, txRecords)
 		}
 	}
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *txMeta, receipt *Receipt) (eventLogs []types.EventLog) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogs []types.EventLog) {
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) > 1 && (log_.Topics[0].String() == TRANSFER_TOPIC ||
 			log_.Topics[0].String() == WITHDRAWAL_TOPIC || log_.Topics[0].String() == DEPOST_TOPIC) {
@@ -478,25 +401,25 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *txMeta, receipt *Rece
 				to = common.HexToAddress(log_.Topics[2].String()).String()
 			} else if log_.Topics[0].String() == WITHDRAWAL_TOPIC {
 				//提现，判断 用户无需话费value 判断value是否为0
-				if meta.value == "0" {
-					to = meta.fromAddress
+				if meta.Value == "0" {
+					to = meta.FromAddress
 					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 						token.Symbol = token.Symbol[1:]
 					}
 				} else {
-					to = meta.toAddress
+					to = meta.ToAddress
 				}
 			} else if log_.Topics[0].String() == DEPOST_TOPIC {
 				//兑换时判断 交易金额不能为 0
 				//判断 value是否为0 不为 0 则增加记录
 				to = common.HexToAddress(log_.Topics[1].String()).String()
-				if meta.value != "0" {
-					eventFrom = meta.fromAddress
+				if meta.Value != "0" {
+					eventFrom = meta.FromAddress
 					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 						token.Symbol = token.Symbol[1:]
 					}
 				} else {
-					eventFrom = meta.toAddress
+					eventFrom = meta.ToAddress
 				}
 			}
 
@@ -533,21 +456,19 @@ func (h *txDecoder) getBlockHashFromReceipt(client *Client, transaction *types2.
 	return "", nil
 }
 
-func (h *txDecoder) OnSealedTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction, rawReceipt interface{}) error {
-	h.newTxs = false
-	transaction := tx.Raw.(*types2.Transaction)
+func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction, rawReceipt interface{}) error {
 	client := c.(*Client)
 
-	meta, err := h.parseTxMeta(tx)
+	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
 	}
 
 	// Ignore this transaction.
-	if !(meta.user.matchFrom || meta.user.matchTo) {
+	if !(meta.User.MatchFrom || meta.User.MatchTo) {
 		log.Warn(
 			"PENDING TX COULD NOT MATCH USER",
-			meta.wrapFields(
+			meta.WrapFields(
 				zap.String("chainName", h.chainName),
 				zap.Uint64("height", tx.BlockNumber),
 				zap.String("nodeUrl", client.URL()),
@@ -559,7 +480,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, block *chain.Block, tx *chain.T
 
 	log.Info(
 		"PENDING TX HAS SEALED",
-		meta.wrapFields(
+		meta.WrapFields(
 			zap.String("chainName", h.chainName),
 			zap.Uint64("height", tx.BlockNumber),
 			zap.String("nodeUrl", client.URL()),
@@ -567,24 +488,46 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, block *chain.Block, tx *chain.T
 		)...,
 	)
 
-	job := &txHandleJob{
-		block:       block,
-		tx:          tx,
-		transaction: transaction,
-		meta:        meta,
-		receipt:     rawReceipt.(*Receipt),
+	var block *chain.Block
+	curHeight := tx.BlockNumber
+	if blk, ok := h.blocksStore[curHeight]; ok {
+		block = blk
+	} else {
+		var err error
+		block, err = client.GetBlock(curHeight)
+		if err != nil {
+			return err
+		}
+		h.blocksStore[curHeight] = block
 	}
 
-	if err := h.handleEachTransaction(c.(*Client), job); err != nil {
-		return err
+	for _, blkTx := range block.Transactions {
+		if tx.Hash == blkTx.Hash {
+			job := &txHandleJob{
+				block:       block,
+				tx:          tx,
+				transaction: blkTx.Raw.(*types2.Transaction),
+				meta:        meta,
+				receipt:     rawReceipt.(*Receipt),
+			}
+
+			if err := h.handleEachTransaction(c.(*Client), job); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-func (h *txDecoder) OnDroppedTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
+func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	client := c.(*Client)
 	ctx := context.Background()
 	record := tx.Record.(*data.EvmTransactionRecord)
+	//a.扫块时候 给扫到 一样nonce的值 成功后  更新 当nonce一样，并且状态不是 biz.DROPPED_REPLACED 更新状态为 biz.DROPPED_REPLACED
+	//新成功后的 speed_up
+
+	//兜底时，成功后 执行 a 一样的步骤
+
 
 	log.Info(
 		"PENDING TX COULD NOT FOUND ON THE CHAIN",
@@ -618,7 +561,8 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, block *chain.Block, tx *chain.
 		now := time.Now().Unix()
 		ctime := record.CreatedAt + 21600
 		if ctime < now {
-			record.Status = biz.FAIL
+			//更新抛弃状态
+			record.Status = biz.DROPPED
 			h.txRecords = append(h.txRecords, record)
 			log.Info(
 				"更新 PENDING txhash对象为终态:交易被抛弃",

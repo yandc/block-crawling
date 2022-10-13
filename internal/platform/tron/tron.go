@@ -148,7 +148,7 @@ func (p *Platform) IndexBlock() bool {
 			}
 			if forked {
 				curHeight = preHeight
-				rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight+1)
+				rows, _ := data.TrxTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(p.ChainName), preHeight+1)
 				log.Info("出现分叉回滚数据", zap.Any("链类型", p.ChainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 			} else {
 				var txRecords []*data.TrxTransactionRecord
