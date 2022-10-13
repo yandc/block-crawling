@@ -590,22 +590,42 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
-  ETHTEST:
+#  ETHTEST:
+#    blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
+#    blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
+#    blockExplorerUrl: https://ropsten.etherscan.io/
+#    chain: ETHTEST
+#    chainId: 3
+#    coinId: 60
+#    decimal: 18
+#    fullName: Ethereum Test Net
+#    getPriceKey: ethereum
+#    handler: ethereum
+#    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
+#    nativeCurrency: ETH
+#    netType: test
+#    rpcURL:
+#    - https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+#    symbol: ETH
+#    type: EVM
+#    safelyConcurrentBlockDelta: 30
+#    maxConcurrency: 5
+  ETHGoerli:
     blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
     blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
     blockExplorerUrl: https://ropsten.etherscan.io/
-    chain: ETHTEST
+    chain: ETHGoerli
     chainId: 3
     coinId: 60
     decimal: 18
-    fullName: Ethereum Test Net
+    fullName: Goerli Ethereum Test Net
     getPriceKey: ethereum
     handler: ethereum
     icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
     nativeCurrency: ETH
     netType: test
     rpcURL:
-    - https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    - https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: ETH
     type: EVM
     safelyConcurrentBlockDelta: 30
