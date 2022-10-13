@@ -133,9 +133,9 @@ func (h *txHandler) Save(c chain.Clienter) error {
 	return nil
 }
 
-func (h *txHandler) OnSealedTx(c chain.Clienter, chainTx *chain.Transaction, rawTx interface{}) (err error) {
-	tx := rawTx.(types.TX)
-	record := chainTx.Record.(*data.BtcTransactionRecord)
+func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (err error) {
+	tx := txByHash.Raw.(types.TX)
+	record := txByHash.Record.(*data.BtcTransactionRecord)
 
 	if strings.HasSuffix(tx.Error, " No such mempool or blockchain transaction") {
 		nowTime := time.Now().Unix()

@@ -3,17 +3,19 @@ package solana
 import (
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"gitlab.bixin.com/mili/node-driver/utils"
-	"go.uber.org/zap"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"gitlab.bixin.com/mili/node-driver/utils"
+	"go.uber.org/zap"
 )
 
 const (
@@ -25,12 +27,20 @@ const SOLANA_DECIMALS = 9
 var NotFound = errors.New("not found")
 
 type Client struct {
+	*common.NodeRecoverIn
+
 	Url       string
 	ChainName string
 }
 
 func NewClient(nodeUrl string, chainName string) *Client {
-	return &Client{nodeUrl, chainName}
+	return &Client{
+		Url:       nodeUrl,
+		ChainName: chainName,
+		NodeRecoverIn: &common.NodeRecoverIn{
+			ChainName: chainName,
+		},
+	}
 }
 
 func (c *Client) Detect() error {

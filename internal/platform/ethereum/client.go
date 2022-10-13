@@ -3,6 +3,7 @@ package ethereum
 import (
 	icommon "block-crawling/internal/common"
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -27,6 +28,8 @@ import (
 
 type Client struct {
 	*ethclient.Client
+	*pcommon.NodeRecoverIn
+
 	url       string
 	chainName string
 }
@@ -38,7 +41,10 @@ func NewClient(rawUrl string, chainName string) (*Client, error) {
 		return &Client{}, err
 	}
 	return &Client{
-		Client:    client,
+		Client: client,
+		NodeRecoverIn: &pcommon.NodeRecoverIn{
+			ChainName: chainName,
+		},
 		url:       rawUrl,
 		chainName: chainName,
 	}, nil
