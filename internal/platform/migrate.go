@@ -8,13 +8,10 @@ import (
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/tron"
+	"block-crawling/internal/types"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
-	"time"
-
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -22,6 +19,9 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"strconv"
+	"strings"
+	"time"
 )
 
 func MigrateRecord() {
@@ -371,6 +371,211 @@ func BtcReset() {
 	}
 }
 
+func DeleteAsset() {
+	list, err := data.UserAssetRepoClient.ListAll(nil)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		list, err = data.UserAssetRepoClient.ListAll(nil)
+	}
+	if err != nil {
+		log.Error("删数据更新用户资产，从数据库中查询用户资产失败", zap.Any("error", err))
+		return
+	}
+
+	var userAssetList []int64
+	for _, userAsset := range list {
+		userAddress, _, err := biz.UserAddressSwitch(userAsset.Address)
+		for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			userAddress, _, err = biz.UserAddressSwitch(userAsset.Address)
+		}
+		if err == nil {
+			if userAddress {
+				chainType := biz.ChainNameType[userAsset.ChainName]
+				switch chainType {
+				case biz.EVM:
+					address := types2.HexToAddress(userAsset.Address).Hex()
+					tokenAddress := userAsset.TokenAddress
+					if userAsset.TokenAddress != "" {
+						tokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
+					}
+					if address != userAsset.Address || tokenAddress != userAsset.TokenAddress {
+						userAssetList = append(userAssetList, userAsset.Id)
+					}
+				}
+			} else {
+				userAssetList = append(userAssetList, userAsset.Id)
+			}
+		}
+	}
+
+	if len(userAssetList) > 0 {
+		total, err := data.UserAssetRepoClient.DeleteByIDs(nil, userAssetList)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			total, err = data.UserAssetRepoClient.DeleteByIDs(nil, userAssetList)
+		}
+		if err != nil {
+			log.Error("删数据更新用户资产，从数据库中删数用户资产失败", zap.Any("size", len(userAssetList)), zap.Any("total", total), zap.Any("error", err))
+		}
+	}
+	log.Info("删数据更新用户资产", zap.Any("size", len(userAssetList)), zap.Any("error", err))
+}
+
+type EvmTxRecord struct {
+	ChainName string `json:"chainName" form:"chainName"`
+	EventLog  string `json:"eventLog" form:"eventLog"`
+}
+
+func HandleAssetByEventLog() {
+	log.Info("补数据更新用户资产开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+
+	var evmTxRecordList []*EvmTxRecord
+
+	sqlStr := "select chain_name, event_log from (" +
+		"    select 'Avalanche' as chain_name, event_log from avalanche_transaction_record " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'BSC' as chain_name, event_log from bsc_transaction_record       " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'Cronos' as chain_name, event_log from cronos_transaction_record    " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'ETC' as chain_name, event_log from etc_transaction_record       " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'ETH' as chain_name, event_log from eth_transaction_record       " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'ETHW' as chain_name, event_log from ethw_transaction_record      " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'Fantom' as chain_name, event_log from fantom_transaction_record    " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'HECO' as chain_name, event_log from heco_transaction_record      " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'Klaytn' as chain_name, event_log from klaytn_transaction_record    " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'OEC' as chain_name, event_log from oec_transaction_record       " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'Optimism' as chain_name, event_log from optimism_transaction_record  " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'Polygon' as chain_name, event_log from polygon_transaction_record   " +
+		"    where transaction_type = 'contract'" +
+		"    union all" +
+		"    select 'xDai' as chain_name, event_log from xdai_transaction_record      " +
+		"    where transaction_type = 'contract'" +
+		") as t;"
+
+	ret := dbSource.Raw(sqlStr).Find(&evmTxRecordList)
+	err = ret.Error
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		ret = dbSource.Raw(sqlStr).Find(&evmTxRecordList)
+		err = ret.Error
+	}
+	if err != nil {
+		log.Errore("migrate page query userAsset failed", err)
+		return
+	}
+
+	var userAssetMap = make(map[string]*data.UserAsset)
+	for _, evmTxRecord := range evmTxRecordList {
+		eventLogStr := evmTxRecord.EventLog
+		if eventLogStr == "" {
+			continue
+		}
+		eventLogList := []types.EventLog{}
+		err = json.Unmarshal([]byte(eventLogStr), &eventLogList)
+		if err != nil {
+			log.Errore("migrate page query userAsset failed", err)
+			continue
+		}
+
+		for _, eventLog := range eventLogList {
+			fromAddress := types2.HexToAddress(eventLog.From).Hex()
+			toAddress := types2.HexToAddress(eventLog.To).Hex()
+			tokenAddress := types2.HexToAddress(eventLog.Token.Address).Hex()
+
+			key := evmTxRecord.ChainName + fromAddress + tokenAddress
+			_, ok := userAssetMap[key]
+			if !ok {
+				userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
+				for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
+					time.Sleep(time.Duration(i*1) * time.Second)
+					userFromAddress, fromUid, err = biz.UserAddressSwitch(fromAddress)
+				}
+				if err == nil {
+					if userFromAddress {
+						userAsset := &data.UserAsset{
+							ChainName:    evmTxRecord.ChainName,
+							Uid:          fromUid,
+							Address:      fromAddress,
+							TokenAddress: tokenAddress,
+							Decimals:     int32(eventLog.Token.Decimals),
+							Symbol:       eventLog.Token.Symbol,
+						}
+						userAssetMap[key] = userAsset
+					}
+				}
+			}
+
+			key = evmTxRecord.ChainName + toAddress + tokenAddress
+			_, ok = userAssetMap[key]
+			if !ok {
+				userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
+				for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
+					time.Sleep(time.Duration(i*1) * time.Second)
+					userToAddress, toUid, err = biz.UserAddressSwitch(toAddress)
+				}
+				if err == nil {
+					if userToAddress {
+						userAsset := &data.UserAsset{
+							ChainName:    evmTxRecord.ChainName,
+							Uid:          toUid,
+							Address:      toAddress,
+							TokenAddress: tokenAddress,
+							Decimals:     int32(eventLog.Token.Decimals),
+							Symbol:       eventLog.Token.Symbol,
+						}
+						userAssetMap[key] = userAsset
+					}
+				}
+			}
+		}
+	}
+
+	var userAssets []*data.UserAsset
+	for _, userAsset := range userAssetMap {
+		userAssets = append(userAssets, userAsset)
+	}
+
+	log.Info("补数据更新用户资产中", zap.Any("size", len(userAssets)))
+	times := 0
+	for times < 3 {
+		userAssets = doHandleAsset(userAssets)
+		if len(userAssets) > 0 {
+			time.Sleep(time.Duration(300) * time.Second)
+		} else {
+			break
+		}
+		times++
+	}
+
+	log.Info("从eventLog中补数据更新用户资产结束")
+}
+
 func HandleAsset() {
 	log.Info("补数据更新用户资产开始")
 	source := biz.AppConfig.Target
@@ -470,13 +675,15 @@ func HandleAsset() {
 	}
 
 	log.Info("补数据更新用户资产中", zap.Any("size", len(userAssets)))
-	for {
+	times := 0
+	for times < 3 {
 		userAssets = doHandleAsset(userAssets)
 		if len(userAssets) > 0 {
 			time.Sleep(time.Duration(300) * time.Second)
 		} else {
 			break
 		}
+		times++
 	}
 
 	log.Info("补数据更新用户资产结束")

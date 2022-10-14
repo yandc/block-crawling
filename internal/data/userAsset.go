@@ -45,6 +45,7 @@ type UserAssetRepo interface {
 	PageList(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, int64, error)
 	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
+	DeleteByIDs(context.Context, []int64) (int64, error)
 }
 
 type UserAssetRepoImpl struct {
@@ -309,6 +310,17 @@ func (r *UserAssetRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, er
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete userAsset failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *UserAssetRepoImpl) DeleteByIDs(ctx context.Context, ids []int64) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Delete(&UserAsset{}, ids)
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete userAssets failed", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected

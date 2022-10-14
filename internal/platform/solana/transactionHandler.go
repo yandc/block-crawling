@@ -63,10 +63,13 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			return
 		}
 
+		if record.Data == "" {
+			continue
+		}
 		changesPayload := make(map[string]interface{})
 		err = json.Unmarshal([]byte(record.Data), &changesPayload)
 		if err != nil {
@@ -74,8 +77,8 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析data失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("data", record.Data), zap.Any("error", err))
-			return
+			log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("data", record.Data), zap.Any("error", err))
+			continue
 		}
 
 		accountKeyStr, ok := changesPayload["accountKey"]
@@ -271,7 +274,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("slotNumber", txRecords[0].SlotNumber), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
 }
 
@@ -383,7 +386,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.SolT
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
 		prices, _ := decimal.NewFromString(price)
@@ -443,6 +446,6 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.SolT
 		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("slotNumber", txRecords[0].SlotNumber), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
 }

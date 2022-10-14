@@ -2,14 +2,11 @@ package main
 
 import (
 	"block-crawling/internal/conf"
-	//"block-crawling/internal/platform"
-
-	//"block-crawling/internal/platform"
+	"block-crawling/internal/platform"
 	"flag"
-	"os"
-
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
+	"os"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -52,6 +49,8 @@ func main() {
 	defer cleanup()
 	//platform.MigrateRecord()
 	//platform.DappReset()
-	//platform.HandleAsset()
 	//platform.BtcReset()
+	//platform.HandleAsset()
+	platform.HandleAssetByEventLog()
+	platform.DeleteAsset()
 }

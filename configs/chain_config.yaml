@@ -40,6 +40,8 @@ platform:
     type: BTC
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
+    monitorHeightAlarmThr: 12
+
   LTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/ltc/address/
     blockExplorerTxUrl: https://live.blockcypher.com/ltc/tx/
@@ -63,6 +65,7 @@ platform:
     type: BTC
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
+    monitorHeightAlarmThr: 12
   Avalanche:
     blockExplorerAddrUrl: https://snowtrace.io/address/
     blockExplorerTxUrl: https://snowtrace.io/tx/
@@ -150,6 +153,8 @@ platform:
     type: BTC
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
+    monitorHeightAlarmThr: 12
+
   Cronos:
     blockExplorerAddrUrl: https://cronoscan.com/address/
     blockExplorerTxUrl: https://cronoscan.com/tx/
@@ -468,7 +473,7 @@ platform:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
-    monitorHeightAlarmThr: 100
+    monitorHeightAlarmThr: 200
 
 platformTest:
   AptosTEST:
@@ -792,4 +797,4 @@ platformTest:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
-    monitorHeightAlarmThr: 100
+    monitorHeightAlarmThr: 200
