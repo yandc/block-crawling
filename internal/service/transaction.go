@@ -29,7 +29,6 @@ func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb
 }
 
 func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
-	log.Info("request", zap.Any("request", req))
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if req.Platform == biz.WEB {
