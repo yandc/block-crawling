@@ -71,19 +71,24 @@ func (c *Client) Detect() error {
 
 func (c *Client) GetBlockHeight() (uint64, error) {
 	start := time.Now()
-	result, err := c.DispatchClient.GetBlockCount()
-	if err != nil {
-		return 0, err
+	if c.ChainName == "BTC" {
+		btcHeigth, err := btc.GetBlockNumber(&c.DispatchClient)
+		return uint64(btcHeigth), err
+	} else {
+		result, err := c.DispatchClient.GetBlockCount()
+		if err != nil {
+			return 0, err
+		}
+		height := result.Result
+		log.Debug(
+			"RETRIEVED CHAIN HEIGHT FROM NODE",
+			zap.Int("height", height),
+			zap.String("nodeUrl", c.nodeURL),
+			zap.String("chainName", c.chainName),
+			zap.String("elapsed", time.Now().Sub(start).String()),
+		)
+		return uint64(height), err
 	}
-	height := result.Result
-	log.Debug(
-		"RETRIEVED CHAIN HEIGHT FROM NODE",
-		zap.Int("height", height),
-		zap.String("nodeUrl", c.nodeURL),
-		zap.String("chainName", c.chainName),
-		zap.String("elapsed", time.Now().Sub(start).String()),
-	)
-	return uint64(height), err
 }
 
 func (c *Client) GetBlock(height uint64) (block *chain.Block, err error) {
@@ -209,90 +214,93 @@ func (c *Client) GetTransactionByPendingHashByNode(json model.JsonRpcRequest) (t
 func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
 
 	//UTXOTX --- utxo
+	if c.DispatchClient.ChainName == "BTC" {
+		return btc.GetTransactionByHash(hash, &c.DispatchClient)
+	} else {
 
-	utxoTx, err := c.DispatchClient.GetTransactionsByTXHash(hash)
+		utxoTx, err := c.DispatchClient.GetTransactionsByTXHash(hash)
 
-	var inputs []gobcy.TXInput
-	var inputAddress []string
-	var outs []gobcy.TXOutput
-	var outputAddress []string
+		var inputs []gobcy.TXInput
+		var inputAddress []string
+		var outs []gobcy.TXOutput
+		var outputAddress []string
 
-	vinAmount := decimal.Zero
-	voutAmount := decimal.Zero
-	utxo := decimal.NewFromInt(100000000)
+		vinAmount := decimal.Zero
+		voutAmount := decimal.Zero
+		utxo := decimal.NewFromInt(100000000)
 
-	if err != nil {
-		return tx, err
+		if err != nil {
+			return tx, err
+		}
+		if utxoTx.Error != nil {
+			return tx, errors.New(fmt.Sprintf("%v", utxoTx.Error))
+		}
+		for _, vin := range utxoTx.Result.Vin {
+			voutIndex := vin.Vout
+			btcPreTx, err1 := c.DispatchClient.GetTransactionsByTXHash(vin.Txid)
+			if err1 != nil || btcPreTx.Error != nil {
+				continue
+			}
+			pvout := btcPreTx.Result.Vout[voutIndex]
+			valueNum := decimal.NewFromFloat(pvout.Value)
+			// 需要乘以100000000(10的8次方)转成整型
+			amount := valueNum.Mul(utxo)
+			vinAmount = vinAmount.Add(amount)
+			val := amount.IntPart()
+			if c.DispatchClient.ChainName == "BTC" {
+				inputAddress = append(inputAddress, pvout.ScriptPubKey.Address)
+			}
+
+			if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
+				inputAddress = pvout.ScriptPubKey.Addresses
+			}
+			input := gobcy.TXInput{
+				OutputValue: int(val),
+				Addresses:   inputAddress,
+			}
+			inputs = append(inputs, input)
+		}
+
+		for _, vout := range utxoTx.Result.Vout {
+			outValue := decimal.NewFromFloat(vout.Value)
+			// 需要乘以100000000(10的8次方)转成整型
+			vu := outValue.Mul(utxo)
+			voutAmount = voutAmount.Add(vu)
+			outAmount := vu.BigInt()
+
+			if c.DispatchClient.ChainName == "BTC" {
+				outputAddress = append(outputAddress, vout.ScriptPubKey.Address)
+			}
+
+			if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
+				outputAddress = vout.ScriptPubKey.Addresses
+			}
+
+			out := gobcy.TXOutput{
+				Value:     *outAmount,
+				Addresses: outputAddress,
+			}
+			outs = append(outs, out)
+		}
+		feeAmount := vinAmount.Sub(voutAmount).BigInt()
+
+		log.Info(hash, zap.Any("vinAmount", vinAmount), zap.Any("voutAmount", voutAmount), zap.Any("feeAmount", feeAmount))
+
+		txTime := time.Unix(int64(utxoTx.Result.Time), 0)
+		utxoBlock, err := c.DispatchClient.GetUTXOBlockByHash(utxoTx.Result.Blockhash)
+		tx = types.TX{
+			BlockHash:   utxoTx.Result.Blockhash,
+			BlockHeight: utxoBlock.Result.Height,
+			Hash:        hash,
+			Fees:        *feeAmount,
+			Confirmed:   txTime,
+			Inputs:      inputs,
+			Outputs:     outs,
+			Error:       tx.Error,
+		}
+
+		return tx, nil
 	}
-	if utxoTx.Error != nil {
-		return tx, errors.New(fmt.Sprintf("%v", utxoTx.Error))
-	}
-	for _, vin := range utxoTx.Result.Vin {
-		voutIndex := vin.Vout
-		btcPreTx, err1 := c.DispatchClient.GetTransactionsByTXHash(vin.Txid)
-		if err1 != nil || btcPreTx.Error != nil {
-			continue
-		}
-		pvout := btcPreTx.Result.Vout[voutIndex]
-		valueNum := decimal.NewFromFloat(pvout.Value)
-		// 需要乘以100000000(10的8次方)转成整型
-		amount := valueNum.Mul(utxo)
-		vinAmount = vinAmount.Add(amount)
-		val := amount.IntPart()
-		if c.DispatchClient.ChainName == "BTC" {
-			inputAddress = append(inputAddress, pvout.ScriptPubKey.Address)
-		}
-
-		if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
-			inputAddress = pvout.ScriptPubKey.Addresses
-		}
-		input := gobcy.TXInput{
-			OutputValue: int(val),
-			Addresses:   inputAddress,
-		}
-		inputs = append(inputs, input)
-	}
-
-	for _, vout := range utxoTx.Result.Vout {
-		outValue := decimal.NewFromFloat(vout.Value)
-		// 需要乘以100000000(10的8次方)转成整型
-		vu := outValue.Mul(utxo)
-		voutAmount = voutAmount.Add(vu)
-		outAmount := vu.BigInt()
-
-		if c.DispatchClient.ChainName == "BTC" {
-			outputAddress = append(outputAddress, vout.ScriptPubKey.Address)
-		}
-
-		if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
-			outputAddress = vout.ScriptPubKey.Addresses
-		}
-
-		out := gobcy.TXOutput{
-			Value:     *outAmount,
-			Addresses: outputAddress,
-		}
-		outs = append(outs, out)
-	}
-	feeAmount := vinAmount.Sub(voutAmount).BigInt()
-
-	log.Info(hash, zap.Any("vinAmount", vinAmount), zap.Any("voutAmount", voutAmount), zap.Any("feeAmount", feeAmount))
-
-	txTime := time.Unix(int64(utxoTx.Result.Time), 0)
-	utxoBlock, err := c.DispatchClient.GetUTXOBlockByHash(utxoTx.Result.Blockhash)
-	tx = types.TX{
-		BlockHash:   utxoTx.Result.Blockhash,
-		BlockHeight: utxoBlock.Result.Height,
-		Hash:        hash,
-		Fees:        *feeAmount,
-		Confirmed:   txTime,
-		Inputs:      inputs,
-		Outputs:     outs,
-		Error:       tx.Error,
-	}
-
-	return tx, nil
-
 	//if c.DispatchClient.ChainName == "BTC" {
 	//	return btc.GetTransactionByHash(hash, &c.DispatchClient)
 	//} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
@@ -375,81 +383,84 @@ func (c *Client) GetBTCBlockByNumber(number int) (types.BTCBlockerInfo, error) {
 	var block types.BTCBlockerInfo
 	utxo := decimal.NewFromInt(100000000)
 	if c.DispatchClient.ChainName == "BTC" {
-		btcBlockInfo, err := c.DispatchClient.GetBTCBlock(number)
-		if err != nil {
-			return block, err
-		}
-		if btcBlockInfo.Error != nil {
-			return block, errors.New(fmt.Sprintf("%v", btcBlockInfo.Error))
-		}
 
-		var txs []types.Tx
-		for index, utxoTx := range btcBlockInfo.Result.Tx {
-			var inputs []types.Inputs
-			var outs []types.Out
-			valueNumFee := decimal.NewFromFloat(utxoTx.Fee)
-			// 需要乘以100000000(10的8次方)转成整型
-			feeAmount := valueNumFee.Mul(utxo).IntPart()
+		return btc.GetBTCBlockByNumber(number, &c.DispatchClient)
 
-			if index == 0 {
-				//coinbase 不记录
-				continue
-			}
-			for _, vin := range utxoTx.Vin {
-				voutIndex := vin.Vout
-				btcPreTx, err1 := c.DispatchClient.GetTransactionsByTXHash(vin.Txid)
-				if err1 != nil || btcPreTx.Error != nil {
-					continue
-				}
-				pvout := btcPreTx.Result.Vout[voutIndex]
-				valueNum := decimal.NewFromFloat(pvout.Value)
-				// 需要乘以100000000(10的8次方)转成整型
-				amount := valueNum.Mul(utxo)
-				val := amount.IntPart()
-				input := types.Inputs{
-					PrevOut: types.PrevOut{
-						Value: int(val),
-						Addr:  pvout.ScriptPubKey.Address,
-					},
-				}
-				inputs = append(inputs, input)
-			}
-
-			for _, vout := range utxoTx.Vout {
-				outValue := decimal.NewFromFloat(vout.Value)
-				// 需要乘以100000000(10的8次方)转成整型
-				outAmount := outValue.Mul(utxo).IntPart()
-				out := types.Out{
-					Value: int(outAmount),
-					Addr:  vout.ScriptPubKey.Address,
-				}
-				outs = append(outs, out)
-			}
-			tx := types.Tx{
-				Hash:        utxoTx.Txid,
-				Fee:         int(feeAmount),
-				DoubleSpend: false,
-				Time:        btcBlockInfo.Result.Time,
-				BlockIndex:  btcBlockInfo.Result.Height,
-				BlockHeight: btcBlockInfo.Result.Height,
-				Inputs:      inputs,
-				Out:         outs,
-			}
-
-			txs = append(txs, tx)
-
-		}
-
-		block = types.BTCBlockerInfo{
-			Hash:      btcBlockInfo.Result.Hash,
-			PrevBlock: btcBlockInfo.Result.Previousblockhash,
-			Time:      btcBlockInfo.Result.Time,
-			NTx:       btcBlockInfo.Result.NTx,
-			MainChain: true,
-			Height:    btcBlockInfo.Result.Height,
-			Tx:        txs,
-		}
-		return block, err
+		//btcBlockInfo, err := c.DispatchClient.GetBTCBlock(number)
+		//if err != nil {
+		//	return block, err
+		//}
+		//if btcBlockInfo.Error != nil {
+		//	return block, errors.New(fmt.Sprintf("%v", btcBlockInfo.Error))
+		//}
+		//
+		//var txs []types.Tx
+		//for index, utxoTx := range btcBlockInfo.Result.Tx {
+		//	var inputs []types.Inputs
+		//	var outs []types.Out
+		//	valueNumFee := decimal.NewFromFloat(utxoTx.Fee)
+		//	// 需要乘以100000000(10的8次方)转成整型
+		//	feeAmount := valueNumFee.Mul(utxo).IntPart()
+		//
+		//	if index == 0 {
+		//		//coinbase 不记录
+		//		continue
+		//	}
+		//	for _, vin := range utxoTx.Vin {
+		//		voutIndex := vin.Vout
+		//		btcPreTx, err1 := c.DispatchClient.GetTransactionsByTXHash(vin.Txid)
+		//		if err1 != nil || btcPreTx.Error != nil {
+		//			continue
+		//		}
+		//		pvout := btcPreTx.Result.Vout[voutIndex]
+		//		valueNum := decimal.NewFromFloat(pvout.Value)
+		//		// 需要乘以100000000(10的8次方)转成整型
+		//		amount := valueNum.Mul(utxo)
+		//		val := amount.IntPart()
+		//		input := types.Inputs{
+		//			PrevOut: types.PrevOut{
+		//				Value: int(val),
+		//				Addr:  pvout.ScriptPubKey.Address,
+		//			},
+		//		}
+		//		inputs = append(inputs, input)
+		//	}
+		//
+		//	for _, vout := range utxoTx.Vout {
+		//		outValue := decimal.NewFromFloat(vout.Value)
+		//		// 需要乘以100000000(10的8次方)转成整型
+		//		outAmount := outValue.Mul(utxo).IntPart()
+		//		out := types.Out{
+		//			Value: int(outAmount),
+		//			Addr:  vout.ScriptPubKey.Address,
+		//		}
+		//		outs = append(outs, out)
+		//	}
+		//	tx := types.Tx{
+		//		Hash:        utxoTx.Txid,
+		//		Fee:         int(feeAmount),
+		//		DoubleSpend: false,
+		//		Time:        btcBlockInfo.Result.Time,
+		//		BlockIndex:  btcBlockInfo.Result.Height,
+		//		BlockHeight: btcBlockInfo.Result.Height,
+		//		Inputs:      inputs,
+		//		Out:         outs,
+		//	}
+		//
+		//	txs = append(txs, tx)
+		//
+		//}
+		//
+		//block = types.BTCBlockerInfo{
+		//	Hash:      btcBlockInfo.Result.Hash,
+		//	PrevBlock: btcBlockInfo.Result.Previousblockhash,
+		//	Time:      btcBlockInfo.Result.Time,
+		//	NTx:       btcBlockInfo.Result.NTx,
+		//	MainChain: true,
+		//	Height:    btcBlockInfo.Result.Height,
+		//	Tx:        txs,
+		//}
+		//return block, err
 
 		//return btc.GetBTCBlockByNumber(number, &c.DispatchClient)
 
