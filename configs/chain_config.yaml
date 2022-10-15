@@ -146,7 +146,8 @@ platform:
     proxyCacheTime: 60
     proxyKey: feeOracleBTC
     rpcURL:
-    - http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332
+    - https://api.blockcypher.com/v1/btc/main
+#    - http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332
 #    - https://chain.so
 #    - https://blockstream.info
     symbol: BTC
@@ -473,7 +474,7 @@ platform:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
-    monitorHeightAlarmThr: 200
+    monitorHeightAlarmThr: 300
 
 platformTest:
   AptosTEST:
@@ -797,4 +798,4 @@ platformTest:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
-    monitorHeightAlarmThr: 200
+    monitorHeightAlarmThr: 300
