@@ -42,36 +42,38 @@ type BlockResponse struct {
 		} `json:"raw_data"`
 		WitnessSignature string `json:"witness_signature"`
 	} `json:"block_header"`
-	Transactions []struct {
-		Ret []struct {
-			ContractRet string `json:"contractRet"`
-		} `json:"ret"`
-		Signature  []string `json:"signature"`
-		TxID       string   `json:"txID"`
-		RawDataHex string   `json:"raw_data_hex"`
-		RawData    struct {
-			Contract []struct {
-				Parameter struct {
-					Value struct {
-						Amount          int    `json:"amount"`
-						ToAddress       string `json:"to_address"`
-						AssetName       string `json:"asset_name"`
-						Data            string `json:"data"`
-						OwnerAddress    string `json:"owner_address"`
-						ContractAddress string `json:"contract_address"`
-					} `json:"value"`
-					TypeURL string `json:"type_url"`
-				} `json:"parameter"`
-				Type string `json:"type"`
-			} `json:"contract"`
-			RefBlockBytes string `json:"ref_block_bytes"`
-			RefBlockHash  string `json:"ref_block_hash"`
-			Expiration    int64  `json:"expiration"`
-			FeeLimit      int    `json:"fee_limit"`
-			Timestamp     int64  `json:"timestamp"`
-		} `json:"raw_data"`
-	} `json:"transactions"`
-	Error interface{} `json:"error"`
+	Transactions []BlockTx   `json:"transactions"`
+	Error        interface{} `json:"error"`
+}
+
+type BlockTx struct {
+	Ret []struct {
+		ContractRet string `json:"contractRet"`
+	} `json:"ret"`
+	Signature  []string `json:"signature"`
+	TxID       string   `json:"txID"`
+	RawDataHex string   `json:"raw_data_hex"`
+	RawData    struct {
+		Contract []struct {
+			Parameter struct {
+				Value struct {
+					Amount          int    `json:"amount"`
+					ToAddress       string `json:"to_address"`
+					AssetName       string `json:"asset_name"`
+					Data            string `json:"data"`
+					OwnerAddress    string `json:"owner_address"`
+					ContractAddress string `json:"contract_address"`
+				} `json:"value"`
+				TypeURL string `json:"type_url"`
+			} `json:"parameter"`
+			Type string `json:"type"`
+		} `json:"contract"`
+		RefBlockBytes string `json:"ref_block_bytes"`
+		RefBlockHash  string `json:"ref_block_hash"`
+		Expiration    int64  `json:"expiration"`
+		FeeLimit      int    `json:"fee_limit"`
+		Timestamp     int64  `json:"timestamp"`
+	} `json:"raw_data"`
 }
 
 type TronTxReq struct {

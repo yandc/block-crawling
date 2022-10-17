@@ -933,7 +933,7 @@ func doHandleStcUserAsset(chainName string, client starcoin.Client, uid string, 
 
 func GetTrxBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
-	client := tron.NewClient("https://api.tronstack.io")
+	client := tron.NewClient("https://api.tronstack.io", chainName)
 	userAsset, err := handleTrxUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)

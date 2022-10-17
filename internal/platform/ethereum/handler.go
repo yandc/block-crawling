@@ -148,7 +148,7 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		}
 		return false
 	}
-	log.Warn(
+	log.Info(
 		"IGNORE CURRENT BLOCK AS AN UNRESOLVABLE ERROR OCCURRED",
 		zap.String("chainName", h.chainName),
 		zap.Error(err),
