@@ -6,16 +6,14 @@ import (
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
-	"gitlab.bixin.com/mili/node-driver/detector"
-	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -36,39 +34,6 @@ type KVPair struct {
 	Val int
 }
 
-type detectorZapWatcher struct {
-	chainName string
-	urls      []string
-	rwLock    sync.RWMutex
-}
-
-func (d *detectorZapWatcher) OnNodesChange(nodes []detector.Node) {
-	urls := make([]string, 0, len(nodes))
-	for _, n := range nodes {
-		urls = append(urls, n.URL())
-	}
-	log.Debug(
-		"NODES DETECTED",
-		zap.String("chainName", d.chainName),
-		zap.Strings("nodeUrls", urls),
-	)
-	d.rwLock.Lock()
-	defer d.rwLock.Unlock()
-	d.urls = urls
-}
-
-func (d *detectorZapWatcher) OnNodeFailover(current detector.Node, next detector.Node) {
-	d.rwLock.RLock()
-	defer d.rwLock.RUnlock()
-	log.Debug(
-		"NODE HAD BEEN FAILOVERED",
-		zap.String("chainName", d.chainName),
-		zap.String("current", current.URL()),
-		zap.String("next", next.URL()),
-		zap.Strings("nodeUrls", d.urls),
-	)
-}
-
 func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	chainType := c.Handler
 	chainName := c.Chain
@@ -79,9 +44,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		clients = append(clients, client)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
-	spider.WatchDetector(&detectorZapWatcher{
-		chainName: chainName,
-	})
+	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
