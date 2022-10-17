@@ -7,10 +7,11 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
@@ -30,7 +31,6 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 		}
 	}()
 
-	client = NewClient("https://api.tronstack.io")
 	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
 }

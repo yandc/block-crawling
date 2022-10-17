@@ -133,6 +133,11 @@ func (c *Client) getBlock(height uint64) (*chain.Block, error) {
 }
 
 // GetTxByHash get transaction by given tx hash.
+//
+// GetTxByHash 没有错误的情况下：
+//
+// 1. 返回 non-nil tx 表示调用 TxHandler.OnSealedTx
+// 2. 返回 nil tx 表示调用 TxHandler.OnDroppedTx（兜底方案）
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 	if err != nil {

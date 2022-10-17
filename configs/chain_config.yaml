@@ -449,8 +449,13 @@ platform:
     netType: main
     rpcURL:
     - https://api.trongrid.io
+    - https://rpc.ankr.com/http/tron
+    - https://api.tronstack.io
     symbol: TRX
     type: TVM
+    safelyConcurrentBlockDelta: 60
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 150
   Solana:
     blockExplorerAddrUrl: https://solscan.io/account/
     blockExplorerTxUrl: https://solscan.io/tx/
@@ -777,6 +782,9 @@ platformTest:
     - https://api.shasta.trongrid.io
     symbol: TRX
     type: TVM
+    safelyConcurrentBlockDelta: 60
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 150
   SolanaTEST:
     blockExplorerAddrUrl: https://solscan.io/account/
     blockExplorerTxUrl: https://solscan.io/tx/
