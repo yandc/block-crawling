@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
-	"block-crawling/internal/utils"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -66,23 +65,13 @@ func GetBlockByNumber(number int, c *base.Client) (types.Dogecoin, error) {
 }
 
 func GetBalance(address string, c *base.Client) (string, error) {
-	var nodeUrl string
-	if c.ChainName == "LTC" {
-		nodeUrl = "https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/"
-	}
-	if c.ChainName == "DOGE" {
-		nodeUrl = "https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/"
-	}
-	key, baseURL := parseKeyFromNodeURL(nodeUrl)
+	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "account/" + address
 	var balances []types.Balances
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &balances)
 	if err == nil {
 		if len(balances) > 0 {
-			balanceInfo := balances[0]
-			balance := balanceInfo.ConfirmedBalance
-			balance = utils.StringDecimals(balance, balanceInfo.Currency.Decimals)
-			return balance, nil
+			return balances[0].ConfirmedBalance, nil
 		}
 	}
 	return "", err
