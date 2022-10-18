@@ -36,6 +36,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 	decoder := &txDecoder{
 		ChainName: h.ChainName,
 		block:     block,
+		newTxs:    true,
 		now:       time.Now(),
 	}
 	/*log.Info(
@@ -59,6 +60,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 	decoder := &txDecoder{
 		ChainName: h.ChainName,
 		block:     nil,
+		newTxs:    false,
 		now:       time.Now(),
 	}
 	return decoder, nil

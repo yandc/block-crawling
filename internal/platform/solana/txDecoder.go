@@ -66,8 +66,6 @@ type Instructions struct {
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
-	h.newTxs = true
-
 	curSlot := block.Number
 	curHeight := block.Raw.(int)
 	transactionInfo := tx.Raw.(*TransactionInfo)
@@ -519,7 +517,9 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			log.Info("插入数据库报错：", zap.Any(h.ChainName, err))
 			return err
 		}
-		go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
+		if h.newTxs {
+			go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
+		}
 	}
 	return nil
 }
@@ -536,7 +536,6 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction) error {
 
 	err = h.OnNewTx(c, block, tx)
 
-	h.newTxs = false
 	return err
 }
 
