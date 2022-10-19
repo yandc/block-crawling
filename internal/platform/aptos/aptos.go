@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ const APT_CREATE_ACCOUNT = "0x1::aptos_account::create_account"
 const APT_REGISTER = "0x1::coins::register"
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	log.Info(value.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType, chainName := value.Handler, value.Chain
 
 	nodes := make([]chain.Clienter, 0, len(nodeURL))

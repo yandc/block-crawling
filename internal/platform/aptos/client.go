@@ -2,11 +2,13 @@ package aptos
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -50,6 +52,7 @@ type AptosBalanceResp struct {
 }
 
 func (c *Client) Detect() error {
+	log.Info(c.ChainName+"链节点检测", zap.Any("nodeURL", c.url))
 	_, err := c.GetBlockNumber()
 	return err
 }

@@ -44,6 +44,7 @@ func NewClient(nodeUrl string, chainName string) *Client {
 }
 
 func (c *Client) Detect() error {
+	log.Info(c.ChainName+"链节点检测", zap.Any("nodeURL", c.Url))
 	_, err := c.GetBlockNumber()
 	return err
 }
