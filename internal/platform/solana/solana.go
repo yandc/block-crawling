@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ type KVPair struct {
 }
 
 func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler
 	chainName := c.Chain
 
