@@ -631,7 +631,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.Cursor = record.UpdatedAt
 				}
 
-				if record.Status == DROPPED_REPLACED  || record.Status == DROPPED{
+				if record.Status == DROPPED_REPLACED || record.Status == DROPPED {
 					record.Status = FAIL
 				}
 				if record.Status == NO_STATUS {
@@ -1079,23 +1079,23 @@ func (s *TransactionUsecase) StatisticFundRate(ctx context.Context, req *pb.Stat
 	return result, err
 }
 
-func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error){
+func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error) {
 	var result = &pb.UnspentResponse{}
 	var unspentList []*pb.UnspentList
 
-	dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx,req)
+	dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
 	if err != nil {
 		result.Ok = false
-		return result,err
+		return result, err
 	}
 
-	for _ , db:= range dbUnspentRecord {
+	for _, db := range dbUnspentRecord {
 		var r *pb.UnspentList
-		utils.CopyProperties(db,&r)
+		utils.CopyProperties(db, &r)
 		unspentList = append(unspentList, r)
 	}
 
 	result.Ok = true
 	result.Data = unspentList
-	return result,nil
+	return result, nil
 }

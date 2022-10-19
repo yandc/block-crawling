@@ -2,6 +2,7 @@ package aptos
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
@@ -11,17 +12,26 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 const TYPE_PREFIX = "0x1::coin::CoinStore"
 const APTOS_DECIMALS = 8
 
 type Client struct {
-	URL string
+	*common.NodeRecoverIn
+
+	url string
 }
 
-func NewClient(nodeUrl string) Client {
-	return Client{nodeUrl}
+func NewClient(chainName, nodeUrl string) Client {
+	return Client{
+		url: nodeUrl,
+		NodeRecoverIn: &common.NodeRecoverIn{
+			ChainName: chainName,
+		},
+	}
 }
 
 type AptosBadResp struct {
@@ -37,6 +47,72 @@ type AptosBalanceResp struct {
 		} `json:"coin"`
 	} `json:"data"`
 	AptosBadResp
+}
+
+func (c *Client) Detect() error {
+	_, err := c.GetBlockNumber()
+	return err
+}
+
+func (c *Client) URL() string {
+	return c.url
+}
+
+func (c *Client) GetBlockHeight() (uint64, error) {
+	height, err := c.GetBlockNumber()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(height), nil
+}
+
+func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
+	block, err := c.GetBlockByNumber(int(height))
+	if err != nil {
+		return nil, err
+	}
+	txs := make([]*chain.Transaction, 0, len(block.Transactions))
+	for _, rawTx := range block.Transactions {
+		nonce, _ := strconv.Atoi(rawTx.SequenceNumber)
+		txs = append(txs, &chain.Transaction{
+			Hash:        rawTx.Hash,
+			Nonce:       uint64(nonce),
+			BlockNumber: height,
+			TxType:      "",
+			FromAddress: rawTx.Sender,
+			ToAddress:   "",
+			Value:       "",
+			Raw:         rawTx,
+			Record:      nil,
+		})
+	}
+	blkTime, _ := strconv.ParseInt(block.BlockTimestamp, 10, 64)
+
+	return &chain.Block{
+		Hash:         block.BlockHash,
+		Number:       height,
+		Time:         blkTime,
+		Raw:          block,
+		Transactions: txs,
+	}, nil
+}
+
+func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
+	rawTx, err := c.GetTransactionByHash(txHash)
+	if err != nil {
+		return nil, err
+	}
+	nonce, _ := strconv.Atoi(rawTx.SequenceNumber)
+	return &chain.Transaction{
+		Hash:        txHash,
+		Nonce:       uint64(nonce),
+		TxType:      "",
+		FromAddress: "",
+		ToAddress:   "",
+		Value:       "",
+		Raw:         rawTx,
+		Record:      nil,
+	}, nil
 }
 
 func (c *Client) GetAddressIsActive(address string) []interface{} {
@@ -60,7 +136,7 @@ type AptosResourceResp []struct {
 }
 
 func (c *Client) GetResourceByAddress(address string) *AptosResourceResp {
-	url := fmt.Sprintf("%s/accounts/%s/resources", c.URL, address)
+	url := fmt.Sprintf("%s/accounts/%s/resources", c.url, address)
 	out := &AptosResourceResp{}
 	err := httpclient.HttpsGetForm(url, nil, out)
 	if err != nil {
@@ -80,7 +156,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 
 func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (string, error) {
 	resourceType := fmt.Sprintf("%s<%s>", TYPE_PREFIX, tokenAddress)
-	url := fmt.Sprintf("%s/accounts/%s/resource/%s", c.URL, address, resourceType)
+	url := fmt.Sprintf("%s/accounts/%s/resource/%s", c.url, address, resourceType)
 	out := &AptosBalanceResp{}
 	err := httpclient.HttpsGetForm(url, nil, out)
 	if err != nil {
@@ -222,9 +298,9 @@ func (c *Client) GetTransactionByHash(hash string) (tx TransactionInfo, err erro
 	return tx, err
 }
 
-//constructs BlockCypher URLs with parameters for requests
+// constructs BlockCypher URLs with parameters for requests
 func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, err error) {
-	target, err = url.Parse(c.URL + u)
+	target, err = url.Parse(c.url + u)
 	if err != nil {
 		return
 	}
@@ -239,7 +315,7 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 	return
 }
 
-//getResponse is a boilerplate for HTTP GET responses.
+// getResponse is a boilerplate for HTTP GET responses.
 func getResponse(target *url.URL, decTarget interface{}) (err error) {
 	resp, err := http.Get(target.String())
 	if err != nil {

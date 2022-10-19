@@ -492,25 +492,49 @@ platform:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
     monitorHeightAlarmThr: 300
+  Aptos:
+    blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
+    blockExplorerTxUrl: https://explorer.aptoslabs.com/txn/
+    blockExplorerUrl: https://explorer.aptoslabs.com/
+    chain: Aptos
+    chainId: 1
+    coinId: 101011
+    decimal: 8
+    fullName: Aptos
+    getPriceKey: aptos
+    handler: aptos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Aptos.png
+    nativeCurrency: APT
+    netType: main
+    rpcURL:
+      - https://mainnet.aptoslabs.com/v1
+      - https://fullnode.mainnet.aptoslabs.com/v1
+      - https://aptos-mainnet.pontem.network/v1
+      - https://fullnode.mainnet.martianwallet.xyz/v1
+    symbol: Aptos
+    type: APTOS
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 300
 
 platformTest:
   AptosTEST:
-    blockExplorerAddrUrl: https://explorer.devnet.aptos.dev/account/
-    blockExplorerTxUrl: https://explorer.devnet.aptos.dev/txn/
-    blockExplorerUrl: https://explorer.devnet.aptos.dev/
+    blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
+    blockExplorerTxUrl: https://explorer.aptoslabs.com/txn/
+    blockExplorerUrl: https://explorer.aptoslabs.com/
     chain: AptosTEST
     chainId: 2
     coinId: 101011
     decimal: 8
     fullName: Aptos Test Net
-    getPriceKey: ''
+    getPriceKey: aptos
     handler: aptos
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
-    nativeCurrency: Aptos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Aptos.png
+    nativeCurrency: APT
     netType: test
     rpcURL:
     - https://testnet.aptoslabs.com/v1
-    symbol: APT
+    symbol: Aptos
     type: APTOS
   SuiTEST:
     blockExplorerAddrUrl: https://explorer.devnet.sui.io/addresses/

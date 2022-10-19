@@ -512,7 +512,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 				meta:        meta,
 				receipt:     rawReceipt.(*Receipt),
 			}
-
+			h.block = block // to let below invocation work.
 			if err := h.handleEachTransaction(c.(*Client), job); err != nil {
 				return err
 			}
@@ -529,7 +529,6 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	//新成功后的 speed_up
 
 	//兜底时，成功后 执行 a 一样的步骤
-
 
 	log.Info(
 		"PENDING TX COULD NOT FOUND ON THE CHAIN",

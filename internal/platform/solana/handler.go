@@ -39,14 +39,14 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		newTxs:    true,
 		now:       time.Now(),
 	}
-	/*log.Info(
+	log.Info(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.ChainName),
 		zap.Uint64("height", block.Number),
 		zap.String("blockHash", block.Hash),
 		zap.Int("txLen", len(block.Transactions)),
 		zap.String("nodeUrl", client.URL()),
-	)*/
+	)
 	return decoder, nil
 }
 
