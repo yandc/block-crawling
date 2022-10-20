@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"context"
+	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -88,11 +89,13 @@ func (h *handler) WrapsError(err error) error {
 		return err
 	}
 
-	log.Error(
-		"error occurred then retry",
-		zap.String("chainName", h.ChainName),
-		zap.Error(err),
-	)
+	if !strings.HasSuffix(h.ChainName, "TEST") {
+		log.Error(
+			"error occurred then retry",
+			zap.String("chainName", h.ChainName),
+			zap.Error(err),
+		)
+	}
 	return common.Retry(err)
 }
 
@@ -101,10 +104,12 @@ func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight 
 		return true
 	}
 
-	log.Error(
-		"ERROR OCCURRED WHILE HANDLING BLOCK",
-		zap.String("chainName", h.ChainName),
-		zap.Error(err),
-	)
+	if !strings.HasSuffix(h.ChainName, "TEST") {
+		log.Error(
+			"ERROR OCCURRED WHILE HANDLING BLOCK",
+			zap.String("chainName", h.ChainName),
+			zap.Error(err),
+		)
+	}
 	return false
 }

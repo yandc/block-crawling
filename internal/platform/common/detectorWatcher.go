@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -54,21 +55,16 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 
 	d.rwLock.RLock()
 	defer d.rwLock.RUnlock()
-	log.Debug(
-		"NODE HAD BEEN FAILOVERED",
-		zap.String("chainName", d.chainName),
-		zap.String("current", current.URL()),
-		zap.String("next", next.URL()),
-		zap.Strings("nodeUrls", d.urls),
-	)
 	if int(numOfContinualFailed) >= len(d.urls) {
-		log.Warn(
-			"ALL NODES HAD BEEN FAILOVERED",
-			zap.String("chainName", d.chainName),
-			zap.String("current", current.URL()),
-			zap.String("next", next.URL()),
-			zap.Strings("nodeUrls", d.urls),
-		)
+		if !strings.HasSuffix(d.chainName, "TEST") {
+			log.Error(
+				"ALL NODES HAD BEEN FAILOVERED",
+				zap.String("chainName", d.chainName),
+				zap.String("current", current.URL()),
+				zap.String("next", next.URL()),
+				zap.Strings("nodeUrls", d.urls),
+			)
+		}
 		alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", d.chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, d.urls, alarmOpts)
