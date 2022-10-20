@@ -484,9 +484,9 @@ platform:
     netType: main
     proxyCacheTime: 15
     rpcURL:
+      - https://solana-api.projectserum.com
       - https://ssc-dao.genesysgo.net
       - https://api.mainnet-beta.solana.com
-      - https://solana-api.projectserum.com
     symbol: Solana
     type: SOL
     safelyConcurrentBlockDelta: 50

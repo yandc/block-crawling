@@ -119,13 +119,8 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		)
 	}
 
-	if strings.HasPrefix(h.chainName, "TEST") {
-		log.Info(
-			"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-			fields...,
-		)
-	} else {
-		log.Warn(
+	if !strings.HasSuffix(h.chainName, "TEST") {
+		log.Error(
 			"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
 			fields...,
 		)
