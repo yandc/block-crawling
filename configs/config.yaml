@@ -62,7 +62,7 @@ innerNodeList:
     chainName: "BTC"
     handler: "bitcoin"
     rpcURL:
-      - "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332"
+      - "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332"
     symbol: "BTC"
     type: "BTC"
 
@@ -74,7 +74,7 @@ innerNodeList:
     chainName: "DOGE"
     handler: "dogecoin"
     rpcURL:
-     - "http://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@47.244.138.206:22555"
+     - "http://haotech:jHoNTnHnZZY6pXsdfsopweuiUWoUwZKC@chain01.openblock.top:22555"
     type: "BTC"
 
   LTC:
@@ -85,7 +85,7 @@ innerNodeList:
     chainName: "LTC"
     handler: "litecoin"
     rpcURL:
-      - "http://haotech:BFHGDCQHbaTZBvHJER4fyHy@47.75.184.192:9332"
+      - "http://haotech:BFHsdfsUYTBN2HbaTZBvHJER4fyHy@chain01.openblock.top:9332"
     type: "BTC"
 
 innerPublicNodeList:
