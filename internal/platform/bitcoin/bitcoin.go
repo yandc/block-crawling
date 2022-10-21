@@ -89,6 +89,8 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 
 	pointsDataLimit := biz.PAGE_SIZE
 	result, err := p.client.DispatchClient.GetMemoryPoolTXByNode()
+	log.Info(p.ChainName,zap.Any("pendingTxZYD",result))
+
 	if err != nil || result.Error != nil {
 		log.Error(p.ChainName+"获取为上链交易hash报错", zap.Any("error", err))
 		return
