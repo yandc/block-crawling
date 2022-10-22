@@ -1,25 +1,25 @@
 platform:
-  ETHW:
-    blockExplorerAddrUrl: https://mainnet.ethwscan.com/address/
-    blockExplorerTxUrl: https://mainnet.ethwscan.com/tx/
-    blockExplorerUrl: https://mainnet.ethwscan.com/
-    chain: ETHW
-    chainId: 10001
-    coinId: 60
-    decimal: 18
-    fullName: Ethereum PoW
-    getPriceKey: ethereum-pow-iou
-    handler: ethereumpow
-    nativeCurrency: ETHW
-    netType: main
-    proxyCacheTime: 15
-    rpcURL:
-      - https://mainnet.ethereumpow.org
-    symbol: ETHW
-    type: EVM
-    safelyConcurrentBlockDelta: 20
-    maxConcurrency: 5
-    monitorHeightAlarmThr: 21
+#  ETHW:
+#    blockExplorerAddrUrl: https://mainnet.ethwscan.com/address/
+#    blockExplorerTxUrl: https://mainnet.ethwscan.com/tx/
+#    blockExplorerUrl: https://mainnet.ethwscan.com/
+#    chain: ETHW
+#    chainId: 10001
+#    coinId: 60
+#    decimal: 18
+#    fullName: Ethereum PoW
+#    getPriceKey: ethereum-pow-iou
+#    handler: ethereumpow
+#    nativeCurrency: ETHW
+#    netType: main
+#    proxyCacheTime: 15
+#    rpcURL:
+#      - https://mainnet.ethereumpow.org
+#    symbol: ETHW
+#    type: EVM
+#    safelyConcurrentBlockDelta: 20
+#    maxConcurrency: 5
+#    monitorHeightAlarmThr: 21
   DOGE:
     blockExplorerAddrUrl: https://dogechain.info/address/
     blockExplorerTxUrl: https://dogechain.info/tx/
