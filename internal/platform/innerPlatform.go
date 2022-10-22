@@ -31,7 +31,7 @@ func NewInnerNodeList(c map[string]*conf.PlatInfo) {
 }
 
 func GetInnerPlatform(value *conf.PlatInfo) subhandle.Platform {
-	typ, chainName, nodeURL := value.Chain, value.Chain, value.RpcURL[0]
+	typ, chainName, nodeURL := value.Type, value.Chain, value.RpcURL[0]
 	height := -1
 	redisHeight, _ := data.RedisClient.Get(data.CHAINNAME + chainName).Result()
 	if redisHeight != "" {
