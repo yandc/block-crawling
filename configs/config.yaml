@@ -67,7 +67,7 @@ innerNodeList:
     type: "BTC"
 
   DOGE:
-    chain: "dogecoin"
+    chain: "DOGE"
     decimal: 8
     fullName: "Dogecoin"
     getPriceKey: "dogecoin"
@@ -78,7 +78,7 @@ innerNodeList:
     type: "BTC"
 
   LTC:
-    chain: "litecoin"
+    chain: "LTC"
     decimal: 8
     fullName: "litecoin"
     getPriceKey: "litecoin"

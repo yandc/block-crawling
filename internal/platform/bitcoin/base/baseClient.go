@@ -75,7 +75,7 @@ func (c *Client) GetMemoryPoolTXByNode() (txIds model.MemoryPoolTX, err error) {
 	var pa = make([]interface{}, 0, 0)
 
 	memoryTxId.Params = pa
-	err = postResponse(c.StreamURL, memoryTxId, &txIds)
+	err = postResponse(c.URL, memoryTxId, &txIds)
 	return
 }
 
