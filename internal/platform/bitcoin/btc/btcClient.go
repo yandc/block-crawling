@@ -25,7 +25,7 @@ type Client struct {
 var urlMap = map[string]string{
 	"https://api.blockcypher.com/v1/btc/main":                     "https://blockstream.info/api",
 	"https://api.blockcypher.com/v1/btc/test3":                    "https://blockstream.info/testnet/api",
-	"http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332",
+	"http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332",
 }
 
 func NewClient(nodeUrl string) Client {
