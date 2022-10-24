@@ -157,6 +157,11 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 }
 
 func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	tokenInfo := types.TokenInfo{}
+	if tokenAddress == "" {
+		return tokenInfo, nil
+	}
+
 	var key = chainName + tokenAddress
 	tokenInfo, ok := TokenInfoMap[key]
 	if ok {
@@ -167,18 +172,6 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	defer lock.Unlock(key)
 	tokenInfo, ok = TokenInfoMap[key]
 	if ok {
-		return tokenInfo, nil
-	}
-
-	if tokenAddress == "" {
-		if platInfo, ok := PlatInfoMap[chainName]; ok {
-			decimal := platInfo.Decimal
-			symbol := platInfo.Symbol
-			tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(decimal), Symbol: symbol}
-		}
-		mutex.Lock()
-		TokenInfoMap[key] = tokenInfo
-		mutex.Unlock()
 		return tokenInfo, nil
 	}
 

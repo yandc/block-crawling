@@ -270,9 +270,11 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	//整理feeDate
 	//var maxFeePerGas,maxPriorityFeePerGas string
 	paseJson := make(map[string]string)
-	if pbb.FeeData != "" {
-		if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
-			log.Info("feedata数据解析失败！")
+	if chainType != APTOS {
+		if pbb.FeeData != "" {
+			if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
+				log.Info("feedata数据解析失败！")
+			}
 		}
 	}
 

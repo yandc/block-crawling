@@ -257,7 +257,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
 			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
 				decimals = platInfo.Decimal
-				symbol = platInfo.Symbol
+				symbol = platInfo.NativeCurrency
 			}
 			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
 			for i := 0; i < 10 && err != nil; i++ {

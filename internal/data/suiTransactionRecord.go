@@ -300,8 +300,14 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
+	if len(req.StatusNotInList) > 0 {
+		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)

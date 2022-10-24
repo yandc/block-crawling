@@ -61,6 +61,7 @@ innerNodeList:
     getPriceKey: "bitcoin"
     chainName: "BTC"
     handler: "bitcoin"
+    nativeCurrency: BTC
     rpcURL:
       - "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332"
     symbol: "BTC"
@@ -73,8 +74,10 @@ innerNodeList:
     getPriceKey: "dogecoin"
     chainName: "DOGE"
     handler: "dogecoin"
+    nativeCurrency: DOGE
     rpcURL:
-     - "http://haotech:jHoNTnHnZZY6pXsdfsopweuiUWoUwZKC@chain01.openblock.top:22555"
+      - "http://haotech:jHoNTnHnZZY6pXsdfsopweuiUWoUwZKC@chain01.openblock.top:22555"
+    symbol: DOGE
     type: "BTC"
 
   LTC:
@@ -84,8 +87,10 @@ innerNodeList:
     getPriceKey: "litecoin"
     chainName: "LTC"
     handler: "litecoin"
+    nativeCurrency: LTC
     rpcURL:
       - "http://haotech:BFHsdfsUYTBN2HbaTZBvHJER4fyHy@chain01.openblock.top:9332"
+    symbol: LTC
     type: "BTC"
 
 innerPublicNodeList:

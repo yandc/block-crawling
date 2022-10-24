@@ -146,7 +146,7 @@ func (r *AptTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"from_uid":              clause.Column{Table: "excluded", Name: "from_uid"},
 			"to_uid":                clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":            clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":                clause.Column{Table: "excluded", Name: "amount"},
+			"amount":                gorm.Expr("case when excluded.amount != '' and excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
 			"status":                clause.Column{Table: "excluded", Name: "status"},
 			"tx_time":               clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address":      clause.Column{Table: "excluded", Name: "contract_address"},
@@ -314,8 +314,14 @@ func (r *AptTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
+	if len(req.StatusNotInList) > 0 {
+		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
