@@ -361,7 +361,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			go HandleRecord(h.chainName, *(client.(*Client)), txRecords)
 		} else {
 			go handleUserNonce(h.chainName, txNonceRecords)
-			go HandleRecordStatus(h.chainName, txRecords)
+			go HandlePendingRecord(h.chainName, *(client.(*Client)), txRecords)
 		}
 	}
 	return nil

@@ -137,6 +137,8 @@ func (h *txHandler) Save(c chain.Clienter) error {
 		}
 		if h.newTxs {
 			go HandleRecord(h.chainName, *client, txRecords)
+		} else {
+			go HandlePendingRecord(h.chainName, *client, txRecords)
 		}
 	}
 	return nil

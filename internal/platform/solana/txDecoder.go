@@ -519,6 +519,8 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		}
 		if h.newTxs {
 			go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
+		} else {
+			go HandlePendingRecord(h.ChainName, *(client.(*Client)), txRecords)
 		}
 	}
 	return nil
