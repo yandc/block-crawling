@@ -223,7 +223,8 @@ func (c *Client) GetBlockByNumber(number int) (*Block, error) {
 	method := "getBlock"
 	params := []interface{}{number, map[string]interface{}{"encoding": "jsonParsed", "transactionDetails": "full", "maxSupportedTransactionVersion": 0, "rewards": false}}
 	result := &Block{}
-	err := c.call(JSONID, method, result, params)
+	timeoutMS := 10_000
+	err := c.call(JSONID, method, result, params, timeoutMS)
 	return result, err
 }
 
