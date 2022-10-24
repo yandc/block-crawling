@@ -229,7 +229,26 @@ type TransactionInfo struct {
 			Data *struct {
 				Coin *struct {
 					Value string `json:"value"`
-				} `json:"coin"`
+				} `json:"coin,omitempty"`
+				DepositEvents *struct {
+					Counter string `json:"counter"`
+					Guid    struct {
+						Id struct {
+							Addr        string `json:"addr"`
+							CreationNum string `json:"creation_num"`
+						} `json:"id"`
+					} `json:"guid"`
+				} `json:"deposit_events,omitempty"`
+				Frozen         bool `json:"frozen,omitempty"`
+				WithdrawEvents *struct {
+					Counter string `json:"counter"`
+					Guid    struct {
+						Id struct {
+							Addr        string `json:"addr"`
+							CreationNum string `json:"creation_num"`
+						} `json:"id"`
+					} `json:"guid"`
+				} `json:"withdraw_events,omitempty"`
 			} `json:"data"`
 		} `json:"data"`
 	} `json:"changes"`
@@ -238,12 +257,12 @@ type TransactionInfo struct {
 	MaxGasAmount            string `json:"max_gas_amount"`
 	GasUnitPrice            string `json:"gas_unit_price"`
 	ExpirationTimestampSecs string `json:"expiration_timestamp_secs"`
-	Payload                 struct {
+	Payload                 *struct {
 		Type          string        `json:"type"`
 		Function      string        `json:"function"`
 		TypeArguments []string      `json:"type_arguments"`
 		Arguments     []interface{} `json:"arguments"`
-	} `json:"payload"`
+	} `json:"payload,omitempty"`
 	Signature struct {
 		Type      string `json:"type"`
 		PublicKey string `json:"public_key"`

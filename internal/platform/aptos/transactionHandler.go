@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,14 @@ func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	doneNonce := make(map[string]int)
 
 	for _, record := range txRecords {
+		if record.Status == biz.CANCEL {
+			pNonce := biz.ADDRESS_PENDING_NONCE + chainName + ":" + record.FromAddress + ":" + strconv.Itoa(int(record.Nonce))
+			data.RedisClient.Del(pNonce)
+			continue
+		}
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
@@ -180,11 +189,11 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		fromUserAssetKey := chainName + record.FromAddress + tokenAddress
 		if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
 			userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
+			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
 				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
 			}
-			if err != nil {
+			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
 				// 更新用户资产出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
@@ -200,11 +209,11 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		toUserAssetKey := chainName + record.ToAddress + tokenAddress
 		if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
 			userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
+			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
 				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
 			}
-			if err != nil {
+			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
 				// 更新用户资产出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
@@ -221,14 +230,14 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
 			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
 				decimals = platInfo.Decimal
-				symbol = platInfo.Symbol
+				symbol = platInfo.NativeCurrency
 			}
 			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
+			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
 				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
 			}
-			if err != nil {
+			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
 				// 更新用户资产出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s更新用户资产失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")

@@ -27,7 +27,10 @@ type Platform struct {
 
 const APT_CODE = "0x1::aptos_coin::AptosCoin"
 const APT_CREATE_ACCOUNT = "0x1::aptos_account::create_account"
-const APT_REGISTER = "0x1::coins::register"
+const APT_REGISTER = "0x1::managed_coin::register"
+const APT_TRANSFER = "0x1::coin::transfer"
+const APT_ACCOUNT_TRANSFER = "0x1::aptos_account::transfer"
+const APT_MINT = "0x1::aptos_coin::mint"
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	log.Info(value.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))

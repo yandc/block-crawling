@@ -193,7 +193,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			if !ok {
 				if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
 					decimals = platInfo.Decimal
-					symbol = platInfo.Symbol
+					symbol = platInfo.NativeCurrency
 					mainDecimals = decimals
 					mainSymbol = symbol
 				}

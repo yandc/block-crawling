@@ -232,7 +232,7 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	if address == "" {
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			decimals = platInfo.Decimal
-			symbol = platInfo.Symbol
+			symbol = platInfo.NativeCurrency
 		}
 	}
 	return decimals, symbol, nil

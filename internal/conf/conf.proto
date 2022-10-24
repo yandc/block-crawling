@@ -101,18 +101,19 @@ message PlatInfo {
   string fullName = 3;
   string getPriceKey = 4;
   string handler = 5;
-  string symbol = 6;
-  string type = 7;
-  repeated string rpcURL = 8;
-  string tokenPrice = 9;
+  string nativeCurrency = 6;
+  string symbol = 7;
+  string type = 8;
+  repeated string rpcURL = 9;
+  string tokenPrice = 10;
 
   // 可以安全的进行并发爬块的高度差（即不用考虑分叉的高度），即：
   // 「链上高度 - 当前高度」大于此值才开始并发爬块。
-  optional int32 safelyConcurrentBlockDelta = 10;
+  optional int32 safelyConcurrentBlockDelta = 11;
 
   // 爬块最大并发
-  optional int32 maxConcurrency = 11;
+  optional int32 maxConcurrency = 12;
 
   // 块高差报警阈值，爬块高度和链上高度的差大于此值进行报警。
-  optional int32 monitorHeightAlarmThr = 12;
+  optional int32 monitorHeightAlarmThr = 13;
 }
