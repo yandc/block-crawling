@@ -1246,6 +1246,7 @@ func (p *Platform) GetTransactionResultByTxhash() {
 			log.Error(p.ChainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", curHeight), zap.Any("new", height)*/, zap.Any("error", err))
 			return
 		}
+		go HandlePendingRecord(p.ChainName, p.client, txRecords)
 	}
 }
 

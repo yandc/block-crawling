@@ -36,6 +36,27 @@ func HandleRecord(chainName string, client Client, txRecords []*data.AptTransact
 	handleUserNonce(chainName, txRecords)
 }
 
+func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandlePendingRecord error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandlePendingRecord panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	go handleUserAsset(chainName, client, txRecords)
+	handleUserNonce(chainName, txRecords)
+}
+
 func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	doneNonce := make(map[string]int)
 

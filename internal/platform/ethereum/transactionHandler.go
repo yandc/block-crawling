@@ -39,8 +39,28 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	go HandleRecordStatus(chainName, txRecords)
 }
 
-func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord) {
+func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandlePendingRecord error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandlePendingRecord panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
 
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	go handleUserAsset(chainName, client, txRecords)
+	go HandleRecordStatus(chainName, txRecords)
+}
+
+func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord) {
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
@@ -276,7 +296,6 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 
 func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
 	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
-
 	var userAssets []*data.UserAsset
 	balanceList, err := client.BatchTokenBalance(address, tokenDecimalsMap)
 	if err != nil {

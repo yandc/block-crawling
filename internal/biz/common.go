@@ -52,12 +52,12 @@ const (
 const (
 	SUCCESS          = "success"
 	FAIL             = "fail"
-	PENDING          = "pending"//-- 中间状态
-	NO_STATUS        = "no_status" //-- 中间状态
-	DROPPED_REPLACED = "dropped_replaced"//--被丢弃或被置换 -- fail
-	DROPPED          = "dropped" //--被丢弃 -- fail
-	CANCEL           = "cancel" //中心化操作 --- value CANCEL --success
-	SPEED_UP         = "speed_up" //success
+	PENDING          = "pending"          //-- 中间状态
+	NO_STATUS        = "no_status"        //-- 中间状态
+	DROPPED_REPLACED = "dropped_replaced" //--被丢弃或被置换 -- fail
+	DROPPED          = "dropped"          //--被丢弃 -- fail
+	CANCEL           = "cancel"           //中心化操作 --- value CANCEL --success
+	SPEED_UP         = "speed_up"         //success
 )
 
 const (
@@ -203,10 +203,32 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 		return 0, "", err
 	}
 	tokenInfoMap := paseDataJson["token"]
+	if tokenInfoMap == nil {
+		return 0, "", nil
+	}
 	tokenInfo := tokenInfoMap.(map[string]interface{})
-	address := tokenInfo["address"].(string)
-	decimals := int32(tokenInfo["decimals"].(float64))
-	symbol := tokenInfo["symbol"].(string)
+	var address string
+	if tokenInfo["address"] != nil {
+		address = tokenInfo["address"].(string)
+	}
+	var decimals int32
+	if tokenInfo["decimals"] != nil {
+		if decimalsInt32, ok := tokenInfo["decimals"].(int32); ok {
+			decimals = decimalsInt32
+		} else if decimalsFloat, ok := tokenInfo["decimals"].(float64); ok {
+			decimals = int32(decimalsFloat)
+		} else {
+			decimalsInt, err := strconv.Atoi(fmt.Sprintf("%v", tokenInfo["decimals"]))
+			if err != nil {
+				return 0, "", nil
+			}
+			decimals = int32(decimalsInt)
+		}
+	}
+	var symbol string
+	if tokenInfo["symbol"] != nil {
+		symbol = tokenInfo["symbol"].(string)
+	}
 	if address == "" {
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			decimals = platInfo.Decimal
