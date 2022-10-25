@@ -552,7 +552,7 @@ platformTest:
     nativeCurrency: Sui
     netType: test
     rpcURL:
-    - https://gateway.devnet.sui.io
+    - https://fullnode.devnet.sui.io
     symbol: SUI
     type: SUI
   AvalancheTEST:
