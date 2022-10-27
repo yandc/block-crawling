@@ -33,6 +33,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 
 	go handleUserAsset(chainName, client, txRecords)
 	go handleUserStatistic(chainName, client, txRecords)
+	go handleTokenPush(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
@@ -342,4 +343,51 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.TrxT
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
+}
+
+func handleTokenPush(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("handleTokenPush error, chainName:"+chainName, e)
+			} else {
+				log.Errore("handleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var userAssetList []*data.UserAsset
+	for _, record := range txRecords {
+		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		if err != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			return
+		}
+
+		tokenAddress := record.ContractAddress
+		address := record.ToAddress
+		uid := record.ToUid
+		if tokenAddress != "" && address != "" && uid != "" {
+			var userAsset = &data.UserAsset{
+				ChainName:    chainName,
+				Uid:          uid,
+				Address:      address,
+				TokenAddress: tokenAddress,
+				Decimals:     decimals,
+				Symbol:       symbol,
+			}
+			userAssetList = append(userAssetList, userAsset)
+		}
+	}
+	biz.HandleTokenPush(chainName, userAssetList)
 }
