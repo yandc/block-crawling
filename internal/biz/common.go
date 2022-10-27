@@ -77,6 +77,9 @@ const (
 	USD = "USD" //美元
 )
 
+const TOKEN_INFO_QUEUE_TOPIC = "token:info:queue:topic"
+const TOKEN_INFO_QUEUE_PARTITION = "partition1"
+
 var rocketMsgLevels = map[string]int{
 	"DEBUG":   0,
 	"NOTICE":  1,
