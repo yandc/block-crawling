@@ -146,7 +146,7 @@ func (c *Client) GetTransactionNumber() (int, error) {
 
 func (c *Client) getTransactionsInRange(number int) (string, error) {
 	method := "sui_getTransactionsInRange"
-	var out [][]interface{}
+	var out []interface{}
 	params := []interface{}{number, number + 1}
 	err := c.call(JSONID, method, &out, params)
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *Client) getTransactionsInRange(number int) (string, error) {
 	}
 	var digest string
 	if len(out) > 0 {
-		digest = out[0][1].(string)
+		digest = out[0].(string)
 	}
 	return digest, err
 }
