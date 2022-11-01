@@ -83,7 +83,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 	return nil
 }
 
-func (h *handler) WrapsError(err error) error {
+func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
 	if err == nil || err == NotFound {
 		return err
@@ -93,6 +93,7 @@ func (h *handler) WrapsError(err error) error {
 		log.Error(
 			"error occurred then retry",
 			zap.String("chainName", h.ChainName),
+			zap.String("nodeUrl", client.URL()),
 			zap.Error(err),
 		)
 	}
