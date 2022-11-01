@@ -96,7 +96,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 	return nil
 }
 
-func (h *handler) WrapsError(err error) error {
+func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	if err == errPendingTx {
 		return err
 	}

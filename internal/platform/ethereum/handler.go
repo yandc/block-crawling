@@ -107,7 +107,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 	return nil
 }
 
-func (h *handler) WrapsError(err error) error {
+func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
 	if err == nil || err == ethereum.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
 		return err
