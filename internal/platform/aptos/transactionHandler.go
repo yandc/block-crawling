@@ -32,9 +32,11 @@ func HandleRecord(chainName string, client Client, txRecords []*data.AptTransact
 		}
 	}()
 
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 	go handleUserStatistic(chainName, client, txRecords)
-	go handleTokenPush(chainName, client, txRecords)
 	handleUserNonce(chainName, txRecords)
 }
 
@@ -55,7 +57,10 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptT
 		}
 	}()
 
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 	handleUserNonce(chainName, txRecords)
 }
 
@@ -107,6 +112,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		var tokenAddress = record.ContractAddress
 		if tokenAddress == APT_CODE {
 			tokenAddress = ""
@@ -464,8 +473,12 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 		}
 	}()
 
-	var userAssetList []*data.UserAsset
+	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -480,7 +493,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 		address := record.ToAddress
 		uid := record.ToUid
 		if tokenAddress != APT_CODE && tokenAddress != "" && address != "" && uid != "" {
-			var userAsset = &data.UserAsset{
+			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
 				Address:      address,

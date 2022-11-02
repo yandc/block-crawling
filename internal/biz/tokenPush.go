@@ -4,31 +4,33 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"encoding/json"
 	"fmt"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 	"time"
 )
 
-func HandleTokenPush(chainName string, userAssetList []*data.UserAsset) {
+type UserTokenPush struct {
+	ChainName    string `json:"chainName"`
+	Uid          string `json:"uid"`
+	Address      string `json:"address"`
+	TokenAddress string `json:"tokenAddress"`
+	Decimals     int32  `json:"decimals"`
+	Symbol       string `json:"symbol"`
+}
+
+func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
+	if len(userTokenPushList) == 0 {
+		return
+	}
+
 	var assetRequest = &pb.PageListAssetRequest{
 		ChainName: chainName,
 	}
 	var addressList []string
-	var tokenInfoList []string
-	for _, record := range userAssetList {
-		tokenAddress := record.TokenAddress
+	for _, record := range userTokenPushList {
 		address := record.Address
-		uid := record.Uid
-		symbol := record.Symbol
-		decimals := record.Decimals
-		tokenInfo := uid + "," + address + "," + tokenAddress + "," + symbol + "," + strconv.Itoa(int(decimals))
 		addressList = append(addressList, address)
-		tokenInfoList = append(tokenInfoList, tokenInfo)
-	}
-	if len(addressList) == 0 {
-		return
 	}
 
 	assetRequest.AddressList = addressList
@@ -55,10 +57,9 @@ func HandleTokenPush(chainName string, userAssetList []*data.UserAsset) {
 		tokenAddressList = append(tokenAddressList, asset.TokenAddress)
 	}
 
-	for _, tokenInfo := range tokenInfoList {
-		tokens := strings.Split(tokenInfo, ",")
-		address := tokens[1]
-		tokenAddress := tokens[2]
+	for _, userTokenPush := range userTokenPushList {
+		address := userTokenPush.Address
+		tokenAddress := userTokenPush.TokenAddress
 		tokenAddressList := assetMap[address]
 		var exist bool
 		for _, tokenAddr := range tokenAddressList {
@@ -68,7 +69,7 @@ func HandleTokenPush(chainName string, userAssetList []*data.UserAsset) {
 		}
 
 		if !exist {
-			tokenInfo = chainName + "," + tokenInfo
+			tokenInfo, _ := json.Marshal(userTokenPush)
 			err = data.RedisQueueManager.QueuePublish(&data.QueueSendMessage{
 				Topic:     TOKEN_INFO_QUEUE_TOPIC,
 				Partition: TOKEN_INFO_QUEUE_PARTITION,

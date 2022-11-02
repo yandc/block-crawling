@@ -31,9 +31,11 @@ func HandleRecord(chainName string, client Client, txRecords []*data.SolTransact
 		}
 	}()
 
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 	go handleUserStatistic(chainName, client, txRecords)
-	go handleTokenPush(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
@@ -53,7 +55,10 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolT
 		}
 	}()
 
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 }
 
 func handleUserAsset(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
@@ -77,6 +82,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		var tokenAddress = record.ContractAddress
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
@@ -488,8 +497,12 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.SolTrans
 		}
 	}()
 
-	var userAssetList []*data.UserAsset
+	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -504,7 +517,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.SolTrans
 		address := record.ToAddress
 		uid := record.ToUid
 		if tokenAddress != "" && address != "" && uid != "" {
-			var userAsset = &data.UserAsset{
+			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
 				Address:      address,

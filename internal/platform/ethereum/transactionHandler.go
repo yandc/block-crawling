@@ -33,11 +33,13 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	}()
 
 	go biz.DappApproveFilter(chainName, txRecords)
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 	go handleUserStatistic(chainName, client, txRecords)
 	go handleUserNonce(chainName, txRecords)
 	go HandleRecordStatus(chainName, txRecords)
-	go handleTokenPush(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -57,7 +59,10 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 		}
 	}()
 
-	go handleUserAsset(chainName, client, txRecords)
+	go func() {
+		handleTokenPush(chainName, client, txRecords)
+		handleUserAsset(chainName, client, txRecords)
+	}()
 	go HandleRecordStatus(chainName, txRecords)
 }
 
@@ -136,6 +141,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	var mainDecimals int32
 	var mainSymbol string
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -481,8 +490,12 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 		}
 	}()
 
-	var userAssetList []*data.UserAsset
+	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -497,7 +510,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 		address := record.ToAddress
 		uid := record.ToUid
 		if tokenAddress != "" && address != "" && uid != "" {
-			var userAsset = &data.UserAsset{
+			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
 				Address:      address,

@@ -61,8 +61,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 		if tx.Payload.Function == APT_CREATE_ACCOUNT {
 			txType = biz.CREATEACCOUNT
-			if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
-				toAddress = toAddressStr
+			if len(tx.Payload.Arguments) > 0 {
+				if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
+					toAddress = toAddressStr
+				}
 			}
 		}
 		if tx.Payload.Function == APT_REGISTER {
@@ -158,8 +160,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var fromAddressExist, toAddressExist bool
 
 		fromAddress = tx.Sender
-		if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
-			toAddress = toAddressStr
+		if len(tx.Payload.Arguments) > 0 {
+			if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
+				toAddress = toAddressStr
+			}
 		}
 		if len(tx.Payload.Arguments) > 1 {
 			if amountStr, ok := tx.Payload.Arguments[1].(string); ok {
@@ -723,8 +727,10 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 
 			if tx.Payload.Function == APT_CREATE_ACCOUNT {
 				txType = biz.CREATEACCOUNT
-				if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
-					toAddress = toAddressStr
+				if len(tx.Payload.Arguments) > 0 {
+					if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
+						toAddress = toAddressStr
+					}
 				}
 			}
 			if tx.Payload.Function == APT_REGISTER {
@@ -820,8 +826,10 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 			var fromAddressExist, toAddressExist bool
 
 			fromAddress = tx.Sender
-			if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
-				toAddress = toAddressStr
+			if len(tx.Payload.Arguments) > 0 {
+				if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
+					toAddress = toAddressStr
+				}
 			}
 			if len(tx.Payload.Arguments) > 1 {
 				if amountStr, ok := tx.Payload.Arguments[1].(string); ok {

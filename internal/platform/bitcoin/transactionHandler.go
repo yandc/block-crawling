@@ -213,6 +213,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.BtcTrans
 	var decimals int32 = 8
 	var symbol = "BTC"
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
 		var err error
 		fromUserAssetKey := chainName + record.FromAddress
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
