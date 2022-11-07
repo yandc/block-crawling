@@ -197,7 +197,11 @@ func HexToAddress(hexList []string) []string {
 	var addressList []string
 	if len(hexList) > 0 {
 		for _, addr := range hexList {
-			addressList = append(addressList, types2.HexToAddress(addr).Hex())
+			if addr == "" {
+				addressList = append(addressList, "")
+			} else {
+				addressList = append(addressList, types2.HexToAddress(addr).Hex())
+			}
 		}
 	}
 	return addressList

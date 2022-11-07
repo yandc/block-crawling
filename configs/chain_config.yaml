@@ -569,11 +569,11 @@ platformTest:
     chain: SuiTEST
     chainId: 24
     coinId: 101012
-    decimal: 0
+    decimal: 9
     fullName: Sui Test Net
     getPriceKey: ''
     handler: sui
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sui.jpg
     nativeCurrency: Sui
     netType: test
     rpcURL:

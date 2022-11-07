@@ -3275,16 +3275,7 @@ func (m *PageListAssetRequest) validate(all bool) error {
 
 	// no validation rules for Uid
 
-	if _, ok := _PageListAssetRequest_Currency_InLookup[m.GetCurrency()]; !ok {
-		err := PageListAssetRequestValidationError{
-			field:  "Currency",
-			reason: "value must be in list [CNY USD]",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
+	// no validation rules for Currency
 
 	if _, ok := _PageListAssetRequest_AmountType_InLookup[m.GetAmountType()]; !ok {
 		err := PageListAssetRequestValidationError{
@@ -3424,11 +3415,6 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = PageListAssetRequestValidationError{}
-
-var _PageListAssetRequest_Currency_InLookup = map[string]struct{}{
-	"CNY": {},
-	"USD": {},
-}
 
 var _PageListAssetRequest_AmountType_InLookup = map[int32]struct{}{
 	0: {},
