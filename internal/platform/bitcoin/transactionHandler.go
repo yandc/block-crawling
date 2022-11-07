@@ -4,14 +4,13 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	pCommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -19,6 +18,15 @@ var urlMap = map[string]string{
 	"DOGE": "http://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@47.244.138.206:22555",
 	"BTC":  "http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332",
 	"LTC":  "http://haotech:BFHGDCQHbaTZBvHJER4fyHy@47.75.184.192:9332",
+}
+var btcUrls = []string{
+	"https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1",
 }
 
 func HandleRecord(chainName string, client Client, txRecords []*data.BtcTransactionRecord) {
@@ -82,16 +90,94 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 
 	baseClient := client.DispatchClient
 	baseClient.StreamURL = urlMap[chainName]
-	p1 := decimal.NewFromInt(100000000)
+	//p1 := decimal.NewFromInt(100000000)
 
 	for _, record := range txRecords {
-
 		if record.Status != biz.SUCCESS {
 			continue
 		}
+		var flag string
+		if chainName == "BTC" {
+			flag = "/bitcoin/mainnet/"
+		} else if chainName == "LTC" {
+			flag = "/litecoin/mainnet/"
+		} else if chainName == "DOGE" {
+			flag = "/dogecoin/mainnet/"
+		} else {
+			flag = ""
+		}
+		from := record.FromAddress
+		fromUid := record.FromUid
+		to := record.ToAddress
+		toUid := record.ToUid
+		//判断 是否是 本站用户
+		if fromUid != "" {
+			//删除原来 记录， 更新 未花费记录
+			list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, from)
+			for i := 0; i < len(btcUrls) && err != nil; i++ {
+				list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, from)
+			}
 
-		ret := strings.Split(record.TransactionHash, "#")[0]
+			ret, err := data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, fromUid, chainName, from)
 
+			if err != nil {
+				// postgres出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链删除数据库utxo数据失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"扫块，链删除数据库utxo数据失败", zap.Any("address", from), zap.Any("error", err))
+				continue
+			}
+			log.Info(from, zap.Any("删除utxo条数", ret))
+			if list.Total == 0 {
+				continue
+			}
+			for _, d := range list.Data {
+				var utxoUnspentRecord = &data.UtxoUnspentRecord{
+					Uid:       fromUid,
+					Hash:      d.Mined.TxId,
+					N:         d.Mined.Index,
+					ChainName: chainName,
+					Address:   from,
+					Script:    d.Mined.Meta.Script,
+					Unspent:   1, //1 未花费 2 已花费 联合索引
+					Amount:    strconv.Itoa(d.Value),
+					TxTime:    int64(d.Mined.Date),
+					UpdatedAt: time.Now().Unix(),
+				}
+				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+			}
+		}
+
+		if toUid != "" {
+			//插入 未花费
+			//删除原来 记录， 更新 未花费记录
+			list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, to)
+			for i := 0; i < len(btcUrls) && err != nil; i++ {
+				list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, to)
+			}
+			if list.Total == 0 {
+				continue
+			}
+			for _, d := range list.Data {
+				var utxoUnspentRecord = &data.UtxoUnspentRecord{
+					Uid:       toUid,
+					Hash:      d.Mined.TxId,
+					N:         d.Mined.Index,
+					ChainName: chainName,
+					Address:   to,
+					Script:    d.Mined.Meta.Script,
+					Unspent:   1, //1 未花费 2 已花费 联合索引
+					Amount:    strconv.Itoa(d.Value),
+					TxTime:    int64(d.Mined.Date),
+					UpdatedAt: time.Now().Unix(),
+				}
+				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+			}
+		}
+
+		//********** 自建节点 测试环境不可以用****************** 切换成 公共节点
+		/*ret := record.TransactionHash
 		txRecord, err := baseClient.GetTransactionsByTXHash(ret)
 		log.Info(chainName, zap.Any("ydUTXO", txRecord))
 		for i := 0; i < 10 && err != nil; i++ {
@@ -187,6 +273,8 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 			}
 			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
 		}
+		*/
+		//*********btc节点不同, 其余链节点可用client*****************
 	}
 }
 

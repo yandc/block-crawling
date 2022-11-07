@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -41,6 +42,7 @@ const (
 	APTOS  = "APTOS"
 	SUI    = "SUI"
 	SOLANA = "SOL"
+	NERVOS = "CKB"
 )
 
 const (
@@ -71,7 +73,7 @@ const (
 	REGISTERTOKEN = "registerToken"
 )
 
-//币种
+// 币种
 const (
 	CNY = "CNY" //人民币
 	USD = "USD" //美元

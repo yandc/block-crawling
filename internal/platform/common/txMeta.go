@@ -98,3 +98,16 @@ func MatchUser(fromAddress, toAddress, chainName string) (*UserMeta, error) {
 		ToUid:   toUid,
 	}, nil
 }
+
+func MatchAddress(address, chainName string) (string, bool, error) {
+	ok, uid, err := biz.UserAddressSwitch(address)
+	if err != nil {
+		// redis出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, address), zap.Any("error", err))
+		return "", false, err
+	}
+	return uid, ok, nil
+}

@@ -20,6 +20,8 @@ service Transaction {
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
   //分页查询用户资产列表
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
+  //查询用户余额
+  rpc GetBalance(AssetRequest) returns (ListBalanceResponse);
   //分页查询交易数据统计列表
   rpc PageListStatistic(PageListStatisticRequest) returns (PageListStatisticResponse);
   //交易数据看板查询金额趋势图
@@ -37,18 +39,20 @@ message UnspentReq{
   string uid = 3;
   string address = 4;
   string txHash = 5;
+  string contractAddress = 6;
 }
 
 message UnspentResponse{
   bool ok = 1;
-  repeated UnspentList data = 2;
+  repeated CellList cell_list = 2;
+  repeated UnspentList utxo_list = 3;
+  repeated CellList token_cell_list = 4;
 }
-
 message UnspentList{
   int64 id = 1;
   string uid = 2;
   string hash = 3;
-  int64 index = 4;
+  string index = 4;
   string chainName = 5;
   string address = 6;
   string script = 7;
@@ -58,6 +62,26 @@ message UnspentList{
   int64 createdAt = 11;
   int64 updatedAt = 12;
 }
+
+message CellList{
+  OutPoint outPoint = 1;
+  int64 capacity = 2;
+  CellLock lock = 3;
+  CellLock type = 4;
+  string data = 5;
+}
+
+message OutPoint {
+  string txHash = 1;
+  string index = 2;
+}
+message CellLock {
+  string codeHash = 1;
+  string hashType = 2;
+  string args = 3;
+
+}
+
 
 message DappPageListReq{
   string chainName = 1;
@@ -300,6 +324,21 @@ message AssetResponse {
   int64 createdAt = 10;
   int64 updatedAt = 11;
   int64 cursor = 12;
+}
+
+message AssetRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string address = 2 [(validate.rules).string = {min_len: 1}];//-- 必输
+  repeated string tokenAddressList = 3 [(validate.rules).repeated = {min_items: 1}];//-- 必输
+}
+
+message ListBalanceResponse {
+  repeated BalanceResponse list = 1;
+}
+
+message BalanceResponse {
+  string tokenAddress = 1;
+  string balance = 2;
 }
 
 message PageListStatisticRequest {

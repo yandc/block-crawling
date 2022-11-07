@@ -18,7 +18,7 @@ type UserAsset struct {
 	Id           int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	ChainName    string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
 	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
-	Address      string `json:"address" form:"address" gorm:"type:character varying(66);index:,unique,composite:unique_chain_name_address_token_address"`
+	Address      string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address"`
 	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
 	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
 	Decimals     int32  `json:"decimals" form:"decimals"`
@@ -39,10 +39,12 @@ type UserAssetRepo interface {
 	BatchSaveOrUpdate(context.Context, []*UserAsset) (int64, error)
 	PageBatchSaveOrUpdate(context.Context, []*UserAsset, int) (int64, error)
 	Update(context.Context, *UserAsset) (int64, error)
+	UpdateZeroByAddress(context.Context,string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
 	PageList(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, int64, error)
+	List(context.Context, *pb.AssetRequest) ([]*UserAsset, error)
 	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -267,6 +269,29 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetR
 	return userAssetList, total, nil
 }
 
+func (r *UserAssetRepoImpl) List(ctx context.Context, req *pb.AssetRequest) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+	db := r.gormDB.WithContext(ctx).Table("user_asset")
+
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+
+	ret := db.Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query userAsset failed", err)
+		return nil, err
+	}
+	return userAssetList, nil
+}
+
 func (r *UserAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageListAssetRequest) ([]*UserAsset, error) {
 	var userAssetList []*UserAsset
 
@@ -321,6 +346,16 @@ func (r *UserAssetRepoImpl) DeleteByIDs(ctx context.Context, ids []int64) (int64
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete userAssets failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+func (r *UserAssetRepoImpl) UpdateZeroByAddress(ctx context.Context, address string) (int64, error){
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("address = ?",address).Update("balance","0")
+	err := ret.Error
+	if err != nil {
+		log.Errore("update balance zero", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected

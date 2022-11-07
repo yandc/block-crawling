@@ -518,7 +518,7 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and from_address = ? and nonce = ? and transaction_hash not like ? ", address, nonce, transactionHash+"%").Update("status", "dropped_replaced")
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? ", address, nonce, transactionHash+"%").Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)

@@ -102,6 +102,11 @@ func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageList
 	return result, err
 }
 
+func (s *TransactionService) GetBalance(ctx context.Context, req *pb.AssetRequest) (*pb.ListBalanceResponse, error) {
+	result, err := s.ts.GetBalance(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
@@ -131,4 +136,3 @@ func (s *TransactionService) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 	result, err := s.ts.GetUnspentTx(subctx, req)
 	return result, err
 }
-
