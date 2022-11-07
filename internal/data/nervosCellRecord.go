@@ -56,7 +56,7 @@ func NewNervosCellRecordRepo(gormDB *gorm.DB) NervosCellRecordRepo {
 
 func (r *NervosCellRecordRepoImpl) LoadBatch(ctx context.Context, txHashs []string) ([]*NervosCellRecord, error) {
 	var results []*NervosCellRecord
-	ret := r.gormDB.WithContext(ctx).Where("transaction_hash in (?)", txHashs).Find(&results)
+	ret := r.gormDB.Where("transaction_hash in (?)", txHashs).Find(&results)
 	if ret.Error != nil {
 		return nil, ret.Error
 	}
@@ -64,7 +64,7 @@ func (r *NervosCellRecordRepoImpl) LoadBatch(ctx context.Context, txHashs []stri
 }
 
 func (r *NervosCellRecordRepoImpl) SaveOrUpdate(ctx context.Context, utxoUnspentRecord *NervosCellRecord) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
+	ret := r.gormDB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "uid"}, {Name: "transaction_hash"}, {Name: "index"}},
 		UpdateAll: false,
 		DoUpdates: clause.AssignmentColumns([]string{"status", "updated_at", "use_transaction_hash"}),
@@ -110,7 +110,7 @@ func (r *NervosCellRecordRepoImpl) FindByCondition(ctx context.Context, req *pb.
 }
 
 func (r *NervosCellRecordRepoImpl) UpdateStatusByUseTransactionHash(ctx context.Context, uth string, status string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Where("use_transaction_hash = ?", uth).Update("status", status)
+	ret := r.gormDB.Where("use_transaction_hash = ?", uth).Update("status", status)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update cell failed", err)
@@ -121,7 +121,7 @@ func (r *NervosCellRecordRepoImpl) UpdateStatusByUseTransactionHash(ctx context.
 }
 
 func (r *NervosCellRecordRepoImpl) Save(ctx context.Context, nervosCellRecord *NervosCellRecord) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Create(nervosCellRecord)
+	ret := r.gormDB.Create(nervosCellRecord)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {

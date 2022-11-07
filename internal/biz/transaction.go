@@ -1237,6 +1237,12 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 			if len(token) != 0 {
 				for _, n := range token {
 					c, _ := strconv.Atoi(n.Capacity)
+					lockArgs := strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0")
+					fla := fmt.Sprintf("%040s",lockArgs)
+
+					typeArgs :=  strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0")
+					fta := fmt.Sprintf("%040s",typeArgs)
+
 					p := &pb.CellList{
 						OutPoint: &pb.OutPoint{
 							TxHash: n.TransactionHash,
@@ -1245,12 +1251,12 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 						Lock: &pb.CellLock{
 							CodeHash: n.LockCodeHash,
 							HashType: n.LockHashType,
-							Args:     "0x" + strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0"),
+							Args:     "0x" + fla,
 						},
 						Type: &pb.CellLock{
 							CodeHash: n.TypeCodeHash,
 							HashType: n.TypeHashType,
-							Args:     "0x" + strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0"),
+							Args:     "0x" + fta,
 						},
 						Capacity: int64(c),
 						Data:     "0x" + strings.TrimLeft(strings.Replace(n.Data, "0x", "", 1), "0"),
