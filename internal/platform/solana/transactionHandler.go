@@ -93,8 +93,9 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
-			return
+			log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+				zap.Any("txHash", record.TransactionHash), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			continue
 		}
 
 		if record.Data == "" {
@@ -107,7 +108,8 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("data", record.Data), zap.Any("error", err))
+			log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+				zap.Any("txHash", record.TransactionHash), zap.Any("data", record.Data), zap.Any("error", err))
 			continue
 		}
 
@@ -416,7 +418,8 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.SolT
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+				zap.Any("txHash", record.TransactionHash), zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
 		prices, _ := decimal.NewFromString(price)
@@ -509,8 +512,9 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.SolTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("parseData", record.ParseData), zap.Any("error", err))
-			return
+			log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+				zap.Any("txHash", record.TransactionHash), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			continue
 		}
 
 		tokenAddress := record.ContractAddress

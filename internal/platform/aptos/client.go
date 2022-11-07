@@ -100,6 +100,38 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	}, nil
 }
 
+func (c *Client) GetBlockByTxVersion(txVersion int) (*chain.Block, error) {
+	block, err := c.GetBlockByVersion(txVersion)
+	if err != nil {
+		return nil, err
+	}
+	height, _ := strconv.Atoi(block.BlockHeight)
+	txs := make([]*chain.Transaction, 0, len(block.Transactions))
+	for _, rawTx := range block.Transactions {
+		nonce, _ := strconv.Atoi(rawTx.SequenceNumber)
+		txs = append(txs, &chain.Transaction{
+			Hash:        rawTx.Hash,
+			Nonce:       uint64(nonce),
+			BlockNumber: uint64(height),
+			TxType:      "",
+			FromAddress: rawTx.Sender,
+			ToAddress:   "",
+			Value:       "",
+			Raw:         rawTx,
+			Record:      nil,
+		})
+	}
+	blkTime, _ := strconv.ParseInt(block.BlockTimestamp, 10, 64)
+
+	return &chain.Block{
+		Hash:         block.BlockHash,
+		Number:       uint64(height),
+		Time:         blkTime,
+		Raw:          block,
+		Transactions: txs,
+	}, nil
+}
+
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 	if err != nil {
