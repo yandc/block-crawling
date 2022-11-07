@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -82,9 +83,17 @@ func (p *Platform) Coin() coins.Coin {
 }
 
 func (p *Platform) GetTransactions() {
-	log.Info("GetTransactions starting, chainName:" + p.ChainName)
+	log.Info(
+		"GetTransactions starting, chainName:"+p.ChainName,
+		zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()),
+	)
+
+	if p.conf.GetRoundRobinConcurrent() {
+		p.spider.EnableRoundRobin()
+	}
 
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
+
 	p.spider.StartIndexBlock(
 		newHandler(p.ChainName, liveInterval),
 		int(p.conf.GetSafelyConcurrentBlockDelta()),

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -27,20 +28,25 @@ const SOLANA_DECIMALS = 9
 var NotFound = errors.New("not found")
 
 type Client struct {
-	*common.NodeRecoverIn
+	*common.NodeDefaultIn
 
-	Url       string
-	ChainName string
+	Url        string
+	ChainName  string
+	retryAfter time.Time
 }
 
 func NewClient(nodeUrl string, chainName string) *Client {
 	return &Client{
 		Url:       nodeUrl,
 		ChainName: chainName,
-		NodeRecoverIn: &common.NodeRecoverIn{
+		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
 	}
+}
+
+func (c *Client) RetryAfter() time.Time {
+	return c.retryAfter
 }
 
 func (c *Client) Detect() error {
@@ -56,15 +62,18 @@ func (c *Client) URL() string {
 func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
 	var resp types.Response
 	var err error
+	var header http.Header
 	if len(args) > 0 {
-		err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params, args[0].(int))
+		header, err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params, args[0].(int))
 	} else {
-		err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params)
+		header, err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params)
 	}
 	if err != nil {
+		c.ParseRetryAfter(header)
 		return err
 	}
 	if resp.Error != nil {
+		c.ParseRetryAfter(header)
 		return resp.Error
 	}
 	return json.Unmarshal(resp.Result, &out)

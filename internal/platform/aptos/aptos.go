@@ -10,9 +10,10 @@ import (
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -63,7 +64,15 @@ func (p *Platform) Coin() coins.Coin {
 }
 
 func (p *Platform) GetTransactions() {
-	log.Info("GetTransactions starting, chainName:" + p.ChainName)
+	log.Info(
+		"GetTransactions starting, chainName:"+p.ChainName,
+		zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()),
+	)
+
+	if p.conf.GetRoundRobinConcurrent() {
+		p.spider.EnableRoundRobin()
+	}
+
 	p.spider.StartIndexBlock(
 		newHandler(p.ChainName, time.Duration(p.Coin().LiveInterval)*time.Millisecond),
 		int(p.conf.GetSafelyConcurrentBlockDelta()),

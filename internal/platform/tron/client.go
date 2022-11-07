@@ -21,7 +21,7 @@ var (
 )
 
 type Client struct {
-	*common.NodeRecoverIn
+	*common.NodeDefaultIn
 
 	url    string
 	client *http.Client
@@ -31,7 +31,7 @@ func NewClient(rawUrl string, chainName string) Client {
 	return Client{
 		url:    rawUrl,
 		client: http.DefaultClient,
-		NodeRecoverIn: &common.NodeRecoverIn{
+		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
 	}

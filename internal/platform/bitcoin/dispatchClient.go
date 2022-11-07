@@ -30,7 +30,7 @@ const SUCCESS_STATUS = "completed"
 var errIrrationalHeight = errors.New("irrational height, zero or less than zero")
 
 type Client struct {
-	*common.NodeRecoverIn
+	*common.NodeDefaultIn
 	nodeURL        string
 	chainName      string
 	DispatchClient base.Client
@@ -45,7 +45,7 @@ func NewClient(nodeUrl string, chainName string) Client {
 	}
 	r.ChainName = chainName
 	return Client{
-		NodeRecoverIn: &common.NodeRecoverIn{
+		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
 		nodeURL:        nodeUrl,
