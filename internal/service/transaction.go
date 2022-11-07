@@ -98,6 +98,20 @@ func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageList
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")
 	}
+	if req.Currency != "CNY" && req.Currency != "USD" {
+		return nil, errors.New("currency must be CNY or USD")
+	}
+
+	if req.OrderBy == "" {
+		req.OrderBy = "id desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
 	result, err := s.ts.PageListAsset(ctx, req)
 	return result, err
 }

@@ -295,7 +295,7 @@ message PageListAssetRequest {
   string uid = 2;
   repeated string addressList = 3;// [(validate.rules).repeated = {min_items: 1}];
   repeated string tokenAddressList = 4;
-  string currency = 5 [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
+  string currency = 5;// [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
   int32 amountType = 6 [(validate.rules).int32 = {in: [0, 1, 2]}];
   string orderBy = 7;
   int32 dataDirection = 8 [(validate.rules).int32 = {in: [0, 1, 2]}];
