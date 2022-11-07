@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
+
+	"go.uber.org/zap"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -22,7 +24,7 @@ const TYPE_PREFIX = "0x1::coin::CoinStore"
 const APTOS_DECIMALS = 8
 
 type Client struct {
-	*common.NodeRecoverIn
+	*common.NodeDefaultIn
 
 	url string
 }
@@ -30,7 +32,7 @@ type Client struct {
 func NewClient(chainName, nodeUrl string) Client {
 	return Client{
 		url: nodeUrl,
-		NodeRecoverIn: &common.NodeRecoverIn{
+		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
 	}
@@ -190,7 +192,7 @@ func (c *Client) GetBlockNumber() (int, error) {
 		return 0, err
 	}
 	var chain Blockchain
-	err = getResponse(u, &chain)
+	err = c.getResponse(u, &chain)
 	if err != nil {
 		return 0, err
 	}
@@ -289,7 +291,7 @@ func (c *Client) GetBlockByNumber(number int) (tx BlockerInfo, err error) {
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = c.getResponse(u, &tx)
 	return tx, err
 }
 
@@ -298,7 +300,7 @@ func (c *Client) GetBlockByVersion(version int) (tx BlockerInfo, err error) {
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = c.getResponse(u, &tx)
 	return tx, err
 }
 
@@ -307,7 +309,7 @@ func (c *Client) GetTransactionByVersion(version int) (tx TransactionInfo, err e
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = c.getResponse(u, &tx)
 	return tx, err
 }
 
@@ -316,7 +318,7 @@ func (c *Client) GetTransactionByHash(hash string) (tx TransactionInfo, err erro
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = c.getResponse(u, &tx)
 	return tx, err
 }
 
@@ -338,10 +340,18 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 }
 
 // getResponse is a boilerplate for HTTP GET responses.
-func getResponse(target *url.URL, decTarget interface{}) (err error) {
+func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
 	resp, err := http.Get(target.String())
 	if err != nil {
+		if resp != nil && resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+			// on test we only sleep for 3 seconds when we meet 429
+			c.SetRetryAfter(time.Second * 3)
+		}
 		return
+	}
+	if resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+		// on test we only sleep for 3 seconds when we meet 429
+		c.SetRetryAfter(time.Second * 3)
 	}
 	defer resp.Body.Close()
 

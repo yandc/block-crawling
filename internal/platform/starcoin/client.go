@@ -6,8 +6,10 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
-	"github.com/starcoinorg/starcoin-go/client"
 	"math/big"
+	"net/http"
+
+	"github.com/starcoinorg/starcoin-go/client"
 )
 
 const (
@@ -28,12 +30,14 @@ func NewClient(rawUrl string) Client {
 
 func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
 	var resp types.Response
+	var header http.Header
 	var err error
 	if len(args) > 0 {
-		err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params, args[0].(int))
+		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params, args[0].(int))
 	} else {
-		err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params)
+		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params)
 	}
+	_ = header
 	if err != nil {
 		return err
 	}

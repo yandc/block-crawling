@@ -28,7 +28,7 @@ import (
 
 type Client struct {
 	*ethclient.Client
-	*pcommon.NodeRecoverIn
+	*pcommon.NodeDefaultIn
 
 	url       string
 	chainName string
@@ -42,7 +42,7 @@ func NewClient(rawUrl string, chainName string) (*Client, error) {
 	}
 	return &Client{
 		Client: client,
-		NodeRecoverIn: &pcommon.NodeRecoverIn{
+		NodeDefaultIn: &pcommon.NodeDefaultIn{
 			ChainName: chainName,
 		},
 		url:       rawUrl,

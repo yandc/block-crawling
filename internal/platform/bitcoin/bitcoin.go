@@ -62,7 +62,11 @@ func (p *Platform) GetTransactions() {
 	log.Info(
 		"GetTransactions starting, chainName:"+p.ChainName,
 		zap.String("liveInterval", liveInterval.String()),
+		zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()),
 	)
+	if p.conf.GetRoundRobinConcurrent() {
+		p.spider.EnableRoundRobin()
+	}
 	p.spider.StartIndexBlock(
 		newHandler(p.ChainName, liveInterval),
 		int(p.conf.GetSafelyConcurrentBlockDelta()),
@@ -89,7 +93,7 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 
 	pointsDataLimit := biz.PAGE_SIZE
 	result, err := p.client.DispatchClient.GetMemoryPoolTXByNode()
-	log.Info(p.ChainName,zap.Any("pendingTxZYD",result))
+	log.Info(p.ChainName, zap.Any("pendingTxZYD", result))
 
 	if err != nil || result.Error != nil {
 		log.Error(p.ChainName+"获取为上链交易hash报错", zap.Any("error", err))

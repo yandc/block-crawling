@@ -6,9 +6,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"gitlab.bixin.com/mili/node-driver/detector"
 	"go.uber.org/zap"
@@ -89,12 +92,13 @@ func (d *DetectorZapWatcher) URLs() []string {
 }
 
 // NodeRecoverIn common recover to embed into Node implementation.
-type NodeRecoverIn struct {
-	ChainName string
+type NodeDefaultIn struct {
+	ChainName  string
+	retryAfter time.Time
 }
 
 // Recover handle panic.
-func (p *NodeRecoverIn) Recover(r interface{}) (err error) {
+func (p *NodeDefaultIn) Recover(r interface{}) (err error) {
 	if e, ok := r.(error); ok {
 		log.Errore("IndexBlock error, chainName:"+p.ChainName, e)
 		err = e
@@ -108,4 +112,50 @@ func (p *NodeRecoverIn) Recover(r interface{}) (err error) {
 	alarmOpts := biz.WithMsgLevel("FATAL")
 	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	return
+}
+
+func (p *NodeDefaultIn) RetryAfter() time.Time {
+	return p.retryAfter
+}
+
+func (p *NodeDefaultIn) SetRetryAfter(after time.Duration) {
+	p.retryAfter = time.Now().Add(after)
+}
+
+func (p *NodeDefaultIn) ParseRetryAfter(header http.Header) {
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After
+	retryAfter := header.Get("retry-after")
+	if retryAfter == "" {
+		return
+	}
+	if seconds, err := p.parseSeconds(retryAfter); err == nil {
+		log.Debug("PARSED RETRY AFTER FROM HEADER", zap.String("chain", p.ChainName), zap.Duration("retryAfter", seconds))
+		p.SetRetryAfter(seconds)
+		return
+	}
+	if parsed, err := p.parseHTTPDate(retryAfter); err == nil {
+		log.Debug("PARSED RETRY AFTER FROM HEADER", zap.String("chain", p.ChainName), zap.Time("retryAfter", parsed))
+		p.retryAfter = parsed
+	}
+}
+
+// parseSeconds parses the value as seconds.
+func (p *NodeDefaultIn) parseSeconds(retryAfter string) (time.Duration, error) {
+	seconds, err := strconv.ParseInt(retryAfter, 10, 64)
+	if err != nil {
+		return time.Duration(0), err
+	}
+	if seconds < 0 {
+		return time.Duration(0), errors.New("negative seconds")
+	}
+	return time.Second * time.Duration(seconds), nil
+}
+
+// ParseHTTPDate parses the value as HTTP date.
+func (p *NodeDefaultIn) parseHTTPDate(retryAfter string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC1123, retryAfter)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsed, nil
 }

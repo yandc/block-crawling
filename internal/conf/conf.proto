@@ -116,4 +116,7 @@ message PlatInfo {
 
   // 块高差报警阈值，爬块高度和链上高度的差大于此值进行报警。
   optional int32 monitorHeightAlarmThr = 13;
+
+  // 多个节点轮询并发，否则每次只使用一个节点进行并发。
+  optional bool roundRobinConcurrent = 14;
 }
