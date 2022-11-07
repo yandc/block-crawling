@@ -27,7 +27,7 @@ const (
 )
 
 type Client struct {
-	*common.NodeRecoverIn
+	*common.NodeDefaultIn
 
 	client rpc.Client
 	url    string
@@ -44,7 +44,7 @@ func NewClient(chainName, nodeURL string) (*Client, error) {
 		mode = address.Testnet
 	}
 	return &Client{
-		NodeRecoverIn: &common.NodeRecoverIn{
+		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
 		client: client,
