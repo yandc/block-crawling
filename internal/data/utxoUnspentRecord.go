@@ -16,7 +16,7 @@ type UtxoUnspentRecord struct {
 	ChainName string `json:"chainName" form:"chainName" gorm:"type:character varying(20)"` //联合索引
 	Address   string `json:"address" form:"address" gorm:"type:character varying(64)"`     //联合索引
 	Script    string `json:"script" form:"script" gorm:"type:character varying(300)"`
-	Unspent   int32  `json:"unspent" form:"unspent" gorm:"type:bigint"` //1 未花费 2 已花费 联合索引
+	Unspent   int32  `json:"unspent" form:"unspent" gorm:"type:bigint"` //1 未花费 2 已花费 联合索引 3 所有 4 pending 5 取消花费
 	Amount    string `json:"amount" form:"amount" sql:"type:text"`
 	TxTime    int64  `json:"txTime" form:"txTime"`
 	CreatedAt int64  `json:"createdAt" form:"createdAt"`
@@ -29,7 +29,9 @@ func (utxoUnspentRecord UtxoUnspentRecord) TableName() string {
 
 type UtxoUnspentRecordRepo interface {
 	SaveOrUpdate(context.Context, *UtxoUnspentRecord) (int64, error)
+	UpdateUnspent(context.Context, string, string, string, int, string) (int64, error)
 	FindByCondition(context.Context, *pb.UnspentReq) ([]*UtxoUnspentRecord, error)
+	DeleteByUid(context.Context, string, string, string) (int64, error)
 }
 
 type UtxoUnspentRecordRepoImpl struct {
@@ -49,7 +51,7 @@ func (r *UtxoUnspentRecordRepoImpl) SaveOrUpdate(ctx context.Context, utxoUnspen
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "uid"}, {Name: "hash"}, {Name: "n"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"unspent", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
 	}).Create(&utxoUnspentRecord)
 	err := ret.Error
 	if err != nil {
@@ -91,4 +93,24 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 	}
 	return utxos, nil
 
+}
+func (r *UtxoUnspentRecordRepoImpl) DeleteByUid(ctx context.Context, uid string, chainName string, address string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and unspent != ?", uid, chainName, address, "4").Delete(&UtxoUnspentRecord{})
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete "+address+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txhash string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and n = ? and hash = ?", uid, chainName, address, n, txhash).Update("unspent", 4)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update "+address+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
 }

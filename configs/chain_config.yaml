@@ -518,6 +518,30 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 300
 
+  Nervos:
+    blockExplorerAddrUrl: https://explorer.nervos.org/address/
+    blockExplorerTxUrl: https://explorer.nervos.org/transaction/
+    blockExplorerUrl: https://explorer.nervos.org/
+    chain: Nervos
+    chainId: 0
+    coinId: 309
+    decimal: 8
+    fullName: Nervos
+    getPriceKey: nervos-network
+    handler: nervos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
+    nativeCurrency: Nervos
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://rpc.ankr.com/nervos_ckb
+      - https://mainnet.ckb.dev/
+    symbol: Nervos
+    type: CKB
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 300
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
@@ -843,4 +867,26 @@ platformTest:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
+    monitorHeightAlarmThr: 300
+  NervosTEST:
+    blockExplorerAddrUrl: https://pudge.explorer.nervos.org/address/
+    blockExplorerTxUrl: https://pudge.explorer.nervos.org/transaction/
+    blockExplorerUrl: https://pudge.explorer.nervos.org/
+    chain: NervosTEST
+    chainId: 0
+    coinId: 309
+    decimal: 8
+    fullName: Nervos Test Net
+    getPriceKey: nervos-network
+    handler: nervos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
+    nativeCurrency: Nervos
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://testnet.ckb.dev/
+    symbol: Nervos
+    type: CKB
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 1
     monitorHeightAlarmThr: 300

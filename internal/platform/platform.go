@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/nervos"
 	"block-crawling/internal/platform/solana"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
@@ -53,6 +54,9 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 
 		platform := GetPlatform(value)
 		Platforms = append(Platforms, platform)
+		if p, ok := platform.(*nervos.Platform); ok {
+			biz.GetNervosUTXOTransaction = p.GetUTXOByHash
+		}
 
 		chainNameType[value.Chain] = value.Type
 		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
@@ -81,6 +85,9 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 			data.GormlDb.Table(chain).AutoMigrate(&data.SuiTransactionRecord{})
 		case biz.SOLANA:
 			data.GormlDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
+		case biz.NERVOS:
+			data.GormlDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
+
 		}
 	}
 }
@@ -110,6 +117,8 @@ func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
 		return sui.Init(coins.Sui().Handle, value, nodeURL, height)
 	case biz.SOLANA:
 		return solana.Init(coins.Solana().Handle, value, nodeURL, height)
+	case biz.NERVOS:
+		return nervos.Init(coins.Nervos().Handle, value, nodeURL, height)
 	}
 	return nil
 }

@@ -406,6 +406,26 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.BtcTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), btcTransactionRecord)
+		if result > 0 {
+			//修改 未花费
+			tx, err := GetUTXOByHash(pbb.TransactionHash)
+			if err != nil {
+				log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
+			}
+
+			cellInputs := tx.Inputs
+			for _, ci := range cellInputs {
+				th := ci.PrevHash
+				index := ci.OutputIndex
+				//更新 状态为pending
+				ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(ctx, pbb.Uid, pbb.ChainName, pbb.FromAddress, index, th)
+				if err != nil || ret == 0 {
+					log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
+				}
+			}
+
+		}
+
 	case TVM:
 		trxRecord := &data.TrxTransactionRecord{
 			BlockHash:       pbb.BlockHash,
@@ -527,6 +547,55 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.SolTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), solRecord)
+
+	case NERVOS:
+		ckbTransactionRecord := &data.CkbTransactionRecord{
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+		result, err = data.CkbTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), ckbTransactionRecord)
+		if result > 0 {
+			//修改 未花费
+			tx, err := GetNervosUTXOTransaction(pbb.TransactionHash)
+			if err != nil {
+				log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
+			}
+			if tx != nil {
+				cellInputs := tx.Transaction.Inputs
+				for _, ci := range cellInputs {
+					th := ci.PreviousOutput.TxHash.String()
+					index := ci.PreviousOutput.Index
+					//更新 状态为pending
+					_, err := data.NervosCellRecordRepoClient.SaveOrUpdate(ctx, &data.NervosCellRecord{
+						Uid:                pbb.Uid,
+						TransactionHash:    th,
+						UseTransactionHash: pbb.TransactionHash,
+						Index:              int(index),
+						Status:             "4",
+						UpdatedAt:          time.Now().Unix(),
+					})
+					if err != nil {
+						log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
+					}
+				}
+			}
+		}
+
 	}
 
 	flag := result == 1
@@ -545,6 +614,13 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	chainType := chain2Type[req.ChainName]
 	switch chainType {
+	case NERVOS:
+		var recordList []*data.CkbTransactionRecord
+		recordList, total, err = data.CkbTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+
 	case BTC:
 		var recordList []*data.BtcTransactionRecord
 		recordList, total, err = data.BtcTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
@@ -1021,6 +1097,30 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	return result, err
 }
 
+func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetRequest) (*pb.ListBalanceResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.Address = types2.HexToAddress(req.Address).Hex()
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	}
+
+	var result = &pb.ListBalanceResponse{}
+	var list []*pb.BalanceResponse
+	var err error
+	var recordList []*data.UserAsset
+	recordList, err = data.UserAssetRepoClient.List(ctx, req)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		result.List = list
+	}
+
+	return result, err
+}
+
 func (s *TransactionUsecase) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
 	var result = &pb.PageListStatisticResponse{}
 	var total int64
@@ -1083,21 +1183,148 @@ func (s *TransactionUsecase) StatisticFundRate(ctx context.Context, req *pb.Stat
 
 func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error) {
 	var result = &pb.UnspentResponse{}
-	var unspentList []*pb.UnspentList
+	if req.ChainName == "Nervos" || req.ChainName == "NervosTEST" {
+		var cellList []*pb.CellList
+		var tokenCellList []*pb.CellList
+		tokenAddress := req.ContractAddress
+		result.Ok = true
 
-	dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
-	if err != nil {
-		result.Ok = false
-		return result, err
+		req.ContractAddress = ""
+		nl, err := data.NervosCellRecordRepoClient.FindByCondition(ctx, req)
+		if err != nil {
+			result.Ok = false
+			return result, err
+		}
+
+		if len(nl) != 0 {
+			for _, n := range nl {
+				c, _ := strconv.Atoi(n.Capacity)
+				p := &pb.CellList{
+					OutPoint: &pb.OutPoint{
+						TxHash: n.TransactionHash,
+						Index:  fmt.Sprint(n.Index),
+					},
+					Lock: &pb.CellLock{
+						CodeHash: n.LockCodeHash,
+						HashType: n.LockHashType,
+						Args:     "0x" + strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0"),
+					},
+					Capacity: int64(c),
+					Data:     "0x" + strings.TrimLeft(strings.Replace(n.Data, "0x", "", 1), "0"),
+				}
+
+				if n.TypeCodeHash != "" || n.TypeHashType != "" || n.TypeArgs != "" {
+					p.Type = &pb.CellLock{
+						CodeHash: n.TypeCodeHash,
+						HashType: n.TypeHashType,
+						Args:     n.TypeArgs,
+					}
+				}
+
+				cellList = append(cellList, p)
+			}
+			result.CellList = cellList
+		}
+
+		if tokenAddress != "" {
+			req.ContractAddress = tokenAddress
+			token, err := data.NervosCellRecordRepoClient.FindByCondition(ctx, req)
+			if err != nil {
+				result.Ok = false
+				return result, err
+			}
+
+			if len(token) != 0 {
+				for _, n := range token {
+					c, _ := strconv.Atoi(n.Capacity)
+					p := &pb.CellList{
+						OutPoint: &pb.OutPoint{
+							TxHash: n.TransactionHash,
+							Index:  fmt.Sprint(n.Index),
+						},
+						Lock: &pb.CellLock{
+							CodeHash: n.LockCodeHash,
+							HashType: n.LockHashType,
+							Args:     "0x" + strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0"),
+						},
+						Type: &pb.CellLock{
+							CodeHash: n.TypeCodeHash,
+							HashType: n.TypeHashType,
+							Args:     "0x" + strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0"),
+						},
+						Capacity: int64(c),
+						Data:     "0x" + strings.TrimLeft(strings.Replace(n.Data, "0x", "", 1), "0"),
+					}
+					tokenCellList = append(tokenCellList, p)
+				}
+				result.TokenCellList = tokenCellList
+			}
+		}
+		return result, nil
+	} else {
+		//var utxoList []*pb.UtxoList
+		//dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
+		//if err != nil {
+		//	result.Ok = false
+		//	return result, err
+		//}
+		//for _, db := range dbUnspentRecord {
+		//	var lt []*pb.UnspentList
+		//	amount := make(map[string]string)
+		//	amount["amount"] = db.Amount
+		//	a := &pb.UnspentList{
+		//		Data: amount,
+		//	}
+		//	lt = append(lt, a)
+		//
+		//	hash := make(map[string]string)
+		//	hash["hash"] = db.Hash
+		//	b := &pb.UnspentList{
+		//		Data: hash,
+		//	}
+		//	lt = append(lt, b)
+		//
+		//	index := make(map[string]string)
+		//	index["index"] = strconv.Itoa(db.N)
+		//	c := &pb.UnspentList{
+		//		Data: index,
+		//	}
+		//	lt = append(lt, c)
+		//
+		//	script := make(map[string]string)
+		//	script["script"] = db.Script
+		//	d := &pb.UnspentList{
+		//		Data: script,
+		//	}
+		//	lt = append(lt, d)
+		//
+		//	r := &pb.UtxoList{
+		//		List: lt,
+		//	}
+		//	utxoList = append(utxoList, r)
+		//}
+		//
+		//result.Ok = true
+		//result.UtxoList = utxoList
+		//return result, nil
+
+		var unspentList []*pb.UnspentList
+
+		dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
+		if err != nil {
+			result.Ok = false
+			return result, err
+		}
+
+		for _, db := range dbUnspentRecord {
+			var r *pb.UnspentList
+			utils.CopyProperties(db, &r)
+			r.Index = fmt.Sprint(db.N)
+			unspentList = append(unspentList, r)
+		}
+
+		result.Ok = true
+		result.UtxoList = unspentList
+		return result, nil
 	}
-
-	for _, db := range dbUnspentRecord {
-		var r *pb.UnspentList
-		utils.CopyProperties(db, &r)
-		unspentList = append(unspentList, r)
-	}
-
-	result.Ok = true
-	result.Data = unspentList
-	return result, nil
 }

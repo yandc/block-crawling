@@ -23,8 +23,8 @@ type Client struct {
 }
 
 var urlMap = map[string]string{
-	"https://api.blockcypher.com/v1/btc/main":                     "https://blockstream.info/api",
-	"https://api.blockcypher.com/v1/btc/test3":                    "https://blockstream.info/testnet/api",
+	"https://api.blockcypher.com/v1/btc/main":                                  "https://blockstream.info/api",
+	"https://api.blockcypher.com/v1/btc/test3":                                 "https://blockstream.info/testnet/api",
 	"http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332",
 }
 
@@ -34,6 +34,34 @@ func NewClient(nodeUrl string) Client {
 		streamURL = value
 	}
 	return Client{nodeUrl, streamURL}
+}
+
+func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) {
+	key, baseURL := parseKeyFromNodeURL(nodeUrl)
+	url := baseURL + "account/" + address +"/utxo"
+	var unspents types.UbiquityUtxo
+	var param = make(map[string]string)
+	param["spent"] = "false"
+	err := httpclient2.HttpsSignGetForm(url, param, key, &unspents)
+
+	return unspents ,err
+
+}
+
+func parseKeyFromNodeURL(nodeURL string) (key, restURL string) {
+	parsed, err := url.Parse(nodeURL)
+	if err != nil {
+		return "", nodeURL
+	}
+	if parsed.User != nil {
+		password, _ := parsed.User.Password()
+		key = fmt.Sprintf("%s %s", parsed.User.Username(), password)
+		parsed.User = nil
+		restURL = parsed.String()
+		// log.Debug("DOGE PARSED KEY FROM URL", zap.String("key", key), zap.String("url", restURL))
+		return
+	}
+	return "", nodeURL
 }
 
 func GetBalance(address string, c *base.Client) (string, error) {

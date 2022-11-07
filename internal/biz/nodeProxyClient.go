@@ -156,6 +156,21 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 	return resultMap, nil
 }
 
+func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	tokenInfo := types.TokenInfo{}
+	var err error
+	if tokenAddress == "" {
+		if platInfo, ok := PlatInfoMap[chainName]; ok {
+			decimals := platInfo.Decimal
+			symbol := platInfo.NativeCurrency
+			tokenInfo = types.TokenInfo{Decimals: int64(decimals), Symbol: symbol}
+		}
+	} else {
+		tokenInfo, err = GetTokenInfo(ctx, chainName, tokenAddress)
+	}
+	return tokenInfo, err
+}
+
 func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
 	tokenInfo := types.TokenInfo{}
 	if tokenAddress == "" {

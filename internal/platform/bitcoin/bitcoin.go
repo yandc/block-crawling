@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/subhandle"
+	in "block-crawling/internal/types"
 	"errors"
 	"fmt"
 	"strings"
@@ -56,6 +57,15 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 func (p *Platform) Coin() coins.Coin {
 	return coins.Coins[p.CoinIndex]
 }
+
+func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
+	p.spider.WithRetry(func(client chain.Clienter) error {
+		tx, err = client.(*Client).GetTransactionByHash(txHash)
+		return err
+	})
+	return
+}
+
 
 func (p *Platform) GetTransactions() {
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond

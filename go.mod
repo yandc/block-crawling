@@ -12,6 +12,7 @@ require (
 	github.com/google/wire v0.5.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/metachris/eth-go-bindings v0.5.0
+	github.com/nervosnetwork/ckb-sdk-go v1.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.2.0
 	github.com/spaolacci/murmur3 v1.1.0
@@ -57,6 +58,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
+	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/novifinancial/serde-reflection/serde-generate/runtime/golang v0.0.0-20210526181959-1694c58d103e // indirect
 	github.com/phoreproject/bls v0.0.0-20200525203911-a88a5ae26844 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
