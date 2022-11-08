@@ -57,6 +57,9 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 		if p, ok := platform.(*nervos.Platform); ok {
 			biz.GetNervosUTXOTransaction = p.GetUTXOByHash
 		}
+		if p, ok := platform.(*bitcoin.Platform); ok {
+			biz.GetUTXOByHash = p.GetUTXOByHash
+		}
 
 		chainNameType[value.Chain] = value.Type
 		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
