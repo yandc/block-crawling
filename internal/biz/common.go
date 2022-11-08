@@ -3,9 +3,11 @@ package biz
 import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -63,14 +65,16 @@ const (
 )
 
 const (
-	NATIVE        = "native"
-	TRANSFER      = "transfer"
-	TRANSFERFROM  = "transferfrom"
-	APPROVE       = "approve"
-	CONTRACT      = "contract"
-	EVENTLOG      = "eventLog"
-	CREATEACCOUNT = "createAccount"
-	REGISTERTOKEN = "registerToken"
+	NATIVE                = "native"
+	TRANSFER              = "transfer"
+	TRANSFERFROM          = "transferFrom"
+	SAFETRANSFERFROM      = "safeTransferFrom"
+	SAFEBATCHTRANSFERFROM = "safeBatchTransferFrom"
+	APPROVE               = "approve"
+	CONTRACT              = "contract"
+	EVENTLOG              = "eventLog"
+	CREATEACCOUNT         = "createAccount"
+	REGISTERTOKEN         = "registerToken"
 )
 
 // 币种
@@ -81,6 +85,13 @@ const (
 
 const TOKEN_INFO_QUEUE_TOPIC = "token:info:queue:topic"
 const TOKEN_INFO_QUEUE_PARTITION = "partition1"
+
+//token类型
+const (
+	ERC20   = "ERC20"
+	ERC721  = "ERC721"
+	ERC1155 = "ERC1155"
+)
 
 var rocketMsgLevels = map[string]int{
 	"DEBUG":   0,
@@ -209,7 +220,7 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	}
 	tokenInfoMap := paseDataJson["token"]
 	if tokenInfoMap == nil {
-		return 0, "", nil
+		return 0, "", errors.New("token is null")
 	}
 	tokenInfo := tokenInfoMap.(map[string]interface{})
 	var address string
@@ -241,4 +252,37 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 		}
 	}
 	return decimals, symbol, nil
+}
+
+func PaseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
+	tokenInfo, err := PaseTokenInfo(parseData)
+	if err == nil && tokenInfo.Address == "" {
+		if platInfo, ok := PlatInfoMap[chainName]; ok {
+			tokenInfo.Decimals = int64(platInfo.Decimal)
+			tokenInfo.Symbol = platInfo.NativeCurrency
+		}
+	}
+	return tokenInfo, err
+}
+
+func PaseTokenInfo(parseData string) (*types.TokenInfo, error) {
+	paseDataJson := make(map[string]interface{})
+	err := json.Unmarshal([]byte(parseData), &paseDataJson)
+	if err != nil {
+		return nil, err
+	}
+	tokenInfoMap := paseDataJson["token"]
+	if tokenInfoMap == nil {
+		return nil, errors.New("token is null")
+	}
+	tokenInfoByte, err := json.Marshal(tokenInfoMap)
+	if err != nil {
+		return nil, err
+	}
+	tokenInfo := &types.TokenInfo{}
+	err = json.Unmarshal(tokenInfoByte, tokenInfo)
+	if err != nil {
+		return nil, err
+	}
+	return tokenInfo, nil
 }

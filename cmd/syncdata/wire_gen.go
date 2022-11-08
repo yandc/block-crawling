@@ -37,6 +37,8 @@ func wireApp(confLogger *conf.Logger, confData *conf.Data, confApp *conf.App, co
 	data.NewUtxoUnspentRecordRepo(gormDB)
 	data.NewUserAssetRepo(gormDB)
 	data.NewNervosCellRecordRepo(gormDB)
+	data.NewUserNftAssetRepo(gormDB)
+	data.NewNftRecordHistoryRepo(gormDB)
 
 	return func() {
 		cleanup()

@@ -1,6 +1,7 @@
 package ethereum
 
 import (
+	"block-crawling/internal/biz"
 	icommon "block-crawling/internal/common"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
@@ -9,6 +10,8 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/metachris/eth-go-bindings/erc1155"
+	"github.com/metachris/eth-go-bindings/erc721"
 	"math/big"
 	"strings"
 	"time"
@@ -132,24 +135,79 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (er
 	}
 	fromAddress := from.String()
 	value := tx.Value().String()
-	transactionType := "native"
-	if len(tx.Data()) >= 68 && tx.To() != nil {
-		methodId := hex.EncodeToString(tx.Data()[:4])
+	transactionType := biz.NATIVE
+	data := tx.Data()
+	if len(data) >= 68 && tx.To() != nil {
+		methodId := hex.EncodeToString(data[:4])
 		if methodId == "a9059cbb" || methodId == "095ea7b3" {
-			toAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[4:36])).String()
-			amount := new(big.Int).SetBytes(tx.Data()[36:])
+			toAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			amount := new(big.Int).SetBytes(data[36:])
 			if methodId == "a9059cbb" {
-				transactionType = "transfer"
+				transactionType = biz.TRANSFER
 			} else {
-				transactionType = "approve"
+				transactionType = biz.APPROVE
 			}
 			value = amount.String()
-		} else if methodId == "23b872dd" {
-			fromAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[4:36])).String()
-			toAddress = common.HexToAddress(hex.EncodeToString(tx.Data()[36:68])).String()
-			amount := new(big.Int).SetBytes(tx.Data()[68:])
-			transactionType = "transferfrom"
-			value = amount.String()
+		} else if methodId == "23b872dd" { // ERC20 or ERC721
+			//transferFrom(address sender, address recipient, uint256 amount)
+			//transferFrom(address from, address to, uint256 tokenId)
+			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+			amountOrTokenId := new(big.Int).SetBytes(data[68:])
+			transactionType = biz.TRANSFERFROM
+			value = amountOrTokenId.String()
+		} else if methodId == "42842e0e" { // ERC721
+			//safeTransferFrom(address from, address to, uint256 tokenId)
+			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+			tokenId := new(big.Int).SetBytes(data[68:])
+			transactionType = biz.SAFETRANSFERFROM
+			value = tokenId.String()
+		} else if methodId == "b88d4fde" { // ERC721
+			//safeTransferFrom(address from, address to, uint256 tokenId, bytes _data)
+			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+			tokenId := new(big.Int).SetBytes(data[68:100])
+			transactionType = biz.SAFETRANSFERFROM
+			value = tokenId.String()
+		} else if methodId == "f242432a" { // ERC1155
+			//safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)
+			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+			tokenId := new(big.Int).SetBytes(data[68:100])
+			amount := new(big.Int).SetBytes(data[100:132])
+			transactionType = biz.SAFETRANSFERFROM
+			value = tokenId.String() + "," + amount.String()
+		} else if methodId == "2eb2c2d6" { // ERC1155
+			//safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)
+			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+			transactionType = biz.SAFEBATCHTRANSFERFROM
+			// TODO
+		} else {
+			if methodId == "e7acab24" { // Seaport 1.1 Contract
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[296:324])).String()
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+				toAddress = toAddress + "," + realToAddress
+			} else if methodId == "fb0f3ee1" { // Seaport 1.1 Contract
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			} else if methodId == "357a150b" { // X2Y2: Exchange Contract
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[484:516])).String()
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+				toAddress = toAddress + "," + realToAddress
+			} else if methodId == "b4e4b296" { // LooksRare: Exchange
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+				toAddress = toAddress + "," + realToAddress
+			}
 		}
 	}
 	txc.FromAddress = fromAddress
@@ -325,6 +383,44 @@ func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map
 		result[token] = balance
 	}
 	return result, nil
+}
+
+func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId string) (string, error) {
+	hexTokenAddress := common.HexToAddress(tokenAddress)
+	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
+	if err != nil {
+		return "", err
+	}
+	tokenIdBig, ok := new(big.Int).SetString(tokenId, 0)
+	if !ok {
+		return "", errors.New("tokenId " + tokenId + " is invalid")
+	}
+	ownerAddress, err := erc721Token.OwnerOf(nil, tokenIdBig)
+	if err != nil {
+		return "", err
+	}
+	if address == ownerAddress.String() {
+		return "1", nil
+	}
+	return "0", nil
+}
+
+func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId string) (string, error) {
+	hexTokenAddress := common.HexToAddress(tokenAddress)
+	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
+	if err != nil {
+		return "", err
+	}
+	tokenIdBig, ok := new(big.Int).SetString(tokenId, 0)
+	if !ok {
+		return "", errors.New("tokenId " + tokenId + " is invalid")
+	}
+	hexAddress := common.HexToAddress(address)
+	balance, err := erc1155Token.BalanceOf(nil, hexAddress, tokenIdBig)
+	if err != nil {
+		return "", err
+	}
+	return balance.String(), nil
 }
 
 var EvmTokenInfoMap = make(map[string]types.TokenInfo)

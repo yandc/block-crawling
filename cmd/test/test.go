@@ -8,6 +8,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
+	"time"
+
 	//"github.com/shopspring/decimal"
 	"google.golang.org/grpc"
 	"os"
@@ -35,11 +38,38 @@ func main() {
 	fmt.Println("func name", testFunc)
 	//testGetBalance()
 	fmt.Println("test main end")
+
+	//txTime := 1664883095000 /1000
+	//t := time.Unix(int64(txTime),0).Format("2006-01-02 15:04:05")
+
+	s :="2022-03-05T01:38:32" // opensea
+	ss := "2022-06-06T08:57:08.000Z"
+
+
+	ft,_ := time.Parse("2006-01-02T15:04:05",s)
+	fmt.Println(ft.Unix()*1000)
+	ft1,_ := time.Parse("2006-01-02T15:04:05.000Z",ss)
+	fmt.Println(ft1.Unix()*1000)
+
+
+
+
+
+
+
+
+	//y := strings.Replace(s,"T"," ",1)
+	//fmt.Println(y)
+	//s1 :="2022-03-05 01:38:32"
+	//y1 := strings.Replace(s1,"T"," ",1)
+	//fmt.Println(y1)
+	//
+	//fmt.Println(t)
 	//testInsertDappRecord()
-	testDappPrice()
+	//testDappPrice()
 	//testDapp()
 
-	getDappListPageList()
+	//getDappListPageList()
 
 
 }

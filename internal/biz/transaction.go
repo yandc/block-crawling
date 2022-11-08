@@ -425,7 +425,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 
 		}
-
 	case TVM:
 		trxRecord := &data.TrxTransactionRecord{
 			BlockHash:       pbb.BlockHash,
@@ -547,7 +546,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.SolTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), solRecord)
-
 	case NERVOS:
 		ckbTransactionRecord := &data.CkbTransactionRecord{
 			BlockHash:       pbb.BlockHash,
@@ -595,7 +593,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 				}
 			}
 		}
-
 	}
 
 	flag := result == 1
@@ -620,7 +617,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
-
 	case BTC:
 		var recordList []*data.BtcTransactionRecord
 		recordList, total, err = data.BtcTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
@@ -998,7 +994,6 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	var totalCurrencyAmount decimal.Decimal
 	var list []*pb.AssetResponse
 	var err error
-	var chainNameTokenAddressMap = make(map[string][]string)
 
 	var recordList []*data.UserAsset
 	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, req)
@@ -1012,6 +1007,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	}
 
 	if err == nil && len(recordGroupList) > 0 {
+		var chainNameTokenAddressMap = make(map[string][]string)
 		var tokenAddressMapMap = make(map[string]map[string]string)
 		for _, asset := range recordList {
 			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
@@ -1118,6 +1114,162 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 		result.List = list
 	}
 
+	return result, err
+}
+
+func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	}
+
+	var result = &pb.ClientPageListNftAssetGroupResponse{}
+	var total int64
+	var list []*pb.ClientNftAssetGroupResponse
+	var err error
+
+	var recordList []*data.UserNftAssetGroup
+	recordList, total, err = data.UserNftAssetRepoClient.PageListGroup(ctx, req)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil && len(recordList) > 0 {
+		var nftAddressMap = make(map[string][]string)
+		for _, record := range recordList {
+			tokenIdList, ok := nftAddressMap[record.TokenAddress]
+			if !ok {
+				tokenIdList = make([]string, 0)
+			}
+			tokenIdList = append(tokenIdList, record.TokenId)
+			nftAddressMap[record.TokenAddress] = tokenIdList
+		}
+
+		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
+		if err != nil {
+			return result, err
+		}
+		nftAddressInfoMap := make(map[string]*v1.GetNftReply_NftInfoResp)
+		for _, res := range resultMap {
+			nftAddressInfoMap[res.TokenAddress] = res
+		}
+
+		result.Total = total
+		result.List = list
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				if strings.Contains(req.OrderBy, "balance ") {
+					balance, _ := strconv.Atoi(record.Balance)
+					record.Cursor = int64(balance)
+				} else if strings.Contains(req.OrderBy, "token_id_amount ") {
+					record.Cursor = record.TokenIdAmount
+				}
+				nftInfo := nftAddressInfoMap[record.TokenAddress]
+				if nftInfo != nil {
+					record.TokenUri = nftInfo.CollectionImageURL
+					record.CollectionName = nftInfo.CollectionName
+				}
+			}
+		}
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	}
+
+	var result = &pb.ClientPageListNftAssetResponse{}
+	var total int64
+	var list []*pb.ClientNftAssetResponse
+	var err error
+
+	var recordList []*data.UserNftAsset
+	recordList, total, err = data.UserNftAssetRepoClient.PageList(ctx, req)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil && len(recordList) > 0 {
+		var nftAddressMap = make(map[string][]string)
+		for _, record := range recordList {
+			tokenIdList, ok := nftAddressMap[record.TokenAddress]
+			if !ok {
+				tokenIdList = make([]string, 0)
+			}
+			tokenIdList = append(tokenIdList, record.TokenId)
+			nftAddressMap[record.TokenAddress] = tokenIdList
+		}
+
+		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
+		if err != nil {
+			return result, err
+		}
+		nftAddressInfoMap := make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+		for _, res := range resultMap {
+			nftIdInfoMap, ok := nftAddressInfoMap[res.TokenAddress]
+			if !ok {
+				nftIdInfoMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+				nftAddressInfoMap[res.TokenAddress] = nftIdInfoMap
+			}
+			nftIdInfoMap[res.TokenId] = res
+		}
+
+		result.Total = total
+		result.List = list
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				if strings.Contains(req.OrderBy, "id ") {
+					record.Cursor = record.Id
+				} else if strings.Contains(req.OrderBy, "created_at ") {
+					record.Cursor = record.CreatedAt
+				} else if strings.Contains(req.OrderBy, "updated_at ") {
+					record.Cursor = record.UpdatedAt
+				}
+				nftInfo := nftAddressInfoMap[record.TokenAddress][record.TokenId]
+				if nftInfo != nil {
+					record.TokenUri = nftInfo.CollectionImageURL
+					record.CollectionName = nftInfo.CollectionName
+					record.ItemName = nftInfo.NftName
+					record.ItemUri = nftInfo.ImageURL
+					record.ItemOriginalUri = nftInfo.ImageOriginalURL
+					record.ItemAnimationUri = nftInfo.AnimationURL
+				}
+			}
+		}
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAssetRequest) (*pb.NftBalanceResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.Address = types2.HexToAddress(req.Address).Hex()
+		req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+	}
+
+	var result = &pb.NftBalanceResponse{}
+	var record *data.UserNftAsset
+	var err error
+	record, err = data.UserNftAssetRepoClient.FindByUniqueKey(ctx, req)
+	if err == nil && record != nil {
+		result.Balance = record.Balance
+	}
 	return result, err
 }
 
@@ -1338,4 +1490,31 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 		result.UtxoList = unspentList
 		return result, nil
 	}
+}
+
+func (s *TransactionUsecase) GetNftRecord(ctx context.Context, req *pb.NftRecordReq) (*pb.NftRecordResponse, error) {
+	var result = &pb.NftRecordResponse{}
+	var nftHistoryList []*pb.NftHistoryList
+
+	records, err := data.NftRecordHistoryRepoClient.ListByCondition(ctx, req)
+	if err != nil {
+		result.Ok = false
+		return result, err
+	}
+
+	for _, db := range records {
+		var r *pb.NftHistoryList
+		utils.CopyProperties(db, &r)
+		if r.FromAddress == "0x0000000000000000000000000000000000000000" {
+			r.TransactionType = "mint"
+		} else {
+			r.TransactionType = "transfer"
+		}
+		r.TxTime = strings.Replace(r.TxTime, "T", " ", 1)
+		nftHistoryList = append(nftHistoryList, r)
+	}
+
+	result.Ok = true
+	result.Data = nftHistoryList
+	return result, nil
 }

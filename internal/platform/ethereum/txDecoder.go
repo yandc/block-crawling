@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
 	"math/big"
 	"strings"
 	"time"
@@ -163,38 +164,96 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	receipt := job.receipt
 
 	var feeAmount string
+	amount := meta.Value
 	var tokenInfo types.TokenInfo
+	var eventLogs []types.EventLog
+	var tokenId string
+	if meta.TransactionType != biz.NATIVE {
+		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
+	}
 
 	if transaction.To() != nil {
-		codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(transaction.To().String()), nil)
-		if err != nil {
-			return err
-		}
-		if len(codeAt) > 0 {
-			if meta.TransactionType == "native" {
-				meta.TransactionType = "contract"
-			} else {
-				ctx := context.Background()
-				getTokenInfo, err := biz.GetTokenInfo(ctx, h.chainName, transaction.To().String())
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					getTokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, transaction.To().String())
-				}
-				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-				}
-				if err != nil || getTokenInfo.Decimals == 0 || getTokenInfo.Symbol == "" {
-					meta.TransactionType = "contract"
-				} else {
-					tokenInfo = types.TokenInfo{Decimals: getTokenInfo.Decimals, Amount: meta.Value, Symbol: getTokenInfo.Symbol}
-				}
-
-				tokenInfo.Address = transaction.To().String()
+		contractAddress := transaction.To().String()
+		if meta.TransactionType == biz.NATIVE || meta.TransactionType == biz.APPROVE ||
+			meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
+			codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(contractAddress), nil)
+			if err != nil {
+				return err
 			}
+			if len(codeAt) > 0 {
+				if meta.TransactionType == biz.NATIVE {
+					meta.TransactionType = biz.CONTRACT
+					eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
+				} else {
+					ctx := context.Background()
+					if tokenId != "" {
+						tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						}
+						tokenInfo.TokenType = biz.ERC721
+						amount = "1"
+						tokenInfo.Amount = "1"
+					} else {
+						tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						}
+						if err != nil || tokenInfo.Decimals == 0 || tokenInfo.Symbol == "" {
+							meta.TransactionType = biz.CONTRACT
+						}
+						tokenInfo.Amount = meta.Value
+					}
+				}
+			}
+		} else if meta.TransactionType == biz.SAFETRANSFERFROM {
+			var err error
+			ctx := context.Background()
+			var tokenType string
+			if !strings.Contains(meta.Value, ",") {
+				tokenType = biz.ERC721
+				tokenId = meta.Value
+				amount = "1"
+			} else {
+				tokenType = biz.ERC1155
+				values := strings.Split(meta.Value, ",")
+				tokenId = values[0]
+				amount = values[1]
+			}
+
+			tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+			}
+			if err != nil {
+				// nodeProxy出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			}
+			tokenInfo.TokenType = tokenType
+			tokenInfo.Amount = amount
+		} else if meta.TransactionType == biz.SAFEBATCHTRANSFERFROM {
+			tokenInfo.TokenType = biz.ERC1155
+			// TODO
 		}
 	}
 
@@ -203,10 +262,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		h.blockHash = receipt.BlockHash
 	}
 
-	var eventLogs []types.EventLog
-	if meta.TransactionType != "native" {
-		eventLogs = h.extractEventLogs(client, meta, receipt)
-	}
 	evmMap := map[string]interface{}{
 		"evm": map[string]string{
 			"nonce": fmt.Sprintf("%v", transaction.Nonce()),
@@ -242,11 +297,23 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
 	bn := int(intBlockNumber.Int64())
 	fa, _ := decimal.NewFromString(feeAmount)
-	at, _ := decimal.NewFromString(meta.Value)
+	at, _ := decimal.NewFromString(amount)
 	var eventLog string
 	if eventLogs != nil {
 		eventLogJson, _ := json.Marshal(eventLogs)
 		eventLog = string(eventLogJson)
+	}
+	var logAddress datatypes.JSON
+	if len(eventLogs) > 0 && meta.TransactionType == biz.CONTRACT {
+		var logFromAddress []string
+		var logToAddress []string
+		for _, log := range eventLogs {
+			logFromAddress = append(logFromAddress, log.From)
+			logToAddress = append(logToAddress, log.To)
+		}
+		logAddressList := [][]string{logFromAddress, logToAddress}
+		logAddressJson, _ := json.Marshal(logAddressList)
+		logAddress = logAddressJson
 	}
 	evmTransactionRecord := &data.EvmTransactionRecord{
 		BlockHash:            h.blockHash,
@@ -272,6 +339,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		Data:                 hex.EncodeToString(transaction.Data()),
 		EventLog:             eventLog,
+		LogAddress:           logAddress,
 		TransactionType:      meta.TransactionType,
 		DappData:             "",
 		ClientData:           "",
@@ -283,7 +351,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
 	}
 
-	if len(eventLogs) > 0 && meta.TransactionType == "contract" {
+	if len(eventLogs) > 0 && meta.TransactionType == biz.CONTRACT {
 		for index, eventLog := range eventLogs {
 			eventMap := map[string]interface{}{
 				"evm": map[string]string{
@@ -295,7 +363,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			eventParseData, _ := json.Marshal(eventMap)
 			//b, _ := json.Marshal(eventLog)
 			txHash := transaction.Hash().String() + "#result-" + fmt.Sprintf("%v", index+1)
-			txType := "eventLog"
+			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 			var eventFromUid, eventToUid string
@@ -367,22 +435,72 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogs []types.EventLog) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogs []types.EventLog, tokenId string) {
 	for _, log_ := range receipt.Logs {
-		if len(log_.Topics) > 1 && (log_.Topics[0].String() == TRANSFER_TOPIC ||
-			log_.Topics[0].String() == WITHDRAWAL_TOPIC || log_.Topics[0].String() == DEPOST_TOPIC) {
+		if len(log_.Topics) <= 1 {
+			continue
+		}
+
+		topic0 := log_.Topics[0].String()
+		if topic0 == TRANSFER_TOPIC || topic0 == SAFETRANSFERFROM_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
 			var token types.TokenInfo
 			var err error
+			tokenAddress := log_.Address.String()
 			amount := big.NewInt(0)
-			if len(log_.Data) >= 32 {
-				amount = new(big.Int).SetBytes(log_.Data[:32])
+			if topic0 == TRANSFER_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
+				if len(log_.Data) >= 32 {
+					amount = new(big.Int).SetBytes(log_.Data[:32])
+				}
+
+				if tokenAddress != "" {
+					ctx := context.Background()
+					if len(log_.Topics) == 4 {
+						tokenId = log_.Topics[3].Big().String()
+						token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						}
+						token.TokenType = biz.ERC721
+						amount, _ = new(big.Int).SetString("1", 0)
+						token.Amount = "1"
+					} else {
+						token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						}
+						token.Amount = amount.String()
+					}
+				}
 			}
-			if log_.Address.String() != "" {
+			eventFrom := common.HexToAddress(log_.Topics[1].String()).String()
+			var to string
+			//判断合约 转账， 提现， 兑换。
+			if topic0 == TRANSFER_TOPIC {
+				to = common.HexToAddress(log_.Topics[2].String()).String()
+			} else if topic0 == SAFETRANSFERFROM_TOPIC {
 				ctx := context.Background()
-				token, err = biz.GetTokenInfo(ctx, h.chainName, log_.Address.String())
+				tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
+				amount = new(big.Int).SetBytes(log_.Data[32:64])
+				token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
 				for i := 0; i < 3 && err != nil; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					token, err = biz.GetTokenInfo(ctx, h.chainName, log_.Address.String())
+					token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
 				}
 				if err != nil {
 					// nodeProxy出错 接入lark报警
@@ -391,15 +509,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
 				}
+				token.TokenType = biz.ERC1155
 				token.Amount = amount.String()
-
-			}
-			eventFrom := common.HexToAddress(log_.Topics[1].String()).String()
-			var to string
-			//判断合约 转账， 提现， 兑换。
-			if len(log_.Topics) > 2 && log_.Topics[0].String() == TRANSFER_TOPIC {
-				to = common.HexToAddress(log_.Topics[2].String()).String()
-			} else if log_.Topics[0].String() == WITHDRAWAL_TOPIC {
+				eventFrom = common.HexToAddress(log_.Topics[2].String()).String()
+				to = common.HexToAddress(log_.Topics[3].String()).String()
+			} else if topic0 == WITHDRAWAL_TOPIC {
 				//提现，判断 用户无需话费value 判断value是否为0
 				if meta.Value == "0" {
 					to = meta.FromAddress
@@ -409,7 +523,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				} else {
 					to = meta.ToAddress
 				}
-			} else if log_.Topics[0].String() == DEPOST_TOPIC {
+			} else if topic0 == DEPOSIT_TOPIC {
 				//兑换时判断 交易金额不能为 0
 				//判断 value是否为0 不为 0 则增加记录
 				to = common.HexToAddress(log_.Topics[1].String()).String()

@@ -22,6 +22,12 @@ service Transaction {
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //查询用户余额
   rpc GetBalance(AssetRequest) returns (ListBalanceResponse);
+  //客户端分页查询用户NFT资产分组列表
+  rpc ClientPageListNftAssetGroup(PageListNftAssetRequest) returns (ClientPageListNftAssetGroupResponse);
+  //客户端分页查询用户NFT资产列表
+  rpc ClientPageListNftAsset(PageListNftAssetRequest) returns (ClientPageListNftAssetResponse);
+  //查询用户NFT余额
+  rpc GetNftBalance(NftAssetRequest) returns (NftBalanceResponse);
   //分页查询交易数据统计列表
   rpc PageListStatistic(PageListStatisticRequest) returns (PageListStatisticResponse);
   //交易数据看板查询金额趋势图
@@ -30,7 +36,29 @@ service Transaction {
   rpc StatisticFundRate(StatisticFundRequest) returns (FundRateListResponse);
   //未花费资产查询
   rpc GetUnspentTx(UnspentReq) returns (UnspentResponse);
+  //后去nft流转记录
+  rpc GetNftRecord(NftRecordReq) returns (NftRecordResponse);
 
+}
+
+message NftRecordReq {
+  string chainName = 1;
+  string contractAddress = 2;
+  string tokenId = 3;
+}
+
+message NftRecordResponse {
+  bool ok = 1;
+  repeated NftHistoryList data = 2;
+}
+
+message NftHistoryList {
+  string fromAddress = 1;
+  string toAddress = 2;
+  string Quantity = 3;
+  string txTime = 4;
+  string transactionType = 5;
+  string transactionHash = 6;
 }
 
 message UnspentReq{
@@ -48,6 +76,7 @@ message UnspentResponse{
   repeated UnspentList utxo_list = 3;
   repeated CellList token_cell_list = 4;
 }
+
 message UnspentList{
   int64 id = 1;
   string uid = 2;
@@ -75,13 +104,12 @@ message OutPoint {
   string txHash = 1;
   string index = 2;
 }
+
 message CellLock {
   string codeHash = 1;
   string hashType = 2;
   string args = 3;
-
 }
-
 
 message DappPageListReq{
   string chainName = 1;
@@ -339,6 +367,80 @@ message ListBalanceResponse {
 message BalanceResponse {
   string tokenAddress = 1;
   string balance = 2;
+}
+
+message PageListNftAssetRequest {
+  string chainName = 1;//-- 非必输
+  string uid = 2;
+  repeated string addressList = 3;// [(validate.rules).repeated = {min_items: 1}];
+  repeated string tokenAddressList = 4;
+  repeated string tokenIdList = 5;
+  string currency = 6;// [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
+  int32 amountType = 7 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  string collectionNameLike = 8;
+  string orderBy = 9;
+  int32 dataDirection = 10 [(validate.rules).int32 = {in: [0, 1, 2]}];
+  int64 startIndex = 11 [(validate.rules).int64.gte = 0];
+  int32 pageNum = 12 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 13 [(validate.rules).int32.gte = 0];
+  bool total = 14;
+}
+
+message ClientPageListNftAssetGroupResponse {
+  int64 total = 1;
+  repeated ClientNftAssetGroupResponse list = 2;
+}
+
+message ClientNftAssetGroupResponse {
+  string chainName = 1;
+  string uid = 2;
+  string address = 3;
+  string tokenAddress = 4;
+  string tokenUri = 5;
+  string balance = 6;
+  string tokenType = 7;
+  string collectionName = 8;
+  int64 tokenIdAmount = 9;
+  int64 cursor = 10;
+}
+
+message ClientPageListNftAssetResponse {
+  int64 total = 1;
+  repeated ClientNftAssetResponse list = 2;
+}
+
+message ClientNftAssetResponse {
+  int64 id = 1;
+  string chainName = 2;
+  string uid = 3;
+  string address = 4;
+  string tokenAddress = 5;
+  string tokenUri = 6;
+  string tokenId = 7;
+  string balance = 8;
+  string tokenType = 9;
+  string collectionName = 10;
+  string symbol = 11;
+  string name = 12;
+  string itemName = 13;
+  string itemUri = 14;
+  string itemOriginalUri = 15;
+  string itemAnimationUri = 16;
+  string data = 17;
+  int64 createdAt = 18;
+  int64 updatedAt = 19;
+  int64 cursor = 20;
+}
+
+message NftAssetRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string address = 2 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string tokenAddress = 3 [(validate.rules).string = {min_len: 1}];//-- 必输
+  string tokenId = 4 [(validate.rules).string = {min_len: 1}];//-- 必输
+}
+
+message NftBalanceResponse {
+  string balance = 1;
 }
 
 message PageListStatisticRequest {

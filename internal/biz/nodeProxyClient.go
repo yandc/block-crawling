@@ -17,6 +17,10 @@ var TokenInfoMap = make(map[string]types.TokenInfo)
 var lock = common.NewSyncronized(0)
 var mutex = new(sync.Mutex)
 
+var NftInfoMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+var nftLock = common.NewSyncronized(0)
+var nftMutex = new(sync.Mutex)
+
 func GetTokenPrice(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
 	if strings.HasSuffix(chainName, "TEST") {
 		return "", nil
@@ -222,4 +226,151 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 		return tokenInfo, nil
 	}
 	return tokenInfo, nil
+}
+
+func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	tokenInfo := types.TokenInfo{}
+	if tokenAddress == "" {
+		return tokenInfo, nil
+	}
+
+	respData, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	if err != nil {
+		return tokenInfo, err
+	}
+	if respData == nil {
+		return tokenInfo, nil
+	}
+
+	tokenInfo.Address = tokenAddress
+	tokenInfo.Symbol = respData.Symbol
+	tokenInfo.TokenType = respData.TokenType
+	tokenInfo.TokenId = tokenId
+	tokenInfo.CollectionName = respData.CollectionName
+	tokenInfo.ItemName = respData.NftName
+	tokenInfo.ItemUri = respData.ImageURL
+	return tokenInfo, nil
+}
+
+func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
+	if tokenAddress == "" {
+		return nil, nil
+	}
+	var key = chainName + tokenAddress + tokenId
+	tokenInfo, ok := NftInfoMap[key]
+	if ok {
+		return tokenInfo, nil
+	}
+
+	lock.Lock(key)
+	defer lock.Unlock(key)
+	tokenInfo, ok = NftInfoMap[key]
+	if ok {
+		return tokenInfo, nil
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewNftClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		ctx = context
+		defer cancel()
+	}
+	response, err := client.GetNftInfo(ctx, &v1.GetNftInfoRequest{
+		Chain: chainName,
+		NftInfo: []*v1.GetNftInfoRequest_NftInfo{{
+			TokenAddress: tokenAddress,
+			TokenId:      tokenId,
+		}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := response.Data
+	if len(data) > 0 {
+		tokenInfo = data[0]
+		mutex.Lock()
+		NftInfoMap[key] = tokenInfo
+		mutex.Unlock()
+		return tokenInfo, nil
+	}
+	return tokenInfo, nil
+}
+
+func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
+	if tokenAddress == "" {
+		return nil, nil
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewNftClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		ctx = context
+		defer cancel()
+	}
+	response, err := client.GetNftInfo(ctx, &v1.GetNftInfoRequest{
+		Chain: chainName,
+		NftInfo: []*v1.GetNftInfoRequest_NftInfo{{
+			TokenAddress: tokenAddress,
+			TokenId:      tokenId,
+		}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := response.Data
+	if len(data) > 0 {
+		tokenInfo := data[0]
+		return tokenInfo, nil
+	}
+	return nil, nil
+}
+
+func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string][]string) ([]*v1.GetNftReply_NftInfoResp, error) {
+	var nftInfoRequestList []*v1.GetNftInfoRequest_NftInfo
+	for tokenAddress, tokenIdList := range nftAddressMap {
+		for _, tokenId := range tokenIdList {
+			nftInfoRequest := &v1.GetNftInfoRequest_NftInfo{
+				TokenAddress: tokenAddress,
+				TokenId:      tokenId,
+			}
+			nftInfoRequestList = append(nftInfoRequestList, nftInfoRequest)
+		}
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewNftClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		ctx = context
+		defer cancel()
+	}
+	response, err := client.GetNftInfo(ctx, &v1.GetNftInfoRequest{
+		Chain:   chainName,
+		NftInfo: nftInfoRequestList,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := response.Data
+	return data, nil
 }

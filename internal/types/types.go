@@ -24,10 +24,16 @@ type TransactionResponse struct {
 }
 
 type TokenInfo struct {
-	Address  string `json:"address"`
-	Amount   string `json:"amount"`
-	Decimals int64  `json:"decimals"`
-	Symbol   string `json:"symbol"`
+	Address        string      `json:"address"`
+	Amount         string      `json:"amount"`
+	Decimals       int64       `json:"decimals"`
+	Symbol         string      `json:"symbol"`
+	CollectionName string      `json:"collection_name,omitempty"`
+	TokenType      string      `json:"token_type,omitempty"`
+	TokenId        string      `json:"token_id,omitempty"`
+	ItemName       string      `json:"item_name,omitempty"`
+	ItemUri        string      `json:"item_uri,omitempty"`
+	Tokens         []TokenInfo `json:"tokens,omitempty"`
 }
 
 type RecordRPCURLInfo struct {
