@@ -35,6 +35,12 @@ type TransactionClient interface {
 	PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(ctx context.Context, in *AssetRequest, opts ...grpc.CallOption) (*ListBalanceResponse, error)
+	//客户端分页查询用户NFT资产分组列表
+	ClientPageListNftAssetGroup(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetGroupResponse, error)
+	//客户端分页查询用户NFT资产列表
+	ClientPageListNftAsset(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetResponse, error)
+	//查询用户NFT余额
+	GetNftBalance(ctx context.Context, in *NftAssetRequest, opts ...grpc.CallOption) (*NftBalanceResponse, error)
 	//分页查询交易数据统计列表
 	PageListStatistic(ctx context.Context, in *PageListStatisticRequest, opts ...grpc.CallOption) (*PageListStatisticResponse, error)
 	//交易数据看板查询金额趋势图
@@ -43,6 +49,8 @@ type TransactionClient interface {
 	StatisticFundRate(ctx context.Context, in *StatisticFundRequest, opts ...grpc.CallOption) (*FundRateListResponse, error)
 	//未花费资产查询
 	GetUnspentTx(ctx context.Context, in *UnspentReq, opts ...grpc.CallOption) (*UnspentResponse, error)
+	//后去nft流转记录
+	GetNftRecord(ctx context.Context, in *NftRecordReq, opts ...grpc.CallOption) (*NftRecordResponse, error)
 }
 
 type transactionClient struct {
@@ -134,6 +142,33 @@ func (c *transactionClient) GetBalance(ctx context.Context, in *AssetRequest, op
 	return out, nil
 }
 
+func (c *transactionClient) ClientPageListNftAssetGroup(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetGroupResponse, error) {
+	out := new(ClientPageListNftAssetGroupResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ClientPageListNftAssetGroup", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) ClientPageListNftAsset(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetResponse, error) {
+	out := new(ClientPageListNftAssetResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ClientPageListNftAsset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) GetNftBalance(ctx context.Context, in *NftAssetRequest, opts ...grpc.CallOption) (*NftBalanceResponse, error) {
+	out := new(NftBalanceResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/GetNftBalance", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *transactionClient) PageListStatistic(ctx context.Context, in *PageListStatisticRequest, opts ...grpc.CallOption) (*PageListStatisticResponse, error) {
 	out := new(PageListStatisticResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/PageListStatistic", in, out, opts...)
@@ -170,6 +205,15 @@ func (c *transactionClient) GetUnspentTx(ctx context.Context, in *UnspentReq, op
 	return out, nil
 }
 
+func (c *transactionClient) GetNftRecord(ctx context.Context, in *NftRecordReq, opts ...grpc.CallOption) (*NftRecordResponse, error) {
+	out := new(NftRecordResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/GetNftRecord", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransactionServer is the server API for Transaction service.
 // All implementations must embed UnimplementedTransactionServer
 // for forward compatibility
@@ -187,6 +231,12 @@ type TransactionServer interface {
 	PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(context.Context, *AssetRequest) (*ListBalanceResponse, error)
+	//客户端分页查询用户NFT资产分组列表
+	ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error)
+	//客户端分页查询用户NFT资产列表
+	ClientPageListNftAsset(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetResponse, error)
+	//查询用户NFT余额
+	GetNftBalance(context.Context, *NftAssetRequest) (*NftBalanceResponse, error)
 	//分页查询交易数据统计列表
 	PageListStatistic(context.Context, *PageListStatisticRequest) (*PageListStatisticResponse, error)
 	//交易数据看板查询金额趋势图
@@ -195,6 +245,8 @@ type TransactionServer interface {
 	StatisticFundRate(context.Context, *StatisticFundRequest) (*FundRateListResponse, error)
 	//未花费资产查询
 	GetUnspentTx(context.Context, *UnspentReq) (*UnspentResponse, error)
+	//后去nft流转记录
+	GetNftRecord(context.Context, *NftRecordReq) (*NftRecordResponse, error)
 	mustEmbedUnimplementedTransactionServer()
 }
 
@@ -229,6 +281,15 @@ func (UnimplementedTransactionServer) PageListAsset(context.Context, *PageListAs
 func (UnimplementedTransactionServer) GetBalance(context.Context, *AssetRequest) (*ListBalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBalance not implemented")
 }
+func (UnimplementedTransactionServer) ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListNftAssetGroup not implemented")
+}
+func (UnimplementedTransactionServer) ClientPageListNftAsset(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListNftAsset not implemented")
+}
+func (UnimplementedTransactionServer) GetNftBalance(context.Context, *NftAssetRequest) (*NftBalanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNftBalance not implemented")
+}
 func (UnimplementedTransactionServer) PageListStatistic(context.Context, *PageListStatisticRequest) (*PageListStatisticResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListStatistic not implemented")
 }
@@ -240,6 +301,9 @@ func (UnimplementedTransactionServer) StatisticFundRate(context.Context, *Statis
 }
 func (UnimplementedTransactionServer) GetUnspentTx(context.Context, *UnspentReq) (*UnspentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUnspentTx not implemented")
+}
+func (UnimplementedTransactionServer) GetNftRecord(context.Context, *NftRecordReq) (*NftRecordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNftRecord not implemented")
 }
 func (UnimplementedTransactionServer) mustEmbedUnimplementedTransactionServer() {}
 
@@ -416,6 +480,60 @@ func _Transaction_GetBalance_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transaction_ClientPageListNftAssetGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListNftAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).ClientPageListNftAssetGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/ClientPageListNftAssetGroup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).ClientPageListNftAssetGroup(ctx, req.(*PageListNftAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_ClientPageListNftAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListNftAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).ClientPageListNftAsset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/ClientPageListNftAsset",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).ClientPageListNftAsset(ctx, req.(*PageListNftAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_GetNftBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NftAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).GetNftBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/GetNftBalance",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).GetNftBalance(ctx, req.(*NftAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Transaction_PageListStatistic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PageListStatisticRequest)
 	if err := dec(in); err != nil {
@@ -488,6 +606,24 @@ func _Transaction_GetUnspentTx_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transaction_GetNftRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NftRecordReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).GetNftRecord(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/GetNftRecord",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).GetNftRecord(ctx, req.(*NftRecordReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Transaction_ServiceDesc is the grpc.ServiceDesc for Transaction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -532,6 +668,18 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Transaction_GetBalance_Handler,
 		},
 		{
+			MethodName: "ClientPageListNftAssetGroup",
+			Handler:    _Transaction_ClientPageListNftAssetGroup_Handler,
+		},
+		{
+			MethodName: "ClientPageListNftAsset",
+			Handler:    _Transaction_ClientPageListNftAsset_Handler,
+		},
+		{
+			MethodName: "GetNftBalance",
+			Handler:    _Transaction_GetNftBalance_Handler,
+		},
+		{
 			MethodName: "PageListStatistic",
 			Handler:    _Transaction_PageListStatistic_Handler,
 		},
@@ -546,6 +694,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUnspentTx",
 			Handler:    _Transaction_GetUnspentTx_Handler,
+		},
+		{
+			MethodName: "GetNftRecord",
+			Handler:    _Transaction_GetNftRecord_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -79,7 +79,37 @@ func HttpsSignGetForm(url string, params map[string]string, authorization string
 		return err
 	}
 	return nil
+}
 
+func HttpsOpenSeaGetForm(url string, params map[string]string, headerValue string, out interface{}) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-KEY", headerValue)
+	q := req.URL.Query()
+	for k, v := range params {
+		q.Add(k, v)
+	}
+	req.URL.RawQuery = q.Encode()
+	client := &http.Client{Transport: globalTransport}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		statusCode := resp.StatusCode
+		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+		err = errors.New(status + "\n" + string(body))
+		return err
+	}
+	return nil
 }
 
 func HttpsGetFormString(url string, params map[string]string) (string, error) {

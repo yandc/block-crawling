@@ -121,6 +121,49 @@ func (s *TransactionService) GetBalance(ctx context.Context, req *pb.AssetReques
 	return result, err
 }
 
+func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
+	if req.Uid == "" && len(req.AddressList) == 0 {
+		return nil, errors.New("uid or addressList is required")
+	}
+
+	if req.OrderBy == "" {
+		req.OrderBy = "token_id_amount desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
+	result, err := s.ts.ClientPageListNftAssetGroup(ctx, req)
+	return result, err
+}
+
+func (s *TransactionService) ClientPageListNftAsset(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetResponse, error) {
+	if req.Uid == "" && len(req.AddressList) == 0 {
+		return nil, errors.New("uid or addressList is required")
+	}
+
+	if req.OrderBy == "" {
+		req.OrderBy = "id desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
+	result, err := s.ts.ClientPageListNftAsset(ctx, req)
+	return result, err
+}
+
+func (s *TransactionService) GetNftBalance(ctx context.Context, req *pb.NftAssetRequest) (*pb.NftBalanceResponse, error) {
+	result, err := s.ts.GetNftBalance(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
@@ -148,5 +191,11 @@ func (s *TransactionService) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetUnspentTx(subctx, req)
+	return result, err
+}
+func (s *TransactionService) GetNftRecord(ctx context.Context, req *pb.NftRecordReq) (*pb.NftRecordResponse, error) {
+	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	result, err := s.ts.GetNftRecord(subctx, req)
 	return result, err
 }

@@ -35,6 +35,361 @@ var (
 	_ = sort.Sort
 )
 
+// Validate checks the field values on NftRecordReq with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *NftRecordReq) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on NftRecordReq with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in NftRecordReqMultiError, or
+// nil if none found.
+func (m *NftRecordReq) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *NftRecordReq) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for ContractAddress
+
+	// no validation rules for TokenId
+
+	if len(errors) > 0 {
+		return NftRecordReqMultiError(errors)
+	}
+
+	return nil
+}
+
+// NftRecordReqMultiError is an error wrapping multiple validation errors
+// returned by NftRecordReq.ValidateAll() if the designated constraints aren't met.
+type NftRecordReqMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m NftRecordReqMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m NftRecordReqMultiError) AllErrors() []error { return m }
+
+// NftRecordReqValidationError is the validation error returned by
+// NftRecordReq.Validate if the designated constraints aren't met.
+type NftRecordReqValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NftRecordReqValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NftRecordReqValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NftRecordReqValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NftRecordReqValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NftRecordReqValidationError) ErrorName() string { return "NftRecordReqValidationError" }
+
+// Error satisfies the builtin error interface
+func (e NftRecordReqValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNftRecordReq.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NftRecordReqValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NftRecordReqValidationError{}
+
+// Validate checks the field values on NftRecordResponse with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *NftRecordResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on NftRecordResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// NftRecordResponseMultiError, or nil if none found.
+func (m *NftRecordResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *NftRecordResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Ok
+
+	for idx, item := range m.GetData() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, NftRecordResponseValidationError{
+						field:  fmt.Sprintf("Data[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, NftRecordResponseValidationError{
+						field:  fmt.Sprintf("Data[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return NftRecordResponseValidationError{
+					field:  fmt.Sprintf("Data[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return NftRecordResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// NftRecordResponseMultiError is an error wrapping multiple validation errors
+// returned by NftRecordResponse.ValidateAll() if the designated constraints
+// aren't met.
+type NftRecordResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m NftRecordResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m NftRecordResponseMultiError) AllErrors() []error { return m }
+
+// NftRecordResponseValidationError is the validation error returned by
+// NftRecordResponse.Validate if the designated constraints aren't met.
+type NftRecordResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NftRecordResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NftRecordResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NftRecordResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NftRecordResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NftRecordResponseValidationError) ErrorName() string {
+	return "NftRecordResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e NftRecordResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNftRecordResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NftRecordResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NftRecordResponseValidationError{}
+
+// Validate checks the field values on NftHistoryList with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *NftHistoryList) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on NftHistoryList with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in NftHistoryListMultiError,
+// or nil if none found.
+func (m *NftHistoryList) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *NftHistoryList) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for FromAddress
+
+	// no validation rules for ToAddress
+
+	// no validation rules for Quantity
+
+	// no validation rules for TxTime
+
+	// no validation rules for TransactionType
+
+	// no validation rules for TransactionHash
+
+	if len(errors) > 0 {
+		return NftHistoryListMultiError(errors)
+	}
+
+	return nil
+}
+
+// NftHistoryListMultiError is an error wrapping multiple validation errors
+// returned by NftHistoryList.ValidateAll() if the designated constraints
+// aren't met.
+type NftHistoryListMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m NftHistoryListMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m NftHistoryListMultiError) AllErrors() []error { return m }
+
+// NftHistoryListValidationError is the validation error returned by
+// NftHistoryList.Validate if the designated constraints aren't met.
+type NftHistoryListValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NftHistoryListValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NftHistoryListValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NftHistoryListValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NftHistoryListValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NftHistoryListValidationError) ErrorName() string { return "NftHistoryListValidationError" }
+
+// Error satisfies the builtin error interface
+func (e NftHistoryListValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNftHistoryList.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NftHistoryListValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NftHistoryListValidationError{}
+
 // Validate checks the field values on UnspentReq with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
@@ -4063,6 +4418,980 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = BalanceResponseValidationError{}
+
+// Validate checks the field values on PageListNftAssetRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PageListNftAssetRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PageListNftAssetRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PageListNftAssetRequestMultiError, or nil if none found.
+func (m *PageListNftAssetRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PageListNftAssetRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for Uid
+
+	// no validation rules for Currency
+
+	if _, ok := _PageListNftAssetRequest_AmountType_InLookup[m.GetAmountType()]; !ok {
+		err := PageListNftAssetRequestValidationError{
+			field:  "AmountType",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for CollectionNameLike
+
+	// no validation rules for OrderBy
+
+	if _, ok := _PageListNftAssetRequest_DataDirection_InLookup[m.GetDataDirection()]; !ok {
+		err := PageListNftAssetRequestValidationError{
+			field:  "DataDirection",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStartIndex() < 0 {
+		err := PageListNftAssetRequestValidationError{
+			field:  "StartIndex",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetPageNum() < 0 {
+		err := PageListNftAssetRequestValidationError{
+			field:  "PageNum",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetPageSize() < 0 {
+		err := PageListNftAssetRequestValidationError{
+			field:  "PageSize",
+			reason: "value must be greater than or equal to 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for Total
+
+	if len(errors) > 0 {
+		return PageListNftAssetRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// PageListNftAssetRequestMultiError is an error wrapping multiple validation
+// errors returned by PageListNftAssetRequest.ValidateAll() if the designated
+// constraints aren't met.
+type PageListNftAssetRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PageListNftAssetRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PageListNftAssetRequestMultiError) AllErrors() []error { return m }
+
+// PageListNftAssetRequestValidationError is the validation error returned by
+// PageListNftAssetRequest.Validate if the designated constraints aren't met.
+type PageListNftAssetRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PageListNftAssetRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PageListNftAssetRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PageListNftAssetRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PageListNftAssetRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PageListNftAssetRequestValidationError) ErrorName() string {
+	return "PageListNftAssetRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PageListNftAssetRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPageListNftAssetRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PageListNftAssetRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PageListNftAssetRequestValidationError{}
+
+var _PageListNftAssetRequest_AmountType_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
+}
+
+var _PageListNftAssetRequest_DataDirection_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
+}
+
+// Validate checks the field values on ClientPageListNftAssetGroupResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *ClientPageListNftAssetGroupResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClientPageListNftAssetGroupResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// ClientPageListNftAssetGroupResponseMultiError, or nil if none found.
+func (m *ClientPageListNftAssetGroupResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClientPageListNftAssetGroupResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Total
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ClientPageListNftAssetGroupResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ClientPageListNftAssetGroupResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ClientPageListNftAssetGroupResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return ClientPageListNftAssetGroupResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClientPageListNftAssetGroupResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// ClientPageListNftAssetGroupResponse.ValidateAll() if the designated
+// constraints aren't met.
+type ClientPageListNftAssetGroupResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClientPageListNftAssetGroupResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClientPageListNftAssetGroupResponseMultiError) AllErrors() []error { return m }
+
+// ClientPageListNftAssetGroupResponseValidationError is the validation error
+// returned by ClientPageListNftAssetGroupResponse.Validate if the designated
+// constraints aren't met.
+type ClientPageListNftAssetGroupResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClientPageListNftAssetGroupResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClientPageListNftAssetGroupResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClientPageListNftAssetGroupResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClientPageListNftAssetGroupResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClientPageListNftAssetGroupResponseValidationError) ErrorName() string {
+	return "ClientPageListNftAssetGroupResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClientPageListNftAssetGroupResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClientPageListNftAssetGroupResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClientPageListNftAssetGroupResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClientPageListNftAssetGroupResponseValidationError{}
+
+// Validate checks the field values on ClientNftAssetGroupResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClientNftAssetGroupResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClientNftAssetGroupResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ClientNftAssetGroupResponseMultiError, or nil if none found.
+func (m *ClientNftAssetGroupResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClientNftAssetGroupResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for Uid
+
+	// no validation rules for Address
+
+	// no validation rules for TokenAddress
+
+	// no validation rules for TokenUri
+
+	// no validation rules for Balance
+
+	// no validation rules for TokenType
+
+	// no validation rules for CollectionName
+
+	// no validation rules for TokenIdAmount
+
+	// no validation rules for Cursor
+
+	if len(errors) > 0 {
+		return ClientNftAssetGroupResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClientNftAssetGroupResponseMultiError is an error wrapping multiple
+// validation errors returned by ClientNftAssetGroupResponse.ValidateAll() if
+// the designated constraints aren't met.
+type ClientNftAssetGroupResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClientNftAssetGroupResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClientNftAssetGroupResponseMultiError) AllErrors() []error { return m }
+
+// ClientNftAssetGroupResponseValidationError is the validation error returned
+// by ClientNftAssetGroupResponse.Validate if the designated constraints
+// aren't met.
+type ClientNftAssetGroupResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClientNftAssetGroupResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClientNftAssetGroupResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClientNftAssetGroupResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClientNftAssetGroupResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClientNftAssetGroupResponseValidationError) ErrorName() string {
+	return "ClientNftAssetGroupResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClientNftAssetGroupResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClientNftAssetGroupResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClientNftAssetGroupResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClientNftAssetGroupResponseValidationError{}
+
+// Validate checks the field values on ClientPageListNftAssetResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClientPageListNftAssetResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClientPageListNftAssetResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// ClientPageListNftAssetResponseMultiError, or nil if none found.
+func (m *ClientPageListNftAssetResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClientPageListNftAssetResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Total
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ClientPageListNftAssetResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ClientPageListNftAssetResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ClientPageListNftAssetResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return ClientPageListNftAssetResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClientPageListNftAssetResponseMultiError is an error wrapping multiple
+// validation errors returned by ClientPageListNftAssetResponse.ValidateAll()
+// if the designated constraints aren't met.
+type ClientPageListNftAssetResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClientPageListNftAssetResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClientPageListNftAssetResponseMultiError) AllErrors() []error { return m }
+
+// ClientPageListNftAssetResponseValidationError is the validation error
+// returned by ClientPageListNftAssetResponse.Validate if the designated
+// constraints aren't met.
+type ClientPageListNftAssetResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClientPageListNftAssetResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClientPageListNftAssetResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClientPageListNftAssetResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClientPageListNftAssetResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClientPageListNftAssetResponseValidationError) ErrorName() string {
+	return "ClientPageListNftAssetResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClientPageListNftAssetResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClientPageListNftAssetResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClientPageListNftAssetResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClientPageListNftAssetResponseValidationError{}
+
+// Validate checks the field values on ClientNftAssetResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClientNftAssetResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClientNftAssetResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ClientNftAssetResponseMultiError, or nil if none found.
+func (m *ClientNftAssetResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClientNftAssetResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for ChainName
+
+	// no validation rules for Uid
+
+	// no validation rules for Address
+
+	// no validation rules for TokenAddress
+
+	// no validation rules for TokenUri
+
+	// no validation rules for TokenId
+
+	// no validation rules for Balance
+
+	// no validation rules for TokenType
+
+	// no validation rules for CollectionName
+
+	// no validation rules for Symbol
+
+	// no validation rules for Name
+
+	// no validation rules for ItemName
+
+	// no validation rules for ItemUri
+
+	// no validation rules for ItemOriginalUri
+
+	// no validation rules for ItemAnimationUri
+
+	// no validation rules for Data
+
+	// no validation rules for CreatedAt
+
+	// no validation rules for UpdatedAt
+
+	// no validation rules for Cursor
+
+	if len(errors) > 0 {
+		return ClientNftAssetResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClientNftAssetResponseMultiError is an error wrapping multiple validation
+// errors returned by ClientNftAssetResponse.ValidateAll() if the designated
+// constraints aren't met.
+type ClientNftAssetResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClientNftAssetResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClientNftAssetResponseMultiError) AllErrors() []error { return m }
+
+// ClientNftAssetResponseValidationError is the validation error returned by
+// ClientNftAssetResponse.Validate if the designated constraints aren't met.
+type ClientNftAssetResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClientNftAssetResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClientNftAssetResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClientNftAssetResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClientNftAssetResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClientNftAssetResponseValidationError) ErrorName() string {
+	return "ClientNftAssetResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClientNftAssetResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClientNftAssetResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClientNftAssetResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClientNftAssetResponseValidationError{}
+
+// Validate checks the field values on NftAssetRequest with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *NftAssetRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on NftAssetRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// NftAssetRequestMultiError, or nil if none found.
+func (m *NftAssetRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *NftAssetRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if utf8.RuneCountInString(m.GetChainName()) < 1 {
+		err := NftAssetRequestValidationError{
+			field:  "ChainName",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if utf8.RuneCountInString(m.GetAddress()) < 1 {
+		err := NftAssetRequestValidationError{
+			field:  "Address",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if utf8.RuneCountInString(m.GetTokenAddress()) < 1 {
+		err := NftAssetRequestValidationError{
+			field:  "TokenAddress",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if utf8.RuneCountInString(m.GetTokenId()) < 1 {
+		err := NftAssetRequestValidationError{
+			field:  "TokenId",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return NftAssetRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// NftAssetRequestMultiError is an error wrapping multiple validation errors
+// returned by NftAssetRequest.ValidateAll() if the designated constraints
+// aren't met.
+type NftAssetRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m NftAssetRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m NftAssetRequestMultiError) AllErrors() []error { return m }
+
+// NftAssetRequestValidationError is the validation error returned by
+// NftAssetRequest.Validate if the designated constraints aren't met.
+type NftAssetRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NftAssetRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NftAssetRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NftAssetRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NftAssetRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NftAssetRequestValidationError) ErrorName() string { return "NftAssetRequestValidationError" }
+
+// Error satisfies the builtin error interface
+func (e NftAssetRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNftAssetRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NftAssetRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NftAssetRequestValidationError{}
+
+// Validate checks the field values on NftBalanceResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *NftBalanceResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on NftBalanceResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// NftBalanceResponseMultiError, or nil if none found.
+func (m *NftBalanceResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *NftBalanceResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Balance
+
+	if len(errors) > 0 {
+		return NftBalanceResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// NftBalanceResponseMultiError is an error wrapping multiple validation errors
+// returned by NftBalanceResponse.ValidateAll() if the designated constraints
+// aren't met.
+type NftBalanceResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m NftBalanceResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m NftBalanceResponseMultiError) AllErrors() []error { return m }
+
+// NftBalanceResponseValidationError is the validation error returned by
+// NftBalanceResponse.Validate if the designated constraints aren't met.
+type NftBalanceResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NftBalanceResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NftBalanceResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NftBalanceResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NftBalanceResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NftBalanceResponseValidationError) ErrorName() string {
+	return "NftBalanceResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e NftBalanceResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNftBalanceResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NftBalanceResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NftBalanceResponseValidationError{}
 
 // Validate checks the field values on PageListStatisticRequest with the rules
 // defined in the proto definition for this message. If any rules are
