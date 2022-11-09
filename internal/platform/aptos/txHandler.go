@@ -579,8 +579,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
 						if cmp == 1 {
 							isContinue = true
-							eventLog.Amount = new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
-							aptTransactionRecords[i].Amount = decimal.NewFromBigInt(eventLog.Amount, 0)
+							subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+							eventLogs[i].Amount = subAmount
+							aptTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
 						} else if cmp == 0 {
 							isContinue = true
 							newEventLogs := make([]types.EventLog, 0, len(eventLogs)-1)
