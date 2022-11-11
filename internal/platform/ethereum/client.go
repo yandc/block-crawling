@@ -31,6 +31,8 @@ import (
 
 type Client struct {
 	*ethclient.Client
+	c *rpc.Client
+
 	*pcommon.NodeDefaultIn
 
 	url       string
@@ -38,13 +40,19 @@ type Client struct {
 }
 
 func NewClient(rawUrl string, chainName string) (*Client, error) {
-	client, err := ethclient.Dial(rawUrl)
+	c, err := rpc.DialContext(context.Background(), rawUrl)
+	if err != nil {
+		return nil, err
+	}
+	client := ethclient.NewClient(c)
+
 	if err != nil {
 		log.Error("new client error:", zap.Error(err), zap.Any("url", rawUrl))
 		return &Client{}, err
 	}
 	return &Client{
 		Client: client,
+		c:      c,
 		NodeDefaultIn: &pcommon.NodeDefaultIn{
 			ChainName: chainName,
 		},
@@ -455,4 +463,23 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(decimals), Symbol: symbol}
 	EvmTokenInfoMap[key] = tokenInfo
 	return tokenInfo, nil
+}
+
+// --- start override ---
+
+// BlockByHash returns the given full block.
+//
+// Note that loading full blocks requires two requests. Use HeaderByHash
+// if you don't need all transactions or uncle headers.
+func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types2.Block, error) {
+	return c.getBlock(ctx, "eth_getBlockByHash", hash, true)
+}
+
+// BlockByNumber returns a block from the current canonical chain. If number is nil, the
+// latest known block is returned.
+//
+// Note that loading full blocks requires two requests. Use HeaderByNumber
+// if you don't need all transactions or uncle headers.
+func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types2.Block, error) {
+	return c.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }
