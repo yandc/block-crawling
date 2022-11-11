@@ -20,6 +20,30 @@ platform:
 #    safelyConcurrentBlockDelta: 20
 #    maxConcurrency: 5
 #    monitorHeightAlarmThr: 21
+  Arbitrum:
+    blockExplorerAddrUrl: https://arbiscan.io/address/
+    blockExplorerTxUrl: https://arbiscan.io/tx/
+    blockExplorerUrl: https://arbiscan.io/
+    chain: Arbitrum
+    chainId: 42161
+    coinId: 60
+    decimal: 18
+    fullName: Arbitrum
+    getPriceKey: Ethereum
+    handler: arbitrum
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 15
+    rpcURL:
+      - https://arb1.arbitrum.io/rpc
+      - https://rpc.ankr.com/arbitrum
+      - https://arbitrum-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    symbol: Arbitrum
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 160
+
   DOGE:
     blockExplorerAddrUrl: https://dogechain.info/address/
     blockExplorerTxUrl: https://dogechain.info/tx/
