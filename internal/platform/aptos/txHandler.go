@@ -6,7 +6,9 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
 	"math/big"
 	"strconv"
 	"strings"
@@ -51,14 +53,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		return nil
 	}
 
-	if tx.Payload.Function == APT_CREATE_ACCOUNT || tx.Payload.Function == APT_REGISTER {
+	if tx.Payload.Function == APT_CREATE_ACCOUNT || tx.Payload.Function == APT_REGISTER ||
+		tx.Payload.Function == APT_ACCOUNT_TRANSFER || tx.Payload.Function == APT_TRANSFER || tx.Payload.Function == APT_MINT {
 		txType := ""
 		var tokenInfo types.TokenInfo
-		//var amount, contractAddress string
+		var amount, contractAddress string
 		var fromAddress, toAddress, fromUid, toUid string
 		var fromAddressExist, toAddressExist bool
-		fromAddress = tx.Sender
 
+		fromAddress = tx.Sender
 		if tx.Payload.Function == APT_CREATE_ACCOUNT {
 			txType = biz.CREATEACCOUNT
 			if len(tx.Payload.Arguments) > 0 {
@@ -66,8 +69,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					toAddress = toAddressStr
 				}
 			}
-		}
-		if tx.Payload.Function == APT_REGISTER {
+		} else if tx.Payload.Function == APT_REGISTER {
 			txType = biz.REGISTERTOKEN
 			if len(tx.Payload.TypeArguments) > 0 {
 				tyArgs := tx.Payload.TypeArguments[0]
@@ -76,105 +78,24 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					toAddress = mode[0]
 				}
 			}
-		}
-
-		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				return
+		} else {
+			txType = biz.NATIVE
+			if len(tx.Payload.Arguments) > 0 {
+				if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
+					toAddress = toAddressStr
+				}
 			}
-		}
-
-		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				return
+			if len(tx.Payload.Arguments) > 1 {
+				if amountStr, ok := tx.Payload.Arguments[1].(string); ok {
+					amount = amountStr
+				}
 			}
-		}
-
-		if fromAddressExist || toAddressExist {
-			version, _ := strconv.Atoi(tx.Version)
-			nonce, _ := strconv.Atoi(tx.SequenceNumber)
-			txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
-			txTime = txTime / 1000000
-			gasUsed, _ := strconv.Atoi(tx.GasUsed)
-			gasPrice, _ := strconv.Atoi(tx.GasUnitPrice)
-			feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
-			payload, _ := utils.JsonEncode(tx.Payload)
-
-			aptosMap := map[string]interface{}{
-				"aptos": map[string]string{
-					"sequence_number": tx.SequenceNumber,
-				},
-				"token": tokenInfo,
-			}
-			parseData, _ := utils.JsonEncode(aptosMap)
-
-			aptTransactionRecord := &data.AptTransactionRecord{
-				BlockHash:           block.BlockHash,
-				BlockNumber:         int(curHeight),
-				Nonce:               int64(nonce),
-				TransactionVersion:  version,
-				TransactionHash:     tx.Hash,
-				FromAddress:         fromAddress,
-				ToAddress:           toAddress,
-				FromUid:             fromUid,
-				ToUid:               toUid,
-				FeeAmount:           feeAmount,
-				Amount:              decimal.Zero,
-				Status:              status,
-				TxTime:              txTime,
-				ContractAddress:     "",
-				ParseData:           parseData,
-				StateRootHash:       tx.StateRootHash,
-				EventRootHash:       tx.EventRootHash,
-				AccumulatorRootHash: tx.AccumulatorRootHash,
-				GasLimit:            tx.MaxGasAmount,
-				GasUsed:             tx.GasUsed,
-				GasPrice:            tx.GasUnitPrice,
-				Data:                payload,
-				EventLog:            "",
-				TransactionType:     txType,
-				DappData:            "",
-				ClientData:          "",
-				CreatedAt:           h.now,
-				UpdatedAt:           h.now,
-			}
-			h.txRecords = append(h.txRecords, aptTransactionRecord)
-		}
-	} else if tx.Payload.Function == APT_ACCOUNT_TRANSFER || tx.Payload.Function == APT_TRANSFER || tx.Payload.Function == APT_MINT {
-		txType := biz.NATIVE
-		var tokenInfo types.TokenInfo
-		var amount, contractAddress string
-		var fromAddress, toAddress, fromUid, toUid string
-		var fromAddressExist, toAddressExist bool
-
-		fromAddress = tx.Sender
-		if len(tx.Payload.Arguments) > 0 {
-			if toAddressStr, ok := tx.Payload.Arguments[0].(string); ok {
-				toAddress = toAddressStr
-			}
-		}
-		if len(tx.Payload.Arguments) > 1 {
-			if amountStr, ok := tx.Payload.Arguments[1].(string); ok {
-				amount = amountStr
-			}
-		}
-		if len(tx.Payload.TypeArguments) > 0 {
-			tyArgs := tx.Payload.TypeArguments[0]
-			if tyArgs != APT_CODE {
-				contractAddress = tyArgs
-				txType = biz.TRANSFER
+			if len(tx.Payload.TypeArguments) > 0 {
+				tyArgs := tx.Payload.TypeArguments[0]
+				if tyArgs != APT_CODE {
+					contractAddress = tyArgs
+					txType = biz.TRANSFER
+				}
 			}
 		}
 
@@ -293,7 +214,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			h.txRecords = append(h.txRecords, aptTransactionRecord)
 		}
 	} else {
-		flag := false
 		var version int
 		var nonce int
 		var txTime int64
@@ -301,7 +221,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var gasPrice int
 		var feeAmount decimal.Decimal
 		var payload string
-		var eventLogs []types.EventLog
+		var eventLogs []*types.EventLog
 		var aptTransactionRecords []*data.AptTransactionRecord
 		var aptContractRecord *data.AptTransactionRecord
 
@@ -368,73 +288,68 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 		}
 
-		if fromAddressExist || toAddressExist {
-			version, _ = strconv.Atoi(tx.Version)
-			nonce, _ = strconv.Atoi(tx.SequenceNumber)
-			txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-			txTime = txTime / 1000000
-			gasUsed, _ = strconv.Atoi(tx.GasUsed)
-			gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
-			feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-			payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
+		version, _ = strconv.Atoi(tx.Version)
+		nonce, _ = strconv.Atoi(tx.SequenceNumber)
+		txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
+		txTime = txTime / 1000000
+		gasUsed, _ = strconv.Atoi(tx.GasUsed)
+		gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
+		feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
+		payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
-			flag = true
-
-			if contractAddress != APT_CODE && contractAddress != "" {
+		if contractAddress != APT_CODE && contractAddress != "" {
+			tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
 				tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-				}
-				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				}
-				tokenInfo.Amount = amount
 			}
-			aptosMap := map[string]interface{}{
-				"aptos": map[string]string{
-					"sequence_number": tx.SequenceNumber,
-				},
-				"token": tokenInfo,
+			if err != nil {
+				// nodeProxy出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			}
-			parseData, _ := utils.JsonEncode(aptosMap)
-			amountValue, _ := decimal.NewFromString(amount)
+			tokenInfo.Amount = amount
+		}
+		aptosMap := map[string]interface{}{
+			"aptos": map[string]string{
+				"sequence_number": tx.SequenceNumber,
+			},
+			"token": tokenInfo,
+		}
+		parseData, _ := utils.JsonEncode(aptosMap)
+		amountValue, _ := decimal.NewFromString(amount)
 
-			aptContractRecord = &data.AptTransactionRecord{
-				BlockHash:           block.BlockHash,
-				BlockNumber:         int(curHeight),
-				Nonce:               int64(nonce),
-				TransactionVersion:  version,
-				TransactionHash:     tx.Hash,
-				FromAddress:         fromAddress,
-				ToAddress:           toAddress,
-				FromUid:             fromUid,
-				ToUid:               toUid,
-				FeeAmount:           feeAmount,
-				Amount:              amountValue,
-				Status:              status,
-				TxTime:              txTime,
-				ContractAddress:     contractAddress,
-				ParseData:           parseData,
-				StateRootHash:       tx.StateRootHash,
-				EventRootHash:       tx.EventRootHash,
-				AccumulatorRootHash: tx.AccumulatorRootHash,
-				GasLimit:            tx.MaxGasAmount,
-				GasUsed:             tx.GasUsed,
-				GasPrice:            tx.GasUnitPrice,
-				Data:                payload,
-				EventLog:            "",
-				TransactionType:     txType,
-				DappData:            "",
-				ClientData:          "",
-				CreatedAt:           h.now,
-				UpdatedAt:           h.now,
-			}
-			h.txRecords = append(h.txRecords, aptContractRecord)
+		aptContractRecord = &data.AptTransactionRecord{
+			BlockHash:           block.BlockHash,
+			BlockNumber:         int(curHeight),
+			Nonce:               int64(nonce),
+			TransactionVersion:  version,
+			TransactionHash:     tx.Hash,
+			FromAddress:         fromAddress,
+			ToAddress:           toAddress,
+			FromUid:             fromUid,
+			ToUid:               toUid,
+			FeeAmount:           feeAmount,
+			Amount:              amountValue,
+			Status:              status,
+			TxTime:              txTime,
+			ContractAddress:     contractAddress,
+			ParseData:           parseData,
+			StateRootHash:       tx.StateRootHash,
+			EventRootHash:       tx.EventRootHash,
+			AccumulatorRootHash: tx.AccumulatorRootHash,
+			GasLimit:            tx.MaxGasAmount,
+			GasUsed:             tx.GasUsed,
+			GasPrice:            tx.GasUnitPrice,
+			Data:                payload,
+			EventLog:            "",
+			TransactionType:     txType,
+			DappData:            "",
+			ClientData:          "",
+			CreatedAt:           h.now,
+			UpdatedAt:           h.now,
 		}
 
 		txType = biz.EVENTLOG
@@ -449,18 +364,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if event.Type == "0x1::coin::WithdrawEvent" ||
 				event.Type == "0x1::coin::DepositEvent" {
 				amount = event.Data.Amount
-				if amount == "0" {
-					continue
-				}
 				mode := strings.Split(tx.Payload.Function, "::")
 				if event.Type == "0x1::coin::WithdrawEvent" {
-					//fromAddress = "0x" + event.Key[18:]
 					fromAddress = event.Guid.AccountAddress
 					if len(mode) == 3 {
 						toAddress = mode[0]
 					}
 				} else if event.Type == "0x1::coin::DepositEvent" {
-					//toAddress = "0x" + event.Key[18:]
 					toAddress = event.Guid.AccountAddress
 					if len(mode) == 3 {
 						fromAddress = mode[0]
@@ -530,19 +440,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				index++
 				txHash := tx.Hash + "#result-" + fmt.Sprintf("%v", index)
 
-				if !flag {
-					version, _ = strconv.Atoi(tx.Version)
-					nonce, _ = strconv.Atoi(tx.SequenceNumber)
-					txTime, _ = strconv.ParseInt(tx.Timestamp, 10, 64)
-					txTime = txTime / 1000000
-					gasUsed, _ = strconv.Atoi(tx.GasUsed)
-					gasPrice, _ = strconv.Atoi(tx.GasUnitPrice)
-					feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-					payload, _ = utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
-
-					flag = true
-				}
-
 				if contractAddress != APT_CODE && contractAddress != "" {
 					tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 					for i := 0; i < 3 && err != nil; i++ {
@@ -566,7 +463,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				}
 				parseData, _ := utils.JsonEncode(aptosMap)
 				amountValue, _ := decimal.NewFromString(amount)
-				eventLogInfo := types.EventLog{
+				eventLogInfo := &types.EventLog{
 					From:   fromAddress,
 					To:     toAddress,
 					Amount: amountValue.BigInt(),
@@ -575,6 +472,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 				var isContinue bool
 				for i, eventLog := range eventLogs {
+					if eventLog == nil {
+						continue
+					}
 					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address {
 						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
 						if cmp == 1 {
@@ -584,17 +484,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							aptTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
 						} else if cmp == 0 {
 							isContinue = true
-							newEventLogs := make([]types.EventLog, 0, len(eventLogs)-1)
-							newEventLogs = append(newEventLogs, eventLogs[:i]...)
-							newEventLogs = append(newEventLogs, eventLogs[i+1:]...)
-							eventLogs = newEventLogs
+							eventLogs[i] = nil
 							aptTransactionRecords[i] = nil
 						} else if cmp == -1 {
-							eventLogInfo.Amount = new(big.Int).Sub(eventLogInfo.Amount, eventLog.Amount)
-							newEventLogs := make([]types.EventLog, 0, len(eventLogs))
-							newEventLogs = append(newEventLogs, eventLogs[:i]...)
-							newEventLogs = append(newEventLogs, eventLogs[i+1:]...)
-							eventLogs = newEventLogs
+							eventLogs[i] = nil
 							aptTransactionRecords[i] = nil
 						}
 						break
@@ -639,14 +532,37 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 		}
 
-		for _, aptTransactionRecord := range aptTransactionRecords {
-			if aptTransactionRecord != nil {
-				h.txRecords = append(h.txRecords, aptTransactionRecord)
-			}
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, aptContractRecord)
 		}
-		if aptContractRecord != nil && eventLogs != nil {
-			eventLog, _ := utils.JsonEncode(eventLogs)
-			aptContractRecord.EventLog = eventLog
+		if len(eventLogs) > 0 {
+			for _, aptTransactionRecord := range aptTransactionRecords {
+				if aptTransactionRecord != nil {
+					h.txRecords = append(h.txRecords, aptTransactionRecord)
+				}
+			}
+
+			var eventLogList []*types.EventLog
+			for _, eventLog := range eventLogs {
+				if eventLog != nil {
+					eventLogList = append(eventLogList, eventLog)
+				}
+			}
+			if len(eventLogList) > 0 {
+				eventLog, _ := utils.JsonEncode(eventLogList)
+				aptContractRecord.EventLog = eventLog
+
+				var logAddress datatypes.JSON
+				var logFromAddress []string
+				var logToAddress []string
+				for _, log := range eventLogList {
+					logFromAddress = append(logFromAddress, log.From)
+					logToAddress = append(logToAddress, log.To)
+				}
+				logAddressList := [][]string{logFromAddress, logToAddress}
+				logAddress, _ = json.Marshal(logAddressList)
+				aptContractRecord.LogAddress = logAddress
+			}
 		}
 	}
 	return nil
