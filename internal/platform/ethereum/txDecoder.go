@@ -312,8 +312,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			logToAddress = append(logToAddress, log.To)
 		}
 		logAddressList := [][]string{logFromAddress, logToAddress}
-		logAddressJson, _ := json.Marshal(logAddressList)
-		logAddress = logAddressJson
+		logAddress, _ = json.Marshal(logAddressList)
 	}
 	evmTransactionRecord := &data.EvmTransactionRecord{
 		BlockHash:            h.blockHash,
@@ -442,7 +441,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		topic0 := log_.Topics[0].String()
-		if topic0 == TRANSFER_TOPIC || topic0 == SAFETRANSFERFROM_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
+		if topic0 == TRANSFER_TOPIC || topic0 == TRANSFERSINGLE_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
 			var token types.TokenInfo
 			var err error
 			tokenAddress := log_.Address.String()
@@ -493,7 +492,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//判断合约 转账， 提现， 兑换。
 			if topic0 == TRANSFER_TOPIC {
 				to = common.HexToAddress(log_.Topics[2].String()).String()
-			} else if topic0 == SAFETRANSFERFROM_TOPIC {
+			} else if topic0 == TRANSFERSINGLE_TOPIC {
 				ctx := context.Background()
 				tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 				amount = new(big.Int).SetBytes(log_.Data[32:64])
