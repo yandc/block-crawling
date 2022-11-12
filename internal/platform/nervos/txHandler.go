@@ -115,7 +115,7 @@ func (h *txHandler) onTx(
 			ToUid:           toUid,
 			FeeAmount:       decimal.Zero,
 			Amount:          amount,
-			Status:          biz.SUCCESS,
+			Status:          status,
 			TxTime:          txTime,
 			ContractAddress: rawTx.contractAddresses[i],
 			ParseData:       string(parseData),
