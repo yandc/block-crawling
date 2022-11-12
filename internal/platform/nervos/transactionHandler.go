@@ -375,7 +375,7 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 			continue
 		}
 
-		if tx.TxStatus.Status == types.TransactionStatusCommitted {
+		if record.Status == "success" {
 			log.Info("zydghg", zap.Any(record.TransactionHash, tx))
 			if record.FromUid != "" {
 				log.Info("zydghg1", zap.Any(record.TransactionHash, tx))

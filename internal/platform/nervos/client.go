@@ -371,8 +371,13 @@ func (c *Client) cellKey(txHash string, index int) string {
 }
 
 // GetBlockHeight get current block height.
+// 块上链时，交易可能未完成。安全区块高度为 20 块，所以这样处理
 func (c *Client) GetBlockHeight() (uint64, error) {
-	return c.client.GetTipBlockNumber(context.Background())
+	h,err := c.client.GetTipBlockNumber(context.Background())
+	if h > 20{
+		h = h - 20
+	}
+	return h,err
 }
 
 // GetTxByHash get transaction by given tx hash.
