@@ -69,6 +69,8 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.BtcT
 	}()
 
 	go handleUserAsset(chainName, client, txRecords)
+	go UnspentTx(chainName, client, txRecords)
+
 }
 
 func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransactionRecord) {
