@@ -270,11 +270,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	//整理feeDate
 	//var maxFeePerGas,maxPriorityFeePerGas string
 	paseJson := make(map[string]string)
-	if chainType != APTOS {
-		if pbb.FeeData != "" {
-			if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
-				log.Info("feedata数据解析失败！")
-			}
+	if pbb.FeeData != "" {
+		if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
+			log.Info("feedata数据解析失败！")
 		}
 	}
 
@@ -481,9 +479,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			GasLimit:        pbb.GasLimit,
-			GasUsed:         pbb.GasUsed,
-			GasPrice:        pbb.GasPrice,
+			GasLimit:        paseJson["gas_limit"],
+			GasUsed:         paseJson["gas_used"],
+			GasPrice:        paseJson["gas_price"],
 			Data:            pbb.Data,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
@@ -1352,10 +1350,10 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 			for _, n := range nl {
 				c, _ := strconv.Atoi(n.Capacity)
 				lockArgs := strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0")
-				fla := fmt.Sprintf("%040s",lockArgs)
+				fla := fmt.Sprintf("%040s", lockArgs)
 
-				typeArgs :=  strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0")
-				fta := fmt.Sprintf("%040s",typeArgs)
+				typeArgs := strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0")
+				fta := fmt.Sprintf("%040s", typeArgs)
 				p := &pb.CellList{
 					OutPoint: &pb.OutPoint{
 						TxHash: n.TransactionHash,
@@ -1395,10 +1393,10 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 				for _, n := range token {
 					c, _ := strconv.Atoi(n.Capacity)
 					lockArgs := strings.TrimLeft(strings.Replace(n.LockArgs, "0x", "", 1), "0")
-					fla := fmt.Sprintf("%040s",lockArgs)
+					fla := fmt.Sprintf("%040s", lockArgs)
 
-					typeArgs :=  strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0")
-					fta := fmt.Sprintf("%040s",typeArgs)
+					typeArgs := strings.TrimLeft(strings.Replace(n.TypeArgs, "0x", "", 1), "0")
+					fta := fmt.Sprintf("%040s", typeArgs)
 
 					p := &pb.CellList{
 						OutPoint: &pb.OutPoint{
