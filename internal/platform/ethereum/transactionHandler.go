@@ -185,28 +185,27 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 				mainSymbol = symbol
 			}
 		} else if tokenAddress != "" {
-			if tokenType == biz.ERC721 || tokenType == biz.ERC1155 {
-				continue
-			}
-			tokenSymbolMap[tokenAddress] = symbol
-			if record.FromAddress != "" && record.FromUid != "" {
-				fromKey := record.FromUid + "," + record.FromAddress
-				tokenDecimalsMap, ok := addressTokenMap[fromKey]
-				if !ok {
-					tokenDecimalsMap = make(map[string]int)
-					addressTokenMap[fromKey] = tokenDecimalsMap
+			if tokenType != biz.ERC721 && tokenType != biz.ERC1155 {
+				tokenSymbolMap[tokenAddress] = symbol
+				if record.FromAddress != "" && record.FromUid != "" {
+					fromKey := record.FromUid + "," + record.FromAddress
+					tokenDecimalsMap, ok := addressTokenMap[fromKey]
+					if !ok {
+						tokenDecimalsMap = make(map[string]int)
+						addressTokenMap[fromKey] = tokenDecimalsMap
+					}
+					tokenDecimalsMap[tokenAddress] = int(decimals)
 				}
-				tokenDecimalsMap[tokenAddress] = int(decimals)
-			}
 
-			if record.ToAddress != "" && record.ToUid != "" {
-				toKey := record.ToUid + "," + record.ToAddress
-				tokenDecimalsMap, ok := addressTokenMap[toKey]
-				if !ok {
-					tokenDecimalsMap = make(map[string]int)
-					addressTokenMap[toKey] = tokenDecimalsMap
+				if record.ToAddress != "" && record.ToUid != "" {
+					toKey := record.ToUid + "," + record.ToAddress
+					tokenDecimalsMap, ok := addressTokenMap[toKey]
+					if !ok {
+						tokenDecimalsMap = make(map[string]int)
+						addressTokenMap[toKey] = tokenDecimalsMap
+					}
+					tokenDecimalsMap[tokenAddress] = int(decimals)
 				}
-				tokenDecimalsMap[tokenAddress] = int(decimals)
 			}
 		}
 
