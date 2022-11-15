@@ -2,6 +2,7 @@ package sui
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/json"
@@ -9,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 const (
@@ -18,11 +21,70 @@ const (
 )
 
 type Client struct {
-	URL string
+	*common.NodeDefaultIn
+
+	url       string
+	chainName string
 }
 
-func NewClient(nodeUrl string) Client {
-	return Client{nodeUrl}
+func NewClient(nodeUrl, chainName string) Client {
+	return Client{
+		url:       nodeUrl,
+		chainName: chainName,
+		NodeDefaultIn: &common.NodeDefaultIn{
+			ChainName: chainName,
+		},
+	}
+}
+
+func (c *Client) URL() string {
+	return c.url
+}
+
+func (c *Client) Detect() error {
+	_, err := c.GetBlockHeight()
+	return err
+}
+
+// GetBlock fetch block data of the given height.
+func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
+	block, err := c.GetTransactionByNumber(int(height))
+	if err != nil {
+		return nil, err
+	}
+
+	return &chain.Block{
+		Hash:   block.Certificate.TransactionDigest,
+		Number: height,
+		Raw:    block,
+		Transactions: []*chain.Transaction{
+			{
+				Raw: block,
+			},
+		},
+	}, nil
+}
+
+// GetBlockHeight get current block height.
+func (c *Client) GetBlockHeight() (uint64, error) {
+	height, err := c.GetTransactionNumber()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(height), nil
+}
+
+// GetTxByHash get transaction by given tx hash.
+func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
+	block, err := c.GetTransactionByHash(txHash)
+	if err != nil {
+		return nil, err
+	}
+	return &chain.Transaction{
+		Hash:   txHash,
+		Raw:    block,
+		Record: nil,
+	}, nil
 }
 
 func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
@@ -30,9 +92,9 @@ func (c *Client) call(id int, method string, out interface{}, params []interface
 	var header http.Header
 	var err error
 	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params, args[0].(int))
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
 	} else {
-		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params)
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
 	}
 	_ = header
 	if err != nil {
@@ -166,36 +228,9 @@ type TransactionInfo struct {
 	Certificate struct {
 		TransactionDigest string `json:"transactionDigest"`
 		Data              struct {
-			Transactions []struct {
-				TransferSui *struct {
-					Recipient string `json:"recipient"`
-					Amount    int    `json:"amount"`
-				} `json:"TransferSui,omitempty"`
-				TransferObject *struct {
-					Recipient string `json:"recipient"`
-					ObjectRef struct {
-						ObjectId string `json:"objectId"`
-						Version  int    `json:"version"`
-						Digest   string `json:"digest"`
-					} `json:"objectRef"`
-				} `json:"TransferObject,omitempty"`
-				Call *struct {
-					Package struct {
-						ObjectId string `json:"objectId"`
-						Version  int    `json:"version"`
-						Digest   string `json:"digest"`
-					} `json:"package"`
-					Module        string        `json:"module"`
-					Function      string        `json:"function"`
-					TypeArguments []string      `json:"typeArguments"`
-					Arguments     []interface{} `json:"arguments"`
-				} `json:"Call,omitempty"`
-				Publish *struct {
-					Disassembled map[string]string `json:"disassembled"`
-				} `json:"Publish,omitempty"`
-			} `json:"transactions"`
-			Sender     string `json:"sender"`
-			GasPayment struct {
+			Transactions []*Transaction `json:"transactions"`
+			Sender       string         `json:"sender"`
+			GasPayment   struct {
 				ObjectId string `json:"objectId"`
 				Version  int    `json:"version"`
 				Digest   string `json:"digest"`
@@ -317,11 +352,62 @@ type TransactionInfo struct {
 				Recipient interface{} `json:"recipient"`
 				ObjectId  string      `json:"objectId"`
 			} `json:"newObject,omitempty"`
+			CoinBalanceChange *struct {
+				PackageId         string `json:"packageId"`
+				TransactionModule string `json:"transactionModule"`
+				Sender            string `json:"sender"`
+				ChangeType        string `json:"changeType"`
+				Owner             *struct {
+					AddressOwner string
+				} `json:"owner"`
+				CoinType     string `json:"coinType"`
+				CoinObjectId string `json:"coinObjectId"`
+				Version      int    `json:"version"`
+				Amount       int    `json:"amount"`
+			} `json:"coinBalanceChange,omitempty"`
 		} `json:"events"`
 		Dependencies []string `json:"dependencies"`
 	} `json:"effects"`
 	TimestampMs interface{} `json:"timestamp_ms"`
 	ParsedData  interface{} `json:"parsed_data"`
+}
+
+type Transaction struct {
+	TransferSui *struct {
+		Recipient string `json:"recipient"`
+		Amount    int    `json:"amount"`
+	} `json:"TransferSui,omitempty"`
+	TransferObject *struct {
+		Recipient string `json:"recipient"`
+		ObjectRef struct {
+			ObjectId string `json:"objectId"`
+			Version  int    `json:"version"`
+			Digest   string `json:"digest"`
+		} `json:"objectRef"`
+	} `json:"TransferObject,omitempty"`
+	Call *struct {
+		Package struct {
+			ObjectId string `json:"objectId"`
+			Version  int    `json:"version"`
+			Digest   string `json:"digest"`
+		} `json:"package"`
+		Module        string        `json:"module"`
+		Function      string        `json:"function"`
+		TypeArguments []string      `json:"typeArguments"`
+		Arguments     []interface{} `json:"arguments"`
+	} `json:"Call,omitempty"`
+	Pay *struct {
+		Recipients []string `json:"recipients"`
+		Amounts    []int    `json:"amounts"`
+		Coins      []struct {
+			ObjectId string `json:"objectId"`
+			Version  int    `json:"version"`
+			Digest   string `json:"digest"`
+		} `json:"coins"`
+	} `json:"Pay,omitempty"`
+	Publish *struct {
+		Disassembled map[string]string `json:"disassembled"`
+	} `json:"Publish,omitempty"`
 }
 
 func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {

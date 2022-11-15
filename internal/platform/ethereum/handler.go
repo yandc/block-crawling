@@ -136,22 +136,19 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 			// Use Info to avoid stacktrace.
 			log.Info(
 				"SOMETHING MISSED IN NONSTANDARD EVM CHAIN, WILL TRY LATER",
-				zap.String("chainName", h.chainName),
-				zap.Error(err),
+				fields...,
 			)
 		} else {
 			log.Error(
 				"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-				zap.String("chainName", h.chainName),
-				zap.Error(err),
+				fields...,
 			)
 		}
 		return false
 	}
 	log.Info(
 		"IGNORE CURRENT BLOCK AS AN UNRESOLVABLE ERROR OCCURRED",
-		zap.String("chainName", h.chainName),
-		zap.Error(err),
+		fields...,
 	)
 	return true
 }
