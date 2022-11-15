@@ -604,6 +604,9 @@ platformTest:
     - https://fullnode.devnet.sui.io
     symbol: SUI
     type: SUI
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 300
   AvalancheTEST:
     blockExplorerAddrUrl: https:/https://testnet.snowtrace.io/address/
     blockExplorerTxUrl: https://testnet.snowtrace.io/tx/
