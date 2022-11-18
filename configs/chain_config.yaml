@@ -554,8 +554,8 @@ platform:
     fullName: Nervos
     getPriceKey: nervos-network
     handler: nervos
-    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
-    nativeCurrency: Nervos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Nervos.jpg
+    nativeCurrency: CKB
     netType: main
     proxyCacheTime: 0
     rpcURL:
