@@ -156,6 +156,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	}, nil
 }
 
+// chainso 源
 func (c *Client) GetBalance(address string) (string, error) {
 	if c.DispatchClient.ChainName == "BTC" {
 		return btc.GetBalance(address, &c.DispatchClient)
@@ -221,15 +222,17 @@ func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
 	if c.DispatchClient.ChainName == "BTC" {
 		return btc.GetTransactionByHash(hash, &c.DispatchClient)
 	} else {
+
+		if c.DispatchClient.URL == "https://chain.so/"{
+			return doge.GetTxByHashFromChainSo(hash,&c.DispatchClient)
+		}
+
 		utxoTxByDD, e := doge.GetTransactionsByTXHash(hash, &c.DispatchClient)
 		if e != nil {
 			return tx, e
 		} else {
 			if utxoTxByDD.Detail == "The requested resource has not been found" {
-				tx = types.TX{
-					Error: " not found.",
-				}
-				return tx, nil
+				return tx , errors.New(utxoTxByDD.Detail)
 			} else {
 				var inputs []gobcy.TXInput
 				var inputAddress []string

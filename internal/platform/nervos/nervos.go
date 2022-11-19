@@ -10,9 +10,10 @@ import (
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
-	"github.com/nervosnetwork/ckb-sdk-go/types"
 	"strings"
 	"time"
+
+	"github.com/nervosnetwork/ckb-sdk-go/types"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -39,8 +40,6 @@ type KVPair struct {
 	Val int
 }
 
-
-
 func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler
@@ -55,6 +54,17 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		clients = append(clients, client)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
+	if len(c.StandbyRPCURL) > 0 {
+		standby := make([]chain.Clienter, 0, len(c.StandbyRPCURL))
+		for _, url := range c.StandbyRPCURL {
+			c, err := NewClient(chainName, url)
+			if err != nil {
+				panic(err)
+			}
+			standby = append(standby, c)
+		}
+		spider.AddStandby(standby...)
+	}
 	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{

@@ -119,4 +119,7 @@ message PlatInfo {
 
   // 多个节点轮询并发，否则每次只使用一个节点进行并发。
   optional bool roundRobinConcurrent = 14;
+
+  // 备用节点，用于特定错误重试。
+  repeated string standbyRPCURL = 15;
 }

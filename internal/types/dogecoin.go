@@ -17,6 +17,10 @@ type Dogecoin struct {
 		BlockNumber int         `json:"block_number"`
 		Events      []Events `json:"events"`
 	} `json:"txs"`
+	Type   string `json:"type"`
+	Code   int    `json:"code"`
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
 }
 
 type Events struct {

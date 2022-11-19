@@ -66,6 +66,8 @@ platform:
       - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
       - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
       - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+    standbyRPCURL:
+      - https://chain.so/
     symbol: DOGE
     type: BTC
     safelyConcurrentBlockDelta: 6
@@ -97,6 +99,8 @@ platform:
       - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
       - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
       - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+    standbyRPCURL:
+      - https://chain.so/
     symbol: LTC
     type: BTC
     safelyConcurrentBlockDelta: 6
