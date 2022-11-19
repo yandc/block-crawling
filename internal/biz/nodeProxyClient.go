@@ -234,7 +234,7 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 		return tokenInfo, nil
 	}
 
-	respData, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	respData, err := GetRawNftInfo(ctx, chainName, tokenAddress, tokenId)
 	if err != nil {
 		return tokenInfo, err
 	}
@@ -245,7 +245,31 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 	tokenInfo.Address = tokenAddress
 	tokenInfo.Symbol = respData.Symbol
 	tokenInfo.TokenType = respData.TokenType
-	tokenInfo.TokenId = tokenId
+	tokenInfo.TokenId = respData.TokenId
+	tokenInfo.CollectionName = respData.CollectionName
+	tokenInfo.ItemName = respData.NftName
+	tokenInfo.ItemUri = respData.ImageURL
+	return tokenInfo, nil
+}
+
+func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	tokenInfo := types.TokenInfo{}
+	if tokenAddress == "" {
+		return tokenInfo, nil
+	}
+
+	respData, err := GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	if err != nil {
+		return tokenInfo, err
+	}
+	if respData == nil {
+		return tokenInfo, nil
+	}
+
+	tokenInfo.Address = tokenAddress
+	tokenInfo.Symbol = respData.Symbol
+	tokenInfo.TokenType = respData.TokenType
+	tokenInfo.TokenId = respData.TokenId
 	tokenInfo.CollectionName = respData.CollectionName
 	tokenInfo.ItemName = respData.NftName
 	tokenInfo.ItemUri = respData.ImageURL
@@ -303,7 +327,7 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 	return tokenInfo, nil
 }
 
-func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
+func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
 	if tokenAddress == "" {
 		return nil, nil
 	}

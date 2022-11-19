@@ -639,10 +639,10 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
 			continue
 		}
-		nftInfo, err := biz.GetNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
+		nftInfo, err := biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			nftInfo, err = biz.GetNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
+			nftInfo, err = biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
 		}
 		if err != nil {
 			// nodeProxy出错 接入lark报警

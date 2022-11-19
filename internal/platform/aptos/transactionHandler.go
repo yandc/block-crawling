@@ -2,8 +2,10 @@ package aptos
 
 import (
 	"block-crawling/internal/biz"
+	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
@@ -38,6 +40,127 @@ func HandleRecord(chainName string, client Client, txRecords []*data.AptTransact
 	}()
 	go handleUserStatistic(chainName, client, txRecords)
 	handleUserNonce(chainName, txRecords)
+	go HandleNftRecord(chainName, client, txRecords)
+	go handleUserNftAsset(chainName, client, txRecords)
+}
+
+func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleNftHistory error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleNftHistory panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			alarmMsg := fmt.Sprintf("请注意：%s链处理nft流转记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	tokenIdMap := make(map[string]string)
+	var nftRecords []*data.NftRecordHistory
+	for _, record := range txRecords {
+
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		if err != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			continue
+		}
+
+		tokenId := tokenInfo.TokenId
+		//tokenId := "06349a78dbb538cdcef68557e17a67a0017df3454c0d802654241e88e0336c6c"
+		tokenAddress := tokenInfo.Address
+		log.Info(chainName+"添加NFT交易履历", zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
+		_, ok := tokenIdMap[tokenId]
+		if ok {
+			continue
+		} else {
+			tokenIdMap[tokenId] = tokenId
+		}
+		tar, err1 := client.GetEventTransfer(tokenId, 0, 100, chainName)
+		if err1 != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链获取 ["+tokenId+"] 失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"获取流转记录失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenId", tokenId), zap.Any("error", err))
+			continue
+		}
+		if tar.Errors != nil {
+			log.Error(tokenId, zap.Any("获取交易记录失败!", tar.Errors))
+			continue
+		}
+		events := tar.Data.TokenActivities
+		userTXMap := make(map[int]int)
+
+		if len(events) > 0 {
+			now := time.Now().Unix()
+			for _, e := range events {
+				_, ok := userTXMap[e.TransactionVersion]
+				if ok {
+					continue
+				} else {
+					userTXMap[e.TransactionVersion] = e.TransactionVersion
+				}
+				tx, _ := client.GetTransactionByVersion(e.TransactionVersion)
+				var fromAddress, toAddress, fromUid, toUid string
+				fromAddress = tx.Sender
+				mode := strings.Split(tx.Payload.Function, "::")
+				if len(mode) == 3 {
+					toAddress = mode[0]
+				}
+				userMeta, err := pCommon.MatchUser(fromAddress, toAddress, chainName)
+				if err == nil {
+					fromUid = userMeta.FromUid
+					toUid = userMeta.ToUid
+				}
+				txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
+				txTime = txTime / 1000
+				nrh := &data.NftRecordHistory{
+					BlockNumber:     int(txTime),
+					ChainName:       chainName,
+					TransactionHash: tx.Hash,
+					TxTime:          strconv.Itoa(int(txTime)),
+					FromAddress:     fromAddress,
+					ToAddress:       toAddress,
+					FromUid:         fromUid,
+					ToUid:           toUid,
+					Quantity:        fmt.Sprint(e.TokenAmount),
+					ContractAddress: tokenAddress,
+					TokenId:         tokenId,
+					EventType:       e.TransferType,
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				}
+				nftRecords = append(nftRecords, nrh)
+			}
+
+		}
+	}
+	if len(nftRecords) > 0 {
+		_, err := data.NftRecordHistoryRepoClient.SaveOrUpdate(nil, nftRecords)
+		if err != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链nft流转记录插入数据库失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		}
+	}
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
@@ -62,6 +185,8 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptT
 		handleUserAsset(chainName, client, txRecords)
 	}()
 	handleUserNonce(chainName, txRecords)
+	go HandleNftRecord(chainName, client, txRecords)
+	go handleUserNftAsset(chainName, client, txRecords)
 }
 
 func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
@@ -120,16 +245,19 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		if tokenAddress == APT_CODE {
 			tokenAddress = ""
 		}
-		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("transactionVersion", record.TransactionVersion), zap.Any("txHash", record.TransactionHash),
+			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
+		tokenType := tokenInfo.TokenType
+		decimals := tokenInfo.Decimals
+		symbol := tokenInfo.Symbol
 
 		changesPayload := make(map[string]interface{})
 		err = json.Unmarshal([]byte(record.Data), &changesPayload)
@@ -164,7 +292,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 						Address:      record.FromAddress,
 						TokenAddress: tokenAddress,
 						Balance:      balance,
-						Decimals:     decimals,
+						Decimals:     int32(decimals),
 						Symbol:       symbol,
 						CreatedAt:    now,
 						UpdatedAt:    now,
@@ -187,7 +315,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 						Address:      record.ToAddress,
 						TokenAddress: tokenAddress,
 						Balance:      balance,
-						Decimals:     decimals,
+						Decimals:     int32(decimals),
 						Symbol:       symbol,
 						CreatedAt:    now,
 						UpdatedAt:    now,
@@ -198,56 +326,54 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 			}
 		}
 
-		fromUserAssetKey := chainName + record.FromAddress + tokenAddress
-		if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-			userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
-				time.Sleep(time.Duration(i*5) * time.Second)
-				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
+		if tokenType != biz.APTOSNFT {
+			fromUserAssetKey := chainName + record.FromAddress + tokenAddress
+			if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
+				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+				for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
+					time.Sleep(time.Duration(i*5) * time.Second)
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+				}
+				if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					return
+				}
+				if userAsset != nil {
+					userAssetMap[fromUserAssetKey] = userAsset
+				}
 			}
-			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-				return
-			}
-			if userAsset != nil {
-				userAssetMap[fromUserAssetKey] = userAsset
+
+			toUserAssetKey := chainName + record.ToAddress + tokenAddress
+			if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
+				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+				for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
+					time.Sleep(time.Duration(i*5) * time.Second)
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+				}
+				if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					return
+				}
+				if userAsset != nil {
+					userAssetMap[toUserAssetKey] = userAsset
+				}
 			}
 		}
 
-		toUserAssetKey := chainName + record.ToAddress + tokenAddress
-		if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
-			userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
-				time.Sleep(time.Duration(i*5) * time.Second)
-				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-			}
-			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-				return
-			}
-			if userAsset != nil {
-				userAssetMap[toUserAssetKey] = userAsset
-			}
-		}
-
-		fromUserAssetKey = chainName + record.FromAddress
+		fromUserAssetKey := chainName + record.FromAddress
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
-				decimals = platInfo.Decimal
-				symbol = platInfo.NativeCurrency
-			}
-			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
+			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", int32(decimals), symbol, now)
 			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
-				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
+				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", int32(decimals), symbol, now)
 			}
 			if err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address(") {
 				// 更新用户资产出错 接入lark报警
@@ -347,7 +473,8 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 	var transactionStatisticMap = make(map[string]*data.TransactionStatistic)
 	var transactionStatisticList []*data.TransactionStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT ||
+			record.TransactionType == biz.REGISTERTOKEN || record.TransactionType == biz.DIRECTTRANSFERNFTSWITCH {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -482,7 +609,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 			continue
 		}
 
-		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -492,6 +619,12 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
+		tokenType := tokenInfo.TokenType
+		if tokenType == biz.APTOSNFT {
+			continue
+		}
+		decimals := tokenInfo.Decimals
+		symbol := tokenInfo.Symbol
 
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
@@ -502,11 +635,202 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 				Uid:          uid,
 				Address:      address,
 				TokenAddress: tokenAddress,
-				Decimals:     decimals,
+				Decimals:     int32(decimals),
 				Symbol:       symbol,
 			}
 			userAssetList = append(userAssetList, userAsset)
 		}
 	}
 	biz.HandleTokenPush(chainName, userAssetList)
+}
+
+func handleUserNftAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("handleUserNftAsset error, chainName:"+chainName, e)
+			} else {
+				log.Errore("handleUserNftAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	now := time.Now().Unix()
+	var userAssets []*data.UserNftAsset
+	userAssetMap := make(map[string]*data.UserNftAsset)
+	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
+	for _, record := range txRecords {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+
+		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		if err != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("transactionVersion", record.TransactionVersion), zap.Any("txHash", record.TransactionHash),
+				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			continue
+		}
+		tokenType := tokenInfo.TokenType
+		if tokenType != biz.APTOSNFT {
+			continue
+		}
+		itemName := tokenInfo.ItemName
+		tokenId := tokenInfo.TokenId
+		tokenAddress := tokenInfo.Address
+
+		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
+			continue
+		}
+		nftInfo, err := biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, itemName)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			nftInfo, err = biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, itemName)
+		}
+		if err != nil {
+			// nodeProxy出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"更新用户资产，从nodeProxy中获取NFT信息失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+			continue
+		}
+		if nftInfo == nil {
+			log.Error(chainName+"更新用户资产，从nodeProxy中获取NFT信息为空", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
+			continue
+		}
+
+		if record.FromAddress != "" && record.FromUid != "" {
+			fromKey := record.FromUid + "," + record.FromAddress
+			tokenAddressIdMap, ok := addressTokenMap[fromKey]
+			if !ok {
+				tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+				addressTokenMap[fromKey] = tokenAddressIdMap
+			}
+			tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
+			if !ok {
+				tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+				tokenAddressIdMap[tokenAddress] = tokenIdMap
+			}
+			tokenIdMap[tokenId] = nftInfo
+		}
+
+		if record.ToAddress != "" && record.ToUid != "" {
+			toKey := record.ToUid + "," + record.ToAddress
+			tokenAddressIdMap, ok := addressTokenMap[toKey]
+			if !ok {
+				tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+				addressTokenMap[toKey] = tokenAddressIdMap
+			}
+			tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
+			if !ok {
+				tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+				tokenAddressIdMap[tokenAddress] = tokenIdMap
+			}
+			tokenIdMap[tokenId] = nftInfo
+		}
+	}
+
+	for key, tokenAddressIdMap := range addressTokenMap {
+		uidAddress := strings.Split(key, ",")
+		userAssetsList, err := doHandleUserNftAsset(chainName, client, uidAddress[0], uidAddress[1], tokenAddressIdMap, now)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			userAssetsList, err = doHandleUserNftAsset(chainName, client, uidAddress[0], uidAddress[1], tokenAddressIdMap, now)
+		}
+		if err != nil {
+			// 更新用户资产出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"查询用户资产失败", zap.Any("address", uidAddress[1]), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
+			return
+		}
+		for _, userAsset := range userAssetsList {
+			if userAsset != nil {
+				userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress + userAsset.TokenId
+				userAssetMap[userAssetKey] = userAsset
+			}
+		}
+	}
+
+	if len(userAssetMap) == 0 {
+		return
+	}
+	for _, userAsset := range userAssetMap {
+		userAssets = append(userAssets, userAsset)
+	}
+	_, err := data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		_, err = data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+	}
+}
+
+func doHandleUserNftAsset(chainName string, client Client, uid string, address string,
+	tokenAddressIdMap map[string]map[string]*v1.GetNftReply_NftInfoResp, nowTime int64) ([]*data.UserNftAsset, error) {
+	var userAssets []*data.UserNftAsset
+	for tokenAddress, tokenIdMap := range tokenAddressIdMap {
+		tokenAddressSplit := strings.Split(tokenAddress, "::")
+		propertyVersion, err := strconv.Atoi(tokenAddressSplit[2])
+		if err != nil {
+			log.Error("get propertyVersion error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
+			return nil, err
+		}
+		for tokenId, nftInfo := range tokenIdMap {
+			var err error
+			var balance string
+			balance, err = client.Erc1155BalanceByTokenId(address, tokenId, propertyVersion)
+			if err != nil {
+				log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
+				return nil, err
+			}
+
+			payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
+				"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
+			var userAsset = &data.UserNftAsset{
+				ChainName:        chainName,
+				Uid:              uid,
+				Address:          address,
+				TokenAddress:     tokenAddress,
+				TokenUri:         nftInfo.CollectionImageURL,
+				TokenId:          tokenId,
+				Balance:          balance,
+				TokenType:        nftInfo.TokenType,
+				CollectionName:   nftInfo.CollectionName,
+				Symbol:           nftInfo.Symbol,
+				Name:             nftInfo.Name,
+				ItemName:         nftInfo.NftName,
+				ItemUri:          nftInfo.ImageURL,
+				ItemOriginalUri:  nftInfo.ImageOriginalURL,
+				ItemAnimationUri: nftInfo.AnimationURL,
+				Data:             payload,
+				CreatedAt:        nowTime,
+				UpdatedAt:        nowTime,
+			}
+			userAssets = append(userAssets, userAsset)
+		}
+	}
+	return userAssets, nil
 }

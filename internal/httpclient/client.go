@@ -137,7 +137,7 @@ func HttpsGetFormString(url string, params map[string]string) (string, error) {
 	return string(body), nil
 }
 
-func HttpPostForm(url string, v interface{}, out interface{}) error {
+func HttpPostJson(url string, v interface{}, out interface{}) error {
 	str, err := json.Marshal(v)
 	if err != nil {
 		return err
