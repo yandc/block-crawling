@@ -122,8 +122,9 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 
 	txIds := result.Result
 
+	queryCount := 0
+	start := time.Now()
 	if pointsDataLimit < len(txIds) {
-
 		part := len(txIds) / pointsDataLimit
 		curr := len(txIds) % pointsDataLimit
 		if curr > 0 {
@@ -133,20 +134,27 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 			var txBatchIds []string
 			if i == part-1 {
 				txBatchIds = txIds[0:curr]
-				p.SendMempoolTXIds(txBatchIds)
+				queryCount += p.SendMempoolTXIds(txBatchIds)
 
 			} else {
 				txBatchIds = txIds[0:pointsDataLimit]
-				p.SendMempoolTXIds(txBatchIds)
+				queryCount += p.SendMempoolTXIds(txBatchIds)
 				txIds = txIds[pointsDataLimit:]
 			}
 		}
 	} else {
-		p.SendMempoolTXIds(txIds)
+		queryCount += p.SendMempoolTXIds(txIds)
 	}
+	log.Info(
+		"HANDLED MEMPOOL FROM INNER NODE",
+		zap.String("chainName", p.ChainName),
+		zap.Int("numOfTxs", len(txIds)),
+		zap.Int("numOfQueryTx", queryCount),
+		zap.String("elapsed", time.Now().Sub(start).String()),
+	)
 }
 
-func (p *Platform) SendMempoolTXIds(txIds []string) {
+func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 	var txRecords []*data.BtcTransactionRecord
 	now := time.Now().Unix()
 	for _, txid := range txIds {
@@ -154,6 +162,8 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 		if len(redisTxid) != 0 {
 			continue
 		}
+
+		queryCount++
 
 		btcTx, err := p.client.DispatchClient.GetTransactionsByTXHash(txid)
 
@@ -183,6 +193,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 			preTxid := vin.Txid
 			if preTxid != "" {
 				voutIndex := vin.Vout
+				queryCount++
 				btcPreTx, err1 := p.client.DispatchClient.GetTransactionsByTXHash(preTxid)
 				if err1 != nil || btcPreTx.Error != nil {
 					log.Error(p.ChainName+"获取vin交易报错", zap.Any("error", err1))
@@ -287,7 +298,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 			}
 			txRecords = append(txRecords, btcTransactionRecord)
 		}
-		data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute)
+		data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 3*time.Hour)
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
