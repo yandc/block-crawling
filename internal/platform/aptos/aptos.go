@@ -32,6 +32,10 @@ const APT_REGISTER = "0x1::managed_coin::register"
 const APT_TRANSFER = "0x1::coin::transfer"
 const APT_ACCOUNT_TRANSFER = "0x1::aptos_account::transfer"
 const APT_MINT = "0x1::aptos_coin::mint"
+const APT_OFFER_NFT = "0x3::token_transfers::offer_script"
+const APT_CLAIM_NFT = "0x3::token_transfers::claim_script"
+const APT_CANCEL_OFFER_NFT = "0x3::token_transfers::cancel_offer_script"
+const APT_DIRECT_TRANSFER = "0x3::token::opt_in_direct_transfer"
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	log.Info(value.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))

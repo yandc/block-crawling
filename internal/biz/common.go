@@ -65,16 +65,21 @@ const (
 )
 
 const (
-	NATIVE                = "native"
+	NATIVE                  = "native"
+	TRANSFERNFT             = "transferNFT"
+	CONTRACT                = "contract"
+	EVENTLOG                = "eventLog"
+	CREATEACCOUNT           = "createAccount"
+	REGISTERTOKEN           = "registerToken"
+	DIRECTTRANSFERNFTSWITCH = "directTransferNFTSwitch"
+)
+
+const (
+	APPROVE               = "approve"
 	TRANSFER              = "transfer"
 	TRANSFERFROM          = "transferFrom"
 	SAFETRANSFERFROM      = "safeTransferFrom"
 	SAFEBATCHTRANSFERFROM = "safeBatchTransferFrom"
-	APPROVE               = "approve"
-	CONTRACT              = "contract"
-	EVENTLOG              = "eventLog"
-	CREATEACCOUNT         = "createAccount"
-	REGISTERTOKEN         = "registerToken"
 )
 
 // 币种
@@ -88,9 +93,10 @@ const TOKEN_INFO_QUEUE_PARTITION = "partition1"
 
 //token类型
 const (
-	ERC20   = "ERC20"
-	ERC721  = "ERC721"
-	ERC1155 = "ERC1155"
+	ERC20    = "ERC20"
+	ERC721   = "ERC721"
+	ERC1155  = "ERC1155"
+	APTOSNFT = "AptosNFT"
 )
 
 var rocketMsgLevels = map[string]int{

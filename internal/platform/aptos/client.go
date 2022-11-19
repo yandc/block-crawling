@@ -206,6 +206,164 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	return balance, err
 }
 
+type TokenActivitiesResponse struct {
+	Data struct {
+		TokenActivities []struct {
+			TransactionVersion int    `json:"transaction_version"`
+			FromAddress        string `json:"from_address"`
+			PropertyVersion    int    `json:"property_version"`
+			ToAddress          string `json:"to_address"`
+			TokenAmount        int    `json:"token_amount"`
+			TransferType       string `json:"transfer_type"`
+			Typename           string `json:"__typename"`
+		} `json:"token_activities"`
+	} `json:"data"`
+	TokenErrorData
+}
+type TokenRequest struct {
+	OperationName string    `json:"operationName"`
+	Variables     Variables `json:"variables"`
+	Query         string    `json:"query"`
+}
+type Variables struct {
+	OwnerAddress   string `json:"owner_address,omitempty"`
+	CreatorAddress string `json:"creator_address,omitempty"`
+	CollectionName string `json:"collection_name,omitempty"`
+	Name           string `json:"name,omitempty"`
+	TokenId        string `json:"token_id,omitempty"`
+	Offset         int    `json:"offset,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+}
+type TokenVersionRequest struct {
+	OperationName string           `json:"operationName"`
+	Variables     VariablesVersion `json:"variables"`
+	Query         string           `json:"query"`
+}
+type VariablesVersion struct {
+	OwnerAddress    string `json:"owner_address,omitempty"`
+	CreatorAddress  string `json:"creator_address,omitempty"`
+	CollectionName  string `json:"collection_name,omitempty"`
+	Name            string `json:"name,omitempty"`
+	TokenId         string `json:"token_id,omitempty"`
+	PropertyVersion int    `json:"property_version"`
+}
+type TokenResponse struct {
+	Data struct {
+		CurrentTokenOwnerships []struct {
+			TokenDataIdHash string `json:"token_data_id_hash"`
+			Name            string `json:"name"`
+			CollectionName  string `json:"collection_name"`
+			CreatorAddress  string `json:"creator_address"`
+			TableType       string `json:"table_type"`
+			PropertyVersion int    `json:"property_version"`
+			Amount          int    `json:"amount"`
+			Typename        string `json:"__typename"`
+		} `json:"current_token_ownerships"`
+	} `json:"data"`
+	TokenErrorData
+}
+type TokenErrorData struct {
+	Errors []struct {
+		Extensions struct {
+			Code string `json:"code"`
+			Path string `json:"path"`
+		} `json:"extensions"`
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
+func (c *Client) GetEventTransfer(tokenId string, offset int, limit int, chainName string) (tar TokenActivitiesResponse, err error) {
+	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
+	if strings.HasSuffix(c.ChainName, "TEST") {
+		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
+	}
+	tokenRequest := TokenRequest{
+		OperationName: "TokenActivities",
+		Variables: Variables{
+			TokenId: tokenId,
+			Offset:  offset,
+			Limit:   limit,
+		},
+		Query: "query TokenActivities($token_id: String, $limit: Int, $offset: Int) {\n  token_activities(\n    where: {token_data_id_hash: {_eq: $token_id}}\n    order_by: {transaction_version: desc}\n    limit: $limit\n    offset: $offset\n  ) {\n    transaction_version\n    from_address\n    property_version\n    to_address\n    token_amount\n    transfer_type\n    __typename\n  }\n}",
+	}
+	err = httpclient.HttpPostJson(url, tokenRequest, &tar)
+	return
+}
+
+func (c *Client) Erc1155BalanceByName(address string, creatorAddress string, collectionName string, name string, propertyVersion int) (string, error) {
+	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
+	if strings.HasSuffix(c.ChainName, "TEST") {
+		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
+	}
+	tokenRequest := TokenVersionRequest{
+		OperationName: "AccountTokensData",
+		Variables: VariablesVersion{
+			OwnerAddress:    address,
+			CreatorAddress:  creatorAddress,
+			CollectionName:  collectionName,
+			Name:            name,
+			PropertyVersion: propertyVersion,
+		},
+		Query: "query AccountTokensData($owner_address: String, $creator_address: String, $collection_name: String, $name: String, $property_version: numeric) {\n  current_token_ownerships(\n    where: {owner_address: {_eq: $owner_address}, creator_address: {_eq: $creator_address}, collection_name: {_eq: $collection_name}, name: {_eq: $name}, property_version: {_eq: $property_version}, amount: {_gt: \"0\"}}) {\n    token_data_id_hash\n    name\n    collection_name\n    creator_address\n    table_type\n    property_version\n    amount\n    __typename\n  }\n}",
+	}
+	out := &TokenResponse{}
+	err := httpclient.HttpPostJson(url, tokenRequest, out)
+	if err != nil {
+		return "", err
+	}
+	if out.Errors != nil {
+		errorsStr, err := json.Marshal(out.Errors)
+		if err != nil {
+			return "", err
+		}
+		return "", errors.New(string(errorsStr))
+	}
+
+	currentTokenOwnerships := out.Data.CurrentTokenOwnerships
+	if len(currentTokenOwnerships) == 0 {
+		return "0", nil
+	}
+	currentTokenOwnership := currentTokenOwnerships[0]
+	amount := currentTokenOwnership.Amount
+	return strconv.Itoa(amount), nil
+}
+
+func (c *Client) Erc1155BalanceByTokenId(address string, tokenId string, propertyVersion int) (string, error) {
+	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
+	if strings.HasSuffix(c.ChainName, "TEST") {
+		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
+	}
+	tokenRequest := TokenVersionRequest{
+		OperationName: "AccountTokensData",
+		Variables: VariablesVersion{
+			OwnerAddress:    address,
+			TokenId:         tokenId,
+			PropertyVersion: propertyVersion,
+		},
+		Query: "query AccountTokensData($owner_address: String, $token_id: String, $property_version: numeric) {\n  current_token_ownerships(\n    where: {owner_address: {_eq: $owner_address}, token_data_id_hash: {_eq: $token_id}, property_version: {_eq: $property_version}, amount: {_gt: \"0\"}}) {\n    token_data_id_hash\n    name\n    collection_name\n    creator_address\n    table_type\n    property_version\n    amount\n    __typename\n  }\n}",
+	}
+	out := &TokenResponse{}
+	err := httpclient.HttpPostJson(url, tokenRequest, out)
+	if err != nil {
+		return "", err
+	}
+	if out.Errors != nil {
+		errorsStr, err := json.Marshal(out.Errors)
+		if err != nil {
+			return "", err
+		}
+		return "", errors.New(string(errorsStr))
+	}
+
+	currentTokenOwnerships := out.Data.CurrentTokenOwnerships
+	if len(currentTokenOwnerships) == 0 {
+		return "0", nil
+	}
+	currentTokenOwnership := currentTokenOwnerships[0]
+	amount := currentTokenOwnership.Amount
+	return strconv.Itoa(amount), nil
+}
+
 type Blockchain struct {
 	ChainId             int    `json:"chain_id"`
 	Epoch               string `json:"epoch"`
@@ -303,7 +461,6 @@ type TransactionInfo struct {
 		Signature string `json:"signature"`
 	} `json:"signature"`
 	Events []struct {
-		//Key            string `json:"key"`
 		Guid struct {
 			CreationNumber string `json:"creation_number"`
 			AccountAddress string `json:"account_address"`
@@ -311,7 +468,16 @@ type TransactionInfo struct {
 		SequenceNumber string `json:"sequence_number"`
 		Type           string `json:"type"`
 		Data           struct {
-			Amount string `json:"amount,omitempty"`
+			Amount string      `json:"amount,omitempty"`
+			Id     interface{} `json:"id,omitempty"`
+			/*Id     *struct {
+				PropertyVersion string `json:"property_version"`
+				TokenDataId     struct {
+					Collection string `json:"collection"`
+					Creator    string `json:"creator"`
+					Name       string `json:"name"`
+				} `json:"token_data_id"`
+			} `json:"id,omitempty"`*/
 		} `json:"data"`
 	} `json:"events"`
 	Timestamp string `json:"timestamp"`

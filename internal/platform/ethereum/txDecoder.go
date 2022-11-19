@@ -187,10 +187,11 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				} else {
 					ctx := context.Background()
 					if tokenId != "" {
-						tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+						meta.TransactionType = biz.TRANSFERNFT
+						tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
-							tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+							tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
 						}
 						if err != nil {
 							// nodeProxy出错 接入lark报警
@@ -203,6 +204,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 						amount = "1"
 						tokenInfo.Amount = "1"
 					} else {
+						if meta.TransactionType == biz.TRANSFERFROM {
+							meta.TransactionType = biz.TRANSFER
+						}
 						tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
@@ -223,6 +227,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				}
 			}
 		} else if meta.TransactionType == biz.SAFETRANSFERFROM {
+			meta.TransactionType = biz.TRANSFERNFT
 			var err error
 			ctx := context.Background()
 			var tokenType string
@@ -237,10 +242,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				amount = values[1]
 			}
 
-			tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+			tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				tokenInfo, err = biz.GetNftInfo(ctx, h.chainName, contractAddress, tokenId)
+				tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
 			}
 			if err != nil {
 				// nodeProxy出错 接入lark报警
@@ -252,6 +257,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			tokenInfo.TokenType = tokenType
 			tokenInfo.Amount = amount
 		} else if meta.TransactionType == biz.SAFEBATCHTRANSFERFROM {
+			meta.TransactionType = biz.TRANSFERNFT
 			tokenInfo.TokenType = biz.ERC1155
 			// TODO
 		}
@@ -455,10 +461,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					ctx := context.Background()
 					if len(log_.Topics) == 4 {
 						tokenId = log_.Topics[3].Big().String()
-						token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+						token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
-							token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+							token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
 						}
 						if err != nil {
 							// nodeProxy出错 接入lark报警
@@ -496,10 +502,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				ctx := context.Background()
 				tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 				amount = new(big.Int).SetBytes(log_.Data[32:64])
-				token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+				token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
 				for i := 0; i < 3 && err != nil; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					token, err = biz.GetNftInfo(ctx, h.chainName, tokenAddress, tokenId)
+					token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
 				}
 				if err != nil {
 					// nodeProxy出错 接入lark报警
