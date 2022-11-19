@@ -38,6 +38,14 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		clients = append(clients, &c)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
+	if len(value.StandbyRPCURL) > 0 {
+		standby := make([]chain.Clienter, 0, len(value.StandbyRPCURL))
+		for _, url := range value.StandbyRPCURL {
+			c := NewClient(url, chainName)
+			standby = append(standby, &c)
+		}
+		spider.AddStandby(standby...)
+	}
 	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{
@@ -65,7 +73,6 @@ func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
 	})
 	return
 }
-
 
 func (p *Platform) GetTransactions() {
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond

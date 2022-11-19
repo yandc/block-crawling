@@ -101,6 +101,9 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 }
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
+	if err != nil && err.Error() == "The requested resource has not been found" {
+		return chain.RetryStandby(err)
+	}
 	return common.Retry(err)
 }
 

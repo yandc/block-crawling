@@ -47,6 +47,14 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		clients = append(clients, client)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
+	if len(c.StandbyRPCURL) > 0 {
+		standby := make([]chain.Clienter, 0, len(c.StandbyRPCURL))
+		for _, url := range c.StandbyRPCURL {
+			cl := NewClient(url, chainName)
+			standby = append(standby, cl)
+		}
+		spider.AddStandby(standby...)
+	}
 	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{

@@ -199,3 +199,40 @@ type TXPendingOut struct {
 	Addresses  []string `json:"addresses"`
 	ScriptType string   `json:"script_type"`
 }
+type ChainSOTX struct {
+	Status string `json:"status"`
+	Data   struct {
+		Network       string `json:"network"`
+		Txid          string `json:"txid"`
+		Blockhash     string `json:"blockhash"`
+		Confirmations int    `json:"confirmations"`
+		Time          int    `json:"time"`
+		Inputs        []struct {
+			InputNo    int      `json:"input_no"`
+			Value      string   `json:"value"`
+			Address    string   `json:"address"`
+			Type       string   `json:"type"`
+			Script     string   `json:"script"`
+			Sequence   int64    `json:"sequence"`
+			Witness    []string `json:"witness"`
+			FromOutput struct {
+				Txid     string `json:"txid"`
+				OutputNo int    `json:"output_no"`
+			} `json:"from_output"`
+		} `json:"inputs"`
+		Outputs []struct {
+			OutputNo int    `json:"output_no"`
+			Value    string `json:"value"`
+			Address  string `json:"address"`
+			Type     string `json:"type"`
+			Script   string `json:"script"`
+		} `json:"outputs"`
+		TxHex      string `json:"tx_hex"`
+		NetworkFee string `json:"network_fee"`
+		Size       int    `json:"size"`
+		Vsize      int    `json:"vsize"`
+		Version    int    `json:"version"`
+		Locktime   int    `json:"locktime"`
+	} `json:"data"`
+}
+

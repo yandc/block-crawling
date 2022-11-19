@@ -1,6 +1,8 @@
 package doge
 
 import (
+	"block-crawling/internal/biz"
+	"block-crawling/internal/data"
 	httpclient2 "block-crawling/internal/httpclient"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
@@ -9,10 +11,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/blockcypher/gobcy"
+	"github.com/shopspring/decimal"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type Client struct {
@@ -82,6 +87,67 @@ func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	var txInfo types.TxInfo
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &txInfo)
 	return txInfo, err
+}
+
+func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
+	url := c.URL + "api/v2/get_tx/" + c.ChainName + "/" + txhash
+
+	var tx types.TX
+	var txInfo types.ChainSOTX
+	err := httpclient2.HttpsGetForm(url, nil, &txInfo)
+	if err != nil || txInfo.Status != "success" {
+		return tx, err
+	}
+	fee,_:=decimal.NewFromString(txInfo.Data.NetworkFee)
+	p,_ := decimal.NewFromString("100000000")
+	y := fee.Mul(p)
+
+
+
+	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + c.ChainName).Result()
+
+	curr, _ := strconv.Atoi(redisHeight)
+	blockNumber := curr - txInfo.Data.Confirmations
+
+	var inputs []gobcy.TXInput
+	var inputAddress []string
+	var outs []gobcy.TXOutput
+	var outputAddress []string
+
+	for _, in := range txInfo.Data.Inputs {
+		inval,_:=decimal.NewFromString(in.Value)
+		am := inval.Mul(p)
+		input := gobcy.TXInput{
+			OutputValue: int(am.IntPart()),
+			Addresses:   append(inputAddress, in.Address),
+		}
+		inputs = append(inputs, input)
+
+	}
+
+	for _, out := range txInfo.Data.Outputs {
+		outval,_:=decimal.NewFromString(out.Value)
+		amount := outval.Mul(p)
+
+		out := gobcy.TXOutput{
+			Value:     *amount.BigInt(),
+			Addresses: append(outputAddress, out.Address),
+		}
+		outs = append(outs, out)
+	}
+
+	tx = types.TX{
+		BlockHash:   txInfo.Data.Blockhash,
+		BlockHeight: blockNumber,
+		Hash:        txInfo.Data.Txid,
+		Fees:        *y.BigInt(),
+		Confirmed:   time.Unix(int64(txInfo.Data.Time), 0),
+		Inputs:      inputs,
+		Outputs:     outs,
+		Error:       "",
+	}
+	return tx, err
+
 }
 
 func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
