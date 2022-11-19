@@ -312,6 +312,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 			return
 		}
 	}
+	return
 }
 
 func (p *Platform) GetTransactionResultByTxhash() {
