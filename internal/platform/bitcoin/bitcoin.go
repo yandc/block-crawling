@@ -286,8 +286,8 @@ func (p *Platform) SendMempoolTXIds(txIds []string) {
 				UpdatedAt:       now,
 			}
 			txRecords = append(txRecords, btcTransactionRecord)
-			data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute)
 		}
+		data.RedisClient.Set(data.PENDINGTX+p.ChainName+":"+txid, txid, 60*time.Minute)
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
