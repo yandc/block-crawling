@@ -6,6 +6,9 @@ import (
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/subhandle"
 	"flag"
+	"os"
+	"time"
+
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -14,8 +17,6 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
 	"go.uber.org/zap"
-	"os"
-	"time"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -155,26 +156,40 @@ func start() {
 			}
 			go func(p subhandle.Platform) {
 				if btc, ok := p.(*bitcoin.Platform); ok {
-					//go p.GetTransactionResultByTxhash()
-					go btc.GetPendingTransactionsByInnerNode()
-				}
-				liveInterval := p.Coin().LiveInterval
-				log.Info("start inner main", zap.Any("platform", p))
-				pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
-				for true {
-					select {
-					case <-pendingTransactions.C:
-						if btc, ok := p.(*bitcoin.Platform); ok {
-							//go p.GetTransactionResultByTxhash()
-							go btc.GetPendingTransactionsByInnerNode()
+					log.Info("start inner main", zap.Any("platform", btc))
+					signal := make(chan bool)
+					go runGetPendingTransactionsByInnerNode(signal, btc)
+					signalGetPendingTransactionsByInnerNode(signal, btc)
+					liveInterval := p.Coin().LiveInterval
+					pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
+					for true {
+						select {
+						case <-pendingTransactions.C:
+							signalGetPendingTransactionsByInnerNode(signal, btc)
+						case <-innerquit:
+							close(signal) // close signal to make background goroutine to exit.
+							pendingTransactions.Stop()
+							return
 						}
-					case <-innerquit:
-						pendingTransactions.Stop()
-						return
 					}
 				}
 			}(p)
 		}
 	}()
+}
 
+func signalGetPendingTransactionsByInnerNode(signal chan<- bool, btc *bitcoin.Platform) {
+	select {
+	case signal <- true:
+		log.Info("SIGNALED TO BACKGROUND GOROUTINE", zap.Any("platform", btc))
+	default:
+		log.Info("SIGNAL FAILED AS BACKGROUND GOROUTINE IS BUSY", zap.Any("platform", btc))
+	}
+}
+
+func runGetPendingTransactionsByInnerNode(signal <-chan bool, btc *bitcoin.Platform) {
+	log.Info("inner main started and wait signal", zap.Any("platform", btc))
+	for range signal {
+		btc.GetPendingTransactionsByInnerNode()
+	}
 }
