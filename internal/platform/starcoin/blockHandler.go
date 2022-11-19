@@ -1,6 +1,8 @@
-package aptos
+package starcoin
 
 import (
+	"block-crawling/internal/biz"
+	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"strings"
 	"time"
@@ -27,18 +29,17 @@ func (h *handler) BlockInterval() time.Duration {
 }
 
 func (h *handler) BlockMayFork() bool {
-	return false
+	return true
 }
 
 func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	decoder := &txHandler{
-		chainName:      h.chainName,
-		block:          block,
-		chainHeight:    chainHeight,
-		curHeight:      block.Number,
-		newTxs:         true,
-		txHashIndexMap: make(map[string]int),
-		now:            time.Now().Unix(),
+		chainName:   h.chainName,
+		block:       block,
+		chainHeight: chainHeight,
+		curHeight:   block.Number,
+		newTxs:      true,
+		now:         time.Now().Unix(),
 	}
 	log.Debug(
 		"GOT NEW BLOCK",
@@ -60,17 +61,19 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 		zap.String("nodeUrl", client.URL()),
 	)
 	decoder := &txHandler{
-		chainName:      h.chainName,
-		block:          nil,
-		txHashIndexMap: make(map[string]int),
-		curHeight:      tx.BlockNumber,
-		newTxs:         false,
-		now:            time.Now().Unix(),
+		chainName: h.chainName,
+		block:     nil,
+		curHeight: tx.BlockNumber,
+		newTxs:    false,
+		now:       time.Now().Unix(),
 	}
 	return decoder, nil
 }
 
 func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error {
+	preHeight := int(block.Number) - 1
+	rows, _ := data.StcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(h.chainName), preHeight+1)
+	log.Info("出现分叉回滚数据", zap.Any("链类型", h.chainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 	return nil
 }
 
