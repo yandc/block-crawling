@@ -12,6 +12,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -19,9 +23,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func MigrateRecord() {
@@ -871,7 +872,7 @@ func doHandleUserTokenAsset(chainName string, client ethereum.Client, uid string
 
 func GetStcBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
-	client := starcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0])
+	client := starcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0], chainName)
 	userAsset, err := handleStcUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)

@@ -2,14 +2,17 @@ package starcoin
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
 	"math/big"
 	"net/http"
+	"strconv"
 
 	"github.com/starcoinorg/starcoin-go/client"
+	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 const (
@@ -20,12 +23,31 @@ const (
 )
 
 type Client struct {
-	URL    string
-	client client.StarcoinClient
+	*common.NodeDefaultIn
+
+	url       string
+	chainName string
+	client    client.StarcoinClient
 }
 
-func NewClient(rawUrl string) Client {
-	return Client{client: client.NewStarcoinClient(rawUrl), URL: rawUrl}
+func NewClient(rawUrl, chainName string) Client {
+	return Client{
+		client:    client.NewStarcoinClient(rawUrl),
+		url:       rawUrl,
+		chainName: chainName,
+		NodeDefaultIn: &common.NodeDefaultIn{
+			ChainName: chainName,
+		},
+	}
+}
+
+func (c *Client) Detect() error {
+	_, err := c.GetBlockHeight()
+	return err
+}
+
+func (c *Client) URL() string {
+	return c.url
 }
 
 func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
@@ -33,9 +55,9 @@ func (c *Client) call(id int, method string, out interface{}, params []interface
 	var header http.Header
 	var err error
 	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params, args[0].(int))
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
 	} else {
-		header, err = httpclient.HttpsPost(c.URL, id, method, JSONRPC, &resp, params)
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
 	}
 	_ = header
 	if err != nil {
@@ -110,12 +132,57 @@ func (c *Client) GetTransactionByHash(transactionHash string) (*types.Transactio
 	return result, err
 }
 
-func (c *Client) GetBlockHeight() (string, error) {
+func (c *Client) GetBlockHeight() (uint64, error) {
 	method := "node.info"
 	result := &types.NodeInfo{}
 	err := c.call(ID200, method, result, nil)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	return result.PeerInfo.ChainInfo.Header.Height, err
+	height, _ := strconv.Atoi(result.PeerInfo.ChainInfo.Header.Height)
+	return uint64(height), err
+}
+
+func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
+	block, err := c.GetBlockByNumber(int(height))
+	if err != nil {
+		return nil, err
+	}
+
+	txs := make([]*chain.Transaction, 0, len(block.BlockBody.UserTransactions))
+	for _, utx := range block.BlockBody.UserTransactions {
+		txs = append(txs, &chain.Transaction{
+			Hash:        utx.TransactionHash,
+			BlockNumber: height,
+			Raw:         utx,
+			Record:      nil,
+		})
+	}
+	blockHeight, _ := strconv.Atoi(block.BlockHeader.Height)
+	ts, _ := strconv.Atoi(block.BlockHeader.TimeStamp)
+	return &chain.Block{
+		Hash:         block.BlockHeader.BlockHash,
+		ParentHash:   block.BlockHeader.ParentHash,
+		Number:       uint64(blockHeight),
+		Nonce:        uint64(block.BlockHeader.Nonce),
+		BaseFee:      block.BlockHeader.GasUsed,
+		Time:         int64(ts),
+		Raw:          block,
+		Transactions: txs,
+	}, nil
+}
+
+func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
+	transactionInfo, err := c.GetTransactionInfoByHash(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	blockNumber, _ := strconv.Atoi(transactionInfo.BlockNumber)
+	return &chain.Transaction{
+		Hash:        txHash,
+		BlockNumber: uint64(blockNumber),
+		TxType:      "",
+		Raw:         transactionInfo,
+	}, nil
 }

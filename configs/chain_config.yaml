@@ -469,6 +469,9 @@ platform:
     - https://main-seed.starcoin.org
     symbol: STC
     type: STC
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 180
   TRX:
     blockExplorerAddrUrl: https://tronscan.org/#/address/
     blockExplorerTxUrl: https://tronscan.org/#/transaction/
