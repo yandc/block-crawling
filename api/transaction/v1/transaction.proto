@@ -261,6 +261,7 @@ message PageListRequest {
   int32 pageSize = 20 [(validate.rules).int32.gte = 0];
   bool total = 21;
   string platform = 22;
+  int32 osVersion = 23;
 }
 
 message PageListResponse {
