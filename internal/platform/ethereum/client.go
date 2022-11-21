@@ -209,10 +209,22 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (er
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
 				fromAddress = fromAddress + "," + realFromAddress
 				toAddress = toAddress + "," + realToAddress
-			} else if methodId == "b4e4b296" { // LooksRare: Exchange
+			} else if methodId == "b4e4b296" { // LooksRare: Exchange Contract
 				transactionType = biz.CONTRACT
 				realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+				toAddress = toAddress + "," + realToAddress
+			} else if methodId == "0175b1c4" { // Multichain: Router V4 Contract
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+				toAddress = toAddress + "," + realToAddress
+			} else if methodId == "252f7b01" { // optimistic链 Contract
+				transactionType = biz.CONTRACT
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
 				fromAddress = fromAddress + "," + realFromAddress
 				toAddress = toAddress + "," + realToAddress
 			}
