@@ -159,6 +159,9 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 		})
 	}
 	blockHeight, _ := strconv.Atoi(block.BlockHeader.Height)
+	if blockHeight == 0 {
+		blockHeight = int(height)
+	}
 	ts, _ := strconv.Atoi(block.BlockHeader.TimeStamp)
 	return &chain.Block{
 		Hash:         block.BlockHeader.BlockHash,
