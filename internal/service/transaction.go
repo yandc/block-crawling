@@ -33,8 +33,18 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	defer cancel()
 	if req.Platform == biz.WEB {
 		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
-	} else if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
-		req.TransactionTypeNotInList = []string{biz.CONTRACT}
+	} else if req.Platform == biz.ANDROID {
+		if req.OsVersion > 2022101201 {
+			req.TransactionTypeNotInList = []string{biz.EVENTLOG}
+		} else {
+			req.TransactionTypeNotInList = []string{biz.CONTRACT}
+		}
+	} else if req.Platform == biz.IOS {
+		if req.OsVersion >= 2022101501 {
+			req.TransactionTypeNotInList = []string{biz.EVENTLOG}
+		} else {
+			req.TransactionTypeNotInList = []string{biz.CONTRACT}
+		}
 	}
 
 	if req.OrderBy == "" {

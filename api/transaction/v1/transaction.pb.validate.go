@@ -2997,6 +2997,8 @@ func (m *PageListRequest) validate(all bool) error {
 
 	// no validation rules for Platform
 
+	// no validation rules for OsVersion
+
 	if len(errors) > 0 {
 		return PageListRequestMultiError(errors)
 	}
