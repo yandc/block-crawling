@@ -195,38 +195,60 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (er
 		} else {
 			if methodId == "e7acab24" { // Seaport 1.1 Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[296:324])).String()
-				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
-				fromAddress = fromAddress + "," + realFromAddress
-				toAddress = toAddress + "," + realToAddress
+				if len(data) >= 324 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[296:324])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
+				if len(data) >= 132 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			} else if methodId == "fb0f3ee1" { // Seaport 1.1 Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
-				fromAddress = fromAddress + "," + realFromAddress
+				if len(data) >= 164 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
 			} else if methodId == "357a150b" { // X2Y2: Exchange Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[484:516])).String()
-				realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
-				fromAddress = fromAddress + "," + realFromAddress
-				toAddress = toAddress + "," + realToAddress
+				if len(data) >= 516 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[484:516])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
+				if len(data) >= 260 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			} else if methodId == "b4e4b296" { // LooksRare: Exchange Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
-				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
-				fromAddress = fromAddress + "," + realFromAddress
-				toAddress = toAddress + "," + realToAddress
+				if len(data) >= 356 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
+				if len(data) >= 132 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			} else if methodId == "0175b1c4" { // Multichain: Router V4 Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-				realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
-				fromAddress = fromAddress + "," + realFromAddress
-				toAddress = toAddress + "," + realToAddress
+				if len(data) >= 68 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
+				if len(data) >= 100 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			} else if methodId == "252f7b01" { // optimistic链 Contract
 				transactionType = biz.CONTRACT
-				realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-				realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
-				fromAddress = fromAddress + "," + realFromAddress
-				toAddress = toAddress + "," + realToAddress
+				if len(data) >= 68 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					fromAddress = fromAddress + "," + realFromAddress
+				}
+				if len(data) >= 389 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}

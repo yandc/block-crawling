@@ -176,7 +176,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 }
 
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
-	transactionInfo, err := c.GetTransactionInfoByHash(txHash)
+	transactionInfo, err := c.GetTransactionByHash(txHash)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +186,6 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		Hash:        txHash,
 		BlockNumber: uint64(blockNumber),
 		TxType:      "",
-		Raw:         transactionInfo,
+		Raw:         transactionInfo.UserTransaction,
 	}, nil
 }
