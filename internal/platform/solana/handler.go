@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
 	"context"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 		biz.GetTalbeName(h.ChainName),
 		int(block.Number),
 	)
+	pcommon.NotifyForkedDelete(h.ChainName, block.Number, rows)
 	log.Info(
 		"出现分叉回滚数据",
 		zap.Any("链类型", h.ChainName),
@@ -97,6 +99,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 			zap.Error(err),
 		)
 	}
+	pcommon.NotifyForkedError(h.ChainName, err)
 	return common.Retry(err)
 }
 
