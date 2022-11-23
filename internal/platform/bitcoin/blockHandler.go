@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
 	"fmt"
 	"strings"
 	"time"
@@ -90,6 +91,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 		log.Error(h.chainName+"扫块，从数据库中删除分叉孤块数据失败", zap.Any("current", curHeight), zap.Any("error", err))
 		return err
 	}
+	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)
 	log.Info(
 		"出现分叉回滚数据",
 		zap.Any("链类型", h.chainName),
@@ -104,6 +106,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	if err != nil && err.Error() == "The requested resource has not been found" {
 		return chain.RetryStandby(err)
 	}
+	pcommon.NotifyForkedError(h.chainName, err)
 	return common.Retry(err)
 }
 

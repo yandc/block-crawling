@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
 	"context"
 	"fmt"
 	"time"
@@ -97,6 +98,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 		biz.GetTalbeName(h.chainName),
 		int(block.Number),
 	)
+	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)
 	log.Info(
 		"出现分叉回滚数据",
 		zap.Any("链类型", h.chainName),
@@ -112,7 +114,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	if err == nil || err == ethereum.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
 		return err
 	}
-
+	pcommon.NotifyForkedError(h.chainName, err)
 	return common.Retry(err)
 }
 
