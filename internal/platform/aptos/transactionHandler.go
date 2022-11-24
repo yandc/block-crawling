@@ -201,6 +201,9 @@ func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
+		if record.TransactionType == biz.EVENTLOG {
+			continue
+		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
