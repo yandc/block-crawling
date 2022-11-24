@@ -2501,6 +2501,12 @@ func (m *DappInfo) validate(all bool) error {
 
 	// no validation rules for TxTime
 
+	// no validation rules for DappType
+
+	// no validation rules for CollectionName
+
+	// no validation rules for Logo
+
 	if len(errors) > 0 {
 		return DappInfoMultiError(errors)
 	}

@@ -195,6 +195,9 @@ message DappInfo {
   string dappInfo = 12;
   string status = 13;
   int64  txTime = 14;
+  string dappType = 15;
+  string collectionName = 16;
+  string logo = 17;
 }
 
 

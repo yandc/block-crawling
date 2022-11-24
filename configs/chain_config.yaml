@@ -594,9 +594,9 @@ platformTest:
     symbol: Aptos
     type: APTOS
   SuiTEST:
-    blockExplorerAddrUrl: https://explorer.devnet.sui.io/addresses/
-    blockExplorerTxUrl: https://explorer.devnet.sui.io/transactions/
-    blockExplorerUrl: https://explorer.devnet.sui.io/
+    blockExplorerAddrUrl: https://explorer.sui.io/addresses/
+    blockExplorerTxUrl: https://explorer.sui.io/transactions/
+    blockExplorerUrl: https://explorer.sui.io/
     chain: SuiTEST
     chainId: 24
     coinId: 101012
