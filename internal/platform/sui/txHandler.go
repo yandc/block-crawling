@@ -6,7 +6,10 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -27,10 +30,8 @@ type txHandler struct {
 	txRecords []*data.SuiTransactionRecord
 }
 
-func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.Transaction) (err error) {
-	index := 0
-	client := c.(*Client)
-	block := blk.Raw.(TransactionInfo)
+func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *chain.Transaction) (err error) {
+	block := chainBlock.Raw.(TransactionInfo)
 
 	var status string
 	if block.Effects.Status.Status == "success" {
@@ -39,8 +40,90 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 		status = biz.FAIL
 	}
 
+	index := 0
+	if len(block.Certificate.Data.Transactions) > 0 && block.Certificate.Data.Transactions[0].TransferObject != nil {
+		var newTxEvents []*Event
+		var newTxs []*Transaction
+		newTxEventMap := make(map[string]*Event)
+		newTxMap := make(map[string]*Transaction)
+		txEvents := block.Effects.Events
+		for _, txEvent := range txEvents {
+			coinBalanceChange := txEvent.CoinBalanceChange
+			if coinBalanceChange != nil {
+				if coinBalanceChange.ChangeType == "Pay" || coinBalanceChange.ChangeType == "Receive" {
+					key := coinBalanceChange.ChangeType + coinBalanceChange.Owner.AddressOwner + coinBalanceChange.CoinType
+					newTxEvent, ok := newTxEventMap[key]
+					if !ok {
+						newTxEventMap[key] = txEvent
+					} else {
+						newTxEvent.CoinBalanceChange.Amount = new(big.Int).Add(newTxEvent.CoinBalanceChange.Amount, coinBalanceChange.Amount)
+					}
+				} else {
+					newTxEvents = append(newTxEvents, txEvent)
+				}
+			} else {
+				newTxEvents = append(newTxEvents, txEvent)
+			}
+		}
+		for _, tx := range block.Certificate.Data.Transactions {
+			key := tx.TransferObject.Recipient + tx.TransferObject.ObjectRef.ObjectId
+			newTxMap[key] = tx
+		}
+		for key, event := range newTxEventMap {
+			newTxEvents = append(newTxEvents, event)
+			if strings.HasPrefix(key, "Receive") {
+				txKey := event.CoinBalanceChange.Owner.AddressOwner + event.CoinBalanceChange.CoinObjectId
+				tx, ok := newTxMap[txKey]
+				if ok {
+					newTxs = append(newTxs, tx)
+				}
+			}
+		}
+		block.Effects.Events = newTxEvents
+		block.Certificate.Data.Transactions = newTxs
+	}
+
 	for _, tx := range block.Certificate.Data.Transactions {
-		if tx.TransferSui != nil || tx.TransferObject != nil || tx.Pay != nil {
+		var recipients []string
+		var amounts []*big.Int
+		if tx.PaySui != nil && len(tx.PaySui.Recipients) > 1 {
+			recipientMap := make(map[string]*big.Int)
+			for i, recipient := range tx.PaySui.Recipients {
+				txAmount, ok := recipientMap[recipient]
+				if !ok {
+					recipientMap[recipient] = tx.PaySui.Amounts[i]
+				} else {
+					recipientMap[recipient] = new(big.Int).Add(txAmount, tx.PaySui.Amounts[i])
+				}
+			}
+
+			for key, txAmount := range recipientMap {
+				recipients = append(recipients, key)
+				amounts = append(amounts, txAmount)
+			}
+			tx.PaySui.Recipients = recipients
+			tx.PaySui.Amounts = amounts
+		} else if tx.Pay != nil && len(tx.Pay.Recipients) > 1 {
+			recipientMap := make(map[string]*big.Int)
+			for i, recipient := range tx.Pay.Recipients {
+				txAmount, ok := recipientMap[recipient]
+				if !ok {
+					recipientMap[recipient] = tx.Pay.Amounts[i]
+				} else {
+					recipientMap[recipient] = new(big.Int).Add(txAmount, tx.Pay.Amounts[i])
+				}
+			}
+
+			for key, txAmount := range recipientMap {
+				recipients = append(recipients, key)
+				amounts = append(amounts, txAmount)
+			}
+			tx.Pay.Recipients = recipients
+			tx.Pay.Amounts = amounts
+		}
+
+		if tx.TransferSui != nil || (tx.PaySui != nil && len(tx.PaySui.Recipients) <= 1) ||
+			(tx.Pay != nil && len(tx.Pay.Recipients) <= 1) || tx.TransferObject != nil {
 			txType := biz.NATIVE
 			var tokenInfo types.TokenInfo
 			var amount, contractAddress string
@@ -50,72 +133,58 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 			if tx.TransferSui != nil {
 				fromAddress = block.Certificate.Data.Sender
 				toAddress = tx.TransferSui.Recipient
-				amount = strconv.Itoa(tx.TransferSui.Amount)
+				amount = tx.TransferSui.Amount.String()
+			} else if tx.PaySui != nil {
+				fromAddress = block.Certificate.Data.Sender
+				if len(tx.PaySui.Recipients) > 0 {
+					toAddress = tx.PaySui.Recipients[0]
+				}
+				if len(tx.PaySui.Amounts) > 0 {
+					amount = tx.PaySui.Amounts[0].String()
+				}
 			} else if tx.Pay != nil {
 				fromAddress = block.Certificate.Data.Sender
-				toAddress = tx.Pay.Recipients[0]
-				amount = strconv.Itoa(tx.Pay.Amounts[0])
-			} else {
-				var inEvent *Event
-				var eventAmount int
-				var payAmount int
+				if len(tx.Pay.Recipients) > 0 {
+					toAddress = tx.Pay.Recipients[0]
+				}
+				if len(tx.Pay.Amounts) > 0 {
+					amount = tx.Pay.Amounts[0].String()
+				}
 				txEvents := block.Effects.Events
 				for _, txEvent := range txEvents {
-					moveEvent := txEvent.TransferObject
-					coinBalChange := txEvent.CoinBalanceChange
-					if moveEvent != nil {
-						event := &Event{
-							FromAddress: moveEvent.Sender,
-							ToAddress:   moveEvent.Recipient.AddressOwner,
-							ObjectId:    moveEvent.ObjectId,
-							Amount:      strconv.Itoa(moveEvent.Amount),
-						}
-						eventAmount += moveEvent.Amount
-						if inEvent == nil {
-							inEvent = event
-						} else {
-							inEvent.Amount = strconv.Itoa(eventAmount)
-						}
-					}
-					if coinBalChange != nil && coinBalChange.ChangeType == "Receive" && coinBalChange.Owner != nil && coinBalChange.Owner.AddressOwner == tx.TransferObject.Recipient {
-						payAmount += coinBalChange.Amount
-					}
-				}
-				if inEvent != nil {
-					objectId := inEvent.ObjectId
-					object, err := client.GetObject(objectId)
-					for i := 0; i < 10 && err != nil && fmt.Sprintf("%s", err) != "Deleted"; i++ {
-						time.Sleep(time.Duration(i*5) * time.Second)
-						object, err = client.GetObject(objectId)
-					}
-					if err != nil {
-						if fmt.Sprintf("%s", err) == "Deleted" {
-							log.Error(h.chainName+"扫块，从链上获取object信息被删除", zap.Any("objectId", objectId), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-							//continue
-						} else {
-							log.Error(h.chainName+"扫块，从链上获取object信息失败", zap.Any("objectId", objectId), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-							return err
-						}
-					}
-
-					fromAddress = inEvent.FromAddress
-					toAddress = inEvent.ToAddress
-					amount = inEvent.Amount
-					if object != nil {
-						dataType := object.Details.Data.Type
-						if dataType != NATIVE_TYPE {
-							if strings.HasPrefix(dataType, TYPE_PREFIX) {
-								contractAddress = dataType[len(TYPE_PREFIX)+1 : len(dataType)-1]
-							} else {
-								contractAddress = dataType
-							}
+					coinBalanceChange := txEvent.CoinBalanceChange
+					if coinBalanceChange != nil && coinBalanceChange.ChangeType == "Receive" &&
+						coinBalanceChange.Owner != nil && coinBalanceChange.Owner.AddressOwner == toAddress {
+						//amount = coinBalanceChange.Amount.String()
+						coinType := coinBalanceChange.CoinType
+						if coinType != SUI_CODE {
+							contractAddress = coinType
 							txType = biz.TRANSFER
 						}
+						break
 					}
-				} else {
-					fromAddress = block.Certificate.Data.Sender
-					toAddress = tx.TransferObject.Recipient
-					amount = strconv.Itoa(payAmount)
+				}
+			} else {
+				fromAddress = block.Certificate.Data.Sender
+				toAddress = tx.TransferObject.Recipient
+				var isTransfer bool
+				txEvents := block.Effects.Events
+				for _, txEvent := range txEvents {
+					coinBalChange := txEvent.CoinBalanceChange
+					if coinBalChange != nil && coinBalChange.ChangeType == "Receive" &&
+						coinBalChange.Owner != nil && coinBalChange.Owner.AddressOwner == toAddress {
+						amount = coinBalChange.Amount.String()
+						coinType := coinBalChange.CoinType
+						if coinType != SUI_CODE {
+							contractAddress = coinType
+							txType = biz.TRANSFER
+						}
+						isTransfer = true
+						break
+					}
+				}
+				if !isTransfer {
+					continue
 				}
 			}
 
@@ -149,22 +218,20 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 				if index > 1 {
 					txHash += "#result-" + fmt.Sprintf("%v", index)
 				}
-				txTime := h.now
+				txTime := block.TimestampMs / 1000
 				gasLimit := strconv.Itoa(block.Certificate.Data.GasBudget)
 				computationCost := block.Effects.GasUsed.ComputationCost
 				storageCost := block.Effects.GasUsed.StorageCost
 				storageRebate := block.Effects.GasUsed.StorageRebate
-				gasUsedi := computationCost + storageCost - storageRebate
-				gasUsed := strconv.Itoa(gasUsedi)
-				feeAmount := decimal.NewFromInt(int64(gasUsedi))
+				gasUsedInt := computationCost + storageCost - storageRebate
+				gasUsed := strconv.Itoa(gasUsedInt)
+				feeAmount := decimal.NewFromInt(int64(gasUsedInt))
 
-				contractAddressSplit := strings.Split(contractAddress, "::")
-				if len(contractAddressSplit) == 3 && txType == biz.TRANSFER {
-					var decimals int64 = 0
-					getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
+				if txType == biz.TRANSFER {
+					tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 					for i := 0; i < 3 && err != nil; i++ {
 						time.Sleep(time.Duration(i*1) * time.Second)
-						getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+						tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 					}
 					if err != nil {
 						// nodeProxy出错 接入lark报警
@@ -172,10 +239,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 						alarmOpts := biz.WithMsgLevel("FATAL")
 						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-					} else if getTokenInfo.Symbol != "" {
-						decimals = getTokenInfo.Decimals
 					}
-					tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
+					tokenInfo.Amount = amount
 				}
 				suiMap := map[string]interface{}{
 					"token": tokenInfo,
@@ -207,18 +272,130 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 					UpdatedAt:          h.now,
 				}
 				h.txRecords = append(h.txRecords, suiTransactionRecord)
-				if tx.TransferObject != nil {
+			}
+		} else if tx.PaySui != nil || tx.Pay != nil {
+			txType := biz.NATIVE
+			var tokenInfo types.TokenInfo
+			var amount, contractAddress string
+			var fromAddress, toAddress, fromUid, toUid string
+			var fromAddressExist, toAddressExist bool
+
+			fromAddress = block.Certificate.Data.Sender
+
+			if fromAddress != "" {
+				fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
+				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
+					// redis出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 					return
 				}
 			}
+
+			for i, recipient := range recipients {
+				toAddress = recipient
+				amount = amounts[i].String()
+				if tx.Pay != nil {
+					txEvents := block.Effects.Events
+					for _, txEvent := range txEvents {
+						coinBalChange := txEvent.CoinBalanceChange
+						if coinBalChange != nil && coinBalChange.ChangeType == "Receive" &&
+							coinBalChange.Owner != nil && coinBalChange.Owner.AddressOwner == toAddress {
+							//amount = coinBalChange.Amount.String()
+							coinType := coinBalChange.CoinType
+							if coinType != SUI_CODE {
+								contractAddress = coinType
+								txType = biz.TRANSFER
+							}
+							break
+						}
+					}
+				}
+
+				if toAddress != "" {
+					toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
+					if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
+						// redis出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+						return
+					}
+				}
+
+				if fromAddressExist || toAddressExist {
+					index++
+					txHash := block.Certificate.TransactionDigest
+					if index > 1 {
+						txHash += "#result-" + fmt.Sprintf("%v", index)
+					}
+					txTime := block.TimestampMs / 1000
+					gasLimit := strconv.Itoa(block.Certificate.Data.GasBudget)
+					computationCost := block.Effects.GasUsed.ComputationCost
+					storageCost := block.Effects.GasUsed.StorageCost
+					storageRebate := block.Effects.GasUsed.StorageRebate
+					gasUsedInt := computationCost + storageCost - storageRebate
+					gasUsed := strconv.Itoa(gasUsedInt)
+					feeAmount := decimal.NewFromInt(int64(gasUsedInt))
+
+					if txType == biz.TRANSFER {
+						tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+						for i := 0; i < 3 && err != nil; i++ {
+							time.Sleep(time.Duration(i*1) * time.Second)
+							tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+						}
+						if err != nil {
+							// nodeProxy出错 接入lark报警
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmOpts := biz.WithMsgLevel("FATAL")
+							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+						}
+						tokenInfo.Amount = amount
+					}
+					suiMap := map[string]interface{}{
+						"token": tokenInfo,
+					}
+					parseData, _ := utils.JsonEncode(suiMap)
+					amountValue, _ := decimal.NewFromString(amount)
+
+					suiTransactionRecord := &data.SuiTransactionRecord{
+						TransactionVersion: int(h.curHeight),
+						TransactionHash:    txHash,
+						FromAddress:        fromAddress,
+						ToAddress:          toAddress,
+						FromUid:            fromUid,
+						ToUid:              toUid,
+						FeeAmount:          feeAmount,
+						Amount:             amountValue,
+						Status:             status,
+						TxTime:             txTime,
+						ContractAddress:    contractAddress,
+						ParseData:          parseData,
+						GasLimit:           gasLimit,
+						GasUsed:            gasUsed,
+						Data:               "",
+						EventLog:           "",
+						TransactionType:    txType,
+						DappData:           "",
+						ClientData:         "",
+						CreatedAt:          h.now,
+						UpdatedAt:          h.now,
+					}
+					h.txRecords = append(h.txRecords, suiTransactionRecord)
+				}
+			}
 		} else if tx.Call != nil {
-			flag := false
 			var txTime int64
 			var gasLimit string
 			var gasUsed string
 			var feeAmount decimal.Decimal
 			var payload string
-			var eventLogs []types.EventLog
+			var eventLogs []*types.EventLog
+			var suiTransactionRecords []*data.SuiTransactionRecord
 			var suiContractRecord *data.SuiTransactionRecord
 
 			txType := biz.CONTRACT
@@ -257,176 +434,94 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 				return
 			}
 
-			if fromAddressExist || toAddressExist {
-				index++
-				var txHash string
-				if index == 1 {
-					txHash = block.Certificate.TransactionDigest
-				} else {
-					txHash = block.Certificate.TransactionDigest + "#result-" + fmt.Sprintf("%v", index)
-				}
-				txTime = h.now
-				gasLimit = strconv.Itoa(block.Certificate.Data.GasBudget)
-				computationCost := block.Effects.GasUsed.ComputationCost
-				storageCost := block.Effects.GasUsed.StorageCost
-				storageRebate := block.Effects.GasUsed.StorageRebate
-				gasUsedi := computationCost + storageCost - storageRebate
-				gasUsed = strconv.Itoa(gasUsedi)
-				feeAmount = decimal.NewFromInt(int64(gasUsedi))
+			index++
+			var txHash string
+			if index == 1 {
+				txHash = block.Certificate.TransactionDigest
+			} else {
+				txHash = block.Certificate.TransactionDigest + "#result-" + fmt.Sprintf("%v", index)
+			}
+			txTime = block.TimestampMs / 1000
+			gasLimit = strconv.Itoa(block.Certificate.Data.GasBudget)
+			computationCost := block.Effects.GasUsed.ComputationCost
+			storageCost := block.Effects.GasUsed.StorageCost
+			storageRebate := block.Effects.GasUsed.StorageRebate
+			gasUsedi := computationCost + storageCost - storageRebate
+			gasUsed = strconv.Itoa(gasUsedi)
+			feeAmount = decimal.NewFromInt(int64(gasUsedi))
 
-				flag = true
+			if contractAddress != SUI_CODE && contractAddress != "" {
+				tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+				for i := 0; i < 3 && err != nil; i++ {
+					time.Sleep(time.Duration(i*1) * time.Second)
+					tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+				}
+				if err != nil {
+					// nodeProxy出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+				}
+				tokenInfo.Amount = amount
+			}
+			suiMap := map[string]interface{}{
+				"token": tokenInfo,
+			}
+			parseData, _ := utils.JsonEncode(suiMap)
+			amountValue, _ := decimal.NewFromString(amount)
 
-				contractAddressSplit := strings.Split(contractAddress, "::")
-				if len(contractAddressSplit) == 3 && contractAddress != SUI_CODE && contractAddress != "" {
-					var decimals int64 = 0
-					getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					}
-					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-					} else if getTokenInfo.Symbol != "" {
-						decimals = getTokenInfo.Decimals
-					}
-					tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
-				}
-				suiMap := map[string]interface{}{
-					"token": tokenInfo,
-				}
-				parseData, _ := utils.JsonEncode(suiMap)
-				amountValue, _ := decimal.NewFromString(amount)
-
-				suiContractRecord = &data.SuiTransactionRecord{
-					TransactionVersion: int(h.curHeight),
-					TransactionHash:    txHash,
-					FromAddress:        fromAddress,
-					ToAddress:          toAddress,
-					FromUid:            fromUid,
-					ToUid:              toUid,
-					FeeAmount:          feeAmount,
-					Amount:             amountValue,
-					Status:             status,
-					TxTime:             txTime,
-					ContractAddress:    contractAddress,
-					ParseData:          parseData,
-					GasLimit:           gasLimit,
-					GasUsed:            gasUsed,
-					Data:               payload,
-					EventLog:           "",
-					TransactionType:    txType,
-					DappData:           "",
-					ClientData:         "",
-					CreatedAt:          h.now,
-					UpdatedAt:          h.now,
-				}
-				h.txRecords = append(h.txRecords, suiContractRecord)
+			suiContractRecord = &data.SuiTransactionRecord{
+				TransactionVersion: int(h.curHeight),
+				TransactionHash:    txHash,
+				FromAddress:        fromAddress,
+				ToAddress:          toAddress,
+				FromUid:            fromUid,
+				ToUid:              toUid,
+				FeeAmount:          feeAmount,
+				Amount:             amountValue,
+				Status:             status,
+				TxTime:             txTime,
+				ContractAddress:    contractAddress,
+				ParseData:          parseData,
+				GasLimit:           gasLimit,
+				GasUsed:            gasUsed,
+				Data:               payload,
+				EventLog:           "",
+				TransactionType:    txType,
+				DappData:           "",
+				ClientData:         "",
+				CreatedAt:          h.now,
+				UpdatedAt:          h.now,
 			}
 
 			txType = biz.EVENTLOG
 			//index := 0
 
-			var events []Event
-			if tx.Call.Function == "swap_x_to_y" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						inEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.InAmount),
-						}
-						events = append(events, inEvent)
-
-						outEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.OutAmount),
-						}
-						events = append(events, outEvent)
-					}
-				}
-			} else if tx.Call.Function == "add_liquidity" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						xEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.XAmount),
-						}
-						events = append(events, xEvent)
-
-						yEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.YAmount),
-						}
-						events = append(events, yEvent)
-
-						lspEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: moveEvent.PackageId + "::pool::Pool<" + tx.Call.TypeArguments[0] + ", " + tx.Call.TypeArguments[1] + ">",
-							Amount:       strconv.Itoa(moveEvent.Fields.LspAmount),
-						}
-						events = append(events, lspEvent)
-					}
-				}
-			} else if tx.Call.Function == "remove_liquidity" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						xEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.XAmount),
-						}
-						events = append(events, xEvent)
-
-						yEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.YAmount),
-						}
-						events = append(events, yEvent)
-
-						lspEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: moveEvent.PackageId + "::pool::Pool<" + tx.Call.TypeArguments[0] + ", " + tx.Call.TypeArguments[1] + ">",
-							Amount:       strconv.Itoa(moveEvent.Fields.LspAmount),
-						}
-						events = append(events, lspEvent)
-					}
-				}
-			}
-
-			for _, event := range events {
+			txEvents := block.Effects.Events
+			for _, event := range txEvents {
 				var tokenInfo types.TokenInfo
 				var amount, contractAddress string
 				var fromAddress, toAddress, fromUid, toUid string
 				var fromAddressExist, toAddressExist bool
 
-				amount = event.Amount
-				fromAddress = event.FromAddress
-				toAddress = event.ToAddress
-				contractAddress = event.TokenAddress
-
-				if fromAddress == toAddress {
+				coinBalChange := event.CoinBalanceChange
+				if coinBalChange != nil && (coinBalChange.ChangeType == "Pay" ||
+					coinBalChange.ChangeType == "Receive") {
+					contractAddress = coinBalChange.CoinType
+					if coinBalChange.ChangeType == "Pay" {
+						fromAddress = coinBalChange.Sender
+						toAddress = coinBalChange.PackageId
+						amount = new(big.Int).Abs(coinBalChange.Amount).String()
+					} else if coinBalChange.ChangeType == "Receive" {
+						fromAddress = coinBalChange.PackageId
+						toAddress = coinBalChange.Owner.AddressOwner
+						amount = coinBalChange.Amount.String()
+					}
+					if fromAddress == toAddress {
+						continue
+					}
+				} else {
 					continue
 				}
 
@@ -458,26 +553,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 					index++
 					txHash := block.Certificate.TransactionDigest + "#result-" + fmt.Sprintf("%v", index)
 
-					if !flag {
-						txTime = h.now
-						gasLimit = strconv.Itoa(block.Certificate.Data.GasBudget)
-						computationCost := block.Effects.GasUsed.ComputationCost
-						storageCost := block.Effects.GasUsed.StorageCost
-						storageRebate := block.Effects.GasUsed.StorageRebate
-						gasUsedi := computationCost + storageCost - storageRebate
-						gasUsed = strconv.Itoa(gasUsedi)
-						feeAmount = decimal.NewFromInt(int64(gasUsedi))
-
-						flag = true
-					}
-
-					contractAddressSplit := strings.Split(contractAddress, "::")
-					if len(contractAddressSplit) == 3 && contractAddress != SUI_CODE && contractAddress != "" {
-						var decimals int64 = 0
-						getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
+					if contractAddress != SUI_CODE && contractAddress != "" {
+						tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
-							getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+							tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 						}
 						if err != nil {
 							// nodeProxy出错 接入lark报警
@@ -485,24 +565,54 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 							alarmOpts := biz.WithMsgLevel("FATAL")
 							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-						} else if getTokenInfo.Symbol != "" {
-							decimals = getTokenInfo.Decimals
 						}
-						tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
+						tokenInfo.Amount = amount
 					}
 					suiMap := map[string]interface{}{
 						"token": tokenInfo,
 					}
 					parseData, _ := utils.JsonEncode(suiMap)
 					amountValue, _ := decimal.NewFromString(amount)
-					eventLogInfo := types.EventLog{
+					eventLogInfo := &types.EventLog{
 						From:   fromAddress,
 						To:     toAddress,
 						Amount: amountValue.BigInt(),
 						Token:  tokenInfo,
 					}
+
+					var isContinue bool
+					for i, eventLog := range eventLogs {
+						if eventLog == nil {
+							continue
+						}
+						if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address {
+							cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+							if cmp == 1 {
+								isContinue = true
+								subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+								eventLogs[i].Amount = subAmount
+								suiTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
+							} else if cmp == 0 {
+								isContinue = true
+								eventLogs[i] = nil
+								suiTransactionRecords[i] = nil
+							} else if cmp == -1 {
+								eventLogs[i] = nil
+								suiTransactionRecords[i] = nil
+							}
+							break
+						} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address {
+							isContinue = true
+							addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+							eventLogs[i].Amount = addAmount
+							suiTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
+							break
+						}
+					}
+					if isContinue {
+						continue
+					}
 					eventLogs = append(eventLogs, eventLogInfo)
-					eventLog, _ := utils.JsonEncode(eventLogInfo)
 
 					suiTransactionRecord := &data.SuiTransactionRecord{
 						TransactionVersion: int(h.curHeight),
@@ -520,535 +630,89 @@ func (h *txHandler) OnNewTx(c chain.Clienter, blk *chain.Block, chainTx *chain.T
 						GasLimit:           gasLimit,
 						GasUsed:            gasUsed,
 						Data:               payload,
-						EventLog:           eventLog,
+						EventLog:           "",
 						TransactionType:    txType,
 						DappData:           "",
 						ClientData:         "",
 						CreatedAt:          h.now,
 						UpdatedAt:          h.now,
 					}
-					h.txRecords = append(h.txRecords, suiTransactionRecord)
+					suiTransactionRecords = append(suiTransactionRecords, suiTransactionRecord)
 				}
 			}
 
-			if suiContractRecord != nil && eventLogs != nil {
-				eventLog, _ := utils.JsonEncode(eventLogs)
-				suiContractRecord.EventLog = eventLog
+			if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+				h.txRecords = append(h.txRecords, suiContractRecord)
+			}
+			if len(eventLogs) > 0 {
+				for _, suiTransactionRecord := range suiTransactionRecords {
+					if suiTransactionRecord != nil {
+						h.txRecords = append(h.txRecords, suiTransactionRecord)
+					}
+				}
+
+				var eventLogList []*types.EventLog
+				for _, eventLog := range eventLogs {
+					if eventLog != nil {
+						eventLogList = append(eventLogList, eventLog)
+					}
+				}
+				if len(eventLogList) > 0 {
+					eventLog, _ := utils.JsonEncode(eventLogList)
+					suiContractRecord.EventLog = eventLog
+
+					var logAddress datatypes.JSON
+					var logFromAddress []string
+					var logToAddress []string
+					for _, log := range eventLogList {
+						logFromAddress = append(logFromAddress, log.From)
+						logToAddress = append(logToAddress, log.To)
+					}
+					logAddressList := [][]string{logFromAddress, logToAddress}
+					logAddress, _ = json.Marshal(logAddressList)
+					suiContractRecord.LogAddress = logAddress
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (err error) {
-	client := c.(*Client)
-	block := txByHash.Raw.(TransactionInfo)
+func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {
+	transactionInfo := tx.Raw.(TransactionInfo)
+	record := tx.Record.(*data.SuiTransactionRecord)
 
-	curHeight := 0
-
-	index := 0
-	for _, tx := range block.Certificate.Data.Transactions {
-		var status string
-		if block.Effects.Status.Status == "success" {
-			status = biz.SUCCESS
+	if transactionInfo.Error != nil && strings.HasPrefix(transactionInfo.Error.Message, "Could not find the referenced transaction") {
+		nowTime := time.Now().Unix()
+		if record.CreatedAt+180 > nowTime {
+			if record.Status == biz.PENDING {
+				status := biz.NO_STATUS
+				record.Status = status
+				record.UpdatedAt = h.now
+				h.txRecords = append(h.txRecords, record)
+			}
 		} else {
-			status = biz.FAIL
+			status := biz.DROPPED
+			record.Status = status
+			record.UpdatedAt = h.now
+			h.txRecords = append(h.txRecords, record)
 		}
-
-		if tx.TransferSui != nil || tx.TransferObject != nil || tx.Pay != nil {
-			txType := biz.NATIVE
-			var tokenInfo types.TokenInfo
-			var amount, contractAddress string
-			var fromAddress, toAddress, fromUid, toUid string
-			var fromAddressExist, toAddressExist bool
-
-			if tx.TransferSui != nil {
-				fromAddress = block.Certificate.Data.Sender
-				toAddress = tx.TransferSui.Recipient
-				amount = strconv.Itoa(tx.TransferSui.Amount)
-			} else if tx.Pay != nil {
-				fromAddress = block.Certificate.Data.Sender
-				toAddress = tx.Pay.Recipients[0]
-				amount = strconv.Itoa(tx.Pay.Amounts[0])
-			} else {
-				var inEvent *Event
-				var eventAmount int
-				var payAmount int
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.TransferObject
-					coinBalChange := txEvent.CoinBalanceChange
-					if moveEvent != nil {
-						event := &Event{
-							FromAddress: moveEvent.Sender,
-							ToAddress:   moveEvent.Recipient.AddressOwner,
-							ObjectId:    moveEvent.ObjectId,
-							Amount:      strconv.Itoa(moveEvent.Amount),
-						}
-						eventAmount += moveEvent.Amount
-						if inEvent == nil {
-							inEvent = event
-						} else {
-							inEvent.Amount = strconv.Itoa(eventAmount)
-						}
-					}
-					if coinBalChange != nil && coinBalChange.ChangeType == "Receive" && coinBalChange.Owner != nil && coinBalChange.Owner.AddressOwner == tx.TransferObject.Recipient {
-						payAmount += coinBalChange.Amount
-					}
-				}
-				if inEvent != nil {
-					objectId := inEvent.ObjectId
-					object, err := client.GetObject(objectId)
-					for i := 0; i < 10 && err != nil && fmt.Sprintf("%s", err) != "Deleted"; i++ {
-						time.Sleep(time.Duration(i*5) * time.Second)
-						object, err = client.GetObject(objectId)
-					}
-					if err != nil {
-						if fmt.Sprintf("%s", err) == "Deleted" {
-							log.Error(h.chainName+"扫块，从链上获取object信息被删除", zap.Any("objectId", objectId), zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-							//continue
-						} else {
-							log.Error(h.chainName+"扫块，从链上获取object信息失败", zap.Any("objectId", objectId), zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-							return err
-						}
-					}
-
-					fromAddress = inEvent.FromAddress
-					toAddress = inEvent.ToAddress
-					amount = inEvent.Amount
-					if object != nil {
-						dataType := object.Details.Data.Type
-						if dataType != NATIVE_TYPE {
-							if strings.HasPrefix(dataType, TYPE_PREFIX) {
-								contractAddress = dataType[len(TYPE_PREFIX)+1 : len(dataType)-1]
-							} else {
-								contractAddress = dataType
-							}
-							txType = biz.TRANSFER
-						}
-					}
-				} else {
-					fromAddress = block.Certificate.Data.Sender
-					toAddress = tx.TransferObject.Recipient
-					amount = strconv.Itoa(payAmount)
-				}
-			}
-
-			if fromAddress != "" {
-				fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-					// redis出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					return
-				}
-			}
-
-			if toAddress != "" {
-				toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-					// redis出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					return
-				}
-			}
-
-			if fromAddressExist || toAddressExist {
-				txHash := block.Certificate.TransactionDigest
-				txTime := h.now
-				gasLimit := strconv.Itoa(block.Certificate.Data.GasBudget)
-				computationCost := block.Effects.GasUsed.ComputationCost
-				storageCost := block.Effects.GasUsed.StorageCost
-				storageRebate := block.Effects.GasUsed.StorageRebate
-				gasUsedi := computationCost + storageCost - storageRebate
-				gasUsed := strconv.Itoa(gasUsedi)
-				feeAmount := decimal.NewFromInt(int64(gasUsedi))
-
-				contractAddressSplit := strings.Split(contractAddress, "::")
-				if len(contractAddressSplit) == 3 && txType == biz.TRANSFER {
-					var decimals int64 = 0
-					getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					}
-					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					} else if getTokenInfo.Symbol != "" {
-						decimals = getTokenInfo.Decimals
-					}
-					tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
-				}
-				suiMap := map[string]interface{}{
-					"token": tokenInfo,
-				}
-				parseData, _ := utils.JsonEncode(suiMap)
-				amountValue, _ := decimal.NewFromString(amount)
-
-				suiTransactionRecord := &data.SuiTransactionRecord{
-					TransactionVersion: curHeight,
-					TransactionHash:    txHash,
-					FromAddress:        fromAddress,
-					ToAddress:          toAddress,
-					FromUid:            fromUid,
-					ToUid:              toUid,
-					FeeAmount:          feeAmount,
-					Amount:             amountValue,
-					Status:             status,
-					TxTime:             txTime,
-					ContractAddress:    contractAddress,
-					ParseData:          parseData,
-					GasLimit:           gasLimit,
-					GasUsed:            gasUsed,
-					Data:               "",
-					EventLog:           "",
-					TransactionType:    txType,
-					DappData:           "",
-					ClientData:         "",
-					CreatedAt:          h.now,
-					UpdatedAt:          h.now,
-				}
-				h.txRecords = append(h.txRecords, suiTransactionRecord)
-				if tx.TransferObject != nil {
-					break
-				}
-			}
-		} else if tx.Call != nil {
-			flag := false
-			var txTime int64
-			var gasLimit string
-			var gasUsed string
-			var feeAmount decimal.Decimal
-			var payload string
-			var eventLogs []types.EventLog
-			var suiContractRecord *data.SuiTransactionRecord
-
-			txType := biz.CONTRACT
-			var tokenInfo types.TokenInfo
-			var amount, contractAddress string
-			var fromAddress, toAddress, fromUid, toUid string
-			var fromAddressExist, toAddressExist bool
-
-			fromAddress = block.Certificate.Data.Sender
-			toAddress = tx.Call.Package.ObjectId
-
-			if fromAddress != "" {
-				fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-					// redis出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					return
-				}
-			}
-
-			if toAddress != "" {
-				toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-					// redis出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					return
-				}
-			}
-			if fromAddress == toAddress {
-				continue
-			}
-
-			if fromAddressExist || toAddressExist {
-				index++
-				var txHash string
-				if index == 1 {
-					txHash = block.Certificate.TransactionDigest
-				} else {
-					txHash = block.Certificate.TransactionDigest + "#result-" + fmt.Sprintf("%v", index)
-				}
-				txTime = h.now
-				gasLimit = strconv.Itoa(block.Certificate.Data.GasBudget)
-				computationCost := block.Effects.GasUsed.ComputationCost
-				storageCost := block.Effects.GasUsed.StorageCost
-				storageRebate := block.Effects.GasUsed.StorageRebate
-				gasUsedi := computationCost + storageCost - storageRebate
-				gasUsed = strconv.Itoa(gasUsedi)
-				feeAmount = decimal.NewFromInt(int64(gasUsedi))
-
-				flag = true
-
-				contractAddressSplit := strings.Split(contractAddress, "::")
-				if len(contractAddressSplit) == 3 && contractAddress != SUI_CODE && contractAddress != "" {
-					var decimals int64 = 0
-					getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-					}
-					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-					} else if getTokenInfo.Symbol != "" {
-						decimals = getTokenInfo.Decimals
-					}
-					tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
-				}
-				suiMap := map[string]interface{}{
-					"token": tokenInfo,
-				}
-				parseData, _ := utils.JsonEncode(suiMap)
-				amountValue, _ := decimal.NewFromString(amount)
-
-				suiContractRecord = &data.SuiTransactionRecord{
-					TransactionVersion: curHeight,
-					TransactionHash:    txHash,
-					FromAddress:        fromAddress,
-					ToAddress:          toAddress,
-					FromUid:            fromUid,
-					ToUid:              toUid,
-					FeeAmount:          feeAmount,
-					Amount:             amountValue,
-					Status:             status,
-					TxTime:             txTime,
-					ContractAddress:    contractAddress,
-					ParseData:          parseData,
-					GasLimit:           gasLimit,
-					GasUsed:            gasUsed,
-					Data:               payload,
-					EventLog:           "",
-					TransactionType:    txType,
-					DappData:           "",
-					ClientData:         "",
-					CreatedAt:          h.now,
-					UpdatedAt:          h.now,
-				}
-				h.txRecords = append(h.txRecords, suiContractRecord)
-			}
-
-			txType = biz.EVENTLOG
-			//index := 0
-
-			var events []Event
-			if tx.Call.Function == "swap_x_to_y" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						inEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.InAmount),
-						}
-						events = append(events, inEvent)
-
-						outEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.OutAmount),
-						}
-						events = append(events, outEvent)
-					}
-				}
-			} else if tx.Call.Function == "add_liquidity" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						xEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.XAmount),
-						}
-						events = append(events, xEvent)
-
-						yEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.YAmount),
-						}
-						events = append(events, yEvent)
-
-						lspEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: moveEvent.PackageId + "::pool::Pool<" + tx.Call.TypeArguments[0] + ", " + tx.Call.TypeArguments[1] + ">",
-							Amount:       strconv.Itoa(moveEvent.Fields.LspAmount),
-						}
-						events = append(events, lspEvent)
-					}
-				}
-			} else if tx.Call.Function == "remove_liquidity" {
-				txEvents := block.Effects.Events
-				for _, txEvent := range txEvents {
-					moveEvent := txEvent.MoveEvent
-					if moveEvent != nil {
-						xEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[0],
-							Amount:       strconv.Itoa(moveEvent.Fields.XAmount),
-						}
-						events = append(events, xEvent)
-
-						yEvent := Event{
-							FromAddress:  moveEvent.Fields.PoolId,
-							ToAddress:    moveEvent.Sender,
-							TokenAddress: tx.Call.TypeArguments[1],
-							Amount:       strconv.Itoa(moveEvent.Fields.YAmount),
-						}
-						events = append(events, yEvent)
-
-						lspEvent := Event{
-							FromAddress:  moveEvent.Sender,
-							ToAddress:    moveEvent.Fields.PoolId,
-							TokenAddress: moveEvent.PackageId + "::pool::Pool<" + tx.Call.TypeArguments[0] + ", " + tx.Call.TypeArguments[1] + ">",
-							Amount:       strconv.Itoa(moveEvent.Fields.LspAmount),
-						}
-						events = append(events, lspEvent)
-					}
-				}
-			}
-
-			for _, event := range events {
-				var tokenInfo types.TokenInfo
-				var amount, contractAddress string
-				var fromAddress, toAddress, fromUid, toUid string
-				var fromAddressExist, toAddressExist bool
-
-				amount = event.Amount
-				fromAddress = event.FromAddress
-				toAddress = event.ToAddress
-				contractAddress = event.TokenAddress
-
-				if fromAddress == toAddress {
-					continue
-				}
-
-				if fromAddress != "" {
-					fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-					if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-						// redis出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-						return
-					}
-				}
-
-				if toAddress != "" {
-					toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-					if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-						// redis出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-						return
-					}
-				}
-
-				if fromAddressExist || toAddressExist {
-					index++
-					txHash := block.Certificate.TransactionDigest + "#result-" + fmt.Sprintf("%v", index)
-
-					if !flag {
-						txTime = h.now
-						gasLimit = strconv.Itoa(block.Certificate.Data.GasBudget)
-						computationCost := block.Effects.GasUsed.ComputationCost
-						storageCost := block.Effects.GasUsed.StorageCost
-						storageRebate := block.Effects.GasUsed.StorageRebate
-						gasUsedi := computationCost + storageCost - storageRebate
-						gasUsed = strconv.Itoa(gasUsedi)
-						feeAmount = decimal.NewFromInt(int64(gasUsedi))
-
-						flag = true
-					}
-
-					contractAddressSplit := strings.Split(contractAddress, "::")
-					if len(contractAddressSplit) == 3 && contractAddress != SUI_CODE && contractAddress != "" {
-						var decimals int64 = 0
-						getTokenInfo, err := biz.GetTokenInfo(nil, h.chainName, contractAddress)
-						for i := 0; i < 3 && err != nil; i++ {
-							time.Sleep(time.Duration(i*1) * time.Second)
-							getTokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-						}
-						if err != nil {
-							// nodeProxy出错 接入lark报警
-							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-							alarmOpts := biz.WithMsgLevel("FATAL")
-							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
-						} else if getTokenInfo.Symbol != "" {
-							decimals = getTokenInfo.Decimals
-						}
-						tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: contractAddressSplit[2], Decimals: decimals, Amount: amount}
-					}
-					suiMap := map[string]interface{}{
-						"token": tokenInfo,
-					}
-					parseData, _ := utils.JsonEncode(suiMap)
-					amountValue, _ := decimal.NewFromString(amount)
-					eventLogInfo := types.EventLog{
-						From:   fromAddress,
-						To:     toAddress,
-						Amount: amountValue.BigInt(),
-						Token:  tokenInfo,
-					}
-					eventLogs = append(eventLogs, eventLogInfo)
-					eventLog, _ := utils.JsonEncode(eventLogInfo)
-
-					suiTransactionRecord := &data.SuiTransactionRecord{
-						TransactionVersion: curHeight,
-						TransactionHash:    txHash,
-						FromAddress:        fromAddress,
-						ToAddress:          toAddress,
-						FromUid:            fromUid,
-						ToUid:              toUid,
-						FeeAmount:          feeAmount,
-						Amount:             amountValue,
-						Status:             status,
-						TxTime:             txTime,
-						ContractAddress:    contractAddress,
-						ParseData:          parseData,
-						GasLimit:           gasLimit,
-						GasUsed:            gasUsed,
-						Data:               payload,
-						EventLog:           eventLog,
-						TransactionType:    txType,
-						DappData:           "",
-						ClientData:         "",
-						CreatedAt:          h.now,
-						UpdatedAt:          h.now,
-					}
-					h.txRecords = append(h.txRecords, suiTransactionRecord)
-				}
-			}
-
-			if suiContractRecord != nil && eventLogs != nil {
-				eventLog, _ := utils.JsonEncode(eventLogs)
-				suiContractRecord.EventLog = eventLog
-			}
-		}
+		return nil
 	}
-	return
+
+	block := &chain.Block{
+		Hash: transactionInfo.Certificate.TransactionDigest,
+		Raw:  transactionInfo,
+		Transactions: []*chain.Transaction{
+			{
+				Raw: transactionInfo,
+			},
+		},
+	}
+
+	err = h.OnNewTx(c, block, tx)
+
+	return err
 }
 
 func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
@@ -1066,7 +730,7 @@ func (h *txHandler) Save(c chain.Clienter) error {
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，将数据插入到数据库中失败" /*, zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight)*/, zap.Any("error", err))
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {
