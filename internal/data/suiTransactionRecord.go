@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/shopspring/decimal"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"strconv"
@@ -32,6 +33,7 @@ type SuiTransactionRecord struct {
 	GasUsed            string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
 	Data               string          `json:"data" form:"data"`
 	EventLog           string          `json:"eventLog" form:"eventLog"`
+	LogAddress         datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
 	TransactionType    string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData           string          `json:"dappData" form:"dappData"`
 	ClientData         string          `json:"clientData" form:"clientData"`
@@ -145,6 +147,7 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"gas_used":            clause.Column{Table: "excluded", Name: "gas_used"},
 			"data":                clause.Column{Table: "excluded", Name: "data"},
 			"event_log":           clause.Column{Table: "excluded", Name: "event_log"},
+			"log_address":         clause.Column{Table: "excluded", Name: "log_address"},
 			"transaction_type":    clause.Column{Table: "excluded", Name: "transaction_type"},
 			"dapp_data":           gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":         gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
@@ -283,16 +286,19 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 		db = db.Where("to_uid = ?", req.ToUid)
 	}
 	if len(req.FromAddressList) > 0 {
-		db = db.Where("from_address in(?)", req.FromAddressList)
+		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
+		db = db.Where("(from_address in(?) or (log_address is not null and log_address->0 ?| array["+fromAddressList+"]))", req.FromAddressList)
 	}
 	if len(req.ToAddressList) > 0 {
-		db = db.Where("to_address in(?)", req.ToAddressList)
+		toAddressList := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
+		db = db.Where("(to_address in(?) or (log_address is not null and log_address->1 ?| array["+toAddressList+"]))", req.ToAddressList)
 	}
 	if req.Uid != "" {
 		db = db.Where("(from_uid = ? or to_uid = ?)", req.Uid, req.Uid)
 	}
 	if req.Address != "" {
-		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
+		db = db.Where("(from_address = ? or to_address = ? or (log_address is not null and (log_address->0 ? '"+req.Address+"' or log_address->1 ? '"+req.Address+"')))",
+			req.Address, req.Address)
 	}
 	if req.ContractAddress != "" {
 		db = db.Where("contract_address = ?", req.ContractAddress)

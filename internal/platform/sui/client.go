@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strconv"
 
@@ -46,6 +47,34 @@ func (c *Client) Detect() error {
 	return err
 }
 
+func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
+	var resp types.Response
+	var header http.Header
+	var err error
+	if len(args) > 0 {
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
+	} else {
+		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
+	}
+	_ = header
+	if err != nil {
+		return err
+	}
+	if resp.Error != nil {
+		return resp.Error
+	}
+	return json.Unmarshal(resp.Result, &out)
+}
+
+// GetBlockHeight get current block height.
+func (c *Client) GetBlockHeight() (uint64, error) {
+	height, err := c.GetTransactionNumber()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(height), nil
+}
+
 // GetBlock fetch block data of the given height.
 func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	block, err := c.GetTransactionByNumber(int(height))
@@ -65,45 +94,21 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	}, nil
 }
 
-// GetBlockHeight get current block height.
-func (c *Client) GetBlockHeight() (uint64, error) {
-	height, err := c.GetTransactionNumber()
-	if err != nil {
-		return 0, err
-	}
-	return uint64(height), nil
-}
-
 // GetTxByHash get transaction by given tx hash.
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	block, err := c.GetTransactionByHash(txHash)
 	if err != nil {
-		return nil, err
+		erro, ok := err.(*types.ErrorObject)
+		if !ok {
+			return nil, err
+		}
+		block.Error = erro
 	}
 	return &chain.Transaction{
 		Hash:   txHash,
 		Raw:    block,
 		Record: nil,
 	}, nil
-}
-
-func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
-	var resp types.Response
-	var header http.Header
-	var err error
-	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
-	} else {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
-	}
-	_ = header
-	if err != nil {
-		return err
-	}
-	if resp.Error != nil {
-		return resp.Error
-	}
-	return json.Unmarshal(resp.Result, &out)
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
@@ -271,9 +276,6 @@ type TransactionInfo struct {
 			} `json:"reference"`
 		} `json:"created"`
 		Mutated []struct {
-			/*Owner struct {
-				AddressOwner string `json:"AddressOwner"`
-			} `json:"owner"`*/
 			Owner     interface{} `json:"owner"`
 			Reference struct {
 				ObjectId string `json:"objectId"`
@@ -296,87 +298,37 @@ type TransactionInfo struct {
 				Digest   string `json:"digest"`
 			} `json:"reference"`
 		} `json:"gasObject"`
-		Events []struct {
-			TransferObject *struct {
-				PackageId         string `json:"packageId"`
-				TransactionModule string `json:"transactionModule"`
-				Sender            string `json:"sender"`
-				Recipient         struct {
-					AddressOwner string `json:"AddressOwner"`
-				} `json:"recipient"`
-				ObjectId string `json:"objectId"`
-				Version  int    `json:"version"`
-				Type     string `json:"type"`
-				Amount   int    `json:"amount"`
-			} `json:"transferObject,omitempty"`
-			MoveEvent *struct {
-				PackageId         string `json:"packageId"`
-				TransactionModule string `json:"transactionModule"`
-				Sender            string `json:"sender"`
-				Type              string `json:"type"`
-				Fields            struct {
-					Creator  string `json:"creator"`
-					Name     string `json:"name"`
-					ObjectId string `json:"object_id"`
-
-					PoolId    string `json:"pool_id"`
-					InAmount  int    `json:"in_amount"`
-					OutAmount int    `json:"out_amount"`
-					XToY      bool   `json:"x_to_y"`
-
-					//PoolId    string `json:"pool_id"`
-					IsAdded   bool `json:"is_added"`
-					LspAmount int  `json:"lsp_amount"`
-					XAmount   int  `json:"x_amount"`
-					YAmount   int  `json:"y_amount"`
-				} `json:"fields"`
-				Bcs string `json:"bcs"`
-			} `json:"moveEvent,omitempty"`
-			Publish *struct {
-				Sender    string `json:"sender"`
-				PackageId string `json:"packageId"`
-			} `json:"publish,omitempty"`
-			DeleteObject *struct {
-				PackageId         string `json:"packageId"`
-				TransactionModule string `json:"transactionModule"`
-				Sender            string `json:"sender"`
-				ObjectId          string `json:"objectId"`
-			} `json:"deleteObject,omitempty"`
-			NewObject *struct {
-				PackageId         string `json:"packageId"`
-				TransactionModule string `json:"transactionModule"`
-				Sender            string `json:"sender"`
-				/*Recipient         struct {
-					AddressOwner string `json:"AddressOwner"`
-				} `json:"recipient"`*/
-				Recipient interface{} `json:"recipient"`
-				ObjectId  string      `json:"objectId"`
-			} `json:"newObject,omitempty"`
-			CoinBalanceChange *struct {
-				PackageId         string `json:"packageId"`
-				TransactionModule string `json:"transactionModule"`
-				Sender            string `json:"sender"`
-				ChangeType        string `json:"changeType"`
-				Owner             *struct {
-					AddressOwner string
-				} `json:"owner"`
-				CoinType     string `json:"coinType"`
-				CoinObjectId string `json:"coinObjectId"`
-				Version      int    `json:"version"`
-				Amount       int    `json:"amount"`
-			} `json:"coinBalanceChange,omitempty"`
-		} `json:"events"`
+		Events       []*Event `json:"events"`
 		Dependencies []string `json:"dependencies"`
 	} `json:"effects"`
-	TimestampMs interface{} `json:"timestamp_ms"`
-	ParsedData  interface{} `json:"parsed_data"`
+	TimestampMs int64              `json:"timestamp_ms"`
+	ParsedData  interface{}        `json:"parsed_data"`
+	Error       *types.ErrorObject `json:"error,omitempty"`
 }
 
 type Transaction struct {
 	TransferSui *struct {
-		Recipient string `json:"recipient"`
-		Amount    int    `json:"amount"`
+		Recipient string   `json:"recipient"`
+		Amount    *big.Int `json:"amount"`
 	} `json:"TransferSui,omitempty"`
+	Pay *struct {
+		Recipients []string   `json:"recipients"`
+		Amounts    []*big.Int `json:"amounts"`
+		Coins      []struct {
+			ObjectId string `json:"objectId"`
+			Version  int    `json:"version"`
+			Digest   string `json:"digest"`
+		} `json:"coins"`
+	} `json:"Pay,omitempty"`
+	PaySui *struct {
+		Recipients []string   `json:"recipients"`
+		Amounts    []*big.Int `json:"amounts"`
+		Coins      []struct {
+			ObjectId string `json:"objectId"`
+			Version  int    `json:"version"`
+			Digest   string `json:"digest"`
+		} `json:"coins"`
+	} `json:"PaySui,omitempty"`
 	TransferObject *struct {
 		Recipient string `json:"recipient"`
 		ObjectRef struct {
@@ -396,18 +348,86 @@ type Transaction struct {
 		TypeArguments []string      `json:"typeArguments"`
 		Arguments     []interface{} `json:"arguments"`
 	} `json:"Call,omitempty"`
-	Pay *struct {
-		Recipients []string `json:"recipients"`
-		Amounts    []int    `json:"amounts"`
-		Coins      []struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"coins"`
-	} `json:"Pay,omitempty"`
 	Publish *struct {
 		Disassembled map[string]string `json:"disassembled"`
 	} `json:"Publish,omitempty"`
+}
+
+type Event struct {
+	TransferObject *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		Recipient         struct {
+			AddressOwner string `json:"AddressOwner"`
+		} `json:"recipient"`
+		ObjectType string `json:"objectType"`
+		ObjectId   string `json:"objectId"`
+		Version    int    `json:"version"`
+	} `json:"transferObject,omitempty"`
+	MoveEvent *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		Type              string `json:"type"`
+		Fields            struct {
+			Creator  string `json:"creator"`
+			Name     string `json:"name"`
+			ObjectId string `json:"object_id"`
+
+			PoolId    string   `json:"pool_id"`
+			InAmount  *big.Int `json:"in_amount"`
+			OutAmount *big.Int `json:"out_amount"`
+			XToY      bool     `json:"x_to_y"`
+
+			IsAdded   bool     `json:"is_added"`
+			LspAmount *big.Int `json:"lsp_amount"`
+			XAmount   *big.Int `json:"x_amount"`
+			YAmount   *big.Int `json:"y_amount"`
+		} `json:"fields"`
+		Bcs string `json:"bcs"`
+	} `json:"moveEvent,omitempty"`
+	Publish *struct {
+		Sender    string `json:"sender"`
+		PackageId string `json:"packageId"`
+	} `json:"publish,omitempty"`
+	DeleteObject *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		ObjectId          string `json:"objectId"`
+	} `json:"deleteObject,omitempty"`
+	NewObject *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		/*Recipient         struct {
+			AddressOwner string `json:"AddressOwner"`
+		} `json:"recipient"`*/
+		Recipient interface{} `json:"recipient"`
+		ObjectId  string      `json:"objectId"`
+	} `json:"newObject,omitempty"`
+	CoinBalanceChange *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		ChangeType        string `json:"changeType"`
+		Owner             *struct {
+			AddressOwner string
+		} `json:"owner"`
+		CoinType     string   `json:"coinType"`
+		CoinObjectId string   `json:"coinObjectId"`
+		Version      int      `json:"version"`
+		Amount       *big.Int `json:"amount"`
+	} `json:"coinBalanceChange,omitempty"`
+	MutateObject *struct {
+		PackageId         string `json:"packageId"`
+		TransactionModule string `json:"transactionModule"`
+		Sender            string `json:"sender"`
+		ObjectType        string `json:"objectType"`
+		ObjectId          string `json:"objectId"`
+		Version           int    `json:"version"`
+	} `json:"mutateObject,omitempty"`
 }
 
 func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
@@ -429,12 +449,4 @@ func (c *Client) GetTransactionByNumber(number int) (TransactionInfo, error) {
 	}
 	out, err = c.GetTransactionByHash(hash)
 	return out, err
-}
-
-type Event struct {
-	FromAddress  string `json:"fromAddress"`
-	ToAddress    string `json:"toAddress"`
-	TokenAddress string `json:"tokenAddress"`
-	Amount       string `json:"amount,omitempty"`
-	ObjectId     string `json:"objectId"`
 }

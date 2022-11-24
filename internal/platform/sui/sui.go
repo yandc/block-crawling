@@ -25,7 +25,6 @@ type Platform struct {
 
 const SUI_CODE = "0x2::sui::SUI"
 const TYPE_PREFIX = "0x2::coin::Coin"
-const NATIVE_TYPE = "0x2::coin::Coin<0x2::sui::SUI>"
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	chainType := value.Handler
