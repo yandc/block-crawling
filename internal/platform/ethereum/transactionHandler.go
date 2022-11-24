@@ -34,6 +34,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	}()
 
 	go biz.DappApproveFilter(chainName, txRecords)
+	go biz.NftApproveFilter(chainName, txRecords)
 	go func() {
 		handleTokenPush(chainName, client, txRecords)
 		handleUserAsset(chainName, client, txRecords)
@@ -374,7 +375,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 	var transactionStatisticMap = make(map[string]*data.TransactionStatistic)
 	var transactionStatisticList []*data.TransactionStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.APPROVE {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {

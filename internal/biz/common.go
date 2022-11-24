@@ -67,6 +67,7 @@ const (
 const (
 	NATIVE                  = "native"
 	TRANSFERNFT             = "transferNFT"
+	APPROVENFT              = "approveNFT"
 	CONTRACT                = "contract"
 	EVENTLOG                = "eventLog"
 	CREATEACCOUNT           = "createAccount"
@@ -76,6 +77,7 @@ const (
 
 const (
 	APPROVE               = "approve"
+	SETAPPROVALFORALL     = "setApprovalForAll"
 	TRANSFER              = "transfer"
 	TRANSFERFROM          = "transferFrom"
 	SAFETRANSFERFROM      = "safeTransferFrom"

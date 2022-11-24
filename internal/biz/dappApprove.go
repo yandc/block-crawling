@@ -11,6 +11,68 @@ import (
 	"strings"
 )
 
+func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("NftApproveFilter error, chainName:"+chainName, e)
+			} else {
+				log.Errore("NftApproveFilter panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理nft授权失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+	for _, record := range txRecords {
+		if record.TransactionType == "approveNFT" {
+			log.Info("nftYD",zap.Any(record.TransactionHash,record))
+			dar := &data.DappApproveRecord{
+				Uid:        record.FromUid,
+				LastTxhash: record.TransactionHash,
+				ChainName:  chainName,
+				Address:    record.FromAddress,
+				Token:      record.ContractAddress,
+				ToAddress:  record.ToAddress,
+				TxTime:     record.TxTime,
+			}
+
+			paseJson := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
+				tokenMap := paseJson["token"]
+				if tokenMap != nil {
+					ret := tokenMap.(map[string]interface{})
+					if ret != nil {
+						am := ret["amount"].(string)
+						sy := ret["symbol"].(string)
+						if _, ok := ret["decimals"].(float64); ok {
+							decimal := ret["decimals"].(float64)
+							deciamlStr := strconv.FormatFloat(decimal, 'f', 0, 64)
+							ds, _ := strconv.Atoi(deciamlStr)
+							dar.Decimals = int64(ds)
+						}
+						//全部授权
+						if am == "1"{
+							//nft 全部授权 无敞口，敞口金额长度大于40位
+							dar.Amount = "90000000009000000000900000000090000000009000000000"
+						}else {
+							dar.Amount = am
+						}
+
+						dar.Original = am
+						dar.Symbol = sy
+					}
+				}
+			}
+			ret,err := data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
+			log.Info("nftYD-1",zap.Any(record.TransactionHash,ret),zap.Any("err",err))
+		}
+	}
+}
+
 func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -33,10 +95,6 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 
 	for _, record := range txRecords {
 		if record.TransactionType == "approve" {
-			if record.ContractAddress == "0xa042fb0e60125A4022670014AC121931e7501Af4" && record.ToAddress == "0xED7d5F38C79115ca12fe6C0041abb22F0A06C300" {
-				log.Info("heco:", zap.Any("zyd", record.Id), zap.Any("zyd", record.Amount))
-			}
-
 			dar := &data.DappApproveRecord{
 				Uid:        record.FromUid,
 				LastTxhash: record.TransactionHash,

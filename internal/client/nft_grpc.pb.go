@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NftClient interface {
 	GetNftInfo(ctx context.Context, in *GetNftInfoRequest, opts ...grpc.CallOption) (*GetNftReply, error)
-	NetNftCollectionInfo(ctx context.Context, in *GetNftCollectionInfoReq, opts ...grpc.CallOption) (*GetNftCollectionInfoReply, error)
+	GetNftCollectionInfo(ctx context.Context, in *GetNftCollectionInfoReq, opts ...grpc.CallOption) (*GetNftCollectionInfoReply, error)
 }
 
 type nftClient struct {
@@ -43,9 +43,9 @@ func (c *nftClient) GetNftInfo(ctx context.Context, in *GetNftInfoRequest, opts 
 	return out, nil
 }
 
-func (c *nftClient) NetNftCollectionInfo(ctx context.Context, in *GetNftCollectionInfoReq, opts ...grpc.CallOption) (*GetNftCollectionInfoReply, error) {
+func (c *nftClient) GetNftCollectionInfo(ctx context.Context, in *GetNftCollectionInfoReq, opts ...grpc.CallOption) (*GetNftCollectionInfoReply, error) {
 	out := new(GetNftCollectionInfoReply)
-	err := c.cc.Invoke(ctx, "/api.nft.v1.Nft/NetNftCollectionInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/api.nft.v1.Nft/GetNftCollectionInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (c *nftClient) NetNftCollectionInfo(ctx context.Context, in *GetNftCollecti
 // for forward compatibility
 type NftServer interface {
 	GetNftInfo(context.Context, *GetNftInfoRequest) (*GetNftReply, error)
-	NetNftCollectionInfo(context.Context, *GetNftCollectionInfoReq) (*GetNftCollectionInfoReply, error)
+	GetNftCollectionInfo(context.Context, *GetNftCollectionInfoReq) (*GetNftCollectionInfoReply, error)
 	mustEmbedUnimplementedNftServer()
 }
 
@@ -68,8 +68,8 @@ type UnimplementedNftServer struct {
 func (UnimplementedNftServer) GetNftInfo(context.Context, *GetNftInfoRequest) (*GetNftReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNftInfo not implemented")
 }
-func (UnimplementedNftServer) NetNftCollectionInfo(context.Context, *GetNftCollectionInfoReq) (*GetNftCollectionInfoReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method NetNftCollectionInfo not implemented")
+func (UnimplementedNftServer) GetNftCollectionInfo(context.Context, *GetNftCollectionInfoReq) (*GetNftCollectionInfoReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNftCollectionInfo not implemented")
 }
 func (UnimplementedNftServer) mustEmbedUnimplementedNftServer() {}
 
@@ -102,20 +102,20 @@ func _Nft_GetNftInfo_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Nft_NetNftCollectionInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Nft_GetNftCollectionInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetNftCollectionInfoReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NftServer).NetNftCollectionInfo(ctx, in)
+		return srv.(NftServer).GetNftCollectionInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.nft.v1.Nft/NetNftCollectionInfo",
+		FullMethod: "/api.nft.v1.Nft/GetNftCollectionInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NftServer).NetNftCollectionInfo(ctx, req.(*GetNftCollectionInfoReq))
+		return srv.(NftServer).GetNftCollectionInfo(ctx, req.(*GetNftCollectionInfoReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -132,8 +132,8 @@ var Nft_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Nft_GetNftInfo_Handler,
 		},
 		{
-			MethodName: "NetNftCollectionInfo",
-			Handler:    _Nft_NetNftCollectionInfo_Handler,
+			MethodName: "GetNftCollectionInfo",
+			Handler:    _Nft_GetNftCollectionInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

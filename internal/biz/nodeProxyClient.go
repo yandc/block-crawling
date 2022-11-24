@@ -276,6 +276,28 @@ func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress stri
 	return tokenInfo, nil
 }
 
+func GetCollectionInfoDirectly(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	tokenInfo := types.TokenInfo{}
+	if tokenAddress == "" {
+		return tokenInfo, nil
+	}
+
+	respData, err := GetRawCollectionInfoDirectly(ctx, chainName, tokenAddress)
+	if err != nil {
+		return tokenInfo, err
+	}
+	if respData == nil {
+		return tokenInfo, nil
+	}
+
+	tokenInfo.Address = tokenAddress
+	//tokenInfo.Symbol = respData.Symbol
+	tokenInfo.TokenUri = respData.ImageURL
+	tokenInfo.TokenType = respData.TokenType
+	tokenInfo.CollectionName = respData.Name
+	return tokenInfo, nil
+}
+
 func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
 	if tokenAddress == "" {
 		return nil, nil
@@ -361,6 +383,35 @@ func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress s
 		return tokenInfo, nil
 	}
 	return nil, nil
+}
+
+func GetRawCollectionInfoDirectly(ctx context.Context, chainName string, tokenAddress string) (*v1.GetNftCollectionInfoReply_Data, error) {
+	if tokenAddress == "" {
+		return nil, nil
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewNftClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		ctx = context
+		defer cancel()
+	}
+	response, err := client.GetNftCollectionInfo(ctx, &v1.GetNftCollectionInfoReq{
+		Chain:   chainName,
+		Address: tokenAddress,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := response.Data
+	return data, nil
 }
 
 func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string][]string) ([]*v1.GetNftReply_NftInfoResp, error) {

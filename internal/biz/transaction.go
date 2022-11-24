@@ -174,39 +174,52 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 	for _, da := range dapps {
 		//查询
 		dappInfo := ""
+		parseData := ""
 		chainType := chain2Type[da.ChainName]
 		switch chainType {
 		case EVM:
 			evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && evm != nil {
 				dappInfo = evm.DappData
+				parseData = evm.ParseData
 			}
 		case STC:
 			stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && stc != nil {
 				dappInfo = stc.DappData
+				parseData = stc.ParseData
+
 			}
 		case TVM:
 			tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && tvm != nil {
 				dappInfo = tvm.DappData
+				parseData = tvm.ParseData
+
 			}
 		case APTOS:
 			apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && apt != nil {
 				dappInfo = apt.DappData
+				parseData = apt.ParseData
+
 			}
 		case SUI:
 			sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && sui != nil {
 				dappInfo = sui.DappData
+				parseData = sui.ParseData
+
 			}
 		case SOLANA:
 			sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && sol != nil {
 				dappInfo = sol.DappData
+				parseData = sol.ParseData
 			}
 		}
+
+
 
 		ds := strconv.FormatInt(da.Decimals, 10)
 		status := ""
@@ -231,6 +244,12 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			Status:          status,
 			DappInfo:        dappInfo,
 			TxTime:          da.TxTime,
+		}
+		if parseData !=""{
+			tokenInfo, _ := PaseTokenInfo(parseData)
+			dif.DappType = tokenInfo.TokenType
+			dif.CollectionName = tokenInfo.CollectionName
+			dif.Logo = tokenInfo.TokenUri
 		}
 		dappAll = append(dappAll, dif)
 	}

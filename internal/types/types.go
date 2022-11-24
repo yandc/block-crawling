@@ -28,6 +28,7 @@ type TokenInfo struct {
 	Amount         string      `json:"amount"`
 	Decimals       int64       `json:"decimals"`
 	Symbol         string      `json:"symbol"`
+	TokenUri       string      `json:"token_uri,omitempty"`
 	CollectionName string      `json:"collection_name,omitempty"`
 	TokenType      string      `json:"token_type,omitempty"`
 	TokenId        string      `json:"token_id,omitempty"`
