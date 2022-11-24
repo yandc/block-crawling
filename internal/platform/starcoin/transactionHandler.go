@@ -64,8 +64,13 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.StcT
 
 func handleUserNonce(chainName string, txRecords []*data.StcTransactionRecord) {
 	doneNonce := make(map[string]int)
-
 	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		if record.TransactionType == biz.EVENTLOG {
+			continue
+		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
 		bh := doneNonce[nonceKey]
 		if bh == 0 {

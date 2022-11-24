@@ -80,8 +80,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 			continue
 		}
 		txHashs := strings.Split(record.TransactionHash, "#")
-
-		ret, _ := data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0])
+		ret, _ := data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress,record.Amount,record.Data)
 
 		if ret >= 1 {
 			if (record.Amount.String() == "0" || record.Amount == decimal.Zero) && record.DappData == "" {
