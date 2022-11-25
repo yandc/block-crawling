@@ -98,9 +98,12 @@ func (s *TransactionService) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 }
 
 func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) (*pb.DappPageListResp, error) {
+	log.Info("jlxd-0", zap.Any("request", req))
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetDappListPageList(subctx, req)
+	log.Info("jlxd-4", zap.Any("result", result))
+
 	return result, err
 }
 

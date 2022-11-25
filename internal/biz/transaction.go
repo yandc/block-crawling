@@ -810,7 +810,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	}
 
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
-	log.Info("yd", zap.Any("dapp", dapps))
+	log.Info("jlxd-1", zap.Any("dapp", dapps))
+
 	if err != nil {
 		log.Errore("返回授权dapp列表报错！", err)
 		return &pb.DappPageListResp{
@@ -819,7 +820,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	}
 	//分组 根据 token 然后sum出结果 过滤出amount len > 40的
 	total := data.DappApproveRecordRepoClient.GetDappListPageCount(ctx, req)
-	log.Info("yd", zap.Any("dapptotal", len(dapps)))
+	log.Info("jlxd-2",zap.Any("dapptotal", len(dapps)))
 
 	if len(dapps) == 0 {
 		return &pb.DappPageListResp{
@@ -855,6 +856,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 				}
 
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
+				log.Info("jlxd-3",zap.Any("evm", evm))
+
 				if err == nil && evm != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
