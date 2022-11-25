@@ -145,7 +145,7 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 		}
 		if req.OrderBy != "" {
 			orderBys := strings.Split(req.OrderBy, " ")
-			tx = tx.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
+			tx = tx.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex).Limit(int(req.Limit))
 		}
 	}
 	if req.DataDirection == 0 {
