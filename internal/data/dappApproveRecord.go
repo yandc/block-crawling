@@ -7,7 +7,6 @@ import (
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 type DappApproveRecord struct {
@@ -143,14 +142,11 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 		if req.DataDirection == 1 {
 			dataDirection = "<"
 		}
-		if req.OrderBy != "" {
-			orderBys := strings.Split(req.OrderBy, " ")
-			tx = tx.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex).Limit(int(req.Limit))
-		}
+		tx = tx.Where("tx_time " + dataDirection+" ?", req.StartIndex).Order("tx_time DESC").Limit(int(req.Limit))
 	}
 	if req.DataDirection == 0 {
 		tx = tx.Offset(int(req.Page-1) * int(req.Limit))
-		tx = tx.Limit(int(req.Limit))
+		tx = tx.Order("tx_time DESC").Limit(int(req.Limit))
 	}
 	ret := tx.Find(&dars)
 	err := ret.Error

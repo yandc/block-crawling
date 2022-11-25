@@ -805,9 +805,9 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	if req.FromAddress != "" {
 		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 	}
-	if req.OrderBy == "" {
-		req.OrderBy = "tx_time desc"
-	}
+	//if req.OrderBy == "" {
+	//	req.OrderBy = "tx_time desc"
+	//}
 
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
 	log.Info("jlxd-1", zap.Any("dapp", dapps))
@@ -843,7 +843,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					var r *pb.TransactionRecord
 					utils.CopyProperties(btc, &r)
 					r.ChainName = value.ChainName
-					r.Cursor = btc.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -870,7 +870,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					r.ChainName = value.ChainName
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
-					r.Cursor = evm.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -885,7 +885,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["gas_price"] = r.GasPrice
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
-					r.Cursor = stc.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -900,7 +900,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["energy_usage"] = r.EnergyUsage
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
-					r.Cursor = tvm.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -915,7 +915,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["gas_price"] = r.GasPrice
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
-					r.Cursor = apt.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -929,7 +929,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["gas_used"] = r.GasUsed
 					feeDataStr, _ := utils.JsonEncode(feeData)
 					r.FeeData = feeDataStr
-					r.Cursor = sui.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
@@ -939,7 +939,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					var r *pb.TransactionRecord
 					utils.CopyProperties(sol, &r)
 					r.ChainName = value.ChainName
-					r.Cursor = sol.TxTime
+					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					trs = append(trs, r)
 				}
