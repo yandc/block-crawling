@@ -39,7 +39,7 @@ type UserAssetRepo interface {
 	BatchSaveOrUpdate(context.Context, []*UserAsset) (int64, error)
 	PageBatchSaveOrUpdate(context.Context, []*UserAsset, int) (int64, error)
 	Update(context.Context, *UserAsset) (int64, error)
-	UpdateZeroByAddress(context.Context,string) (int64, error)
+	UpdateZeroByAddress(context.Context, string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
@@ -120,7 +120,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAssets []
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"balance", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "updated_at"}),
 	}).Create(&userAssets)
 	err := ret.Error
 	if err != nil {
@@ -351,8 +351,8 @@ func (r *UserAssetRepoImpl) DeleteByIDs(ctx context.Context, ids []int64) (int64
 	affected := ret.RowsAffected
 	return affected, nil
 }
-func (r *UserAssetRepoImpl) UpdateZeroByAddress(ctx context.Context, address string) (int64, error){
-	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("address = ?",address).Update("balance","0")
+func (r *UserAssetRepoImpl) UpdateZeroByAddress(ctx context.Context, address string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("address = ?", address).Update("balance", "0")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update balance zero", err)

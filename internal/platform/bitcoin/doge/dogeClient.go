@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -76,7 +77,8 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	err := httpclient2.HttpsSignGetForm(url, nil, key, &balances)
 	if err == nil {
 		if len(balances) > 0 {
-			return balances[0].ConfirmedBalance, nil
+			btcValue := utils.StringDecimals(balances[0].ConfirmedBalance, 8)
+			return btcValue, nil
 		}
 	}
 	return "", err

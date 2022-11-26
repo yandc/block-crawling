@@ -257,6 +257,8 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			decimals = platInfo.Decimal
 			symbol = platInfo.NativeCurrency
+		} else {
+			return 0, "", errors.New("chain " + chainName + " is not support")
 		}
 	}
 	return decimals, symbol, nil
@@ -268,6 +270,8 @@ func PaseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			tokenInfo.Decimals = int64(platInfo.Decimal)
 			tokenInfo.Symbol = platInfo.NativeCurrency
+		} else {
+			return nil, errors.New("chain " + chainName + " is not support")
 		}
 	}
 	return tokenInfo, err

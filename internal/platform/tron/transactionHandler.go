@@ -140,6 +140,12 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 		fromUserAssetKey = chainName + record.FromAddress
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
+			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+				decimals = platInfo.Decimal
+				symbol = platInfo.NativeCurrency
+			} else {
+				continue
+			}
 			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
 			for i := 0; i < 10 && err != nil; i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)

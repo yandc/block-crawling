@@ -412,7 +412,7 @@ platform:
     getPriceKey: xdai
     handler: xDai
     icon: https://obstatic.243096.com/mili/images/currency/chain/XDAI.jpg
-    nativeCurrency: xDAI
+    nativeCurrency: xDai
     netType: main
     rpcURL:
       - https://rpc.ankr.com/gnosis
@@ -918,8 +918,8 @@ platformTest:
     fullName: Nervos Test Net
     getPriceKey: nervos-network
     handler: nervos
-    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
-    nativeCurrency: Nervos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Nervos.jpg
+    nativeCurrency: CKB
     netType: test
     proxyCacheTime: 0
     rpcURL:
