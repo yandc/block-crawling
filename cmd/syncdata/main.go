@@ -49,8 +49,10 @@ func main() {
 	defer cleanup()
 	//platform.MigrateRecord()
 	//platform.DappReset()
-	platform.BtcReset()
+	//platform.BtcReset()
 	//platform.HandleAsset()
 	//platform.HandleAssetByEventLog()
 	//platform.DeleteAsset()
+	platform.DeleteAndUpdateAsset()
+	platform.UpdateAsset()
 }

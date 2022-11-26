@@ -373,6 +373,12 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 
 		fromUserAssetKey := chainName + record.FromAddress
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
+			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+				decimals = int64(platInfo.Decimal)
+				symbol = platInfo.NativeCurrency
+			} else {
+				continue
+			}
 			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", int32(decimals), symbol, now)
 			for i := 0; i < 10 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), "Resource not found by Address("); i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)

@@ -1,9 +1,11 @@
 package platform
 
 import (
+	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/starcoin"
@@ -372,6 +374,131 @@ func BtcReset() {
 	}
 }
 
+func UpdateAsset() {
+	assetRequest := &pb.AssetRequest{
+		TokenAddressList: []string{""},
+	}
+	list, err := data.UserAssetRepoClient.List(nil, assetRequest)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		list, err = data.UserAssetRepoClient.List(nil, assetRequest)
+	}
+	if err != nil {
+		log.Error("更新用户资产，从数据库中查询用户资产失败", zap.Any("error", err))
+		return
+	}
+	if len(list) == 0 {
+		log.Info("更新用户资产，从数据库中查询用户资产为空", zap.Any("size", len(list)))
+		return
+	}
+
+	for _, userAsset := range list {
+		if platInfo, ok := biz.PlatInfoMap[userAsset.ChainName]; ok {
+			userAsset.Decimals = platInfo.Decimal
+			userAsset.Symbol = platInfo.NativeCurrency
+		}
+	}
+
+	count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, list, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, list, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("更新用户资产，将数据插入到数据库中失败", zap.Any("size", len(list)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("从userAsset中更新用户资产结束")
+}
+
+func DeleteAndUpdateAsset() {
+	assetRequest := &pb.AssetRequest{
+		TokenAddressList: []string{"0x0000000000000000000000000000000000000000"},
+	}
+	list, err := data.UserAssetRepoClient.List(nil, assetRequest)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		list, err = data.UserAssetRepoClient.List(nil, assetRequest)
+	}
+	if err != nil {
+		log.Error("删数据更新用户资产，从数据库中查询用户资产失败", zap.Any("error", err))
+		return
+	}
+	if len(list) == 0 {
+		log.Info("删数据更新用户资产，从数据库中查询用户资产为空", zap.Any("size", len(list)))
+		return
+	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("DeleteAndUpdateAsset error", e)
+			} else {
+				log.Errore("DeleteAndUpdateAsset panic", errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			for _, userAsset := range list {
+				userAsset.TokenAddress = "0x0000000000000000000000000000000000000000"
+			}
+			count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, list, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, list, biz.PAGE_SIZE)
+			}
+			log.Error("DeleteAndUpdateAsset 更新用户资产，将数据插入到数据库中失败", zap.Any("size", len(list)), zap.Any("count", count), zap.Any("error", err))
+			return
+		}
+	}()
+
+	var userAssetList []int64
+	for _, userAsset := range list {
+		userAssetList = append(userAssetList, userAsset.Id)
+	}
+
+	if len(userAssetList) > 0 {
+		total, err := data.UserAssetRepoClient.DeleteByIDs(nil, userAssetList)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			total, err = data.UserAssetRepoClient.DeleteByIDs(nil, userAssetList)
+		}
+		if err != nil {
+			log.Error("删数据，从数据库中删数用户资产失败", zap.Any("size", len(userAssetList)), zap.Any("total", total), zap.Any("error", err))
+		}
+	}
+	log.Info("删数据结束", zap.Any("size", len(userAssetList)))
+
+	for _, userAsset := range list {
+		userAsset.TokenAddress = ""
+	}
+	userAssets := list
+
+	log.Info("补数据更新用户资产中", zap.Any("size", len(userAssets)))
+	times := 0
+	for times < 3 {
+		userAssets = doHandleAsset(userAssets)
+		if len(userAssets) > 0 {
+			time.Sleep(time.Duration(300) * time.Second)
+		} else {
+			break
+		}
+		times++
+	}
+
+	if len(userAssets) > 0 {
+		for _, userAsset := range userAssets {
+			userAsset.TokenAddress = "0x0000000000000000000000000000000000000000"
+		}
+
+		count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+		}
+		log.Error("更新用户资产，将数据插入到数据库中失败", zap.Any("size", len(list)), zap.Any("count", count), zap.Any("error", err))
+	}
+
+	log.Info("从userAsset中补数据更新用户资产结束, times:" + strconv.Itoa(times))
+}
+
 func DeleteAsset() {
 	list, err := data.UserAssetRepoClient.ListAll(nil)
 	for i := 0; i < 3 && err != nil; i++ {
@@ -395,7 +522,10 @@ func DeleteAsset() {
 				chainType := biz.ChainNameType[userAsset.ChainName]
 				switch chainType {
 				case biz.EVM:
-					address := types2.HexToAddress(userAsset.Address).Hex()
+					address := userAsset.Address
+					if userAsset.Address != "" {
+						address = types2.HexToAddress(userAsset.Address).Hex()
+					}
 					tokenAddress := userAsset.TokenAddress
 					if userAsset.TokenAddress != "" {
 						tokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
@@ -420,7 +550,7 @@ func DeleteAsset() {
 			log.Error("删数据更新用户资产，从数据库中删数用户资产失败", zap.Any("size", len(userAssetList)), zap.Any("total", total), zap.Any("error", err))
 		}
 	}
-	log.Info("删数据更新用户资产", zap.Any("size", len(userAssetList)), zap.Any("error", err))
+	log.Info("删数据更新用户资产", zap.Any("size", len(userAssetList)))
 }
 
 type EvmTxRecord struct {
@@ -505,9 +635,18 @@ func HandleAssetByEventLog() {
 		}
 
 		for _, eventLog := range eventLogList {
-			fromAddress := types2.HexToAddress(eventLog.From).Hex()
-			toAddress := types2.HexToAddress(eventLog.To).Hex()
-			tokenAddress := types2.HexToAddress(eventLog.Token.Address).Hex()
+			fromAddress := eventLog.From
+			toAddress := eventLog.To
+			tokenAddress := eventLog.Token.Address
+			if eventLog.From != "" {
+				fromAddress = types2.HexToAddress(eventLog.From).Hex()
+			}
+			if eventLog.To != "" {
+				toAddress = types2.HexToAddress(eventLog.To).Hex()
+			}
+			if eventLog.Token.Address != "" {
+				tokenAddress = types2.HexToAddress(eventLog.Token.Address).Hex()
+			}
 
 			key := evmTxRecord.ChainName + fromAddress + tokenAddress
 			_, ok := userAssetMap[key]
@@ -574,7 +713,7 @@ func HandleAssetByEventLog() {
 		times++
 	}
 
-	log.Info("从eventLog中补数据更新用户资产结束")
+	log.Info("从eventLog中补数据更新用户资产结束, times:" + strconv.Itoa(times))
 }
 
 func HandleAsset() {
@@ -653,10 +792,18 @@ func HandleAsset() {
 		chainType := biz.ChainNameType[userAsset.ChainName]
 		switch chainType {
 		case biz.EVM:
-			userAsset.Address = types2.HexToAddress(userAsset.Address).Hex()
-			userAsset.TokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
+			if userAsset.Address != "" {
+				userAsset.Address = types2.HexToAddress(userAsset.Address).Hex()
+			}
+			if userAsset.TokenAddress != "" {
+				userAsset.TokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
+			}
 		case biz.STC:
 			if userAsset.TokenAddress == starcoin.STC_CODE {
+				userAsset.TokenAddress = ""
+			}
+		case biz.APTOS:
+			if userAsset.TokenAddress == aptos.APT_CODE {
 				userAsset.TokenAddress = ""
 			}
 		}
@@ -687,21 +834,10 @@ func HandleAsset() {
 		times++
 	}
 
-	log.Info("补数据更新用户资产结束")
+	log.Info("补数据更新用户资产结束, times:" + strconv.Itoa(times))
 }
 
 func doHandleAsset(userAssetList []*data.UserAsset) []*data.UserAsset {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("HandleAsset error, size:"+strconv.Itoa(len(userAssetList)), e)
-			} else {
-				log.Errore("HandleAsset panic, size:"+strconv.Itoa(len(userAssetList)), errors.New(fmt.Sprintf("%s", err)))
-			}
-			return
-		}
-	}()
-
 	var successUserAssetList []*data.UserAsset
 	var failedUserAssetList []*data.UserAsset
 
@@ -759,7 +895,7 @@ func doHandleAsset(userAssetList []*data.UserAsset) []*data.UserAsset {
 	count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, successUserAssetList, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, successUserAssetList, biz.PAGE_SIZE)
+		count, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, successUserAssetList, biz.PAGE_SIZE)
 	}
 	if err != nil {
 		log.Error("补数据更新用户资产，将数据插入到数据库中失败", zap.Any("size", len(userAssetList)), zap.Any("successSize", len(successUserAssetList)), zap.Any("failedSize", len(failedUserAssetList)), zap.Any("count", count), zap.Any("error", err))
@@ -773,7 +909,12 @@ func GetBalance(chainName string, uid string, address string, tokenAddress strin
 	var userAsset []*data.UserAsset
 	var err error
 
-	nodeURL := biz.PlatInfoMap[chainName].RpcURL
+	var nodeURL []string
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		nodeURL = platInfo.RpcURL
+	} else {
+		return nil, errors.New("chain " + chainName + " is not support")
+	}
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
 		c, err := ethereum.NewClient(url, chainName)
@@ -872,7 +1013,13 @@ func doHandleUserTokenAsset(chainName string, client ethereum.Client, uid string
 
 func GetStcBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
-	client := starcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0], chainName)
+	var nodeURL []string
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		nodeURL = platInfo.RpcURL
+	} else {
+		return nil, errors.New("chain " + chainName + " is not support")
+	}
+	client := starcoin.NewClient(nodeURL[0], chainName)
 	userAsset, err := handleStcUserAsset(chainName, client, uid, address, tokenAddress, nowTime)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -993,7 +1140,13 @@ func doHandleTrxUserAsset(chainName string, client tron.Client, uid string, addr
 
 func GetBtcBalance(chainName string, uid string, address string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
-	client := bitcoin.NewClient(biz.PlatInfoMap[chainName].RpcURL[0], chainName)
+	var nodeURL []string
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		nodeURL = platInfo.RpcURL
+	} else {
+		return nil, errors.New("chain " + chainName + " is not support")
+	}
+	client := bitcoin.NewClient(nodeURL[0], chainName)
 	userAsset, err := handleBtcUserAsset(chainName, client, uid, address, nowTime)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)

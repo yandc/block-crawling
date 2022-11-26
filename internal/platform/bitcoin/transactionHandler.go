@@ -300,8 +300,15 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.BtcTrans
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
-	var decimals int32 = 8
-	var symbol = "BTC"
+	var decimals int32
+	var symbol string
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		decimals = platInfo.Decimal
+		symbol = platInfo.NativeCurrency
+	} else {
+		return
+	}
+
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
