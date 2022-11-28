@@ -153,6 +153,10 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			continue
 		}
 
+		var tokenAddress = record.ContractAddress
+		if strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE {
+			tokenAddress = ""
+		}
 		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -167,7 +171,6 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 		decimals := tokenInfo.Decimals
 		symbol := tokenInfo.Symbol
 
-		tokenAddress := record.ContractAddress
 		if record.TransactionType == biz.NATIVE || tokenAddress == "" {
 			if record.FromAddress != "" && record.FromUid != "" {
 				_, ok := addressUidMap[record.FromAddress]
@@ -403,6 +406,9 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 			fundDirection = 3
 		}
 
+		if strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE {
+			tokenAddress = ""
+		}
 		price, err := biz.GetTokenPrice(nil, chainName, biz.CNY, tokenAddress)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
@@ -531,7 +537,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		if tokenAddress != "" && address != "" && uid != "" {
+		if tokenAddress != POLYGON_CODE && tokenAddress != "" && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,

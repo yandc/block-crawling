@@ -34,6 +34,7 @@ const DEPOSIT_TOPIC = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5
 const BLOCK_NO_TRANSCATION = "server returned empty transaction list but block header indicates transactions"
 const BLOCK_NONAL_TRANSCATION = "server returned non-empty transaction list but block header indicates no transactions"
 const TOO_MANY_REQUESTS = "429 Too Many Requests"
+const POLYGON_CODE = "0x0000000000000000000000000000000000001010"
 
 type Platform struct {
 	subhandle.CommPlatform
