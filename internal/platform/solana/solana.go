@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -143,4 +144,15 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 		}
 	}
 	return nil
+}
+
+var monitorHeightSeq uint64
+
+func (p *Platform) MonitorHeight() {
+	// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
+	seq := atomic.AddUint64(&monitorHeightSeq, 1)
+	if seq == 60 {
+		p.CommPlatform.MonitorHeight()
+		atomic.StoreUint64(&monitorHeightSeq, 0)
+	}
 }
