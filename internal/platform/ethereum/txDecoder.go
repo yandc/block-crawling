@@ -461,7 +461,8 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogs []types.EventLog, tokenId string) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogList []types.EventLog, tokenId string) {
+	var eventLogs []*types.EventLog
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) <= 1 {
 			continue
@@ -636,13 +637,48 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		}
 
-		eventLog := types.EventLog{
+		eventLogInfo := &types.EventLog{
 			From:   fromAddress,
 			To:     toAddress,
 			Amount: amount,
 			Token:  token,
 		}
-		eventLogs = append(eventLogs, eventLog)
+
+		var isContinue bool
+		for i, eventLog := range eventLogs {
+			if eventLog == nil {
+				continue
+			}
+			if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address {
+				cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+				if cmp == 1 {
+					isContinue = true
+					subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+					eventLogs[i].Amount = subAmount
+				} else if cmp == 0 {
+					isContinue = true
+					eventLogs[i] = nil
+				} else if cmp == -1 {
+					eventLogs[i] = nil
+				}
+				break
+			} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address {
+				isContinue = true
+				addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+				eventLogs[i].Amount = addAmount
+				break
+			}
+		}
+		if isContinue {
+			continue
+		}
+		eventLogs = append(eventLogs, eventLogInfo)
+	}
+
+	for _, eventLog := range eventLogs {
+		if eventLog != nil {
+			eventLogList = append(eventLogList, *eventLog)
+		}
 	}
 	return
 }
