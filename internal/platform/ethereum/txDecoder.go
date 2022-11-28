@@ -163,7 +163,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	meta := job.meta
 	receipt := job.receipt
 
-	var feeAmount string
+	var feeAmount decimal.Decimal
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
 	var eventLogs []types.EventLog
@@ -211,23 +211,35 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 						if meta.TransactionType == biz.TRANSFERFROM {
 							meta.TransactionType = biz.TRANSFER
 						}
-						tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
-						for i := 0; i < 3 && err != nil; i++ {
-							time.Sleep(time.Duration(i*1) * time.Second)
+						//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
+						if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
+							(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+							meta.TransactionType = biz.NATIVE
+						} else {
 							tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
+							for i := 0; i < 3 && err != nil; i++ {
+								time.Sleep(time.Duration(i*1) * time.Second)
+								tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
+							}
+							if err != nil {
+								// nodeProxy出错 接入lark报警
+								alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+								alarmOpts := biz.WithMsgLevel("FATAL")
+								biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+								log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+							}
+							if err != nil || tokenInfo.Decimals == 0 || tokenInfo.Symbol == "" {
+								meta.TransactionType = biz.CONTRACT
+							}
+							tokenInfo.Amount = amount
 						}
-						if err != nil {
-							// nodeProxy出错 接入lark报警
-							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-							alarmOpts := biz.WithMsgLevel("FATAL")
-							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-						}
-						if err != nil || tokenInfo.Decimals == 0 || tokenInfo.Symbol == "" {
-							meta.TransactionType = biz.CONTRACT
-						}
-						tokenInfo.Amount = meta.Value
 					}
+				}
+			} else {
+				//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
+				if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
+					(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+					meta.TransactionType = biz.NATIVE
 				}
 			}
 		} else if meta.TransactionType == biz.SETAPPROVALFORALL {
@@ -314,7 +326,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			maxPriorityFeePerGas = transaction.GasTipCap().String()
 		}
 	}
-	feeAmount = new(big.Int).Mul(gasUsedInt, gasPriceInt).String()
 	status := biz.PENDING
 	if receipt.Status == "0x0" {
 		status = biz.FAIL
@@ -323,8 +334,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
 	bn := int(intBlockNumber.Int64())
-	fa, _ := decimal.NewFromString(feeAmount)
-	at, _ := decimal.NewFromString(amount)
+	feeAmount = decimal.NewFromBigInt(new(big.Int).Mul(gasUsedInt, gasPriceInt), 0)
+	amountValue, _ := decimal.NewFromString(amount)
 	var eventLog string
 	if eventLogs != nil {
 		eventLogJson, _ := json.Marshal(eventLogs)
@@ -350,8 +361,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		ToAddress:            meta.ToAddress,
 		FromUid:              meta.User.FromUid,
 		ToUid:                meta.User.ToUid,
-		FeeAmount:            fa,
-		Amount:               at,
+		FeeAmount:            feeAmount,
+		Amount:               amountValue,
 		Status:               status,
 		TxTime:               h.block.Time,
 		ContractAddress:      tokenInfo.Address,
@@ -408,7 +419,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				ToAddress:            eventLog.To,
 				FromUid:              eventFromUid,
 				ToUid:                eventToUid,
-				FeeAmount:            fa,
+				FeeAmount:            feeAmount,
 				Amount:               amountValue,
 				Status:               status,
 				TxTime:               h.block.Time,
