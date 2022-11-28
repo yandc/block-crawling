@@ -219,8 +219,6 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			}
 		}
 
-
-
 		ds := strconv.FormatInt(da.Decimals, 10)
 		status := ""
 		if da.Amount == "0" {
@@ -245,7 +243,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			DappInfo:        dappInfo,
 			TxTime:          da.TxTime,
 		}
-		if parseData !=""{
+		if parseData != "" {
 			tokenInfo, _ := PaseTokenInfo(parseData)
 			dif.DappType = tokenInfo.TokenType
 			dif.CollectionName = tokenInfo.CollectionName
@@ -820,7 +818,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	}
 	//分组 根据 token 然后sum出结果 过滤出amount len > 40的
 	total := data.DappApproveRecordRepoClient.GetDappListPageCount(ctx, req)
-	log.Info("jlxd-2",zap.Any("dapptotal", len(dapps)))
+	log.Info("jlxd-2", zap.Any("dapptotal", len(dapps)))
 
 	if len(dapps) == 0 {
 		return &pb.DappPageListResp{
@@ -856,7 +854,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 				}
 
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
-				log.Info("jlxd-3",zap.Any("evm", evm))
+				log.Info("jlxd-3", zap.Any("evm", evm))
 
 				if err == nil && evm != nil {
 					var r *pb.TransactionRecord
@@ -1117,7 +1115,9 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 	chainType := chain2Type[req.ChainName]
 	switch chainType {
 	case EVM:
-		req.Address = types2.HexToAddress(req.Address).Hex()
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
 	}
 
@@ -1279,8 +1279,12 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 	chainType := chain2Type[req.ChainName]
 	switch chainType {
 	case EVM:
-		req.Address = types2.HexToAddress(req.Address).Hex()
-		req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+		if req.TokenAddress != "" {
+			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+		}
 	}
 
 	var result = &pb.NftBalanceResponse{}
