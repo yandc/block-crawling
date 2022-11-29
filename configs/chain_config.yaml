@@ -147,7 +147,17 @@ platform:
     proxyCacheTime: 15
     proxyKey: gasOracleBsc
     rpcURL:
-    - https://bsc-dataseed.binance.org/
+    - https://rpc.ankr.com/bsc
+    - https://bsc.mytokenpocket.vip
+    - https://bsc-dataseed4.defibit.io
+    - https://bscrpc.com
+    - https://bsc-dataseed1.defibit.io
+    - https://bsc-mainnet.public.blastapi.io
+    - https://bsc-dataseed2.defibit.io
+    - https://rpc-bsc.bnb48.club
+    - https://bsc-dataseed3.defibit.io
+    - https://binance.ankr.com
+    - https://bsc-dataseed.binance.org
     - https://bsc-dataseed1.binance.org
     - https://bsc-dataseed2.binance.org
     - https://bsc-dataseed3.binance.org
@@ -156,13 +166,7 @@ platform:
     - https://bsc-dataseed2.ninicoin.io
     - https://bsc-dataseed3.ninicoin.io
     - https://bsc-dataseed4.ninicoin.io
-    - https://bsc-dataseed1.defibit.io
-    - https://bsc-dataseed2.defibit.io
-    - https://bsc-dataseed3.defibit.io
-    - https://bsc-dataseed4.defibit.io
-    - https://binance.ankr.com
-    - https://rpc.ankr.com/bsc
-    - https://rpc.onekey.so/bsc
+
     symbol: BSC
     type: EVM
     safelyConcurrentBlockDelta: 100
