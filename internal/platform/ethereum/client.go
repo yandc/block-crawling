@@ -241,15 +241,22 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (er
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "252f7b01" { // optimistic链 Contract
+			} else if methodId == "252f7b01" { // Optimism和BSC链 Contract
 				transactionType = biz.CONTRACT
-				if len(data) >= 68 {
-					realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-					fromAddress = fromAddress + "," + realFromAddress
-				}
-				if len(data) >= 389 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
-					toAddress = toAddress + "," + realToAddress
+				if strings.HasPrefix(c.chainName, "Optimism") {
+					if len(data) >= 68 {
+						realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+						fromAddress = fromAddress + "," + realFromAddress
+					}
+					if len(data) >= 389 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
+				} else if strings.HasPrefix(c.chainName, "BSC") {
+					if len(data) >= 790 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[758:790])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
 				}
 			}
 		}
