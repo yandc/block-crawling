@@ -358,12 +358,13 @@ type Event struct {
 		PackageId         string `json:"packageId"`
 		TransactionModule string `json:"transactionModule"`
 		Sender            string `json:"sender"`
-		Recipient         struct {
+		/*Recipient         struct {
 			AddressOwner string `json:"AddressOwner"`
-		} `json:"recipient"`
-		ObjectType string `json:"objectType"`
-		ObjectId   string `json:"objectId"`
-		Version    int    `json:"version"`
+		} `json:"recipient"`*/
+		Recipient  interface{} `json:"recipient"`
+		ObjectType string      `json:"objectType"`
+		ObjectId   string      `json:"objectId"`
+		Version    int         `json:"version"`
 	} `json:"transferObject,omitempty"`
 	MoveEvent *struct {
 		PackageId         string `json:"packageId"`
