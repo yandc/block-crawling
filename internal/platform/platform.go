@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/nervos"
 	"block-crawling/internal/platform/solana"
@@ -90,7 +91,8 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 			data.GormlDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
 		case biz.NERVOS:
 			data.GormlDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
-
+		case biz.COSMOS:
+			data.GormlDb.Table(chain).AutoMigrate(&data.AtomTransactionRecord{})
 		}
 	}
 }
@@ -122,6 +124,8 @@ func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
 		return solana.Init(coins.Solana().Handle, value, nodeURL, height)
 	case biz.NERVOS:
 		return nervos.Init(coins.Nervos().Handle, value, nodeURL, height)
+	case biz.COSMOS:
+		return cosmos.Init(coins.Cosmos().Handle, value, nodeURL, height)
 	}
 	return nil
 }

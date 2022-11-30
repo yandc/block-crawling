@@ -142,10 +142,12 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 	if strings.HasSuffix(tx.Error, " No such mempool or blockchain transaction") {
 		nowTime := time.Now().Unix()
 		if record.CreatedAt+300 > nowTime {
-			status := biz.NO_STATUS
-			record.Status = status
-			record.UpdatedAt = h.now
-			h.txRecords = append(h.txRecords, record)
+			if record.Status == biz.PENDING {
+				status := biz.NO_STATUS
+				record.Status = status
+				record.UpdatedAt = h.now
+				h.txRecords = append(h.txRecords, record)
+			}
 		} else {
 			status := biz.FAIL
 			record.Status = status
