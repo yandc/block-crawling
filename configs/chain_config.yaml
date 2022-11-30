@@ -587,7 +587,7 @@ platform:
     coinId: 118
     decimal: 6
     fullName: Cosmos
-    getPriceKey: cosmos-network
+    getPriceKey: cosmos
     handler: cosmos
     icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
     nativeCurrency: ATOM
@@ -969,7 +969,7 @@ platformTest:
     coinId: 118
     decimal: 6
     fullName: Cosmos Test Net
-    getPriceKey: cosmos-network
+    getPriceKey: cosmos
     handler: cosmos
     icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
     nativeCurrency: ATOM
