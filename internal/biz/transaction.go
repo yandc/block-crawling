@@ -608,6 +608,53 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 				}
 			}
 		}
+	case COSMOS:
+		cosmos := make(map[string]interface{})
+		nonce := ""
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &cosmos); jsonErr == nil {
+			evmMap := cosmos["cosmos"]
+			ret := evmMap.(map[string]interface{})
+			if _, ok := ret["sequence_number"].(float64); ok {
+				decimal := ret["sequence_number"].(float64)
+				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
+			}
+			if _, ok := ret["sequence_number"].(string); ok {
+				nonce = ret["sequence_number"].(string)
+			}
+		}
+		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
+
+		atomRecord := &data.AtomTransactionRecord{
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			Nonce:           int64(dbNonce),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			GasLimit:        paseJson["gas_limit"],
+			GasUsed:         paseJson["gas_used"],
+			GasPrice:        paseJson["gas_price"],
+			Data:            pbb.Data,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+
+		result, err = data.AtomTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), atomRecord)
+		if result == 1 {
+			key := pendingNonceKey + nonce
+			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
+			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
+		}
 	}
 
 	flag := result == 1
@@ -690,6 +737,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	case SOLANA:
 		var recordList []*data.SolTransactionRecord
 		recordList, total, err = data.SolTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case COSMOS:
+		var recordList []*data.AtomTransactionRecord
+		recordList, total, err = data.AtomTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}

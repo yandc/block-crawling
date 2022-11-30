@@ -43,6 +43,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, co
 	/*suiTransactionRecordRepo := */ data.NewSuiTransactionRecordRepo(gormDB)
 	/*solTransactionRecordRepo := */ data.NewSolTransactionRecordRepo(gormDB)
 	/*ckbTransactionRecordRepo := */ data.NewCkbTransactionRecordRepo(gormDB)
+	/*atomTransactionRecordRepo := */ data.NewAtomTransactionRecordRepo(gormDB)
 	data.NewDappApproveRecordRepo(gormDB)
 	data.NewUserAssetRepo(gormDB)
 	data.NewUserNftAssetRepo(gormDB)

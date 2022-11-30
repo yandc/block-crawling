@@ -578,6 +578,33 @@ platform:
     maxConcurrency: 1
     monitorHeightAlarmThr: 300
 
+  Cosmos:
+    blockExplorerAddrUrl: https://www.mintscan.io/cosmos/account
+    blockExplorerTxUrl: https://www.mintscan.io/cosmos/txs
+    blockExplorerUrl: https://www.mintscan.io/cosmos
+    chain: Cosmos
+    chainId: cosmoshub-4
+    coinId: 118
+    decimal: 6
+    fullName: Cosmos
+    getPriceKey: cosmos-network
+    handler: cosmos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
+    nativeCurrency: ATOM
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://api.cosmos.network
+      - https://cosmos-mainnet-rpc.allthatnode.com:1317
+      - https://us-atom-restapi.binancechain.io
+      - https://lcd-cosmoshub.keplr.app
+      - https://rest.cosmos.directory/cosmoshub
+    symbol: Cosmos
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 2
+    monitorHeightAlarmThr: 100
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
@@ -933,3 +960,25 @@ platformTest:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 1
     monitorHeightAlarmThr: 300
+  CosmosTEST:
+    blockExplorerAddrUrl: https://explorer.theta-testnet.polypore.xyz/accounts
+    blockExplorerTxUrl: https://explorer.theta-testnet.polypore.xyz/transactions
+    blockExplorerUrl: https://explorer.theta-testnet.polypore.xyz
+    chain: CosmosTEST
+    chainId: cosmoshub-4
+    coinId: 118
+    decimal: 6
+    fullName: Cosmos Test Net
+    getPriceKey: cosmos-network
+    handler: cosmos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
+    nativeCurrency: ATOM
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://cosmos-testnet-rpc.allthatnode.com:1317
+    symbol: Cosmos
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 2
+    monitorHeightAlarmThr: 100
