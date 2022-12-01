@@ -121,6 +121,8 @@ message DappPageListReq{
   string orderBy = 7;
   int32 dataDirection = 8 [(validate.rules).int32 = {in: [0, 1, 2]}];
   int64 startIndex = 9 [(validate.rules).int64.gte = 0];
+  string dappType = 10 ;
+
 }
 
 message DappPageListResp{
@@ -172,6 +174,7 @@ message DappListReq {
   string contractAddress = 4;// -- 非必输
   bool isCancel = 5 ;
   string isCancelStatus = 6 ;
+  string dappType = 7 ;
 }
 
 

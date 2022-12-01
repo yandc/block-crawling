@@ -22,6 +22,7 @@ type DappApproveRecord struct {
 	Original   string `json:"original" form:"original" sql:"type:text;"`
 	Symbol     string `json:"symbol" form:"symbol" gorm:"type:character varying(32);"`
 	TxTime     int64  `json:"txTime" form:"txTime"`
+	ErcType    string `json:"ercType" form:"ercType" gorm:"type:character varying(12);"`
 }
 
 func (dappApproveRecord DappApproveRecord) TableName() string {
@@ -137,6 +138,10 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 	if req.Fromuid != "" {
 		tx = tx.Where("uid = ?", req.Fromuid)
 	}
+	if req.DappType != ""{
+		tx = tx.Where("erc_type = ?",req.DappType)
+	}
+
 	if req.DataDirection > 0 {
 		dataDirection := ">"
 		if req.DataDirection == 1 {
@@ -170,6 +175,9 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageCount(ctx context.Context, re
 	}
 	if req.Fromuid != "" {
 		tx = tx.Where("uid = ?", req.Fromuid)
+	}
+	if req.DappType != ""{
+		tx = tx.Where("erc_type = ?",req.DappType)
 	}
 	tx.Count(&count)
 	return count

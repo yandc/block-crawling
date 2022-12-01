@@ -175,6 +175,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 		//查询
 		dappInfo := ""
 		parseData := ""
+		transcationType := ""
 		chainType := chain2Type[da.ChainName]
 		switch chainType {
 		case EVM:
@@ -182,41 +183,49 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && evm != nil {
 				dappInfo = evm.DappData
 				parseData = evm.ParseData
+				transcationType = evm.TransactionType
 			}
 		case STC:
 			stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && stc != nil {
 				dappInfo = stc.DappData
 				parseData = stc.ParseData
-
+				transcationType = stc.TransactionType
 			}
 		case TVM:
 			tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && tvm != nil {
 				dappInfo = tvm.DappData
 				parseData = tvm.ParseData
-
+				transcationType = tvm.TransactionType
 			}
 		case APTOS:
 			apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && apt != nil {
 				dappInfo = apt.DappData
 				parseData = apt.ParseData
-
+				transcationType = apt.TransactionType
 			}
 		case SUI:
 			sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && sui != nil {
 				dappInfo = sui.DappData
 				parseData = sui.ParseData
-
+				transcationType = sui.TransactionType
 			}
 		case SOLANA:
 			sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(da.ChainName), da.LastTxhash)
 			if err == nil && sol != nil {
 				dappInfo = sol.DappData
 				parseData = sol.ParseData
+				transcationType = sol.TransactionType
 			}
+		}
+		if req.DappType == "approveNFT" && transcationType != req.DappType{
+			continue
+		}
+		if req.DappType == "approve" && transcationType == "approveNFT"{
+			continue
 		}
 
 		ds := strconv.FormatInt(da.Decimals, 10)
@@ -861,7 +870,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	//}
 
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
-	log.Info("jlxd-1", zap.Any("dapp", dapps))
 
 	if err != nil {
 		log.Errore("返回授权dapp列表报错！", err)
@@ -871,7 +879,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	}
 	//分组 根据 token 然后sum出结果 过滤出amount len > 40的
 	total := data.DappApproveRecordRepoClient.GetDappListPageCount(ctx, req)
-	log.Info("jlxd-2", zap.Any("dapptotal", len(dapps)))
 
 	if len(dapps) == 0 {
 		return &pb.DappPageListResp{
@@ -907,9 +914,14 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 				}
 
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
-				log.Info("jlxd-3", zap.Any("evm", evm))
 
 				if err == nil && evm != nil {
+					if req.DappType == "approveNFT" && evm.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && evm.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
 					feeData["gas_limit"] = r.GasLimit
@@ -928,6 +940,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case STC:
 				stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && stc != nil {
+					if req.DappType == "approveNFT" && stc.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && stc.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(stc, &r)
 					r.ChainName = value.ChainName
@@ -943,6 +961,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case TVM:
 				tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && tvm != nil {
+					if req.DappType == "approveNFT" && tvm.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && tvm.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(tvm, &r)
 					r.ChainName = value.ChainName
@@ -958,6 +982,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case APTOS:
 				apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && apt != nil {
+					if req.DappType == "approveNFT" && apt.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && apt.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(apt, &r)
 					r.ChainName = value.ChainName
@@ -973,6 +1003,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case SUI:
 				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && sui != nil {
+					if req.DappType == "approveNFT" && sui.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && sui.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(sui, &r)
 					r.ChainName = value.ChainName
@@ -987,6 +1023,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case SOLANA:
 				sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && sol != nil {
+					if req.DappType == "approveNFT" && sol.TransactionType != req.DappType{
+						continue
+					}
+					if req.DappType == "approve" && sol.TransactionType == "approveNFT"{
+						continue
+					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(sol, &r)
 					r.ChainName = value.ChainName
