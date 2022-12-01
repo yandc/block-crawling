@@ -29,7 +29,7 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 	}()
 	for _, record := range txRecords {
 		if record.TransactionType == "approveNFT" {
-			log.Info("nftYD",zap.Any(record.TransactionHash,record))
+			log.Info("nftYD", zap.Any(record.TransactionHash, record))
 			dar := &data.DappApproveRecord{
 				Uid:        record.FromUid,
 				LastTxhash: record.TransactionHash,
@@ -38,6 +38,7 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 				Token:      record.ContractAddress,
 				ToAddress:  record.ToAddress,
 				TxTime:     record.TxTime,
+				ErcType:    "approveNFT",
 			}
 
 			paseJson := make(map[string]interface{})
@@ -55,10 +56,10 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 							dar.Decimals = int64(ds)
 						}
 						//全部授权
-						if am == "1"{
+						if am == "1" {
 							//nft 全部授权 无敞口，敞口金额长度大于40位
 							dar.Amount = "90000000009000000000900000000090000000009000000000"
-						}else {
+						} else {
 							dar.Amount = am
 						}
 
@@ -67,8 +68,8 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 					}
 				}
 			}
-			ret,err := data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
-			log.Info("nftYD-1",zap.Any(record.TransactionHash,ret),zap.Any("err",err))
+			ret, err := data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
+			log.Info("nftYD-1", zap.Any(record.TransactionHash, ret), zap.Any("err", err))
 		}
 	}
 }
@@ -103,6 +104,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 				Token:      record.ContractAddress,
 				ToAddress:  record.ToAddress,
 				TxTime:     record.TxTime,
+				ErcType:    "approve",
 			}
 
 			paseJson := make(map[string]interface{})
@@ -155,6 +157,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			dar.Token = log_.ContractAddress
 			dar.LastTxhash = v.TransactionHash
 			dar.TxTime = v.TxTime
+			dar.ErcType = "approve"
 			paseJson := make(map[string]interface{})
 			if jsonErr := json.Unmarshal([]byte(log_.ParseData), &paseJson); jsonErr == nil {
 				tokenMap := paseJson["token"]

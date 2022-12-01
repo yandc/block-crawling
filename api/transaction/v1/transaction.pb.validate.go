@@ -1284,6 +1284,8 @@ func (m *DappPageListReq) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	// no validation rules for DappType
+
 	if len(errors) > 0 {
 		return DappPageListReqMultiError(errors)
 	}
@@ -2238,6 +2240,8 @@ func (m *DappListReq) validate(all bool) error {
 	// no validation rules for IsCancel
 
 	// no validation rules for IsCancelStatus
+
+	// no validation rules for DappType
 
 	if len(errors) > 0 {
 		return DappListReqMultiError(errors)

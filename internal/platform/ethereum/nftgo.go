@@ -94,15 +94,15 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 		nftRecords = append(nftRecords, nrh)
 	}
 
-	if len(nftRecords) > 0 {
-		_, err := data.NftRecordHistoryRepoClient.SaveOrUpdate(nil, nftRecords)
-		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链nft流转记录插入数据库失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		}
-
-	}
+	//if len(nftRecords) > 0 {
+	//	_, err := data.NftRecordHistoryRepoClient.SaveOrUpdate(nil, nftRecords)
+	//	if err != nil {
+	//		// 更新用户资产出错 接入lark报警
+	//		alarmMsg := fmt.Sprintf("请注意：%s链nft流转记录插入数据库失败", chainName)
+	//		alarmOpts := biz.WithMsgLevel("FATAL")
+	//		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	//	}
+	//
+	//}
 	return true
 }
