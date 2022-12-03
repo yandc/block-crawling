@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/platform/common"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -373,11 +374,11 @@ func (c *Client) cellKey(txHash string, index int) string {
 // GetBlockHeight get current block height.
 // 块上链时，交易可能未完成。安全区块高度为 20 块，所以这样处理
 func (c *Client) GetBlockHeight() (uint64, error) {
-	h,err := c.client.GetTipBlockNumber(context.Background())
-	if h > 20{
+	h, err := c.client.GetTipBlockNumber(context.Background())
+	if h > 20 {
 		h = h - 20
 	}
-	return h,err
+	return h, err
 }
 
 // GetTxByHash get transaction by given tx hash.
@@ -408,6 +409,9 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	txs, err := c.convertRawTxs([]*types.Transaction{rawTx.Transaction}, blockNumber)
 	if err != nil {
 		return nil, err
+	}
+	if len(txs) == 0 {
+		return nil, errors.New("not found")
 	}
 	wrapper := txs[0].Raw.(*txWrapper)
 	wrapper.header = header

@@ -102,3 +102,15 @@ func TestU128TokenAmount(t *testing.T) {
 		t.Fatal(amount)
 	}
 }
+
+func TestTxByHash(t *testing.T) {
+	client, err := NewClient("Nervos", "https://rpc.ankr.com/nervos_ckb")
+	if err != nil {
+		t.Fatalf("failed create client %s", err)
+	}
+	tx, err := client.GetTxByHash("0x5cf0ab4924177ea2882affee9b002e4430edeaa819f3dec6f7d07f739ba189ba")
+	if err != nil {
+		t.Fail()
+	}
+	t.Logf("tx %v", tx)
+}
