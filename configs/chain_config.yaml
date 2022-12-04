@@ -982,3 +982,27 @@ platformTest:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
+  zkSyncTEST:
+    blockExplorerAddrUrl: https://goerli.explorer.zksync.io/address
+    blockExplorerTxUrl: https://goerli.explorer.zksync.io/tx
+    blockExplorerUrl: https://goerli.explorer.zksync.io
+    categoryName: EVM
+    chain: zkSyncTEST
+    chainId: 280
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: zkSync Test Net
+    getPriceKey: ethereum
+    handler: zksync
+    icon: https://obstatic.243096.com/mili/images/currency/chain/zkSync.jpeg
+    nativeCurrency: ETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://zksync2-testnet.zksync.dev
+    symbol: zkSync
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 100

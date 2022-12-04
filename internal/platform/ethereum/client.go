@@ -91,7 +91,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 
 	block, err := c.GetBlockByNumber(context.Background(), big.NewInt(int64(height)))
 	if err != nil {
-		if err == ethereum.NotFound && isNonstandardEVM(c.chainName) {
+		if err == ethereum.NotFound /* && isNonstandardEVM(c.chainName)*/ {
 			return nil, errors.New("block not found") // retry on next node
 		}
 
@@ -131,13 +131,10 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	}, nil
 }
 
-func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (err error) {
-	var from common.Address
+func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error) {
+	var from *common.Address
 	var toAddress string
-	from, err = types2.Sender(types2.NewLondonSigner(tx.ChainId()), tx)
-	if err != nil {
-		from, err = types2.Sender(types2.HomesteadSigner{}, tx)
-	}
+	from = tx.From
 	if tx.To() != nil {
 		toAddress = tx.To().String()
 	}
@@ -150,7 +147,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *types2.Transaction) (er
 		if methodId == "a9059cbb" || methodId == "095ea7b3" || methodId == "a22cb465" {
 			toAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			amount := new(big.Int).SetBytes(data[36:])
-			if methodId == "a9059cbb" {
+			if methodId == "a9059cbb" { // ERC20
 				transactionType = biz.TRANSFER
 			} else if methodId == "095ea7b3" { // ERC20 or ERC721
 				transactionType = biz.APPROVE
@@ -273,7 +270,7 @@ func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
 	return c.BlockNumber(ctx)
 }
 
-func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*types2.Block, error) {
+func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
 	return c.BlockByNumber(ctx, number)
 }
 
@@ -307,8 +304,8 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
 	tx = &chain.Transaction{
 		Hash:        txByHash.Hash().Hex(),
-		Nonce:       uint64(txByHash.Nonce()),
-		BlockNumber: uint64(intBlockNumber.Uint64()),
+		Nonce:       txByHash.Nonce(),
+		BlockNumber: intBlockNumber.Uint64(),
 
 		TxType:      "",
 		FromAddress: "",
@@ -322,14 +319,9 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	return tx, nil
 }
 
-func (c *Client) GetBalance(address string) (string, error) {
-	account := common.HexToAddress(address)
-	balance, err := c.BalanceAt(context.Background(), account, nil)
-	if err != nil {
-		return "", err
-	}
-	ethValue := utils.BigIntString(balance, 18)
-	return ethValue, err
+// 1
+func (c *Client) GetTransactionByHash(ctx context.Context, txHash common.Hash) (*Transaction, bool, error) {
+	return c.TransactionByHash(ctx, txHash)
 }
 
 // Receipt represents the results of a transaction.
@@ -340,9 +332,9 @@ type Receipt struct {
 	Status            string        `json:"status,omitempty"`
 	From              string        `json:"from,omitempty"`
 	To                string        `json:"to,omitempty"`
-	CumulativeGasUsed string        `json:"cumulativeGasUsed" gencodec:"required"`
+	CumulativeGasUsed string        `json:"cumulativeGasUsed"` //`json:"cumulativeGasUsed" gencodec:"required"`
 	EffectiveGasPrice string        `json:"effectiveGasPrice,omitempty"`
-	Bloom             string        `json:"logsBloom" gencodec:"required"`
+	Bloom             string        `json:"logsBloom"` //`json:"logsBloom" gencodec:"required"`
 	Logs              []*types2.Log `json:"logs" gencodec:"required"`
 
 	// Implementation fields: These fields are added by geth when processing a transaction.
@@ -372,15 +364,20 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) 
 	return r, err
 }
 
-// 1
-func (c *Client) GetTransactionByHash(ctx context.Context, txHash common.Hash) (*types2.Transaction, bool, error) {
-	return c.TransactionByHash(ctx, txHash)
-}
-
 // client.TransactionSender(ctx,tx,block.Hash(),r.TransactionIndex)
 func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transaction, block common.Hash,
 	index uint) (common.Address, error) {
 	return c.TransactionSender(ctx, tx, block, index)
+}
+
+func (c *Client) GetBalance(address string) (string, error) {
+	account := common.HexToAddress(address)
+	balance, err := c.BalanceAt(context.Background(), account, nil)
+	if err != nil {
+		return "", err
+	}
+	ethValue := utils.BigIntString(balance, 18)
+	return ethValue, err
 }
 
 func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map[string]interface{}, error) {
@@ -514,7 +511,7 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 //
 // Note that loading full blocks requires two requests. Use HeaderByHash
 // if you don't need all transactions or uncle headers.
-func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types2.Block, error) {
+func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
 	return c.getBlock(ctx, "eth_getBlockByHash", hash, true)
 }
 
@@ -523,6 +520,6 @@ func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types2.Blo
 //
 // Note that loading full blocks requires two requests. Use HeaderByNumber
 // if you don't need all transactions or uncle headers.
-func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types2.Block, error) {
+func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
 	return c.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }

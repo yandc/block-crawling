@@ -24,8 +24,7 @@ data:
 app:
   # Possible values: "debug", "release"
   #  mode: "debug"
-  mode: "ETHGoerliTEST,BSCTEST,AptosTEST,SuiTEST,NervosTEST"
-  #  mode: "AptosTEST"
+  mode: "ETHGoerliTEST,BSCTEST,AptosTEST,SuiTEST,NervosTEST,zkSyncTEST"
   scanAll: false
   addr: 127.0.0.1:9001
   starScan: true
@@ -41,13 +40,13 @@ app:
     - "Bearer bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn"
 
 lark:
-
   larkAlarmTitle: "BlockCrawling 测试环境"
   larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
 #  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
   larkAtList: "9674c624"
   lockNum: 64
+
 logger:
   DEBUG: true
   fileName: "block-crawling.log"

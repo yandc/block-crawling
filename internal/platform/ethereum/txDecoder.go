@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gorm.io/datatypes"
 	"math/big"
@@ -40,54 +41,54 @@ type txDecoder struct {
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
-	transaction := tx.Raw.(*types2.Transaction)
+	transaction := tx.Raw.(*Transaction)
 	client := c.(*Client)
 
-	start := time.Now()
-	if err := h.doOnNewTx(client, block, tx, transaction); err != nil {
-		return err
-	}
+	/*start := time.Now()
+		if err := h.doOnNewTx(client, block, tx, transaction); err != nil {
+			return err
+		}
 
-	handleTxElapsed := time.Now().Sub(start).String()
+		handleTxElapsed := time.Now().Sub(start).String()
 
-	var updateHashElapsed string
-	if h.blockHash == "" {
-		start := time.Now()
-		hash, err := h.getBlockHashFromReceipt(client, transaction)
-		updateHashElapsed = time.Now().Sub(start).String()
-		if err != nil {
+		var updateHashElapsed string
+		if h.blockHash == "" {
+			start := time.Now()
+			hash, err := h.getBlockHashFromReceipt(client, transaction)
+			updateHashElapsed = time.Now().Sub(start).String()
+			if err != nil {
+				log.Debug(
+					"UPDATE BLOCK HASH FROM RECEIPT FAILED WITH ERROR",
+					zap.String("chainName", h.chainName),
+					zap.Uint64("height", block.Number),
+					zap.String("prevHash", block.Hash),
+					zap.String("postHash", h.blockHash),
+					zap.String("updateHashElapsed", updateHashElapsed),
+					zap.String("handleTxElapsed", handleTxElapsed),
+					zap.Error(err),
+				)
+				return err
+			}
+			h.blockHash = hash
+		}
+
+		// Use block hash in receipt to fix block hash mismatch
+		if h.blockHashRetrieved && h.blockHash != block.Hash {
 			log.Debug(
-				"UPDATE BLOCK HASH FROM RECEIPT FAILED WITH ERROR",
+				"UPDATE BLOCK HASH FROM RECEIPT",
 				zap.String("chainName", h.chainName),
 				zap.Uint64("height", block.Number),
 				zap.String("prevHash", block.Hash),
 				zap.String("postHash", h.blockHash),
 				zap.String("updateHashElapsed", updateHashElapsed),
 				zap.String("handleTxElapsed", handleTxElapsed),
-				zap.Error(err),
 			)
-			return err
+			block.Hash = h.blockHash
 		}
-		h.blockHash = hash
+		return nil
 	}
 
-	// Use block hash in receipt to fix block hash mismatch
-	if h.blockHashRetrieved && h.blockHash != block.Hash {
-		log.Debug(
-			"UPDATE BLOCK HASH FROM RECEIPT",
-			zap.String("chainName", h.chainName),
-			zap.Uint64("height", block.Number),
-			zap.String("prevHash", block.Hash),
-			zap.String("postHash", h.blockHash),
-			zap.String("updateHashElapsed", updateHashElapsed),
-			zap.String("handleTxElapsed", handleTxElapsed),
-		)
-		block.Hash = h.blockHash
-	}
-	return nil
-}
-
-func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Transaction, transaction *types2.Transaction) error {
+	func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Transaction, transaction *Transaction) error {*/
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
@@ -110,10 +111,9 @@ func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Tran
 	)
 
 	receipt, err := client.GetTransactionReceipt(context.Background(), transaction.Hash())
-
 	if err != nil {
 		if err == ethereum.NotFound {
-			log.Warn(
+			/*log.Warn(
 				"THE RECEIPT OF TX IS NOT FOUND, THIS BLOCK WILL BE HANDLED LATER",
 				meta.WrapFields(
 					zap.String("chainName", h.chainName),
@@ -123,9 +123,10 @@ func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Tran
 				)...,
 			)
 			// Returens err to avoid increase block height.
-			return err
+			return err*/
+			return errors.New("transaction not found") // retry on next node
 		}
-		log.Error(
+		log.Warn(
 			h.chainName+"扫块，从链上获取交易receipt失败",
 			meta.WrapFields(
 				zap.String("chainName", h.chainName),
@@ -152,7 +153,7 @@ func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Tran
 type txHandleJob struct {
 	block       *chain.Block
 	tx          *chain.Transaction
-	transaction *types2.Transaction
+	transaction *Transaction
 	meta        *pCommon.TxMeta
 	receipt     *Receipt
 }
@@ -343,14 +344,38 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 	var logAddress datatypes.JSON
 	if len(eventLogs) > 0 && meta.TransactionType == biz.CONTRACT {
+		logFromAddressMap := make(map[string]string)
+		logAddressMap := make(map[string]string)
+		var oneLogFromAddress []string
 		var logFromAddress []string
 		var logToAddress []string
 		for _, log := range eventLogs {
-			logFromAddress = append(logFromAddress, log.From)
-			logToAddress = append(logToAddress, log.To)
+			_, fromOk := logFromAddressMap[log.From]
+			if !fromOk {
+				logFromAddressMap[log.From] = ""
+				oneLogFromAddress = append(oneLogFromAddress, log.From)
+			}
+
+			key := log.From + log.To
+			_, ok := logAddressMap[key]
+			if !ok {
+				logAddressMap[key] = ""
+				logFromAddress = append(logFromAddress, log.From)
+				logToAddress = append(logToAddress, log.To)
+			}
+		}
+		if len(oneLogFromAddress) == 1 {
+			logFromAddress = oneLogFromAddress
 		}
 		logAddressList := [][]string{logFromAddress, logToAddress}
 		logAddress, _ = json.Marshal(logAddressList)
+
+		// database btree index maximum is 2704
+		logAddressLen := len(logAddress)
+		if logAddressLen > 2704 {
+			log.Error(h.chainName+"扫块，logAddress长度超过最大限制", zap.Any("logAddressLen", logAddressLen))
+			logAddress = nil
+		}
 	}
 	evmTransactionRecord := &data.EvmTransactionRecord{
 		BlockHash:            h.blockHash,
@@ -528,6 +553,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					if len(log_.Data) >= 32 {
 						amount = new(big.Int).SetBytes(log_.Data[:32])
 					}
+					if topic0 == TRANSFER_TOPIC && amount.String() == "0" {
+						continue
+					}
 				}
 				token.Amount = amount.String()
 			}
@@ -694,7 +722,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 	return
 }
 
-func (h *txDecoder) getBlockHashFromReceipt(client *Client, transaction *types2.Transaction) (string, error) {
+func (h *txDecoder) getBlockHashFromReceipt(client *Client, transaction *Transaction) (string, error) {
 	if isNonstandardEVM(h.chainName) {
 		if h.blockHashRetrieved {
 			return "", nil
@@ -767,7 +795,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 			job := &txHandleJob{
 				block:       block,
 				tx:          txByHash,
-				transaction: blkTx.Raw.(*types2.Transaction),
+				transaction: blkTx.Raw.(*Transaction),
 				meta:        meta,
 				receipt:     rawReceipt.(*Receipt),
 			}

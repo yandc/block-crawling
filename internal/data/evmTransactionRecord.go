@@ -69,6 +69,7 @@ type EvmTransactionRecordRepo interface {
 	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	UpdateStatusByNonce(context.Context, string, string, int64, string, string, decimal.Decimal, string) (int64, error)
+	UpdateCancelByNonce(context.Context, string, string, int64, string, string) (int64, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -525,6 +526,17 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 
 func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal,data string) (int64, error) {
 	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?  and amount = ? and data = ? ", address, nonce, transactionHash+"%",toAddress,amount,data).Update("status", "dropped_replaced")
+	err := ret.Error
+	if err != nil {
+		log.Errore("update "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?   ", address, nonce, transactionHash+"%",toAddress).Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
