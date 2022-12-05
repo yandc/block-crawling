@@ -542,7 +542,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		if tokenAddress != POLYGON_CODE && tokenAddress != "" && address != "" && uid != "" {
+		if !(strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE) && tokenAddress != "" && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
@@ -596,10 +596,14 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 		if tokenType != biz.ERC721 && tokenType != biz.ERC1155 {
 			continue
 		}
+		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
+			continue
+		}
+
 		tokenId := tokenInfo.TokenId
 		tokenAddress := tokenInfo.Address
-		log.Info(chainName+"添加NFT交易履历", zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
-
+		log.Info(chainName+"添加NFT交易履历", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+			zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
 		if !GetETHNftHistoryByBlockspan(chainName, tokenAddress, tokenId) {
 			if !GetETHNftHistoryByNftgo(chainName, tokenAddress, tokenId, client) {
 				GetETHNftHistoryByOpenSea(chainName, tokenAddress, tokenId)
@@ -651,12 +655,12 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 		if tokenType != biz.ERC721 && tokenType != biz.ERC1155 {
 			continue
 		}
-		tokenId := tokenInfo.TokenId
-		tokenAddress := tokenInfo.Address
-
 		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
 			continue
 		}
+
+		tokenId := tokenInfo.TokenId
+		tokenAddress := tokenInfo.Address
 		nftInfo, err := biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
