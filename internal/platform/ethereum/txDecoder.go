@@ -168,35 +168,59 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
 	var eventLogs []types.EventLog
-	var tokenId string
+	var contractAddress, tokenId string
 	if meta.TransactionType != biz.NATIVE {
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
 	}
 
 	if transaction.To() != nil {
-		contractAddress := transaction.To().String()
-		if meta.TransactionType == biz.NATIVE || meta.TransactionType == biz.APPROVE ||
-			meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
-			codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(contractAddress), nil)
-			if err != nil {
-				return err
-			}
-			if len(codeAt) > 0 {
-				if meta.TransactionType == biz.NATIVE {
-					meta.TransactionType = biz.CONTRACT
-					eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
-				} else {
-					ctx := context.Background()
-					if tokenId != "" {
-						if meta.TransactionType == biz.APPROVE {
-							meta.TransactionType = biz.APPROVENFT
-						} else if meta.TransactionType == biz.TRANSFERFROM {
-							meta.TransactionType = biz.TRANSFERNFT
-						}
+		toAddress := transaction.To().String()
+		codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(toAddress), nil)
+		if err != nil {
+			return err
+		}
+		if len(codeAt) > 0 {
+			contractAddress = toAddress
+			if meta.TransactionType == biz.NATIVE {
+				meta.TransactionType = biz.CONTRACT
+				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
+			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
+				ctx := context.Background()
+				if tokenId != "" {
+					if meta.TransactionType == biz.APPROVE {
+						meta.TransactionType = biz.APPROVENFT
+					} else if meta.TransactionType == biz.TRANSFERFROM {
+						meta.TransactionType = biz.TRANSFERNFT
+					}
+					tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
+					for i := 0; i < 3 && err != nil; i++ {
+						time.Sleep(time.Duration(i*1) * time.Second)
 						tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
+					}
+					if err != nil {
+						// nodeProxy出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+					}
+					tokenInfo.TokenType = biz.ERC721
+					amount = "1"
+					tokenInfo.Amount = amount
+				} else {
+					if meta.TransactionType == biz.TRANSFERFROM {
+						meta.TransactionType = biz.TRANSFER
+					}
+					//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
+					if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
+						(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+						meta.TransactionType = biz.NATIVE
+						contractAddress = ""
+					} else {
+						tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
-							tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
+							tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
 						}
 						if err != nil {
 							// nodeProxy出错 接入lark报警
@@ -205,95 +229,69 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
 						}
-						tokenInfo.TokenType = biz.ERC721
-						amount = "1"
 						tokenInfo.Amount = amount
-					} else {
-						if meta.TransactionType == biz.TRANSFERFROM {
-							meta.TransactionType = biz.TRANSFER
-						}
-						//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
-						if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
-							(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
-							meta.TransactionType = biz.NATIVE
-						} else {
-							tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
-							for i := 0; i < 3 && err != nil; i++ {
-								time.Sleep(time.Duration(i*1) * time.Second)
-								tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
-							}
-							if err != nil {
-								// nodeProxy出错 接入lark报警
-								alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-								alarmOpts := biz.WithMsgLevel("FATAL")
-								biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-								log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-							}
-							if err != nil || tokenInfo.Decimals == 0 || tokenInfo.Symbol == "" {
-								meta.TransactionType = biz.CONTRACT
-							}
-							tokenInfo.Amount = amount
+						if err == nil && tokenInfo.Decimals == 0 && tokenInfo.Symbol == "" {
+							meta.TransactionType = biz.CONTRACT
 						}
 					}
 				}
-			} else {
-				//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
-				if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
-					(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
-					meta.TransactionType = biz.NATIVE
-				}
-			}
-		} else if meta.TransactionType == biz.SETAPPROVALFORALL {
-			meta.TransactionType = biz.APPROVENFT
-			var err error
-			ctx := context.Background()
-			tokenInfo, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, contractAddress)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
+			} else if meta.TransactionType == biz.SETAPPROVALFORALL {
+				ctx := context.Background()
+				meta.TransactionType = biz.APPROVENFT
 				tokenInfo, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, contractAddress)
-			}
-			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-			}
-			tokenInfo.Amount = amount
-		} else if meta.TransactionType == biz.SAFETRANSFERFROM {
-			meta.TransactionType = biz.TRANSFERNFT
-			var err error
-			ctx := context.Background()
-			var tokenType string
-			if !strings.Contains(meta.Value, ",") {
-				tokenType = biz.ERC721
-				tokenId = meta.Value
-				amount = "1"
-			} else {
-				tokenType = biz.ERC1155
-				values := strings.Split(meta.Value, ",")
-				tokenId = values[0]
-				amount = values[1]
-			}
+				for i := 0; i < 3 && err != nil; i++ {
+					time.Sleep(time.Duration(i*1) * time.Second)
+					tokenInfo, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, contractAddress)
+				}
+				if err != nil {
+					// nodeProxy出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+				}
+				tokenInfo.Amount = amount
+			} else if meta.TransactionType == biz.SAFETRANSFERFROM {
+				ctx := context.Background()
+				meta.TransactionType = biz.TRANSFERNFT
+				var tokenType string
+				if !strings.Contains(meta.Value, ",") {
+					tokenType = biz.ERC721
+					tokenId = meta.Value
+					amount = "1"
+				} else {
+					tokenType = biz.ERC1155
+					values := strings.Split(meta.Value, ",")
+					tokenId = values[0]
+					amount = values[1]
+				}
 
-			tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
 				tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
+				for i := 0; i < 3 && err != nil; i++ {
+					time.Sleep(time.Duration(i*1) * time.Second)
+					tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
+				}
+				if err != nil {
+					// nodeProxy出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+				}
+				tokenInfo.TokenType = tokenType
+				tokenInfo.Amount = amount
+			} else if meta.TransactionType == biz.SAFEBATCHTRANSFERFROM {
+				meta.TransactionType = biz.TRANSFERNFT
+				tokenInfo.TokenType = biz.ERC1155
+				// TODO
 			}
-			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+		} else {
+			//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
+			if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
+				(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+				meta.TransactionType = biz.NATIVE
+				contractAddress = ""
 			}
-			tokenInfo.TokenType = tokenType
-			tokenInfo.Amount = amount
-		} else if meta.TransactionType == biz.SAFEBATCHTRANSFERFROM {
-			meta.TransactionType = biz.TRANSFERNFT
-			tokenInfo.TokenType = biz.ERC1155
-			// TODO
 		}
 	}
 
@@ -390,7 +388,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		Amount:               amountValue,
 		Status:               status,
 		TxTime:               h.block.Time,
-		ContractAddress:      tokenInfo.Address,
+		ContractAddress:      contractAddress,
 		ParseData:            string(parseData),
 		Type:                 fmt.Sprintf("%v", transaction.Type()),
 		GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
