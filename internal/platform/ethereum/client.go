@@ -174,7 +174,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			//safeTransferFrom(address from, address to, uint256 tokenId, bytes _data)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-			tokenId := new(big.Int).SetBytes(data[68:100])
+			var tokenId *big.Int
+			if len(data) <= 100 {
+				tokenId = new(big.Int).SetBytes(data[68:])
+			} else {
+				tokenId = new(big.Int).SetBytes(data[68:100])
+			}
 			transactionType = biz.SAFETRANSFERFROM
 			value = tokenId.String()
 		} else if methodId == "f242432a" { // ERC1155
@@ -182,7 +187,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 			tokenId := new(big.Int).SetBytes(data[68:100])
-			amount := new(big.Int).SetBytes(data[100:132])
+			var amount *big.Int
+			if len(data) <= 132 {
+				amount = new(big.Int).SetBytes(data[100:])
+			} else {
+				amount = new(big.Int).SetBytes(data[100:132])
+			}
 			transactionType = biz.SAFETRANSFERFROM
 			value = tokenId.String() + "," + amount.String()
 		} else if methodId == "2eb2c2d6" { // ERC1155
