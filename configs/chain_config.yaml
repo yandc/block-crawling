@@ -1006,3 +1006,51 @@ platformTest:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
     monitorHeightAlarmThr: 100
+  ScrollL1TEST:
+    blockExplorerAddrUrl: https://l1scan.scroll.io/address
+    blockExplorerTxUrl: https://l1scan.scroll.io/tx
+    blockExplorerUrl: https://l1scan.scroll.io
+    categoryName: EVM
+    chain: ScrollL1TEST
+    chainId: 534351
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Scroll L1 Test Net
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
+    nativeCurrency: TSETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://prealpha.scroll.io/l1
+    symbol: Scroll L1
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 100
+  ScrollL2TEST:
+    blockExplorerAddrUrl: https://l2scan.scroll.io/address
+    blockExplorerTxUrl: https://l2scan.scroll.io/tx
+    blockExplorerUrl: https://l2scan.scroll.io
+    categoryName: EVM
+    chain: ScrollL2TEST
+    chainId: 534354
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Scroll L2 Test Net
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
+    nativeCurrency: TSETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://prealpha.scroll.io/l2
+    symbol: Scroll L2
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 100
