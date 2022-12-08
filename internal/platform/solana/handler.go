@@ -87,7 +87,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil || err == NotFound {
+	if err == nil || err == pcommon.NotFound {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || err == NotFound {
+	if err == nil || err == pcommon.NotFound {
 		return true
 	}
 

@@ -2,10 +2,11 @@ package sui
 
 import (
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
+	"gitlab.bixin.com/mili/node-driver/common"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
-	"gitlab.bixin.com/mili/node-driver/common"
 	"go.uber.org/zap"
 )
 
@@ -73,10 +74,18 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 }
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
+	// DO NOT RETRY
+	if err == nil {
+		return err
+	}
 	return common.Retry(err)
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
+	if err == nil || err.Error() == pcommon.NotFound.Error() {
+		return true
+	}
+
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
 		fields,
@@ -96,5 +105,4 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		fields...,
 	)
 	return false
-
 }

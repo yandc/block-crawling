@@ -25,8 +25,6 @@ const (
 )
 const SOLANA_DECIMALS = 9
 
-var NotFound = errors.New("not found")
-
 type Client struct {
 	*common.NodeDefaultIn
 
@@ -178,7 +176,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%v", err), " was skipped, or missing ") ||
 			strings.HasPrefix(fmt.Sprintf("%v", err), "Block not available for slot") {
-			return nil, NotFound
+			return nil, common.NotFound
 		}
 
 		log.Debug(

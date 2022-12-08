@@ -96,6 +96,10 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 }
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
+	// DO NOT RETRY
+	if err == nil {
+		return err
+	}
 	return common.Retry(err)
 }
 

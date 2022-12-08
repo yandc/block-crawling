@@ -160,14 +160,24 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			//transferFrom(address from, address to, uint256 tokenId)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-			amountOrTokenId := new(big.Int).SetBytes(data[68:])
+			var amountOrTokenId *big.Int
+			if len(data) > 68 {
+				amountOrTokenId = new(big.Int).SetBytes(data[68:])
+			} else {
+				amountOrTokenId = new(big.Int)
+			}
 			transactionType = biz.TRANSFERFROM
 			value = amountOrTokenId.String()
 		} else if methodId == "42842e0e" { // ERC721
 			//safeTransferFrom(address from, address to, uint256 tokenId)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-			tokenId := new(big.Int).SetBytes(data[68:])
+			var tokenId *big.Int
+			if len(data) > 68 {
+				tokenId = new(big.Int).SetBytes(data[68:])
+			} else {
+				tokenId = new(big.Int)
+			}
 			transactionType = biz.SAFETRANSFERFROM
 			value = tokenId.String()
 		} else if methodId == "b88d4fde" { // ERC721
@@ -175,10 +185,14 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 			var tokenId *big.Int
-			if len(data) <= 100 {
-				tokenId = new(big.Int).SetBytes(data[68:])
+			if len(data) > 68 {
+				if len(data) <= 100 {
+					tokenId = new(big.Int).SetBytes(data[68:])
+				} else {
+					tokenId = new(big.Int).SetBytes(data[68:100])
+				}
 			} else {
-				tokenId = new(big.Int).SetBytes(data[68:100])
+				tokenId = new(big.Int)
 			}
 			transactionType = biz.SAFETRANSFERFROM
 			value = tokenId.String()
@@ -186,12 +200,25 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			//safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-			tokenId := new(big.Int).SetBytes(data[68:100])
-			var amount *big.Int
-			if len(data) <= 132 {
-				amount = new(big.Int).SetBytes(data[100:])
+			var tokenId *big.Int
+			if len(data) > 68 {
+				if len(data) <= 100 {
+					tokenId = new(big.Int).SetBytes(data[68:])
+				} else {
+					tokenId = new(big.Int).SetBytes(data[68:100])
+				}
 			} else {
-				amount = new(big.Int).SetBytes(data[100:132])
+				tokenId = new(big.Int)
+			}
+			var amount *big.Int
+			if len(data) > 100 {
+				if len(data) <= 132 {
+					amount = new(big.Int).SetBytes(data[100:])
+				} else {
+					amount = new(big.Int).SetBytes(data[100:132])
+				}
+			} else {
+				amount = new(big.Int)
 			}
 			transactionType = biz.SAFETRANSFERFROM
 			value = tokenId.String() + "," + amount.String()

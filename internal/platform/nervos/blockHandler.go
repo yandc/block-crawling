@@ -102,6 +102,10 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 }
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
+	// DO NOT RETRY
+	if err == nil {
+		return err
+	}
 	pcommon.NotifyForkedError(h.chainName, err)
 	return common.Retry(err)
 }
@@ -126,5 +130,4 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		fields...,
 	)
 	return false
-
 }
