@@ -2,10 +2,14 @@ package common
 
 import (
 	"block-crawling/internal/biz"
+	"errors"
 	"fmt"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
+
+// NotFound is returned by API methods if the requested item does not exist.
+var NotFound = errors.New("not found")
 
 // NotifyForkedDelete notify lark when delete rows when forked.
 func NotifyForkedDelete(chainName string, blockNumber uint64, nRows int64) {

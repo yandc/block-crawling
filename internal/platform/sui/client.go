@@ -446,7 +446,7 @@ func (c *Client) GetTransactionByNumber(number int) (TransactionInfo, error) {
 		return out, err
 	}
 	if hash == "" {
-		return out, errors.New("not found")
+		return out, common.NotFound
 	}
 	out, err = c.GetTransactionByHash(hash)
 	return out, err
