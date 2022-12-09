@@ -275,6 +275,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "5dea8376" { // NFT Contract
+				transactionType = biz.CONTRACT
+				if len(data) >= 68 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			} else if methodId == "252f7b01" { // Optimism和BSC链 Contract
 				transactionType = biz.CONTRACT
 				if strings.HasPrefix(c.chainName, "Optimism") {
