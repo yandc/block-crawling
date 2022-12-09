@@ -719,7 +719,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					if eventLog == nil {
 						continue
 					}
-					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address {
+					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
 						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
 						if cmp == 1 {
 							isContinue = true
@@ -735,7 +736,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							aptTransactionRecords[i] = nil
 						}
 						break
-					} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address {
+					} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
 						isContinue = true
 						addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
 						eventLogs[i].Amount = addAmount
