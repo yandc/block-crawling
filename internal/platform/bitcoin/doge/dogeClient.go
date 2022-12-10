@@ -122,6 +122,8 @@ func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
 		input := gobcy.TXInput{
 			OutputValue: int(am.IntPart()),
 			Addresses:   append(inputAddress, in.Address),
+			PrevHash : in.FromOutput.Txid,
+			OutputIndex : in.FromOutput.OutputNo,
 		}
 		inputs = append(inputs, input)
 

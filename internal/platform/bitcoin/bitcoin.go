@@ -8,6 +8,8 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/common"
+	ncommon "gitlab.bixin.com/mili/node-driver/common"
+
 	"block-crawling/internal/subhandle"
 	in "block-crawling/internal/types"
 	"errors"
@@ -69,7 +71,10 @@ func (p *Platform) Coin() coins.Coin {
 func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
 	p.spider.WithRetry(func(client chain.Clienter) error {
 		tx, err = client.(*Client).GetTransactionByHash(txHash)
-		return err
+		if err != nil && err.Error() == "The requested resource has not been found" {
+			return chain.RetryStandby(err)
+		}
+		return ncommon.Retry(err)
 	})
 	return
 }

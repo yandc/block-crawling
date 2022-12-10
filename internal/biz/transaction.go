@@ -305,6 +305,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	//pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":" + strconv.Itoa(int(pbb.Nonce))
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
 	switch chainType {
+	case CASPER:
+		casperRecord := &data.CsprTransactionRecord{
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ParseData:       pbb.ParseData,
+			Data:            pbb.Data,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+		result, err = data.CsprTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), casperRecord)
 	case STC:
 
 		//{"stc":{"sequence_number":53}
@@ -432,7 +453,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.BtcTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), btcTransactionRecord)
 		if result > 0 {
 			//修改 未花费
-			tx, err := GetUTXOByHash(pbb.TransactionHash)
+			tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
 			if err != nil {
 				log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
 			}
@@ -682,6 +703,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	chainType := chain2Type[req.ChainName]
 	switch chainType {
+	case CASPER:
+		var recordList []*data.CsprTransactionRecord
+		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx,GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
 	case NERVOS:
 		var recordList []*data.CkbTransactionRecord
 		recordList, total, err = data.CkbTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)

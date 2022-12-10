@@ -12,7 +12,7 @@ var ChainNameType map[string]string
 
 var AppConfig *conf.App
 var GetNervosUTXOTransaction func(string) (*types.TransactionWithStatus, error)
-var GetUTXOByHash func(string) (tx in.TX, err error)
+var GetUTXOByHash = make (map[string] func(string) (tx in.TX, err error))
 
 func NewConfig(conf *conf.App) {
 	AppConfig = conf

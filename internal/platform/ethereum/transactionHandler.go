@@ -82,14 +82,21 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 		}
 		txHashs := strings.Split(record.TransactionHash, "#")
 		var ret int64
-		if (record.Amount.String() == "0" || record.Amount == decimal.Zero) && record.DappData == "" {
+		realAmount := record.Amount
+		realDappData := record.DappData
+		if (realAmount.String() == "0" || realAmount == decimal.Zero) && record.DappData == "" {
 			ret, _ = data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
-		}else {
+		} else {
+
+			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
+				record.Amount = decimal.Zero
+				record.Data =""
+			}
 			ret, _ = data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
 		}
 
 		if ret >= 1 {
-			if (record.Amount.String() == "0" || record.Amount == decimal.Zero) && record.DappData == "" {
+			if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
 				record.TransactionType = biz.CANCEL
 			} else {
 				record.TransactionType = biz.SPEED_UP
@@ -604,11 +611,11 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 		tokenAddress := tokenInfo.Address
 		log.Info(chainName+"添加NFT交易履历", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 			zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
-		if !GetETHNftHistoryByBlockspan(chainName, tokenAddress, tokenId) {
-			if !GetETHNftHistoryByNftgo(chainName, tokenAddress, tokenId, client) {
-				GetETHNftHistoryByOpenSea(chainName, tokenAddress, tokenId)
-			}
-		}
+		//if !GetETHNftHistoryByBlockspan(chainName, tokenAddress, tokenId) {
+		//	if !GetETHNftHistoryByNftgo(chainName, tokenAddress, tokenId, client) {
+		//		GetETHNftHistoryByOpenSea(chainName, tokenAddress, tokenId)
+		//	}
+		//}
 	}
 }
 
