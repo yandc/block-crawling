@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/platform/casper"
 	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/nervos"
@@ -59,7 +60,7 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 			biz.GetNervosUTXOTransaction = p.GetUTXOByHash
 		}
 		if p, ok := platform.(*bitcoin.Platform); ok {
-			biz.GetUTXOByHash = p.GetUTXOByHash
+			biz.GetUTXOByHash[value.Chain] = p.GetUTXOByHash
 		}
 
 		chainNameType[value.Chain] = value.Type
@@ -91,6 +92,8 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 			data.GormlDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
 		case biz.NERVOS:
 			data.GormlDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
+		case biz.CASPER:
+			data.GormlDb.Table(chain).AutoMigrate(&data.CsprTransactionRecord{})
 		case biz.COSMOS:
 			data.GormlDb.Table(chain).AutoMigrate(&data.AtomTransactionRecord{})
 		}
@@ -124,6 +127,8 @@ func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
 		return solana.Init(coins.Solana().Handle, value, nodeURL, height)
 	case biz.NERVOS:
 		return nervos.Init(coins.Nervos().Handle, value, nodeURL, height)
+	case biz.CASPER:
+		return casper.Init(coins.Casper().Handle, value, nodeURL, height)
 	case biz.COSMOS:
 		return cosmos.Init(coins.Cosmos().Handle, value, nodeURL, height)
 	}

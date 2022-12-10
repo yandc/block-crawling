@@ -45,6 +45,7 @@ const (
 	SUI    = "SUI"
 	SOLANA = "SOL"
 	NERVOS = "CKB"
+	CASPER = "CSPR"
 	COSMOS = "COSMOS"
 )
 

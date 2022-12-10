@@ -105,7 +105,7 @@ func (r *UtxoUnspentRecordRepoImpl) DeleteByUid(ctx context.Context, uid string,
 	return affected, nil
 }
 func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txhash string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and n = ? and hash = ?", uid, chainName, address, n, txhash).Update("unspent", 4)
+	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where("uid = ? and chain_name = ? and address = ? and n = ? and hash = ?", uid, chainName, address, n, txhash).Update("unspent", 4)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+address+" failed", err)

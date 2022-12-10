@@ -95,7 +95,7 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 	//p1 := decimal.NewFromInt(100000000)
 
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL{
 			continue
 		}
 		var flag string
@@ -158,6 +158,7 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 			for i := 0; i < len(btcUrls) && err != nil; i++ {
 				list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, to)
 			}
+			data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, toUid, chainName, to)
 			if list.Total == 0 {
 				continue
 			}

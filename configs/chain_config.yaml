@@ -29,7 +29,7 @@ platform:
     coinId: 60
     decimal: 18
     fullName: Arbitrum
-    getPriceKey: Ethereum
+    getPriceKey: ethereum
     handler: arbitrum
     nativeCurrency: ETH
     netType: main
@@ -577,6 +577,28 @@ platform:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 1
     monitorHeightAlarmThr: 300
+  Casper:
+    blockExplorerAddrUrl: https://cspr.live/account/
+    blockExplorerTxUrl: https://cspr.live/deploy/
+    blockExplorerUrl: https://cspr.live/
+    chain: Casper
+    chainId: casper
+    coinId: 101013
+    decimal: 9
+    fullName: Casper
+    getPriceKey: casper-network
+    handler: casper
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Casper.jpeg
+    nativeCurrency: CSPR
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://node-clarity-mainnet.make.services/rpc
+    symbol: Casper
+    type: CSPR
+    safelyConcurrentBlockDelta: 5
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 30
 
   Cosmos:
     blockExplorerAddrUrl: https://www.mintscan.io/cosmos/account
@@ -960,6 +982,28 @@ platformTest:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 1
     monitorHeightAlarmThr: 300
+  CasperTEST:
+    blockExplorerAddrUrl: https://testnet.cspr.live/account/
+    blockExplorerTxUrl: https://testnet.cspr.live/deploy/
+    blockExplorerUrl: https://testnet.cspr.live/
+    chain: CasperTEST
+    chainId: casper-test
+    coinId: 101013
+    decimal: 9
+    fullName: Casper Test Net
+    getPriceKey: casper-network
+    handler: casper
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Casper.jpeg
+    nativeCurrency: CSPR
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://node-clarity-testnet.make.services/rpc
+    symbol: Casper
+    type: CSPR
+    safelyConcurrentBlockDelta: 5
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 30
   CosmosTEST:
     blockExplorerAddrUrl: https://explorer.theta-testnet.polypore.xyz/accounts
     blockExplorerTxUrl: https://explorer.theta-testnet.polypore.xyz/transactions

@@ -76,17 +76,19 @@ const (
 	APTOS        = 101011
 	SUI          = 101012
 	NERVOS       = 309
+	CASPER       = 101013
 )
 
 var HandleMap = map[string]uint{
-	"ethereum": ETHEREUM,
-	"starcoin": STARCOIN,
-	"bitcoin":  BITCOIN,
-	"tron":     TRON,
-	"aptos":    APTOS,
-	"sui":      SUI,
-	"solana":   SOLANA,
-	"nervos":   NERVOS,
+	"ethereum":      ETHEREUM,
+	"starcoin":      STARCOIN,
+	"bitcoin":       BITCOIN,
+	"tron":          TRON,
+	"aptos":         APTOS,
+	"sui":           SUI,
+	"solana":        SOLANA,
+	"nervos":        NERVOS,
+	"handlerheihei": CASPER,
 }
 
 var Coins = map[uint]Coin{
@@ -480,6 +482,14 @@ var Coins = map[uint]Coin{
 		Decimals:     8,
 		LiveInterval: 1000,
 	},
+	CASPER: {
+		ID:           101013,
+		Handle:       "handlerheihei",
+		Symbol:       "CKB",
+		Name:         "Casper",
+		Decimals:     9,
+		LiveInterval: 1000,
+	},
 	NEAR: {
 		ID:           397,
 		Handle:       "near",
@@ -696,6 +706,9 @@ func Solana() Coin {
 }
 func Nervos() Coin {
 	return Coins[NERVOS]
+}
+func Casper() Coin {
+	return Coins[CASPER]
 }
 func Near() Coin {
 	return Coins[NEAR]
