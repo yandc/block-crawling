@@ -230,9 +230,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
-						if err == nil && tokenInfo.Decimals == 0 && tokenInfo.Symbol == "" {
-							meta.TransactionType = biz.CONTRACT
-						}
 					}
 				}
 			} else if meta.TransactionType == biz.SETAPPROVALFORALL {
@@ -284,6 +281,25 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				meta.TransactionType = biz.TRANSFERNFT
 				tokenInfo.TokenType = biz.ERC1155
 				// TODO
+			}
+
+			if err != nil || (meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CONTRACT &&
+				(tokenInfo.TokenType == "" && tokenInfo.Decimals == 0 && (tokenInfo.Symbol == "" || tokenInfo.Symbol == "Unknown Token"))) {
+				tokenType, err := GetTokenType(client, h.chainName, contractAddress, codeAt)
+				if err != nil {
+					// code出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链解析contract的code失败", h.chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(h.chainName+"扫块，解析contract的code失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+				}
+				if tokenType != "" {
+					if tokenInfo.TokenType == "" && tokenType != biz.ERC20 {
+						tokenInfo.TokenType = tokenType
+					}
+				} else if err == nil {
+					meta.TransactionType = biz.CONTRACT
+				}
 			}
 		} else {
 			//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010

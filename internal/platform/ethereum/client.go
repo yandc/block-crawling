@@ -11,9 +11,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/metachris/eth-go-bindings/erc1155"
+	"github.com/metachris/eth-go-bindings/erc165"
 	"github.com/metachris/eth-go-bindings/erc721"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -514,8 +516,37 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 	return balance.String(), nil
 }
 
+func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
+	hexTokenAddress := common.HexToAddress(tokenAddress)
+	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
+	if err != nil {
+		return false, err
+	}
+
+	result, err := erc721Token.SupportsInterface(nil, erc165.InterfaceIdErc721)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
+}
+
+func (c *Client) IsErc1155Contract(tokenAddress string) (bool, error) {
+	hexTokenAddress := common.HexToAddress(tokenAddress)
+	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
+	if err != nil {
+		return false, err
+	}
+
+	result, err := erc1155Token.SupportsInterface(nil, erc165.InterfaceIdErc1155)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
+}
+
 var EvmTokenInfoMap = make(map[string]types.TokenInfo)
 var lock = icommon.NewSyncronized(0)
+var mutex = new(sync.Mutex)
 
 func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.TokenInfo, error) {
 	var key = chainName + tokenAddress
@@ -544,7 +575,9 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 		return tokenInfo, err
 	}
 	tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(decimals), Symbol: symbol}
+	mutex.Lock()
 	EvmTokenInfoMap[key] = tokenInfo
+	mutex.Unlock()
 	return tokenInfo, nil
 }
 
