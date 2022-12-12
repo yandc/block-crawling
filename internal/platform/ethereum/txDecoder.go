@@ -172,6 +172,12 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	if meta.TransactionType != biz.NATIVE {
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
 	}
+	status := biz.PENDING
+	if receipt.Status == "0x0" {
+		status = biz.FAIL
+	} else if receipt.Status == "0x1" {
+		status = biz.SUCCESS
+	}
 
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
@@ -181,11 +187,21 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		}
 		if len(codeAt) > 0 {
 			contractAddress = toAddress
+			var getTokenType bool
+			var tokenType string
+			var tokenTypeErr error
 			if meta.TransactionType == biz.NATIVE {
 				meta.TransactionType = biz.CONTRACT
 				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
 			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
 				ctx := context.Background()
+				if status == biz.FAIL && tokenId == "" {
+					tokenType, tokenTypeErr = GetTokenType(client, h.chainName, contractAddress, codeAt)
+					getTokenType = true
+					if tokenType == biz.ERC721 || tokenType == biz.ERC1155 {
+						tokenId = meta.Value
+					}
+				}
 				if tokenId != "" {
 					if meta.TransactionType == biz.APPROVE {
 						meta.TransactionType = biz.APPROVENFT
@@ -285,8 +301,11 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 			if err != nil || (meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CONTRACT &&
 				(tokenInfo.TokenType == "" && tokenInfo.Decimals == 0 && (tokenInfo.Symbol == "" || tokenInfo.Symbol == "Unknown Token"))) {
-				tokenType, err := GetTokenType(client, h.chainName, contractAddress, codeAt)
-				if err != nil {
+				if !getTokenType {
+					tokenType, tokenTypeErr = GetTokenType(client, h.chainName, contractAddress, codeAt)
+					getTokenType = true
+				}
+				if tokenTypeErr != nil {
 					// code出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链解析contract的code失败", h.chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
@@ -297,7 +316,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					if tokenInfo.TokenType == "" && tokenType != biz.ERC20 {
 						tokenInfo.TokenType = tokenType
 					}
-				} else if err == nil {
+				} else if tokenTypeErr == nil {
 					meta.TransactionType = biz.CONTRACT
 				}
 			}
@@ -340,12 +359,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		if transaction.GasTipCap() != nil {
 			maxPriorityFeePerGas = transaction.GasTipCap().String()
 		}
-	}
-	status := biz.PENDING
-	if receipt.Status == "0x0" {
-		status = biz.FAIL
-	} else if receipt.Status == "0x1" {
-		status = biz.SUCCESS
 	}
 	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
 	bn := int(intBlockNumber.Int64())
