@@ -12,9 +12,11 @@ import (
 	"fmt"
 	"github.com/blockcypher/gobcy"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type Client struct {
@@ -28,6 +30,10 @@ var urlMap = map[string]string{
 	"http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332",
 }
 
+const TO_TYPE = "utxo_output"
+const FROM_TYPE = "utxo_input"
+const FEE_TYPE = "fee"
+
 func NewClient(nodeUrl string) Client {
 	streamURL := "https://blockstream.info/api"
 	if value, ok := urlMap[nodeUrl]; ok {
@@ -38,13 +44,13 @@ func NewClient(nodeUrl string) Client {
 
 func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) {
 	key, baseURL := parseKeyFromNodeURL(nodeUrl)
-	url := baseURL + "account/" + address +"/utxo"
+	url := baseURL + "account/" + address + "/utxo"
 	var unspents types.UbiquityUtxo
 	var param = make(map[string]string)
 	param["spent"] = "false"
 	err := httpclient2.HttpsSignGetForm(url, param, key, &unspents)
 
-	return unspents ,err
+	return unspents, err
 
 }
 
@@ -124,29 +130,85 @@ func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlock
 			break
 		}
 	}
-
 	return
 }
 
 func GetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
-	tx, err = DoGetTransactionByHash(hash+"?instart=0&outstart=0&limit=500", c)
-	if err != nil {
-		return
-	}
-	putsTx := tx
-	for (putsTx.NextInputs != "" && len(putsTx.Inputs) > 80) || (putsTx.NextOutputs != "" && len(putsTx.Outputs) > 80) {
-		putsTx, err = DoGetTransactionByHash(hash+"?instart="+strconv.Itoa(len(putsTx.Inputs))+"&outstart="+strconv.Itoa(len(putsTx.Outputs))+"&limit=500", c)
+	if c.URL == "https://api.blockcypher.com/v1/btc/main" {
+		tx, err = DoGetTransactionByHash(hash+"?instart=0&outstart=0&limit=500", c)
 		if err != nil {
 			return
 		}
-		for _, input := range putsTx.Inputs {
-			tx.Inputs = append(tx.Inputs, input)
+		putsTx := tx
+		for (putsTx.NextInputs != "" && len(putsTx.Inputs) > 80) || (putsTx.NextOutputs != "" && len(putsTx.Outputs) > 80) {
+			putsTx, err = DoGetTransactionByHash(hash+"?instart="+strconv.Itoa(len(putsTx.Inputs))+"&outstart="+strconv.Itoa(len(putsTx.Outputs))+"&limit=500", c)
+			if err != nil {
+				return
+			}
+			for _, input := range putsTx.Inputs {
+				tx.Inputs = append(tx.Inputs, input)
+			}
+			for _, output := range putsTx.Outputs {
+				tx.Outputs = append(tx.Outputs, output)
+			}
 		}
-		for _, output := range putsTx.Outputs {
-			tx.Outputs = append(tx.Outputs, output)
-		}
+		return
 	}
+	if c.URL == "https://Bearer:9VpB0M4Al-RNmiOvFHwOMvNNetBfZY2mDepbbXT2ygBJ2-AG@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/" {
+		utxoTxByDD, e := GetTransactionsByTXHash(hash, c)
+		if e != nil {
+			return tx, e
+		} else {
+			if utxoTxByDD.Detail == "The requested resource has not been found" {
+				return tx, errors.New(utxoTxByDD.Detail)
+			} else {
+				var inputs []gobcy.TXInput
+				var inputAddress []string
+				var outs []gobcy.TXOutput
+				var outputAddress []string
+
+				var feeAmount int64
+
+				for _, event := range utxoTxByDD.Events {
+					if event.Type == FROM_TYPE {
+						input := gobcy.TXInput{
+							OutputValue: int(event.Amount),
+							Addresses:   append(inputAddress, event.Source),
+						}
+						inputs = append(inputs, input)
+					}
+					if event.Type == TO_TYPE {
+						out := gobcy.TXOutput{
+							Value:     *big.NewInt(event.Amount),
+							Addresses: append(outputAddress, event.Destination),
+						}
+						outs = append(outs, out)
+					}
+					if event.Type == FEE_TYPE {
+						feeAmount = event.Amount
+					}
+				}
+
+				txTime := time.Unix(int64(utxoTxByDD.Date), 0)
+				tx = types.TX{
+					BlockHash:   utxoTxByDD.BlockId,
+					BlockHeight: utxoTxByDD.BlockNumber,
+					Hash:        utxoTxByDD.Id,
+					Fees:        *big.NewInt(feeAmount),
+					Confirmed:   txTime,
+					Inputs:      inputs,
+					Outputs:     outs,
+					Error:       "",
+				}
+				return tx, nil
+			}
+
+		}
+
+	}
+
 	return
+
 }
 
 func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
@@ -156,6 +218,14 @@ func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error
 	}
 	err = getResponse(u, &tx)
 	return
+}
+
+func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
+	key, baseURL := parseKeyFromNodeURL(c.URL)
+	url := baseURL + "tx/" + tx
+	var txInfo types.TxInfo
+	err := httpclient2.HttpsSignGetForm(url, nil, key, &txInfo)
+	return txInfo, err
 }
 
 func GetTransactionByPendingHash(hash string, c *base.Client) (tx types.TXByHash, err error) {
