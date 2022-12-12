@@ -217,22 +217,24 @@ func (c *Client) GetTransactionByPendingHashByNode(json model.JsonRpcRequest) (t
 	return tx, err
 }
 func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
-
+	if c.DispatchClient.URL == "https://chain.so/" {
+		return doge.GetTxByHashFromChainSo(hash, &c.DispatchClient)
+	}
 	//UTXOTX --- utxo
 	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetTransactionByHash(hash, &c.DispatchClient)
-	} else {
-
-		if c.DispatchClient.URL == "https://chain.so/"{
-			return doge.GetTxByHashFromChainSo(hash,&c.DispatchClient)
+		tx, err = btc.GetTransactionByHash(hash, &c.DispatchClient)
+		if strings.Contains(tx.Error, "Limits reached") {
+			//抛出异常
+			return tx, errors.New(tx.Error)
 		}
-
+		return tx,err
+	} else {
 		utxoTxByDD, e := doge.GetTransactionsByTXHash(hash, &c.DispatchClient)
 		if e != nil {
 			return tx, e
 		} else {
 			if utxoTxByDD.Detail == "The requested resource has not been found" {
-				return tx , errors.New(utxoTxByDD.Detail)
+				return tx, errors.New(utxoTxByDD.Detail)
 			} else {
 				var inputs []gobcy.TXInput
 				var inputAddress []string
