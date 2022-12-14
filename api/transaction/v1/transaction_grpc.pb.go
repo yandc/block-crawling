@@ -51,6 +51,8 @@ type TransactionClient interface {
 	GetUnspentTx(ctx context.Context, in *UnspentReq, opts ...grpc.CallOption) (*UnspentResponse, error)
 	//后去nft流转记录
 	GetNftRecord(ctx context.Context, in *NftRecordReq, opts ...grpc.CallOption) (*NftRecordResponse, error)
+	//通用 接口定义
+	JsonRpc(ctx context.Context, in *JsonReq, opts ...grpc.CallOption) (*JsonResponse, error)
 }
 
 type transactionClient struct {
@@ -214,6 +216,15 @@ func (c *transactionClient) GetNftRecord(ctx context.Context, in *NftRecordReq, 
 	return out, nil
 }
 
+func (c *transactionClient) JsonRpc(ctx context.Context, in *JsonReq, opts ...grpc.CallOption) (*JsonResponse, error) {
+	out := new(JsonResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/JsonRpc", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransactionServer is the server API for Transaction service.
 // All implementations must embed UnimplementedTransactionServer
 // for forward compatibility
@@ -247,6 +258,8 @@ type TransactionServer interface {
 	GetUnspentTx(context.Context, *UnspentReq) (*UnspentResponse, error)
 	//后去nft流转记录
 	GetNftRecord(context.Context, *NftRecordReq) (*NftRecordResponse, error)
+	//通用 接口定义
+	JsonRpc(context.Context, *JsonReq) (*JsonResponse, error)
 	mustEmbedUnimplementedTransactionServer()
 }
 
@@ -304,6 +317,9 @@ func (UnimplementedTransactionServer) GetUnspentTx(context.Context, *UnspentReq)
 }
 func (UnimplementedTransactionServer) GetNftRecord(context.Context, *NftRecordReq) (*NftRecordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNftRecord not implemented")
+}
+func (UnimplementedTransactionServer) JsonRpc(context.Context, *JsonReq) (*JsonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JsonRpc not implemented")
 }
 func (UnimplementedTransactionServer) mustEmbedUnimplementedTransactionServer() {}
 
@@ -624,6 +640,24 @@ func _Transaction_GetNftRecord_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transaction_JsonRpc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JsonReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).JsonRpc(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/JsonRpc",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).JsonRpc(ctx, req.(*JsonReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Transaction_ServiceDesc is the grpc.ServiceDesc for Transaction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -698,6 +732,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNftRecord",
 			Handler:    _Transaction_GetNftRecord_Handler,
+		},
+		{
+			MethodName: "JsonRpc",
+			Handler:    _Transaction_JsonRpc_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

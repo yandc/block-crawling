@@ -35,6 +35,235 @@ var (
 	_ = sort.Sort
 )
 
+// Validate checks the field values on JsonReq with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *JsonReq) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on JsonReq with the rules defined in the
+// proto definition for this message. If any rules are violated, the result is
+// a list of violation errors wrapped in JsonReqMultiError, or nil if none found.
+func (m *JsonReq) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *JsonReq) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if utf8.RuneCountInString(m.GetMethod()) < 1 {
+		err := JsonReqValidationError{
+			field:  "Method",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if utf8.RuneCountInString(m.GetUid()) < 1 {
+		err := JsonReqValidationError{
+			field:  "Uid",
+			reason: "value length must be at least 1 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for ChainName
+
+	// no validation rules for Params
+
+	if len(errors) > 0 {
+		return JsonReqMultiError(errors)
+	}
+
+	return nil
+}
+
+// JsonReqMultiError is an error wrapping multiple validation errors returned
+// by JsonReq.ValidateAll() if the designated constraints aren't met.
+type JsonReqMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m JsonReqMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m JsonReqMultiError) AllErrors() []error { return m }
+
+// JsonReqValidationError is the validation error returned by JsonReq.Validate
+// if the designated constraints aren't met.
+type JsonReqValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e JsonReqValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e JsonReqValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e JsonReqValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e JsonReqValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e JsonReqValidationError) ErrorName() string { return "JsonReqValidationError" }
+
+// Error satisfies the builtin error interface
+func (e JsonReqValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sJsonReq.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = JsonReqValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = JsonReqValidationError{}
+
+// Validate checks the field values on JsonResponse with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *JsonResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on JsonResponse with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in JsonResponseMultiError, or
+// nil if none found.
+func (m *JsonResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *JsonResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Ok
+
+	// no validation rules for Response
+
+	// no validation rules for ErrorMsg
+
+	if len(errors) > 0 {
+		return JsonResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// JsonResponseMultiError is an error wrapping multiple validation errors
+// returned by JsonResponse.ValidateAll() if the designated constraints aren't met.
+type JsonResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m JsonResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m JsonResponseMultiError) AllErrors() []error { return m }
+
+// JsonResponseValidationError is the validation error returned by
+// JsonResponse.Validate if the designated constraints aren't met.
+type JsonResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e JsonResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e JsonResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e JsonResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e JsonResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e JsonResponseValidationError) ErrorName() string { return "JsonResponseValidationError" }
+
+// Error satisfies the builtin error interface
+func (e JsonResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sJsonResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = JsonResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = JsonResponseValidationError{}
+
 // Validate checks the field values on NftRecordReq with the rules defined in
 // the proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
