@@ -38,7 +38,24 @@ service Transaction {
   rpc GetUnspentTx(UnspentReq) returns (UnspentResponse);
   //后去nft流转记录
   rpc GetNftRecord(NftRecordReq) returns (NftRecordResponse);
+  //通用 接口定义
+  rpc JsonRpc(JsonReq) returns (JsonResponse);
 
+}
+
+message JsonReq{
+  string method = 1 [(validate.rules).string = {min_len: 1}];
+  string uid = 2 [(validate.rules).string = {min_len: 1}];
+  string chainName = 3 ;
+  string params = 4 ;
+
+
+}
+
+message JsonResponse{
+  bool ok = 1;
+  string response = 2;
+  string errorMsg = 3;
 }
 
 message NftRecordReq {

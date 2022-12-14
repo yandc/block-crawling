@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1662,5 +1663,53 @@ func (s *TransactionUsecase) GetNftRecord(ctx context.Context, req *pb.NftRecord
 
 	result.Ok = true
 	result.Data = nftHistoryList
+	return result, nil
+}
+
+func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.JsonResponse, error) {
+	valueS := reflect.TypeOf(s)
+	mv, ok := valueS.MethodByName(req.Method)
+	if !ok {
+		return &pb.JsonResponse{
+			Ok:       false,
+			ErrorMsg: "not support " + req.Method,
+		}, nil
+	}
+	args := make([]reflect.Value, 0)
+	args = append(args, reflect.ValueOf(s))
+	args = append(args, reflect.ValueOf(ctx))
+
+	if len(req.Params) > 0 {
+		u := mv.Type.NumIn()
+		paseJson := reflect.New(mv.Type.In(u - 1).Elem())
+		reqKey := strings.ReplaceAll(utils.ListToString(req.Params), "\\", "")
+
+		jsonErr := json.Unmarshal([]byte(reqKey), paseJson.Interface())
+		if jsonErr == nil {
+			args = append(args, reflect.ValueOf(paseJson.Interface()))
+		} else {
+			return &pb.JsonResponse{
+				Ok:       false,
+				ErrorMsg: "param error ",
+			}, jsonErr
+		}
+	}
+	ss := mv.Func.Call(args)
+	respone := ss[0].Interface()
+	ret, _ := json.Marshal(respone)
+	return &pb.JsonResponse{
+		Ok:       true,
+		Response: string(ret),
+	}, nil
+}
+
+func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictionary, error) {
+	var result = &DataDictionary{}
+	var serviceTransactionType = []string{CANCEL, SPEED_UP, NATIVE, TRANSFERNFT, CONTRACT, EVENTLOG, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, APPROVE, TRANSFER}
+	var serviceStaus = []string{SUCCESS, FAIL, PENDING, NO_STATUS, DROPPED_REPLACED, DROPPED}
+	result.Ok = true
+	result.ServiceTransactionType = serviceTransactionType
+	result.ServiceStatus = serviceStaus
+
 	return result, nil
 }

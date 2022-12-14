@@ -110,6 +110,16 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type DataDictionary struct {
+	Ok       bool    `json:"ok,omitempty"`
+	ServiceTransactionType []string  `json:"serviceTransactionType,omitempty"`
+	ServiceStatus []string  `json:"serviceStatus,omitempty"`
+}
+
+
+
+
+
 // alarmOptions 报警相关的一些可自定义参数
 type alarmOptions struct {
 	level         string

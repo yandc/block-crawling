@@ -212,3 +212,10 @@ func (s *TransactionService) GetNftRecord(ctx context.Context, req *pb.NftRecord
 	result, err := s.ts.GetNftRecord(subctx, req)
 	return result, err
 }
+
+func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.JsonResponse, error) {
+	subctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	result, err := s.ts.JsonRpc(subctx, req)
+	return result, err
+}
