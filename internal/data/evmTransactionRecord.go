@@ -67,6 +67,7 @@ type EvmTransactionRecordRepo interface {
 	FindOneByBlockNumber(context.Context, string, int) (*EvmTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
+	FindParseDataByTxHashAndToken(context.Context, string, string, string) (*EvmTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	UpdateStatusByNonce(context.Context, string, string, int64, string, string, decimal.Decimal, string) (int64, error)
 	UpdateCancelByNonce(context.Context, string, string, int64, string, string) (int64, error)
@@ -511,6 +512,23 @@ func (r *EvmTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 		return nil, nil
 	}
 }
+
+
+func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txhash string, token string) (*EvmTransactionRecord, error) {
+	var evmTransactionRecord *EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%",token).Find(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query evmTransactionRecord by txHash failed", err)
+		return nil, err
+	}
+	if evmTransactionRecord.Id != 0 {
+		return evmTransactionRecord, nil
+	} else {
+		return nil, nil
+	}
+}
+
 
 func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context, tableName string, transactionType string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
