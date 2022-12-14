@@ -919,6 +919,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	} else {
 		var trs []*pb.TransactionRecord
 		for _, value := range dapps {
+			tokenAddress := value.Token
 			chainType := chain2Type[value.ChainName]
 			feeData := make(map[string]string)
 			switch chainType {
@@ -943,14 +944,13 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 
 				if err == nil && evm != nil {
-					if req.DappType == "approveNFT" && evm.TransactionType != req.DappType{
-						continue
-					}
-					if req.DappType == "approve" && evm.TransactionType == "approveNFT"{
-						continue
-					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
+
+					eventLogInfo , err1 :=data.EvmTransactionRecordRepoClient.FindParseDataByTxHashAndToken(ctx, GetTalbeName(value.ChainName), value.LastTxhash,tokenAddress)
+					if err1 == nil && eventLogInfo != nil {
+						r.ParseData = eventLogInfo.ParseData
+					}
 					feeData["gas_limit"] = r.GasLimit
 					feeData["gas_used"] = r.GasUsed
 					feeData["gas_price"] = r.GasPrice
@@ -967,12 +967,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case STC:
 				stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && stc != nil {
-					if req.DappType == "approveNFT" && stc.TransactionType != req.DappType{
-						continue
-					}
-					if req.DappType == "approve" && stc.TransactionType == "approveNFT"{
-						continue
-					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(stc, &r)
 					r.ChainName = value.ChainName
@@ -988,12 +982,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case TVM:
 				tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && tvm != nil {
-					if req.DappType == "approveNFT" && tvm.TransactionType != req.DappType{
-						continue
-					}
-					if req.DappType == "approve" && tvm.TransactionType == "approveNFT"{
-						continue
-					}
+
 					var r *pb.TransactionRecord
 					utils.CopyProperties(tvm, &r)
 					r.ChainName = value.ChainName
@@ -1009,12 +998,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case APTOS:
 				apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && apt != nil {
-					if req.DappType == "approveNFT" && apt.TransactionType != req.DappType{
-						continue
-					}
-					if req.DappType == "approve" && apt.TransactionType == "approveNFT"{
-						continue
-					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(apt, &r)
 					r.ChainName = value.ChainName
@@ -1030,12 +1013,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case SUI:
 				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && sui != nil {
-					if req.DappType == "approveNFT" && sui.TransactionType != req.DappType{
-						continue
-					}
-					if req.DappType == "approve" && sui.TransactionType == "approveNFT"{
-						continue
-					}
 					var r *pb.TransactionRecord
 					utils.CopyProperties(sui, &r)
 					r.ChainName = value.ChainName
