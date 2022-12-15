@@ -629,6 +629,30 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
+  SmartBCH:
+    blockExplorerAddrUrl: https://smartbch-explorer.web.app/address/
+    blockExplorerTxUrl: https://smartbch-explorer.web.app/transaction/
+    blockExplorerUrl: https://smartbch-explorer.web.app/
+    chain: SmartBCH
+    chainId: 10000
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Smart BCH
+    getPriceKey: bitcoin-cash
+    handler: smartbch
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SmartBCH.png
+    nativeCurrency: BCH
+    netType: main
+    rpcURL:
+      - https://global.uat.cash
+      - https://smartbch.greyh.at
+      - https://smartbch.fountainhead.cash/mainnet
+    symbol: SmartBCH
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 180
 
 platformTest:
   AptosTEST:
