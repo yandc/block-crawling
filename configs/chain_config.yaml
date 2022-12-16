@@ -597,6 +597,12 @@ platform:
     proxyCacheTime: 0
     rpcURL:
       - https://node-clarity-mainnet.make.services/rpc
+      - http://34.224.191.55:7777/rpc
+      - http://88.99.150.222:7777/rpc
+      - http://95.216.37.106:7777/rpc
+      - http://65.109.54.159:7777/rpc
+      - http://94.130.91.103:7777/rpc
+      - http://135.181.139.72:7777/rpc
     symbol: Casper
     type: CSPR
     safelyConcurrentBlockDelta: 5
