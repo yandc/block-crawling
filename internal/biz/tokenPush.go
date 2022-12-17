@@ -52,9 +52,9 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 		tokenAddressList, ok := assetMap[asset.Address]
 		if !ok {
 			tokenAddressList = make([]string, 0)
-			assetMap[asset.Address] = tokenAddressList
 		}
 		tokenAddressList = append(tokenAddressList, asset.TokenAddress)
+		assetMap[asset.Address] = tokenAddressList
 	}
 
 	for _, userTokenPush := range userTokenPushList {
