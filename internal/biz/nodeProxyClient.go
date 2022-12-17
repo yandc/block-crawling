@@ -77,8 +77,9 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 
 func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
 	var coinNames string
+	var coinNameMap = make(map[string]string)
 	var coinAddresses string
-	var getPriceKeyMap = make(map[string]string)
+	var getPriceKeyMap = make(map[string][]string)
 	var handlerMap = make(map[string]string)
 	var resultMap = make(map[string]map[string]string)
 
@@ -89,15 +90,22 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			getPriceKey := platInfo.GetPriceKey
 			handler := platInfo.Handler
-			getPriceKeyMap[getPriceKey] = chainName
+			chainNames, ok := getPriceKeyMap[getPriceKey]
+			if !ok {
+				chainNames = make([]string, 0)
+			}
+			chainNames = append(chainNames, chainName)
+			getPriceKeyMap[getPriceKey] = chainNames
 			handlerMap[handler] = chainName
 
 			for _, tokenAddress := range tokenAddressList {
 				if tokenAddress == "" {
 					if coinNames == "" {
 						coinNames = getPriceKey
-					} else {
+						coinNameMap[getPriceKey] = ""
+					} else if _, ok := coinNameMap[getPriceKey]; !ok {
 						coinNames = coinNames + "," + getPriceKey
+						coinNameMap[getPriceKey] = ""
 					}
 				} else {
 					if coinAddresses == "" {
@@ -137,24 +145,26 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 		return resultMap, err
 	}
 	for key, value := range result {
-		chainName := getPriceKeyMap[key]
+		chainNames := getPriceKeyMap[key]
 		price := value[currency]
 		var tokenAddress string
-		if chainName == "" {
+		if len(chainNames) == 0 {
 			handlerTokenAddressList := strings.Split(key, "_")
 			handler := handlerTokenAddressList[0]
-			chainName = handlerMap[handler]
+			chainNames = []string{handlerMap[handler]}
 			tokenAddress = handlerTokenAddressList[1]
 		}
-		tokenAddressPriceMap, ok := resultMap[chainName]
-		if !ok {
-			tokenAddressPriceMap = make(map[string]string)
-			resultMap[chainName] = tokenAddressPriceMap
-		}
-		if tokenAddress == "" {
-			tokenAddressPriceMap[chainName] = price
-		} else {
-			tokenAddressPriceMap[tokenAddress] = price
+		for _, chainName := range chainNames {
+			tokenAddressPriceMap, ok := resultMap[chainName]
+			if !ok {
+				tokenAddressPriceMap = make(map[string]string)
+				resultMap[chainName] = tokenAddressPriceMap
+			}
+			if tokenAddress == "" {
+				tokenAddressPriceMap[chainName] = price
+			} else {
+				tokenAddressPriceMap[tokenAddress] = price
+			}
 		}
 	}
 	return resultMap, nil
