@@ -71,6 +71,8 @@ type EvmTransactionRecordRepo interface {
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	UpdateStatusByNonce(context.Context, string, string, int64, string, string, decimal.Decimal, string) (int64, error)
 	UpdateCancelByNonce(context.Context, string, string, int64, string, string) (int64, error)
+	FindFromAddress(context.Context, string) ([]string, error)
+	FindLastNonceByAddress(context.Context, string, string) (int64, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -513,10 +515,9 @@ func (r *EvmTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	}
 }
 
-
 func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txhash string, token string) (*EvmTransactionRecord, error) {
 	var evmTransactionRecord *EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%",token).Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%", token).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query evmTransactionRecord by txHash failed", err)
@@ -528,7 +529,6 @@ func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context
 		return nil, nil
 	}
 }
-
 
 func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context, tableName string, transactionType string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
@@ -542,8 +542,8 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 
 }
 
-func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal,data string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?  and amount = ? and data = ? ", address, nonce, transactionHash+"%",toAddress,amount,data).Update("status", "dropped_replaced")
+func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal, data string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?  and amount = ? and data = ? ", address, nonce, transactionHash+"%", toAddress, amount, data).Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -554,7 +554,7 @@ func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, 
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?   ", address, nonce, transactionHash+"%",toAddress).Update("status", "dropped_replaced")
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?   ", address, nonce, transactionHash+"%", toAddress).Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -562,4 +562,26 @@ func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, 
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+func (r *EvmTransactionRecordRepoImpl) FindFromAddress(ctx context.Context, tableName string) ([]string, error) {
+	var addresses []string
+	ret := r.gormDB.Select("from_address").Table(tableName).Group("from_address").Find(&addresses)
+	err := ret.Error
+	if err != nil {
+		log.Errore("findAddress "+tableName+" failed", err)
+		return nil, err
+	}
+
+	return addresses, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Context, tableName string,fromAddress string) (int64, error){
+	var nonce int64
+	ret := r.gormDB.Select("NONCE").Table(tableName).Where("from_address = ? and (status = 'success' or status = 'fail')",fromAddress).Order("NONCE DESC").Limit(1).Find(&nonce)
+	err := ret.Error
+	if err != nil {
+		log.Errore("findAddress "+tableName+" failed", err)
+		return 0, err
+	}
+	return nonce,nil
 }

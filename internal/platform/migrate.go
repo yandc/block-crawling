@@ -360,6 +360,35 @@ func DappReset() {
 	}
 }
 
+func CheckNonce() {
+	for key, platform := range biz.PlatInfoMap {
+		switch platform.Type {
+
+		case biz.EVM:
+			rs, e := data.EvmTransactionRecordRepoClient.FindFromAddress(nil, biz.GetTalbeName(key))
+			if e == nil && len(rs) > 0 {
+				total := 0
+				for _, address := range rs {
+					total = total + 1
+					nonceKey := biz.ADDRESS_DONE_NONCE + key + ":" + address
+					nonceStr, _ := data.RedisClient.Get(nonceKey).Result()
+					nonce, _ := strconv.Atoi(nonceStr)
+					n, _ := data.EvmTransactionRecordRepoClient.FindLastNonceByAddress(nil, biz.GetTalbeName(key), address)
+					if n != int64(nonce) {
+						log.Info("noncecheck", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce),zap.Any("chainName",key))
+					}
+					if total%100 == 0 {
+						log.Info("noncecheck-1", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce))
+					}
+
+				}
+
+			}
+		}
+	}
+
+}
+
 func BtcReset() {
 	for key, platform := range biz.PlatInfoMap {
 		switch platform.Type {
