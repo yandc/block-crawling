@@ -30,7 +30,7 @@ type AtomTransactionRecord struct {
 	Amount          decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
 	Status          string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
 	TxTime          int64           `json:"txTime" form:"txTime"`
-	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(68);index"`
+	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(88);index"`
 	ParseData       string          `json:"parseData" form:"parseData"`
 	GasLimit        string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
 	GasUsed         string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
