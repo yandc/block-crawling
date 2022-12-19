@@ -108,7 +108,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 
 func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
-	total := 0
+	doneNonceTotal := make(map[string]int)
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
@@ -117,7 +117,8 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 			continue
 		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
-		total = total + 1
+		dnt := doneNonceTotal[nonceKey]
+		doneNonceTotal[nonceKey] = dnt + 1
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
 			doneNonce[nonceKey] = int(record.Nonce)
@@ -129,6 +130,7 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 	}
 	//1   2条 2 3  取出 3 -2 == 1
 	for k, v := range doneNonce {
+		total := doneNonceTotal[k]
 		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
 		}else {
