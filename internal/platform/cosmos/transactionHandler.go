@@ -65,7 +65,7 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.Atom
 
 func handleUserNonce(chainName string, txRecords []*data.AtomTransactionRecord) {
 	doneNonce := make(map[string]int)
-	total := 0
+	doneNonceTotal := make(map[string]int)
 	for _, record := range txRecords {
 		if record.Status == biz.DROPPED {
 			pNonce := biz.ADDRESS_PENDING_NONCE + chainName + ":" + record.FromAddress + ":" + strconv.Itoa(int(record.Nonce))
@@ -75,8 +75,9 @@ func handleUserNonce(chainName string, txRecords []*data.AtomTransactionRecord) 
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		total = total + 1
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
+		dnt := doneNonceTotal[nonceKey]
+		doneNonceTotal[nonceKey] = dnt + 1
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
 			doneNonce[nonceKey] = int(record.Nonce)
@@ -89,6 +90,7 @@ func handleUserNonce(chainName string, txRecords []*data.AtomTransactionRecord) 
 
 
 	for k, v := range doneNonce {
+		total := doneNonceTotal[k]
 		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
 		}else {
