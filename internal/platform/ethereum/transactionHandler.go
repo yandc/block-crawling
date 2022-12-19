@@ -90,7 +90,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 
 			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
 				record.Amount = decimal.Zero
-				record.Data =""
+				record.Data = ""
 			}
 			ret, _ = data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
 		}
@@ -108,7 +108,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 
 func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
-
+	total := 0
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
@@ -117,6 +117,7 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 			continue
 		}
 		nonceKey := biz.ADDRESS_DONE_NONCE + chainName + ":" + record.FromAddress
+		total = total + 1
 		bh := doneNonce[nonceKey]
 		if bh == 0 {
 			doneNonce[nonceKey] = int(record.Nonce)
@@ -126,11 +127,18 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 			}
 		}
 	}
+	//1   2条 2 3  取出 3 -2 == 1
 	for k, v := range doneNonce {
-		nonceStr, _ := data.RedisClient.Get(k).Result()
-		nonce, _ := strconv.Atoi(nonceStr)
-		if v > nonce {
+		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
+		}else {
+			nonceStr, _ := data.RedisClient.Get(k).Result()
+			nonce, _ := strconv.Atoi(nonceStr)
+			if v > nonce && v-total == nonce {
+				data.RedisClient.Set(k, strconv.Itoa(v), 0)
+			}else {
+				log.Info(k,zap.Any("无需修改nonce,交易记录的nonce值",v),zap.Any("本地记录nonce",nonce))
+			}
 		}
 	}
 }

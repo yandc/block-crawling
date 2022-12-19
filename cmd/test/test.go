@@ -52,7 +52,17 @@ func main() {
 	fmt.Println(ft1.Unix()*1000)
 
 
+	doneNonce := make(map[string]int)
 
+	doneNonce["key"] = 1
+	doneNonce["key1"] = 11
+	doneNonce["key2"] = 12
+	doneNonce["key3"] = 13
+
+	for k,v := range doneNonce {
+		fmt.Println(k)
+		fmt.Println(v)
+	}
 
 
 

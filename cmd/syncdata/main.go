@@ -53,6 +53,7 @@ func main() {
 	//platform.HandleAsset()
 	//platform.HandleAssetByEventLog()
 	//platform.DeleteAsset()
-	platform.DeleteAndUpdateAsset()
-	platform.UpdateAsset()
+	//platform.DeleteAndUpdateAsset()
+	//platform.UpdateAsset()
+	platform.CheckNonce()
 }
