@@ -190,6 +190,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							time.Sleep(time.Duration(i*1) * time.Second)
 							tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 						}
+						log.Info("调用token service",zap.Any("response",tokenInfo),zap.Any(h.chainName,contractAddress),zap.Error(err))
 						if err != nil {
 							// nodeProxy出错 接入lark报警
 							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
@@ -375,32 +376,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var fromAddress, toAddress, fromUid, toUid string
 		var fromAddressExist, toAddressExist bool
 
-		/*if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				return
-			}
-		}
 
-		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
-				return
-			}
-		}
-		if fromAddress == toAddress {
-			return nil
-		}*/
 
 		nonce = chainTx.Nonce
 		txTime = tx.TxResponse.Timestamp.Unix()

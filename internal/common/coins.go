@@ -80,15 +80,16 @@ const (
 )
 
 var HandleMap = map[string]uint{
-	"ethereum":      ETHEREUM,
-	"starcoin":      STARCOIN,
-	"bitcoin":       BITCOIN,
-	"tron":          TRON,
-	"aptos":         APTOS,
-	"sui":           SUI,
-	"solana":        SOLANA,
-	"nervos":        NERVOS,
-	"handlerheihei": CASPER,
+	"ethereum": ETHEREUM,
+	"starcoin": STARCOIN,
+	"bitcoin":  BITCOIN,
+	"tron":     TRON,
+	"aptos":    APTOS,
+	"sui":      SUI,
+	"solana":   SOLANA,
+	"nervos":   NERVOS,
+	"casper":   CASPER,
+	"cosmos":   COSMOS,
 }
 
 var Coins = map[uint]Coin{
