@@ -376,15 +376,15 @@ type Event struct {
 			Name     string `json:"name"`
 			ObjectId string `json:"object_id"`
 
-			PoolId    string   `json:"pool_id"`
-			InAmount  *big.Int `json:"in_amount"`
-			OutAmount *big.Int `json:"out_amount"`
-			XToY      bool     `json:"x_to_y"`
+			PoolId    string      `json:"pool_id"`
+			InAmount  interface{} `json:"in_amount"`
+			OutAmount interface{} `json:"out_amount"`
+			XToY      bool        `json:"x_to_y"`
 
-			IsAdded   bool     `json:"is_added"`
-			LspAmount *big.Int `json:"lsp_amount"`
-			XAmount   *big.Int `json:"x_amount"`
-			YAmount   *big.Int `json:"y_amount"`
+			IsAdded   bool        `json:"is_added"`
+			LspAmount interface{} `json:"lsp_amount"`
+			XAmount   interface{} `json:"x_amount"`
+			YAmount   interface{} `json:"y_amount"`
 		} `json:"fields"`
 		Bcs string `json:"bcs"`
 	} `json:"moveEvent,omitempty"`
