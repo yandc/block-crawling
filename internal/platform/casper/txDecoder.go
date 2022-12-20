@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"fmt"
@@ -15,12 +16,13 @@ import (
 )
 
 type txDecoder struct {
-	ChainName string
-	block     *chain.Block
+	ChainName   string
+	block       *chain.Block
+	txByHash    *chain.Transaction
 	chainHeight uint64
-	now       time.Time
-	newTxs    bool
-	txRecords []*data.CsprTransactionRecord
+	now         time.Time
+	newTxs      bool
+	txRecords   []*data.CsprTransactionRecord
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
@@ -34,7 +36,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	} else {
 		if transaction.ExecutionResults[0].Result.Success.Transfers == nil || len(transaction.ExecutionResults[0].Result.Failure.ErrorMessage) > 0 {
 			status = biz.FAIL
-		}else {
+		} else {
 			feeArgs := transaction.ExecutionResults[0].Result.Success.Cost
 			fa, _ := decimal.NewFromString(feeArgs)
 			feeAmount = fa
@@ -46,7 +48,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if transaction.Deploy.Session.Transfer.Args == nil {
 		return nil
 	}
-	toAddress :=transaction.Deploy.Session.Transfer.Args[1][1].(map[string]interface{})["parsed"].(string)
+	toAddress := transaction.Deploy.Session.Transfer.Args[1][1].(map[string]interface{})["parsed"].(string)
 
 	amountOriginal := transaction.Deploy.Session.Transfer.Args[0][1].(map[string]interface{})["parsed"].(string)
 	amount, _ := decimal.NewFromString(amountOriginal)
@@ -80,6 +82,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	return nil
 }
+
 type userMeta struct {
 	matchFrom bool
 	fromUid   string
@@ -130,6 +133,15 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		}
 		go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
 
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			common.SetResultOfTxs(h.block, records)
+		} else {
+			common.SetTxResult(h.txByHash, txRecords[0])
+		}
 	}
 	return nil
 }

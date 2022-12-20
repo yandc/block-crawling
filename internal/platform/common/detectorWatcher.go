@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"gitlab.bixin.com/mili/node-driver/detector"
 	"go.uber.org/zap"
 )
@@ -89,6 +90,19 @@ func (d *DetectorZapWatcher) URLs() []string {
 		urls = append(urls, url)
 	}
 	return urls
+}
+
+func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous int, txHashs []string) {
+	if numOfContinuous > 2 {
+		alarmMsg := fmt.Sprintf(
+			"请注意：%s 链发出的交易连续失败达到 %d 次，交易类型：%s，失败交易列表：\n%s",
+			d.chainName, numOfContinuous,
+			txType,
+			strings.Join(txHashs, "\n"),
+		)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
 }
 
 // NodeRecoverIn common recover to embed into Node implementation.

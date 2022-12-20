@@ -36,8 +36,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		nodes = append(nodes, &c)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), nodes...)
-	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
-
+	spider.Watch(common.NewDectorZapWatcher(chainName))
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		client:    NewClient(chainName, nodeURL[0]),

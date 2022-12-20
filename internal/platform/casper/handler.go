@@ -36,11 +36,11 @@ func (h *handler) BlockMayFork() bool {
 
 func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	decoder := &txDecoder{
-		ChainName: h.ChainName,
-		block:     block,
+		ChainName:   h.ChainName,
+		block:       block,
 		chainHeight: chainHeight,
-		newTxs:    true,
-		now:       time.Now(),
+		newTxs:      true,
+		now:         time.Now(),
 	}
 	log.Info(
 		"GOT NEW BLOCK",
@@ -63,6 +63,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 	decoder := &txDecoder{
 		ChainName: h.ChainName,
 		block:     nil,
+		txByHash:  tx,
 		newTxs:    false,
 		now:       time.Now(),
 	}
@@ -89,7 +90,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil  {
+	if err == nil {
 		return err
 	}
 
@@ -106,7 +107,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil  {
+	if err == nil {
 		return true
 	}
 

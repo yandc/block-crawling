@@ -11,10 +11,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/datatypes"
 	"math/big"
 	"strings"
 	"time"
+
+	"gorm.io/datatypes"
 
 	pCommon "block-crawling/internal/platform/common"
 
@@ -29,6 +30,7 @@ import (
 type txDecoder struct {
 	chainName string
 	block     *chain.Block
+	txByHash  *chain.Transaction
 	blockHash string
 	now       time.Time
 	newTxs    bool
@@ -519,6 +521,16 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		} else {
 			go handleUserNonce(h.chainName, txNonceRecords)
 			go HandlePendingRecord(h.chainName, *(client.(*Client)), txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			pCommon.SetResultOfTxs(h.block, records)
+		} else {
+			pCommon.SetTxResult(h.txByHash, txRecords[0])
 		}
 	}
 	return nil

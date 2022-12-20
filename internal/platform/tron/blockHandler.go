@@ -64,6 +64,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 	decoder := &txHandler{
 		chainName: h.chainName,
 		block:     nil,
+		txByHash:  tx,
 		newTxs:    false,
 		curHeight: tx.BlockNumber,
 		now:       time.Now().Unix(),

@@ -18,6 +18,7 @@ import (
 type txHandler struct {
 	chainName   string
 	block       *chain.Block
+	txByHash    *chain.Transaction
 	chainHeight uint64
 	curHeight   uint64
 	now         int64
@@ -139,6 +140,16 @@ func (h *txHandler) Save(c chain.Clienter) error {
 			go HandleRecord(h.chainName, *client, txRecords)
 		} else {
 			go HandlePendingRecord(h.chainName, *client, txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			common.SetResultOfTxs(h.block, records)
+		} else {
+			common.SetTxResult(h.txByHash, txRecords[0])
 		}
 	}
 	return nil
