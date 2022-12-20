@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 type txDecoder struct {
 	ChainName string
 	block     *chain.Block
+	txByHash  *chain.Transaction
 	now       time.Time
 	newTxs    bool
 
@@ -521,6 +523,16 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
 		} else {
 			go HandlePendingRecord(h.ChainName, *(client.(*Client)), txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			common.SetResultOfTxs(h.block, records)
+		} else {
+			common.SetTxResult(h.txByHash, txRecords[0])
 		}
 	}
 	return nil

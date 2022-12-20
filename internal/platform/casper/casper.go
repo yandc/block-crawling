@@ -10,10 +10,11 @@ import (
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 type Platform struct {
@@ -33,7 +34,8 @@ type KVPair struct {
 	Key string
 	Val int
 }
-//精度 9
+
+// 精度 9
 func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler
@@ -53,7 +55,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		}
 		spider.AddStandby(standby...)
 	}
-	spider.WatchDetector(common.NewDectorZapWatcher(chainName))
+	spider.Watch(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],

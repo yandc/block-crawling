@@ -4,15 +4,17 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"fmt"
-	"gorm.io/datatypes"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/datatypes"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -22,6 +24,7 @@ import (
 type txHandler struct {
 	chainName   string
 	block       *chain.Block
+	txByHash    *chain.Transaction
 	chainHeight uint64
 	curHeight   uint64
 	now         int64
@@ -740,6 +743,16 @@ func (h *txHandler) Save(c chain.Clienter) error {
 
 		} else {
 			go HandlePendingRecord(h.chainName, *client, h.txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(h.txRecords))
+			for _, r := range h.txRecords {
+				records = append(records, r)
+			}
+			common.SetResultOfTxs(h.block, records)
+		} else {
+			common.SetTxResult(h.txByHash, h.txRecords[0])
 		}
 	}
 	return nil

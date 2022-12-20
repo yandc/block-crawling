@@ -2,6 +2,7 @@ package common
 
 import (
 	"block-crawling/internal/biz"
+	"block-crawling/internal/data"
 	"errors"
 	"fmt"
 
@@ -37,4 +38,133 @@ func NotifyForkedError(chainName string, err error) bool {
 	}
 	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	return true
+}
+
+type txResult struct {
+	hash          string
+	matchedFrom   bool
+	matchedTo     bool
+	txType        chain.TxType
+	failedOnChain bool
+}
+
+func SetResultOfTxs(block *chain.Block, records []interface{}) {
+	txs := make(map[string]*chain.Transaction)
+	for _, tx := range block.Transactions {
+		txs[tx.Hash] = tx
+	}
+
+	for _, r := range records {
+		result := recordToTxResult(r)
+		if tx, ok := txs[result.hash]; ok {
+			tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+		} else {
+			block.ExtraTxs = append(block.ExtraTxs, &chain.Transaction{
+				Hash:   result.hash,
+				TxType: result.txType,
+				Result: &chain.TxResult{
+					MatchedFrom:   result.matchedFrom,
+					MatchedTo:     result.matchedTo,
+					FailedOnChain: result.failedOnChain,
+				},
+			})
+		}
+	}
+}
+
+func SetTxResult(tx *chain.Transaction, record interface{}) {
+	result := recordToTxResult(record)
+	tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+}
+
+func recordToTxResult(record interface{}) *txResult {
+	switch v := record.(type) {
+	case *data.AptTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.AtomTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.BtcTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(biz.NATIVE),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.CkbTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.CsprTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.EvmTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.SolTransactionRecord:
+
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.StcTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.SuiTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	case *data.TrxTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+		}
+	default:
+		panic("unsupport record")
+	}
+}
+
+func failedOnChain(status string) bool {
+	return status == biz.FAIL || status == biz.DROPPED || status == biz.DROPPED_REPLACED
 }

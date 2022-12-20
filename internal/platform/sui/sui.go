@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		clients = append(clients, &client)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
+	spider.Watch(common.NewDectorZapWatcher(chainName))
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],

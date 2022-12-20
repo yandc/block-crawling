@@ -3,8 +3,9 @@ package sui
 import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
-	"gitlab.bixin.com/mili/node-driver/common"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/common"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -61,6 +62,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 	decoder := &txHandler{
 		chainName:   h.chainName,
 		block:       nil,
+		txByHash:    tx,
 		curHeight:   tx.BlockNumber,
 		chainHeight: tx.BlockNumber,
 		newTxs:      false,
