@@ -3,6 +3,7 @@ package sui
 import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/types"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/common"
@@ -80,11 +81,17 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	if err == nil {
 		return err
 	}
+	if _, ok := err.(*types.ErrorObject); ok {
+		return err
+	}
 	return common.Retry(err)
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err.Error() == pcommon.NotFound.Error() {
+		return true
+	}
+	if _, ok := err.(*types.ErrorObject); ok {
 		return true
 	}
 
