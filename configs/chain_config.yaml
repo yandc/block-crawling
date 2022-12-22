@@ -659,6 +659,33 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+  Harmony:
+    blockExplorerAddrUrl: https://explorer.harmony.one/address/
+    blockExplorerTxUrl: https://explorer.harmony.one/tx/
+    blockExplorerUrl: https://explorer.harmony.one/
+    chain: Harmony
+    chainId: 1666600000
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Harmony
+    getPriceKey: harmony
+    handler: harmony
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Harmony.png
+    nativeCurrency: ONE
+    netType: main
+    rpcURL:
+      - https://harmony-mainnet.chainstacklabs.com
+      - https://harmony-0-rpc.gateway.pokt.network
+      - https://api.harmony.one
+      - https://a.api.s0.t.hmny.io
+      - https://api.s0.t.hmny.io
+      - https://rpc.ankr.com/harmony
+    symbol: Harmony
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 180
 
   Osmosis:
     blockExplorerUrl: https://www.mintscan.io/osmosis

@@ -89,8 +89,9 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(chainName+"推送token信息，推送token信息到redis中失败", zap.Any("error", err))
-				return
+				continue
 			}
+			log.Info(chainName+"推送token信息，推送token信息到redis中成功", zap.Any("tokenInfo", string(tokenInfo)))
 		}
 	}
 }
