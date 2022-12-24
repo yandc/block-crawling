@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/types"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -347,6 +348,9 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 	if err != nil {
 		return nil, err
 	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
+	}
 
 	data := response.Data
 	if len(data) > 0 {
@@ -386,6 +390,9 @@ func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress s
 	if err != nil {
 		return nil, err
 	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
+	}
 
 	data := response.Data
 	if len(data) > 0 {
@@ -418,6 +425,9 @@ func GetRawCollectionInfoDirectly(ctx context.Context, chainName string, tokenAd
 	})
 	if err != nil {
 		return nil, err
+	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
 	}
 
 	data := response.Data
@@ -454,6 +464,9 @@ func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string
 	})
 	if err != nil {
 		return nil, err
+	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
 	}
 
 	data := response.Data
