@@ -861,7 +861,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 
 	transactionVersion, _ := strconv.Atoi(transactionInfo.Version)
 	if transactionInfo.ErrorCode == "transaction_not_found" {
-		status := biz.CANCEL
+		status := biz.DROPPED
 		record.Status = status
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)

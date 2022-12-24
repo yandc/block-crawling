@@ -121,6 +121,7 @@ type UserTransaction struct {
 	TransactionHash string         `json:"transaction_hash"`
 	RawTransaction  RawTransaction `json:"raw_txn"`
 	Authenticator   Authenticator  `json:"authenticator"`
+	Events          []Event        `json:"events"`
 }
 
 type RawTransaction struct {

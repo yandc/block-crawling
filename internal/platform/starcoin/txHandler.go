@@ -8,7 +8,9 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
 	"math/big"
 	"strconv"
 	"strings"
@@ -95,11 +97,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				return err
 			}
 
+			nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 			txTime, _ := strconv.ParseInt(block.BlockHeader.TimeStamp, 10, 64)
 			txTime = txTime / 1000
-			gasUsed, _ := strconv.Atoi(transactionInfo.GasUsed)
-			gasPrice, _ := strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
-			feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
+			gasUsed := transactionInfo.GasUsed
+			gasUsedi, _ := strconv.Atoi(gasUsed)
+			gasPricei, _ := strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
+			feeAmount := decimal.NewFromInt(int64(gasUsedi * gasPricei))
 			payload, _ := utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
 
 			var status string
@@ -132,7 +136,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			parseData, _ := utils.JsonEncode(stcMap)
 			amountValue, _ := decimal.NewFromString(amount)
-			nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 
 			stcRecord := &data.StcTransactionRecord{
 				BlockHash:       block.BlockHeader.BlockHash,
@@ -150,7 +153,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				ContractAddress: contractAddress,
 				ParseData:       parseData,
 				GasLimit:        userTransaction.RawTransaction.MaxGasAmount,
-				GasUsed:         block.BlockHeader.GasUsed,
+				GasUsed:         gasUsed,
 				GasPrice:        userTransaction.RawTransaction.GasUnitPrice,
 				Data:            payload,
 				EventLog:        "",
@@ -164,16 +167,17 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 	} else {
 		flag := false
+		var nonce int
 		var txTime int64
-		var gasUsed int
-		var gasPrice int
+		var gasUsed string
 		var feeAmount decimal.Decimal
 		var payload string
 		var status string
-		var eventLogs []types.EventLog
+		var eventLogs []*types.EventLog
+		var stcTransactionRecords []*data.StcTransactionRecord
 		var stcContractRecord *data.StcTransactionRecord
 
-		events, err := client.GetTransactionEventByHash(userTransaction.TransactionHash)
+		/*events, err := client.GetTransactionEventByHash(userTransaction.TransactionHash)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
 			events, err = client.GetTransactionEventByHash(userTransaction.TransactionHash)
@@ -181,7 +185,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if err != nil {
 			log.Error(h.chainName+"扫块，从链上获取区块event失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
-		}
+		}*/
+		events := userTransaction.Events
 
 		txType := biz.CONTRACT
 		var tokenInfo types.TokenInfo
@@ -229,12 +234,14 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				return err
 			}
 
+			/*nonce, _ = strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 			txTime, _ = strconv.ParseInt(block.BlockHeader.TimeStamp, 10, 64)
-			txTime = txTime / 1000
-			gasUsed, _ = strconv.Atoi(transactionInfo.GasUsed)
-			gasPrice, _ = strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
-			feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-			payload, _ = utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
+			txTime = txTime / 1000*/
+			gasUsed = transactionInfo.GasUsed
+			gasUsedi, _ := strconv.Atoi(gasUsed)
+			gasPricei, _ := strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
+			feeAmount = decimal.NewFromInt(int64(gasUsedi * gasPricei))
+			//payload, _ = utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
 
 			if string(transactionInfo.Status) == "Executed" || string(transactionInfo.Status) == "\"Executed\"" {
 				status = biz.SUCCESS
@@ -243,59 +250,66 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			flag = true
+		}
 
-			if contractAddress != STC_CODE && contractAddress != "" {
+		nonce, _ = strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
+		txTime, _ = strconv.ParseInt(block.BlockHeader.TimeStamp, 10, 64)
+		txTime = txTime / 1000
+		/*gasUsed = transactionInfo.GasUsed
+		gasUsedi, _ := strconv.Atoi(gasUsed)
+		gasPricei, _ := strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
+		feeAmount = decimal.NewFromInt(int64(gasUsedi * gasPricei))*/
+		payload, _ = utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
+
+		if contractAddress != STC_CODE && contractAddress != "" {
+			tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
 				tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
-				}
-				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-				}
-				tokenInfo.Amount = amount
 			}
-			stcMap := map[string]interface{}{
-				"stc": map[string]string{
-					"sequence_number": userTransaction.RawTransaction.SequenceNumber,
-				},
-				"token": tokenInfo,
+			if err != nil {
+				// nodeProxy出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			}
-			parseData, _ := utils.JsonEncode(stcMap)
-			amountValue, _ := decimal.NewFromString(amount)
-			nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
+			tokenInfo.Amount = amount
+		}
+		stcMap := map[string]interface{}{
+			"stc": map[string]string{
+				"sequence_number": userTransaction.RawTransaction.SequenceNumber,
+			},
+			"token": tokenInfo,
+		}
+		parseData, _ := utils.JsonEncode(stcMap)
+		amountValue, _ := decimal.NewFromString(amount)
 
-			stcContractRecord = &data.StcTransactionRecord{
-				BlockHash:       block.BlockHeader.BlockHash,
-				BlockNumber:     int(h.curHeight),
-				Nonce:           int64(nonce),
-				TransactionHash: userTransaction.TransactionHash,
-				FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,
-				FeeAmount:       feeAmount,
-				Amount:          amountValue,
-				Status:          status,
-				TxTime:          txTime,
-				ContractAddress: contractAddress,
-				ParseData:       parseData,
-				GasLimit:        userTransaction.RawTransaction.MaxGasAmount,
-				GasUsed:         block.BlockHeader.GasUsed,
-				GasPrice:        userTransaction.RawTransaction.GasUnitPrice,
-				Data:            payload,
-				EventLog:        "",
-				TransactionType: txType,
-				DappData:        "",
-				ClientData:      "",
-				CreatedAt:       h.now,
-				UpdatedAt:       h.now,
-			}
-			h.txRecords = append(h.txRecords, stcContractRecord)
+		stcContractRecord = &data.StcTransactionRecord{
+			BlockHash:       block.BlockHeader.BlockHash,
+			BlockNumber:     int(h.curHeight),
+			Nonce:           int64(nonce),
+			TransactionHash: userTransaction.TransactionHash,
+			FromAddress:     fromAddress,
+			ToAddress:       toAddress,
+			FromUid:         fromUid,
+			ToUid:           toUid,
+			FeeAmount:       feeAmount,
+			Amount:          amountValue,
+			Status:          status,
+			TxTime:          txTime,
+			ContractAddress: contractAddress,
+			ParseData:       parseData,
+			GasLimit:        userTransaction.RawTransaction.MaxGasAmount,
+			GasUsed:         gasUsed,
+			GasPrice:        userTransaction.RawTransaction.GasUnitPrice,
+			Data:            payload,
+			EventLog:        "",
+			TransactionType: txType,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       h.now,
+			UpdatedAt:       h.now,
 		}
 
 		txType = biz.EVENTLOG
@@ -372,12 +386,14 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						return err
 					}
 
+					/*nonce, _ = strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
 					txTime, _ = strconv.ParseInt(block.BlockHeader.TimeStamp, 10, 64)
-					txTime = txTime / 1000
-					gasUsed, _ = strconv.Atoi(transactionInfo.GasUsed)
-					gasPrice, _ = strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
-					feeAmount = decimal.NewFromInt(int64(gasUsed * gasPrice))
-					payload, _ = utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
+					txTime = txTime / 1000*/
+					gasUsed = transactionInfo.GasUsed
+					gasUsedi, _ := strconv.Atoi(gasUsed)
+					gasPricei, _ := strconv.Atoi(userTransaction.RawTransaction.GasUnitPrice)
+					feeAmount = decimal.NewFromInt(int64(gasUsedi * gasPricei))
+					//payload, _ = utils.JsonEncode(userTransaction.RawTransaction.DecodedPayload)
 
 					if string(transactionInfo.Status) == "Executed" || string(transactionInfo.Status) == "\"Executed\"" {
 						status = biz.SUCCESS
@@ -386,6 +402,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					}
 
 					flag = true
+					stcContractRecord.GasUsed = gasUsed
+					stcContractRecord.FeeAmount = feeAmount
+					stcContractRecord.Status = status
 				}
 
 				if contractAddress != STC_CODE && contractAddress != "" {
@@ -415,16 +434,50 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				}
 				parseData, _ := utils.JsonEncode(stcMap)
 				amountValue := decimal.NewFromBigInt(amount, 0)
-				eventLogInfo := types.EventLog{
+				eventLogInfo := &types.EventLog{
 					From:   fromAddress,
 					To:     toAddress,
 					Amount: amount,
 					Token:  tokenInfo,
 				}
+
+				var isContinue bool
+				for i, eventLog := range eventLogs {
+					if eventLog == nil {
+						continue
+					}
+					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+						if cmp == 1 {
+							isContinue = true
+							subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+							eventLogs[i].Amount = subAmount
+							stcTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
+						} else if cmp == 0 {
+							isContinue = true
+							eventLogs[i] = nil
+							stcTransactionRecords[i] = nil
+						} else if cmp == -1 {
+							eventLogs[i] = nil
+							stcTransactionRecords[i] = nil
+						}
+						break
+					} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						isContinue = true
+						addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+						eventLogs[i].Amount = addAmount
+						stcTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
+						break
+					}
+				}
+				if isContinue {
+					continue
+				}
 				eventLogs = append(eventLogs, eventLogInfo)
-				eventLog, _ := utils.JsonEncode(eventLogInfo)
-				nonce, _ := strconv.Atoi(userTransaction.RawTransaction.SequenceNumber)
-				stcRecord := &data.StcTransactionRecord{
+
+				stcTransactionRecord := &data.StcTransactionRecord{
 					BlockHash:       block.BlockHeader.BlockHash,
 					BlockNumber:     int(h.curHeight),
 					Nonce:           int64(nonce),
@@ -440,23 +493,51 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					ContractAddress: contractAddress,
 					ParseData:       parseData,
 					GasLimit:        userTransaction.RawTransaction.MaxGasAmount,
-					GasUsed:         block.BlockHeader.GasUsed,
+					GasUsed:         gasUsed,
 					GasPrice:        userTransaction.RawTransaction.GasUnitPrice,
 					Data:            payload,
-					EventLog:        eventLog,
+					EventLog:        "",
 					TransactionType: txType,
 					DappData:        "",
 					ClientData:      "",
 					CreatedAt:       h.now,
 					UpdatedAt:       h.now,
 				}
-				h.txRecords = append(h.txRecords, stcRecord)
+				stcTransactionRecords = append(stcTransactionRecords, stcTransactionRecord)
 			}
 		}
 
-		if stcContractRecord != nil && eventLogs != nil {
-			eventLog, _ := utils.JsonEncode(eventLogs)
-			stcContractRecord.EventLog = eventLog
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, stcContractRecord)
+		}
+		if len(eventLogs) > 0 {
+			for _, stcTransactionRecord := range stcTransactionRecords {
+				if stcTransactionRecord != nil {
+					h.txRecords = append(h.txRecords, stcTransactionRecord)
+				}
+			}
+
+			var eventLogList []*types.EventLog
+			for _, eventLog := range eventLogs {
+				if eventLog != nil {
+					eventLogList = append(eventLogList, eventLog)
+				}
+			}
+			if len(eventLogList) > 0 {
+				eventLog, _ := utils.JsonEncode(eventLogList)
+				stcContractRecord.EventLog = eventLog
+
+				var logAddress datatypes.JSON
+				var logFromAddress []string
+				var logToAddress []string
+				for _, log := range eventLogList {
+					logFromAddress = append(logFromAddress, log.From)
+					logToAddress = append(logToAddress, log.To)
+				}
+				logAddressList := [][]string{logFromAddress, logToAddress}
+				logAddress, _ = json.Marshal(logAddressList)
+				stcContractRecord.LogAddress = logAddress
+			}
 		}
 	}
 	return nil

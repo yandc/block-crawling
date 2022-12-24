@@ -194,7 +194,7 @@ func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	doneNonceTotal := make(map[string]int)
 
 	for _, record := range txRecords {
-		if record.Status == biz.CANCEL {
+		if record.Status == biz.DROPPED {
 			pNonce := biz.ADDRESS_PENDING_NONCE + chainName + ":" + record.FromAddress + ":" + strconv.Itoa(int(record.Nonce))
 			data.RedisClient.Del(pNonce)
 			continue
@@ -222,13 +222,13 @@ func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 		total := doneNonceTotal[k]
 		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
-		}else {
+		} else {
 			nonceStr, _ := data.RedisClient.Get(k).Result()
 			nonce, _ := strconv.Atoi(nonceStr)
 			if v > nonce && v-total == nonce {
 				data.RedisClient.Set(k, strconv.Itoa(v), 0)
-			}else {
-				log.Info(k,zap.Any("无需修改nonce,交易记录的nonce值",v),zap.Any("本地记录nonce",nonce))
+			} else {
+				log.Info(k, zap.Any("无需修改nonce,交易记录的nonce值", v), zap.Any("本地记录nonce", nonce))
 			}
 		}
 	}
