@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/starcoinorg/starcoin-go/client"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -91,6 +92,38 @@ func (c *Client) GetTransactionInfoByHash(transactionHash string) (*client.Trans
 	return c.client.GetTransactionInfoByHash(context.Background(), transactionHash)
 }
 
+func (c *Client) GetTransactionEventByNumber(number int, typeTags []string) (map[string][]types.Event, error) {
+	method := "chain.get_events"
+	b := map[string]interface{}{
+		"from_block": number,
+		"to_block":   number,
+		//"limit": number,
+	}
+	if len(typeTags) > 0 {
+		b["type_tags"] = typeTags
+	}
+	d := map[string]bool{
+		"decode": true,
+	}
+	params := []interface{}{b, d}
+	var result []types.Event
+	err := c.call(ID101, method, &result, params)
+	if err != nil {
+		return nil, err
+	}
+
+	eventMap := make(map[string][]types.Event)
+	for _, event := range result {
+		eventList, ok := eventMap[event.TransactionHash]
+		if !ok {
+			eventList = make([]types.Event, 0)
+		}
+		eventList = append(eventList, event)
+		eventMap[event.TransactionHash] = eventList
+	}
+	return eventMap, err
+}
+
 func (c *Client) GetTransactionEventByHash(transactionHash string) ([]types.Event, error) {
 	method := "chain.get_events_by_txn_hash"
 	d := map[string]bool{
@@ -149,8 +182,22 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 		return nil, err
 	}
 
+	var eventMap map[string][]types.Event
+	for _, userTransaction := range block.BlockBody.UserTransactions {
+		scriptFunction := userTransaction.RawTransaction.DecodedPayload.ScriptFunction
+		if !strings.HasPrefix(scriptFunction.Function, "peer_to_peer") {
+			eventMap, err = c.GetTransactionEventByNumber(int(height), []string{"0x00000000000000000000000000000001::Account::WithdrawEvent",
+				"0x00000000000000000000000000000001::Account::DepositEvent"})
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
 	txs := make([]*chain.Transaction, 0, len(block.BlockBody.UserTransactions))
 	for _, utx := range block.BlockBody.UserTransactions {
+		events := eventMap[utx.TransactionHash]
+		utx.Events = events
 		txs = append(txs, &chain.Transaction{
 			Hash:        utx.TransactionHash,
 			BlockNumber: height,
@@ -181,11 +228,20 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		return nil, err
 	}
 
+	userTransaction := transactionInfo.UserTransaction
+	scriptFunction := userTransaction.RawTransaction.DecodedPayload.ScriptFunction
+	if !strings.HasPrefix(scriptFunction.Function, "peer_to_peer") {
+		events, err := c.GetTransactionEventByHash(txHash)
+		if err != nil {
+			return nil, err
+		}
+		userTransaction.Events = events
+	}
 	blockNumber, _ := strconv.Atoi(transactionInfo.BlockNumber)
 	return &chain.Transaction{
 		Hash:        txHash,
 		BlockNumber: uint64(blockNumber),
 		TxType:      "",
-		Raw:         transactionInfo.UserTransaction,
+		Raw:         userTransaction,
 	}, nil
 }
