@@ -28,6 +28,9 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 		}
 	}()
 	for _, record := range txRecords {
+		if record.Status != SUCCESS {
+			continue
+		}
 		if record.TransactionType == "approveNFT" {
 			log.Info("nftYD", zap.Any(record.TransactionHash, record))
 			dar := &data.DappApproveRecord{
@@ -95,6 +98,9 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 	txhashEventLogMap := make(map[string][]*data.EvmTransactionRecord)
 
 	for _, record := range txRecords {
+		if record.Status != SUCCESS {
+			continue
+		}
 		if record.TransactionType == "approve" {
 			dar := &data.DappApproveRecord{
 				Uid:        record.FromUid,
