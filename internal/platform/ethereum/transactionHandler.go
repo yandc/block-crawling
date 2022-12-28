@@ -133,13 +133,13 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 		total := doneNonceTotal[k]
 		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
-		}else {
+		} else {
 			nonceStr, _ := data.RedisClient.Get(k).Result()
 			nonce, _ := strconv.Atoi(nonceStr)
 			if v > nonce && v-total == nonce {
 				data.RedisClient.Set(k, strconv.Itoa(v), 0)
-			}else {
-				log.Info(k,zap.Any("无需修改nonce,交易记录的nonce值",v),zap.Any("本地记录nonce",nonce))
+			} else {
+				log.Info(k, zap.Any("无需修改nonce,交易记录的nonce值", v), zap.Any("本地记录nonce", nonce))
 			}
 		}
 	}
@@ -535,7 +535,10 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 
@@ -651,10 +654,10 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 

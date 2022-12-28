@@ -89,13 +89,13 @@ func handleUserNonce(chainName string, txRecords []*data.StcTransactionRecord) {
 		total := doneNonceTotal[k]
 		if v == 0 {
 			data.RedisClient.Set(k, strconv.Itoa(v), 0)
-		}else {
+		} else {
 			nonceStr, _ := data.RedisClient.Get(k).Result()
 			nonce, _ := strconv.Atoi(nonceStr)
 			if v > nonce && v-total == nonce {
 				data.RedisClient.Set(k, strconv.Itoa(v), 0)
-			}else {
-				log.Info(k,zap.Any("无需修改nonce,交易记录的nonce值",v),zap.Any("本地记录nonce",nonce))
+			} else {
+				log.Info(k, zap.Any("无需修改nonce,交易记录的nonce值", v), zap.Any("本地记录nonce", nonce))
 			}
 		}
 	}
@@ -423,7 +423,10 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.StcTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 

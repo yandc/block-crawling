@@ -65,6 +65,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if tx.TxType == "transfer" {
 		tokenInfo, _ = biz.GetTokenInfo(nil, h.chainName, rawTx.contractAddress)
 		tokenInfo.Amount = rawTx.tokenAmount
+		tokenInfo.Address = rawTx.contractAddress
 	}
 	feeData := map[string]interface{}{
 		"net_usage": txInfo.Receipt.NetUsage,

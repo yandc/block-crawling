@@ -127,6 +127,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
 			}
 			stcMap := map[string]interface{}{
 				"stc": map[string]string{
@@ -275,6 +276,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
+			tokenInfo.Address = contractAddress
 		}
 		stcMap := map[string]interface{}{
 			"stc": map[string]string{
@@ -425,6 +427,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						amountStr = amount.String()
 					}
 					tokenInfo.Amount = amountStr
+					tokenInfo.Address = contractAddress
 				}
 				stcMap := map[string]interface{}{
 					"stc": map[string]string{

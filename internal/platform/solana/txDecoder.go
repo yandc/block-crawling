@@ -418,12 +418,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 
 		if contractAddress != "" {
-			var symbol string
-			var decimals = int64(tokenBalanceOwnerMap[fromAddress].UiTokenAmount.Decimals)
-			getTokenInfo, err := biz.GetTokenInfo(nil, h.ChainName, contractAddress)
+			tokenInfo, err = biz.GetTokenInfo(nil, h.ChainName, contractAddress)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				getTokenInfo, err = biz.GetTokenInfo(nil, h.ChainName, contractAddress)
+				tokenInfo, err = biz.GetTokenInfo(nil, h.ChainName, contractAddress)
 			}
 			if err != nil {
 				// nodeProxy出错 接入lark报警
@@ -431,11 +429,9 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("error", err))
-			} else if getTokenInfo.Symbol != "" {
-				symbol = getTokenInfo.Symbol
-				decimals = getTokenInfo.Decimals
 			}
-			tokenInfo = types.TokenInfo{Address: contractAddress, Symbol: symbol, Decimals: decimals, Amount: amount}
+			tokenInfo.Amount = amount
+			tokenInfo.Address = contractAddress
 		}
 		stcMap := map[string]interface{}{
 			"token": tokenInfo,

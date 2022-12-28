@@ -382,7 +382,10 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 
