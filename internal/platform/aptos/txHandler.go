@@ -176,6 +176,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
 			}
 			aptosMap := map[string]interface{}{
 				"aptos": map[string]string{
@@ -359,12 +360,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				}
 				if err != nil {
 					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
+				if tokenInfo.TokenId == "" {
+					tokenInfo.TokenId = itemName
+				}
 			}
 			aptosMap := map[string]interface{}{
 				"aptos": map[string]string{
@@ -505,6 +510,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
+			tokenInfo.Address = contractAddress
 		}
 		aptosMap := map[string]interface{}{
 			"aptos": map[string]string{
@@ -669,8 +675,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				index++
 				txHash := tx.Hash + "#result-" + fmt.Sprintf("%v", index)
 
-				if tokenType != "" {
-					if contractAddress != APT_CODE && contractAddress != "" {
+				if contractAddress != APT_CODE && contractAddress != "" {
+					if tokenType != "" {
 						tokenInfo, err = biz.GetNftInfoDirectly(nil, h.chainName, contractAddress, itemName)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
@@ -678,15 +684,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						}
 						if err != nil {
 							// nodeProxy出错 接入lark报警
-							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
+							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
 							alarmOpts := biz.WithMsgLevel("FATAL")
 							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+							log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 						}
-						tokenInfo.Amount = amount
-					}
-				} else {
-					if contractAddress != APT_CODE && contractAddress != "" {
+					} else {
 						tokenInfo, err = biz.GetTokenInfo(nil, h.chainName, contractAddress)
 						for i := 0; i < 3 && err != nil; i++ {
 							time.Sleep(time.Duration(i*1) * time.Second)
@@ -699,7 +702,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 						}
-						tokenInfo.Amount = amount
+					}
+					tokenInfo.Amount = amount
+					tokenInfo.Address = contractAddress
+					if tokenType != "" && tokenInfo.TokenId == "" {
+						tokenInfo.TokenId = itemName
 					}
 				}
 				aptosMap := map[string]interface{}{

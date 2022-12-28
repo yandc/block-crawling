@@ -629,7 +629,10 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 
@@ -690,10 +693,10 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+		if record.Status != biz.SUCCESS {
 			continue
 		}
 

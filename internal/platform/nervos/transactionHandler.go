@@ -333,6 +333,13 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.CkbTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
+		if record.TransactionType == biz.CONTRACT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
+			continue
+		}
+
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警

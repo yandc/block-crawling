@@ -92,11 +92,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if tx.PaySui != nil && len(tx.PaySui.Recipients) > 1 {
 			recipientMap := make(map[string]*big.Int)
 			for i, recipient := range tx.PaySui.Recipients {
+				var amount *big.Int
+				if len(tx.PaySui.Amounts) > i {
+					amount = tx.PaySui.Amounts[i]
+				}
 				txAmount, ok := recipientMap[recipient]
 				if !ok {
-					recipientMap[recipient] = tx.PaySui.Amounts[i]
-				} else {
-					recipientMap[recipient] = new(big.Int).Add(txAmount, tx.PaySui.Amounts[i])
+					recipientMap[recipient] = amount
+				} else if amount != nil {
+					recipientMap[recipient] = new(big.Int).Add(txAmount, amount)
 				}
 			}
 
@@ -244,6 +248,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 					}
 					tokenInfo.Amount = amount
+					tokenInfo.Address = contractAddress
 				}
 				suiMap := map[string]interface{}{
 					"token": tokenInfo,
@@ -358,6 +363,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
+						tokenInfo.Address = contractAddress
 					}
 					suiMap := map[string]interface{}{
 						"token": tokenInfo,
@@ -467,6 +473,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
 			}
 			suiMap := map[string]interface{}{
 				"token": tokenInfo,
@@ -570,6 +577,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
+						tokenInfo.Address = contractAddress
 					}
 					suiMap := map[string]interface{}{
 						"token": tokenInfo,

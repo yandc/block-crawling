@@ -202,6 +202,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
+						tokenInfo.Address = contractAddress
 					}
 					atomosMap := map[string]interface{}{
 						"cosmos": map[string]string{
@@ -323,6 +324,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 								log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 							}
 							tokenInfo.Amount = amount
+							tokenInfo.Address = contractAddress
 						}
 						atomosMap := map[string]interface{}{
 							"cosmos": map[string]string{
@@ -402,6 +404,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
+			tokenInfo.Address = contractAddress
 		}
 		atomosMap := map[string]interface{}{
 			"cosmos": map[string]string{
@@ -520,6 +523,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 										log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
 									}
 									tokenInfo.Amount = amount
+									tokenInfo.Address = contractAddress
 								}
 								atomosMap := map[string]interface{}{
 									"cosmos": map[string]string{
