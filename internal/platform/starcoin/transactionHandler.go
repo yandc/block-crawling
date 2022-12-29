@@ -88,7 +88,10 @@ func handleUserNonce(chainName string, txRecords []*data.StcTransactionRecord) {
 	for k, v := range doneNonce {
 		total := doneNonceTotal[k]
 		if v == 0 {
-			data.RedisClient.Set(k, strconv.Itoa(v), 0)
+			_, err := data.RedisClient.Get(k).Result()
+			if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
+				data.RedisClient.Set(k, strconv.Itoa(v), 0)
+			}
 		} else {
 			nonceStr, _ := data.RedisClient.Get(k).Result()
 			nonce, _ := strconv.Atoi(nonceStr)
