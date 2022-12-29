@@ -22,6 +22,8 @@ service Transaction {
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //查询用户余额
   rpc GetBalance(AssetRequest) returns (ListBalanceResponse);
+  //根据uid维度查询用户余额列表
+  rpc ListAmountUidDimension(ListAmountUidDimensionRequest) returns (ListAmountUidDimensionResponse);
   //客户端分页查询用户NFT资产分组列表
   rpc ClientPageListNftAssetGroup(PageListNftAssetRequest) returns (ClientPageListNftAssetGroupResponse);
   //客户端分页查询用户NFT资产列表
@@ -391,6 +393,20 @@ message ListBalanceResponse {
 message BalanceResponse {
   string tokenAddress = 1;
   string balance = 2;
+}
+
+message ListAmountUidDimensionRequest {
+  string currency = 1;//-- 必输 // [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
+  repeated string uidList = 2 [(validate.rules).repeated = {min_items: 1}];//-- 必输
+}
+
+message ListAmountUidDimensionResponse {
+  repeated AmountUidDimensionResponse list = 1;
+}
+
+message AmountUidDimensionResponse {
+  string uid = 1;
+  string currencyAmount = 2;
 }
 
 message PageListNftAssetRequest {
