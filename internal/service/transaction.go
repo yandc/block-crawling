@@ -134,6 +134,18 @@ func (s *TransactionService) GetBalance(ctx context.Context, req *pb.AssetReques
 	return result, err
 }
 
+func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb.ListAmountUidDimensionRequest) (*pb.ListAmountUidDimensionResponse, error) {
+	if len(req.UidList) == 0 {
+		return nil, errors.New("uidList is required")
+	}
+	if req.Currency != "CNY" && req.Currency != "USD" {
+		return nil, errors.New("currency must be CNY or USD")
+	}
+
+	result, err := s.ts.ListAmountUidDimension(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")

@@ -1,7 +1,6 @@
 package platform
 
 import (
-	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -404,7 +403,7 @@ func BtcReset() {
 }
 
 func UpdateAsset() {
-	assetRequest := &pb.AssetRequest{
+	assetRequest := &data.AssetRequest{
 		TokenAddressList: []string{""},
 	}
 	list, err := data.UserAssetRepoClient.List(nil, assetRequest)
@@ -440,7 +439,7 @@ func UpdateAsset() {
 }
 
 func DeleteAndUpdateAsset() {
-	assetRequest := &pb.AssetRequest{
+	assetRequest := &data.AssetRequest{
 		TokenAddressList: []string{"0x0000000000000000000000000000000000000000"},
 	}
 	list, err := data.UserAssetRepoClient.List(nil, assetRequest)

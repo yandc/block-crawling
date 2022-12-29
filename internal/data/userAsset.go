@@ -27,6 +27,16 @@ type UserAsset struct {
 	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`
 }
 
+type AssetRequest struct {
+	ChainName        string
+	Uid              string
+	UidList          []string
+	Address          string
+	AddressList      []string
+	TokenAddressList []string
+	AmountType       int32
+}
+
 func (userAsset UserAsset) TableName() string {
 	return "user_asset"
 }
@@ -44,7 +54,8 @@ type UserAssetRepo interface {
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
 	PageList(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, int64, error)
-	List(context.Context, *pb.AssetRequest) ([]*UserAsset, error)
+	List(context.Context, *AssetRequest) ([]*UserAsset, error)
+	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
 	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -269,7 +280,7 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetR
 	return userAssetList, total, nil
 }
 
-func (r *UserAssetRepoImpl) List(ctx context.Context, req *pb.AssetRequest) ([]*UserAsset, error) {
+func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
 	var userAssetList []*UserAsset
 	db := r.gormDB.WithContext(ctx).Table("user_asset")
 
@@ -287,6 +298,47 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *pb.AssetRequest) ([]*
 	err := ret.Error
 	if err != nil {
 		log.Errore("list query userAsset failed", err)
+		return nil, err
+	}
+	return userAssetList, nil
+}
+
+func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+
+	sqlStr := "select chain_name, uid, token_address, balance " +
+		"from user_asset " +
+		"where 1=1 "
+	if req.ChainName != "" {
+		sqlStr += " and chain_name = '" + req.ChainName + "'"
+	}
+	if req.Uid != "" {
+		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if len(req.UidList) > 0 {
+		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
+		sqlStr += " and uid in (" + uidList + ")"
+	}
+	if len(req.AddressList) > 0 {
+		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
+		sqlStr += " and address in (" + addressList + ")"
+	}
+	if len(req.TokenAddressList) > 0 {
+		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
+		sqlStr += " and token_address in (" + tokenAddressList + ")"
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			sqlStr += " and (balance is null or balance = '' or balance = '0')"
+		} else if req.AmountType == 2 {
+			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+
+	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query userAsset failed", err)
 		return nil, err
 	}
 	return userAssetList, nil

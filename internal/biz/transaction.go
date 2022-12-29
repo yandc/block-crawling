@@ -222,10 +222,10 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 				transcationType = sol.TransactionType
 			}
 		}
-		if req.DappType == "approveNFT" && transcationType != req.DappType{
+		if req.DappType == "approveNFT" && transcationType != req.DappType {
 			continue
 		}
-		if req.DappType == "approve" && transcationType == "approveNFT"{
+		if req.DappType == "approve" && transcationType == "approveNFT" {
 			continue
 		}
 
@@ -706,7 +706,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	switch chainType {
 	case CASPER:
 		var recordList []*data.CsprTransactionRecord
-		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx,GetTalbeName(req.ChainName), req)
+		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
@@ -948,7 +948,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
 
-					eventLogInfo , err1 :=data.EvmTransactionRecordRepoClient.FindParseDataByTxHashAndToken(ctx, GetTalbeName(value.ChainName), value.LastTxhash,tokenAddress)
+					eventLogInfo, err1 := data.EvmTransactionRecordRepoClient.FindParseDataByTxHashAndToken(ctx, GetTalbeName(value.ChainName), value.LastTxhash, tokenAddress)
 					if err1 == nil && eventLogInfo != nil {
 						r.ParseData = eventLogInfo.ParseData
 					}
@@ -983,7 +983,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case TVM:
 				tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && tvm != nil {
-
 					var r *pb.TransactionRecord
 					utils.CopyProperties(tvm, &r)
 					r.ChainName = value.ChainName
@@ -1028,10 +1027,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			case SOLANA:
 				sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && sol != nil {
-					if req.DappType == "approveNFT" && sol.TransactionType != req.DappType{
+					if req.DappType == "approveNFT" && sol.TransactionType != req.DappType {
 						continue
 					}
-					if req.DappType == "approve" && sol.TransactionType == "approveNFT"{
+					if req.DappType == "approve" && sol.TransactionType == "approveNFT" {
 						continue
 					}
 					var r *pb.TransactionRecord
@@ -1191,6 +1190,10 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 
 		if len(recordGroupList) > 0 {
 			for _, record := range recordGroupList {
+				if record == nil {
+					continue
+				}
+
 				chainName := record.ChainName
 				tokenAddress := record.TokenAddress
 				var price string
@@ -1221,11 +1224,16 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
 	}
 
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Address:          req.Address,
+		TokenAddressList: req.TokenAddressList,
+	}
 	var result = &pb.ListBalanceResponse{}
 	var list []*pb.BalanceResponse
 	var err error
 	var recordList []*data.UserAsset
-	recordList, err = data.UserAssetRepoClient.List(ctx, req)
+	recordList, err = data.UserAssetRepoClient.List(ctx, request)
 	if err == nil {
 		err = utils.CopyProperties(recordList, &list)
 	}
@@ -1234,6 +1242,83 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 		result.List = list
 	}
 
+	return result, err
+}
+
+func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb.ListAmountUidDimensionRequest) (*pb.ListAmountUidDimensionResponse, error) {
+	var request = &data.AssetRequest{
+		UidList:    req.UidList,
+		AmountType: 2,
+	}
+	var result = &pb.ListAmountUidDimensionResponse{}
+	var list []*pb.AmountUidDimensionResponse
+	var amountMap = make(map[string]decimal.Decimal)
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, err = data.UserAssetRepoClient.ListBalance(ctx, request)
+	if err == nil && len(recordList) > 0 {
+		var chainNameTokenAddressMap = make(map[string][]string)
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, asset := range recordList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key, _ := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
+		if err != nil {
+			return result, err
+		}
+
+		for _, record := range recordList {
+			if record == nil {
+				continue
+			}
+
+			chainName := record.ChainName
+			tokenAddress := record.TokenAddress
+			var price string
+			tokenAddressPriceMap := resultMap[chainName]
+			if tokenAddress == "" {
+				price = tokenAddressPriceMap[chainName]
+			} else {
+				price = tokenAddressPriceMap[tokenAddress]
+			}
+			prices, _ := decimal.NewFromString(price)
+			balances, _ := decimal.NewFromString(record.Balance)
+			cnyAmount := prices.Mul(balances)
+
+			response, ok := amountMap[record.Uid]
+			if !ok {
+				amountMap[record.Uid] = cnyAmount
+			} else {
+				amountMap[record.Uid] = response.Add(cnyAmount)
+			}
+		}
+
+		if len(amountMap) > 0 {
+			for key, amount := range amountMap {
+				record := &pb.AmountUidDimensionResponse{
+					Uid:            key,
+					CurrencyAmount: amount.String(),
+				}
+				list = append(list, record)
+			}
+		}
+		result.List = list
+	}
 	return result, err
 }
 
