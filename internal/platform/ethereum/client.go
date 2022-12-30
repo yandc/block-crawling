@@ -164,7 +164,11 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 			var amountOrTokenId *big.Int
 			if len(data) > 68 {
-				amountOrTokenId = new(big.Int).SetBytes(data[68:])
+				if len(data) <= 100 {
+					amountOrTokenId = new(big.Int).SetBytes(data[68:])
+				} else {
+					amountOrTokenId = new(big.Int).SetBytes(data[68:100])
+				}
 			} else {
 				amountOrTokenId = new(big.Int)
 			}
@@ -176,7 +180,11 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 			var tokenId *big.Int
 			if len(data) > 68 {
-				tokenId = new(big.Int).SetBytes(data[68:])
+				if len(data) <= 100 {
+					tokenId = new(big.Int).SetBytes(data[68:])
+				} else {
+					tokenId = new(big.Int).SetBytes(data[68:100])
+				}
 			} else {
 				tokenId = new(big.Int)
 			}

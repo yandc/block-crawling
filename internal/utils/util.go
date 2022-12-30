@@ -167,6 +167,7 @@ func JsonEncode(source interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	jsons := string(bytesBuffer.Bytes())
 	tsjsons := strings.TrimSuffix(jsons, "\n")
 	return tsjsons, nil
@@ -187,10 +188,12 @@ func CopyProperties(source interface{}, target interface{}) error {
 }
 
 func ListToString(list interface{}) string {
-	listBytes, _ := json.Marshal(list)
-	var result = string(listBytes)
-	result = result[1 : len(result)-1]
-	return result
+	tsjsons, err := JsonEncode(list)
+	if err != nil {
+		return ""
+	}
+	tsjsons = tsjsons[1 : len(tsjsons)-1]
+	return tsjsons
 }
 
 func HexToAddress(hexList []string) []string {

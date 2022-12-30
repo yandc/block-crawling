@@ -63,7 +63,6 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 	tokenIdMap := make(map[string]string)
 	var nftRecords []*data.NftRecordHistory
 	for _, record := range txRecords {
-
 		if record.TransactionType == biz.CONTRACT {
 			continue
 		}
@@ -149,9 +148,9 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				}
 				nftRecords = append(nftRecords, nrh)
 			}
-
 		}
 	}
+
 	if len(nftRecords) > 0 {
 		_, err := data.NftRecordHistoryRepoClient.SaveOrUpdate(nil, nftRecords)
 		if err != nil {
