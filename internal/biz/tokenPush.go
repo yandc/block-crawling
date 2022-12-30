@@ -4,7 +4,7 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	"encoding/json"
+	"block-crawling/internal/utils"
 	"fmt"
 	"go.uber.org/zap"
 	"time"
@@ -69,7 +69,7 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 		}
 
 		if !exist {
-			tokenInfo, _ := json.Marshal(userTokenPush)
+			tokenInfo, _ := utils.JsonEncode(userTokenPush)
 			err = data.RedisQueueManager.QueuePublish(&data.QueueSendMessage{
 				Topic:     TOKEN_INFO_QUEUE_TOPIC,
 				Partition: TOKEN_INFO_QUEUE_PARTITION,
@@ -91,7 +91,7 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 				log.Error(chainName+"推送token信息，推送token信息到redis中失败", zap.Any("error", err))
 				continue
 			}
-			log.Info(chainName+"推送token信息，推送token信息到redis中成功", zap.Any("tokenInfo", string(tokenInfo)))
+			log.Info(chainName+"推送token信息，推送token信息到redis中成功", zap.Any("tokenInfo", tokenInfo))
 		}
 	}
 }

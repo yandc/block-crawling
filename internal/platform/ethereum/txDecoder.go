@@ -551,8 +551,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		topic0 := log_.Topics[0].String()
-		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC &&
-			topic0 != TRANSFERSINGLE_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
+		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC && topic0 != TRANSFERSINGLE_TOPIC &&
+			topic0 != TRANSFERBATCH_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
 			continue
 		}
 
@@ -678,6 +678,26 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
+			token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
+			}
+			if err != nil {
+				// nodeProxy出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			}
+			token.TokenType = biz.ERC1155
+			token.Amount = amount.String()
+			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
+		} else if topic0 == TRANSFERBATCH_TOPIC {
+			ctx := context.Background()
+			tokenId = new(big.Int).SetBytes(log_.Data[96:128]).String()
+			amount = new(big.Int).SetBytes(log_.Data[128:160])
 			token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
