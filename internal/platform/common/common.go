@@ -58,6 +58,7 @@ func SetResultOfTxs(block *chain.Block, records []interface{}) {
 		result := recordToTxResult(r)
 		if tx, ok := txs[result.hash]; ok {
 			tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+			tx.TxType = result.txType
 		} else {
 			block.ExtraTxs = append(block.ExtraTxs, &chain.Transaction{
 				Hash:   result.hash,
@@ -75,6 +76,7 @@ func SetResultOfTxs(block *chain.Block, records []interface{}) {
 func SetTxResult(tx *chain.Transaction, record interface{}) {
 	result := recordToTxResult(record)
 	tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+	tx.TxType = result.txType
 }
 
 func recordToTxResult(record interface{}) *txResult {
