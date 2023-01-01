@@ -25,6 +25,8 @@ type DetectorZapWatcher struct {
 	rwLock    sync.RWMutex
 
 	numOfContinualFailed int32
+
+	lastNotifiedTx string
 }
 
 // NewDectorZapWatcher create watcher.
@@ -94,6 +96,14 @@ func (d *DetectorZapWatcher) URLs() []string {
 
 func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous int, txHashs []string) {
 	if numOfContinuous > 2 {
+		lastTxHash := txHashs[len(txHashs)-1]
+
+		if d.lastNotifiedTx != "" && lastTxHash == d.lastNotifiedTx {
+			// already notified.
+			return
+		}
+		d.lastNotifiedTx = lastTxHash
+
 		alarmMsg := fmt.Sprintf(
 			"请注意：%s 链发出的交易连续失败达到 %d 次，交易类型：%s，失败交易列表：\n%s",
 			d.chainName, numOfContinuous,
