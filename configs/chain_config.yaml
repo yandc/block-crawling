@@ -651,7 +651,6 @@ platform:
     nativeCurrency: BCH
     netType: main
     rpcURL:
-      - https://global.uat.cash
       - https://smartbch.greyh.at
       - https://smartbch.fountainhead.cash/mainnet
     symbol: SmartBCH
