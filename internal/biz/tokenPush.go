@@ -24,6 +24,23 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 		return
 	}
 
+	var userTokenPushs []UserTokenPush
+	for _, userTokenPush := range userTokenPushList {
+		if userTokenPush.Decimals == 0 && (userTokenPush.Symbol == "" || userTokenPush.Symbol == "Unknown Token") {
+			alarmMsg := fmt.Sprintf("请注意：%s链推送用户token信息失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"推送，推送用户token信息失败", zap.Any("address", userTokenPush.Address), zap.Any("tokenAddress", userTokenPush.TokenAddress), zap.Any("symbol", userTokenPush.Symbol))
+			continue
+		}
+
+		userTokenPushs = append(userTokenPushs, userTokenPush)
+	}
+	if len(userTokenPushs) == 0 {
+		return
+	}
+	userTokenPushList = userTokenPushs
+
 	var assetRequest = &pb.PageListAssetRequest{
 		ChainName: chainName,
 	}
@@ -49,6 +66,10 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 	}
 	assetMap := make(map[string][]string)
 	for _, asset := range list {
+		if asset.Decimals == 0 && (asset.Symbol == "" || asset.Symbol == "Unknown Token") {
+			continue
+		}
+
 		tokenAddressList, ok := assetMap[asset.Address]
 		if !ok {
 			tokenAddressList = make([]string, 0)
