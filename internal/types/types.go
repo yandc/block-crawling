@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type SessionInfo struct {
 	Session   string
 	Timestamp int64
@@ -37,10 +39,76 @@ type TokenInfo struct {
 	Tokens         []TokenInfo `json:"tokens,omitempty"`
 }
 
+const (
+	nRecordRPCURLInfoBuckets = 30 // 30 buckets for 30 minutes
+	nEachBucketSeconds       = 60 // each bucket for 1 minute.
+)
+
 type RecordRPCURLInfo struct {
+	buckets []RecordRPCURLBucket
+}
+
+type RecordRPCURLBucket struct {
 	SumCount     int64
 	SuccessCount int64
+
+	period string
 }
+
+func NewRecordRPCURLInfo() *RecordRPCURLInfo {
+	return &RecordRPCURLInfo{
+		buckets: make([]RecordRPCURLBucket, nRecordRPCURLInfoBuckets),
+	}
+}
+
+func (r *RecordRPCURLInfo) Incr(success bool) {
+	bucket := r.getBucket(time.Now().Unix())
+	r.buckets[bucket].Incr(success)
+}
+
+func (r *RecordRPCURLInfo) FailRate() int {
+	nowSecs := time.Now().Unix()
+	var sum, success int64
+	for i := 0; i < 30; i++ {
+		idx := r.getBucket(nowSecs)
+		bucket := r.buckets[idx]
+
+		if bucket.period != bucket.getPeriod(nowSecs) {
+			continue
+		}
+		sum += bucket.SumCount
+		success += bucket.SuccessCount
+		nowSecs -= 60 // previous bucket
+	}
+
+	fail := sum - success
+	failRate := int((fail * 100) / sum)
+	return failRate
+}
+
+func (r *RecordRPCURLInfo) getBucket(nowSecs int64) int64 {
+	return nowSecs / nEachBucketSeconds % nRecordRPCURLInfoBuckets
+}
+
+func (bucket *RecordRPCURLBucket) Incr(success bool) {
+	period := bucket.getPeriod(time.Now().Unix())
+
+	if period != bucket.period {
+		bucket.period = period
+		bucket.SuccessCount = 0
+		bucket.SumCount = 0
+	}
+
+	bucket.SumCount++
+	if success {
+		bucket.SuccessCount++
+	}
+}
+
+func (bucket *RecordRPCURLBucket) getPeriod(nowSecs int64) string {
+	return time.Unix(nowSecs, 0).Format("2006-01-02T15:04")
+}
+
 type UbiquityUtxo struct {
 	Total int `json:"total"`
 	Data  []struct {

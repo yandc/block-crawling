@@ -11,12 +11,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // Lark .
@@ -105,7 +106,7 @@ func (lark *Lark) MonitorLark(msg string, opts ...AlarmOption) {
         "post": {
             "zh_cn": {
                 "title": block-crawling块高监测",
-                "content": 
+                "content":
                     ` + string(b) + `
             	}
         	}
@@ -218,9 +219,15 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	if len(disabledRPC) > 0 {
 		c = append(c, Content{Tag: "text", Text: "不可用rpc：\n"})
 		var rpcs string
+		failRateExceed20 := false
 		for i := 0; i < len(disabledRPC); i++ {
 			failRate := utils.GetRPCFailureRate(disabledRPC[i])
-			rpcs += "[" + disabledRPC[i] + "]失败率:" + fmt.Sprintf("%v", failRate) + "%\n"
+			failRateExceed20 = failRateExceed20 || failRate >= 20
+			rpcs += "[" + disabledRPC[i] + "]半小时内失败率:" + fmt.Sprintf("%v", failRate) + "%\n"
+		}
+		// NO rpc nodes' fail rate is exceeded 20%, skip this alarm.
+		if !failRateExceed20 {
+			return
 		}
 		c = append(c, Content{Tag: "text", Text: rpcs})
 	}
@@ -238,7 +245,7 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
         "post": {
             "zh_cn": {
                 "title": "` + lark.conf.LarkAlarmTitle + `",
-                "content": 
+                "content":
                     ` + string(b) + `
             	}
         	}

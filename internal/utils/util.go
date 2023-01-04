@@ -133,17 +133,12 @@ func TronHexToBase58(address string) string {
 }
 
 func UpdateRecordRPCURL(rpc string, success bool) {
-	tmp := types.RecordRPCURLInfo{SumCount: 1}
-	if success {
-		tmp.SuccessCount = 1
-	}
+	tmp := types.NewRecordRPCURLInfo()
+
 	value, ok := recordRPCUrl.LoadOrStore(rpc, tmp)
 	if ok {
-		r := value.(types.RecordRPCURLInfo)
-		r.SumCount++
-		if success {
-			r.SuccessCount++
-		}
+		r := value.(*types.RecordRPCURLInfo)
+		r.Incr(success)
 		recordRPCUrl.Store(rpc, r)
 	}
 }
@@ -153,10 +148,8 @@ func GetRPCFailureRate(rpc string) int {
 	if !ok {
 		return 0
 	}
-	r := value.(types.RecordRPCURLInfo)
-	fail := r.SumCount - r.SuccessCount
-	failRate := int((fail * 100) / r.SumCount)
-	return failRate
+	r := value.(*types.RecordRPCURLInfo)
+	return r.FailRate()
 }
 
 func JsonEncode(source interface{}) (string, error) {
