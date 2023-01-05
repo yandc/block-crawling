@@ -2,8 +2,10 @@ package common
 
 import (
 	"block-crawling/internal/biz"
+	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -94,16 +96,17 @@ func (d *DetectorZapWatcher) URLs() []string {
 	return urls
 }
 
-func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous int, txHashs []string) {
+func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous int, txs []*chain.Transaction) {
 	if numOfContinuous > 2 {
-		lastTxHash := txHashs[len(txHashs)-1]
+		lastTx := txs[len(txs)-1]
 
-		if d.lastNotifiedTx != "" && lastTxHash == d.lastNotifiedTx {
+		if d.lastNotifiedTx != "" && lastTx.Hash == d.lastNotifiedTx {
 			// already notified.
 			return
 		}
-		d.lastNotifiedTx = lastTxHash
 
+		d.lastNotifiedTx = lastTx.Hash
+		txHashs := d.formatTxWithSentEmail(txs)
 		alarmMsg := fmt.Sprintf(
 			"请注意：%s 链发出的交易连续失败达到 %d 次，交易类型：%s，失败交易列表：\n%s",
 			d.chainName, numOfContinuous,
@@ -113,6 +116,30 @@ func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
+}
+
+func (d *DetectorZapWatcher) formatTxWithSentEmail(txs []*chain.Transaction) []string {
+	uniqUUIDs := make(map[string]bool)
+	for _, tx := range txs {
+		uniqUUIDs[tx.Result.FromUID] = true
+	}
+	uuids := make([]string, 0, len(uniqUUIDs))
+	for uuid := range uniqUUIDs {
+		uuids = append(uuids, uuid)
+	}
+	userMap, err := data.UserRecordRepoInst.LoadByUUIDs(context.Background(), uuids)
+	if err != nil {
+		return []string{err.Error()}
+	}
+	lines := make([]string, 0, len(txs))
+	for _, tx := range txs {
+		if user, ok := userMap[tx.Result.FromUID]; ok {
+			lines = append(lines, fmt.Sprintf("%s(%s)", tx.Hash, user.Email))
+		} else {
+			lines = append(lines, fmt.Sprintf("%s(%s)", tx.Hash, "unknown"))
+		}
+	}
+	return lines
 }
 
 // NodeRecoverIn common recover to embed into Node implementation.

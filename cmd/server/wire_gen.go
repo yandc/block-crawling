@@ -52,6 +52,13 @@ func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, co
 	data.NewTransactionStatisticRepo(gormDB)
 	data.NewNervosCellRecordRepo(gormDB)
 	data.NewNftRecordHistoryRepo(gormDB)
+
+	userGormDB, userCleanup, err := data.NewUserGormDB(confData)
+	if err != nil {
+		return nil, nil, err
+	}
+	data.NewUserRecordRepo(userGormDB)
+
 	bizLark := biz.NewLark(confLark)
 	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, bizLark, logLogger)
 	greeterService := service.NewGreeterService(greeterUsecase)
@@ -63,5 +70,6 @@ func wireApp(confServer *conf.Server, confData *conf.Data, confApp *conf.App, co
 	kratosApp := newApp(logLogger, grpcServer, httpServer)
 	return kratosApp, func() {
 		cleanup()
+		userCleanup()
 	}, nil
 }

@@ -17,7 +17,7 @@ require (
 	github.com/shopspring/decimal v1.2.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
-	gitlab.bixin.com/mili/node-driver v0.0.0-20221228110909-4d115d8677e5
+	gitlab.bixin.com/mili/node-driver v0.0.0-20230105062958-3fcc2bf684dd
 	go.uber.org/zap v1.13.0
 	google.golang.org/genproto v0.0.0-20220719170305-83ca9fad585f
 	google.golang.org/grpc v1.48.0
