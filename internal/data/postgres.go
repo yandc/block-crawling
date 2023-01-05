@@ -3,13 +3,16 @@ package data
 import (
 	"block-crawling/internal/conf"
 	"block-crawling/internal/log"
+	"time"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"time"
 )
 
 var GormlDb *gorm.DB
+
+type UserGormDB *gorm.DB
 
 // NewGormDB use grom connect to postgres
 func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
@@ -46,5 +49,41 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 
 	log.Info("opened connection to postgres")
 	GormlDb = gormlDb
+	return gormlDb, cleanup, nil
+}
+
+func NewUserGormDB(conf *conf.Data) (UserGormDB, func(), error) {
+	log.Info("opening connection to postgres")
+	gormlDb, err := gorm.Open(postgres.Open(conf.User.Source), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true, // 使用单数表名
+		},
+	})
+
+	if err != nil {
+		log.Fatale("failed opening connection to postgres of usercenter", err)
+	}
+
+	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{})
+
+	sqlDb, err := gormlDb.DB()
+	if err != nil {
+		log.Fatale("failed opening connection to postgres of usercenter", err)
+	}
+
+	sqlDb.SetConnMaxLifetime(time.Minute * time.Duration(conf.User.Pool.ConnMaxLifetime))
+	sqlDb.SetMaxOpenConns(int(conf.User.Pool.MaxOpenConns))
+	sqlDb.SetMaxIdleConns(int(conf.User.Pool.MaxIdleConns))
+
+	cleanup := func() {
+		log.Info("closing the postgres resources of usercenter")
+		err = sqlDb.Close()
+		if err != nil {
+			log.Errore("failed closeing postgres of usercenter", err)
+		}
+	}
+
+	log.Info("opened connection to postgres of usercenter")
 	return gormlDb, cleanup, nil
 }

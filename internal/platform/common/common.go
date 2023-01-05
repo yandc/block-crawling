@@ -46,6 +46,7 @@ type txResult struct {
 	matchedTo     bool
 	txType        chain.TxType
 	failedOnChain bool
+	fromUID       string
 }
 
 func SetResultOfTxs(block *chain.Block, records []interface{}) {
@@ -57,25 +58,25 @@ func SetResultOfTxs(block *chain.Block, records []interface{}) {
 	for _, r := range records {
 		result := recordToTxResult(r)
 		if tx, ok := txs[result.hash]; ok {
-			tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+			applyTxResult(tx, result)
 			tx.TxType = result.txType
 		} else {
-			block.ExtraTxs = append(block.ExtraTxs, &chain.Transaction{
+			tx := &chain.Transaction{
 				Hash:   result.hash,
 				TxType: result.txType,
-				Result: &chain.TxResult{
-					MatchedFrom:   result.matchedFrom,
-					MatchedTo:     result.matchedTo,
-					FailedOnChain: result.failedOnChain,
-				},
-			})
+			}
+			applyTxResult(tx, result)
+			block.ExtraTxs = append(block.ExtraTxs)
 		}
 	}
 }
 
 func SetTxResult(tx *chain.Transaction, record interface{}) {
-	result := recordToTxResult(record)
-	tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain)
+	applyTxResult(tx, recordToTxResult(record))
+}
+
+func applyTxResult(tx *chain.Transaction, result *txResult) {
+	tx.SetResult(result.matchedFrom, result.matchedTo, result.failedOnChain, result.fromUID)
 	tx.TxType = result.txType
 }
 
@@ -88,6 +89,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.AtomTransactionRecord:
 		return &txResult{
@@ -96,6 +98,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.BtcTransactionRecord:
 		return &txResult{
@@ -104,6 +107,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(biz.NATIVE),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.CkbTransactionRecord:
 		return &txResult{
@@ -112,6 +116,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.CsprTransactionRecord:
 		return &txResult{
@@ -120,6 +125,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.EvmTransactionRecord:
 		return &txResult{
@@ -128,6 +134,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.SolTransactionRecord:
 
@@ -137,6 +144,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.StcTransactionRecord:
 		return &txResult{
@@ -145,6 +153,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.SuiTransactionRecord:
 		return &txResult{
@@ -153,6 +162,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	case *data.TrxTransactionRecord:
 		return &txResult{
@@ -161,6 +171,7 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
 			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
 		}
 	default:
 		panic("unsupport record")
