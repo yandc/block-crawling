@@ -710,8 +710,28 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
-
-
+  Ronin:
+    blockExplorerAddrUrl: https://explorer.roninchain.com/address/
+    blockExplorerTxUrl: https://explorer.roninchain.com/tx/
+    blockExplorerUrl: https://explorer.roninchain.com/
+    chain: Ronin
+    chainId: 2020
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Ronin
+    getPriceKey: ronin
+    handler: ronin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ronin.png
+    nativeCurrency: RON
+    netType: main
+    rpcURL:
+      - https://api.roninchain.com/rpc
+    symbol: Ronin
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 180
 
 platformTest:
   AptosTEST:

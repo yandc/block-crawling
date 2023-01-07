@@ -23,7 +23,7 @@ type EvmTransactionRecord struct {
 	Nonce                int64           `json:"nonce" form:"nonce"`
 	TransactionHash      string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
 	FromAddress          string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
-	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(42);index"`
+	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
 	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
 	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
 	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
@@ -149,7 +149,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
 			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
 			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},
-			"to_address":               clause.Column{Table: "excluded", Name: "to_address"},
+			"to_address":               gorm.Expr("case when " + tableName + ".to_address != '' then " + tableName + ".to_address else excluded.to_address end"),
 			"from_uid":                 clause.Column{Table: "excluded", Name: "from_uid"},
 			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
@@ -539,11 +539,11 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 		return nil, err
 	}
 	return evmTransactionRecords, nil
-
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal, data string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?  and amount = ? and data = ? ", address, nonce, transactionHash+"%", toAddress, amount, data).Update("status", "dropped_replaced")
+	dest := map[string]interface{}{"status": "dropped_replaced", "transaction_type": "speed_up"}
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ? and transaction_hash not like ? and to_address = ? and amount = ? and data = ?", address, nonce, transactionHash+"%", toAddress, amount, data).Updates(dest)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -554,7 +554,8 @@ func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, 
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ?   ", address, nonce, transactionHash+"%", toAddress).Update("status", "dropped_replaced")
+	dest := map[string]interface{}{"status": "dropped_replaced", "transaction_type": "cancel"}
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ? and transaction_hash not like ? and to_address = ?", address, nonce, transactionHash+"%", toAddress).Updates(dest)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -575,13 +576,13 @@ func (r *EvmTransactionRecordRepoImpl) FindFromAddress(ctx context.Context, tabl
 	return addresses, nil
 }
 
-func (r *EvmTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Context, tableName string,fromAddress string) (int64, error){
+func (r *EvmTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Context, tableName string, fromAddress string) (int64, error) {
 	var nonce int64
-	ret := r.gormDB.Select("NONCE").Table(tableName).Where("from_address = ? and (status = 'success' or status = 'fail')",fromAddress).Order("NONCE DESC").Limit(1).Find(&nonce)
+	ret := r.gormDB.Select("NONCE").Table(tableName).Where("from_address = ? and (status = 'success' or status = 'fail')", fromAddress).Order("NONCE DESC").Limit(1).Find(&nonce)
 	err := ret.Error
 	if err != nil {
 		log.Errore("findAddress "+tableName+" failed", err)
 		return 0, err
 	}
-	return nonce,nil
+	return nonce, nil
 }

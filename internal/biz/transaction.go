@@ -392,7 +392,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		if pbb.FromAddress != "" {
 			pbb.FromAddress = types2.HexToAddress(pbb.FromAddress).Hex()
 		}
-		if pbb.ToAddress != "" {
+		if strings.HasPrefix(pbb.ToAddress, "0x") {
 			pbb.ToAddress = types2.HexToAddress(pbb.ToAddress).Hex()
 		}
 

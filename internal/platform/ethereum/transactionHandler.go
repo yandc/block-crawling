@@ -81,27 +81,16 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 			continue
 		}
 		txHashs := strings.Split(record.TransactionHash, "#")
-		var ret int64
 		realAmount := record.Amount
 		realDappData := record.DappData
-		if (realAmount.String() == "0" || realAmount == decimal.Zero) && record.DappData == "" {
-			ret, _ = data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
+		if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
+			data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
 		} else {
-
 			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
 				record.Amount = decimal.Zero
 				record.Data = ""
 			}
-			ret, _ = data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
-		}
-
-		if ret >= 1 {
-			if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
-				record.TransactionType = biz.CANCEL
-			} else {
-				record.TransactionType = biz.SPEED_UP
-			}
-			data.EvmTransactionRecordRepoClient.Update(nil, biz.GetTalbeName(chainName), record)
+			data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
 		}
 	}
 }
