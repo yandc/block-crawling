@@ -338,7 +338,13 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
 	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
 	var userAssets []*data.UserAsset
-	balanceList, err := client.BatchTokenBalance(address, tokenDecimalsMap)
+	var balanceList map[string]interface{}
+	var err error
+	if chainName == "Ronin"{
+		balanceList, err = client.NewBatchTokenBalance(address, tokenDecimalsMap)
+	}else {
+		balanceList, err = client.BatchTokenBalance(address, tokenDecimalsMap)
+	}
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
 		return nil, err
