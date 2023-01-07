@@ -574,6 +574,48 @@ func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map
 	}
 	return result, nil
 }
+func (c *Client) NewBatchTokenBalance(address string, tokenMap map[string]int) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	destAddress := common.HexToAddress(address)
+	balanceFun := []byte("balanceOf(address)")
+	hash := crypto.NewKeccakState()
+	hash.Write(balanceFun)
+	methodID := hash.Sum(nil)[:4]
+	rpcClient, err := rpc.DialHTTP(c.url)
+	if err != nil {
+		return result, err
+	}
+	for token, _ := range tokenMap {
+		var data []byte
+		var b string
+		data = append(data, methodID...)
+		tokenAddress := common.HexToAddress(token)
+		data = append(data, common.LeftPadBytes(destAddress.Bytes(), 32)...)
+		callMsg := map[string]interface{}{
+			"from": destAddress,
+			"to":   tokenAddress,
+			"data": hexutil.Bytes(data),
+		}
+		err = rpcClient.Call(&b,"eth_call",callMsg, "latest")
+		if err != nil {
+			return result, err
+		}
+		newHexAmount := b
+		if len(newHexAmount) > 66 {
+			newHexAmount = newHexAmount[0:66]
+		}
+		bi := new(big.Int).SetBytes(common.FromHex(newHexAmount))
+		var balance string
+		if tokenMap[token] == 0 {
+			balance = bi.String()
+		} else {
+			balance = utils.BigIntString(bi, tokenMap[token])
+		}
+		result[token] = balance
+	}
+
+	return result, nil
+}
 
 func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId string) (string, error) {
 	hexTokenAddress := common.HexToAddress(tokenAddress)
