@@ -20,7 +20,8 @@ type stateStore struct {
 
 func newStateStore(chainName string) chain.StateStore {
 	return &stateStore{
-		chainName: chainName,
+		chainName:    chainName,
+		dbBlockHashs: make(map[uint64]string),
 	}
 }
 

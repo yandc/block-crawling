@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
+
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 )
@@ -17,12 +18,11 @@ type stateStore struct {
 
 func newStateStore(chainName string) chain.StateStore {
 	return &stateStore{
-		StateStore: *common.NewStateStore(chainName, loadHeightFromDB),
-		chainName: chainName,
+		StateStore:   *common.NewStateStore(chainName, loadHeightFromDB),
+		chainName:    chainName,
+		dbBlockHashs: make(map[uint64]string),
 	}
 }
-
-
 
 func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 	lastRecord, err := data.CsprTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(chainName))
@@ -47,7 +47,7 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 	txs = make([]*chain.Transaction, 0, len(records))
 	for _, r := range records {
 		txs = append(txs, &chain.Transaction{
-			Hash: r.TransactionHash,
+			Hash:        r.TransactionHash,
 			BlockNumber: uint64(r.BlockNumber),
 			FromAddress: r.FromAddress,
 			ToAddress:   r.ToAddress,
@@ -59,8 +59,3 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 	log.Info("LOAD PENDING TXs", zap.String("chainName", store.chainName), zap.Any("records", records))
 	return txs, nil
 }
-
-
-
-
-
