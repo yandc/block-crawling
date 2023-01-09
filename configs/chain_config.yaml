@@ -710,6 +710,30 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
+  Polkadot:
+    blockExplorerUrl: https://polkadot.subscan.io/
+    blockExplorerTxUrl: https://polkadot.subscan.io/extrinsic/
+    blockExplorerAddrUrl: https://polkadot.subscan.io/account/
+    chain: Polkadot
+    chainId: 0
+    coinId: 354
+    decimal: 10
+    fullName: Polkadot
+    getPriceKey: polkadot
+    handler: polkadot
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polkadot.jpg
+    nativeCurrency: DOT
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://Bearer:2c8c9471365c28eb0eef2aadefacc9da@api.polkaholic.io/
+    symbol: Polkadot
+    type: POLKADOT
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 2
+    monitorHeightAlarmThr: 100
+
+
   Ronin:
     blockExplorerAddrUrl: https://explorer.roninchain.com/address/
     blockExplorerTxUrl: https://explorer.roninchain.com/tx/

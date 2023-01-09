@@ -679,6 +679,9 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 
 		tokenId := tokenInfo.TokenId
 		tokenAddress := tokenInfo.Address
+		if tokenAddress == "" || tokenId == "" {
+			continue
+		}
 		nftInfo, err := biz.GetRawNftInfoDirectly(nil, chainName, tokenAddress, tokenId)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
