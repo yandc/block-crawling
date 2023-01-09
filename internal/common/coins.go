@@ -90,6 +90,7 @@ var HandleMap = map[string]uint{
 	"nervos":   NERVOS,
 	"casper":   CASPER,
 	"cosmos":   COSMOS,
+	"polkadot" : POLKADOT,
 }
 
 var Coins = map[uint]Coin{
@@ -125,6 +126,14 @@ var Coins = map[uint]Coin{
 		Decimals:     6,
 		LiveInterval: 1000,
 	},
+	//POLKADOT: {
+	//	ID:           118,
+	//	Handle:       "polkadot",
+	//	Symbol:       "DOT",
+	//	Name:         "polkadot",
+	//	Decimals:     10,
+	//	LiveInterval: 10000,
+	//},
 	RIPPLE: {
 		ID:           144,
 		Handle:       "ripple",
@@ -465,7 +474,7 @@ var Coins = map[uint]Coin{
 		Symbol:       "DOT",
 		Name:         "Polkadot",
 		Decimals:     10,
-		LiveInterval: 1000,
+		LiveInterval: 10000,
 	},
 	SOLANA: {
 		ID:           501,

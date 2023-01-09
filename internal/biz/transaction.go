@@ -376,6 +376,41 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			key := pendingNonceKey + nonce
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
+
+	case POLKADOT:
+		evm := make(map[string]interface{})
+		var dbNonce uint64
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &evm); jsonErr == nil {
+			evmMap := evm["polkadot"]
+			ret := evmMap.(map[string]interface{})
+			nonceStr := ret["nonce"].(string)
+			dbNonce, _ = strconv.ParseUint(nonceStr, 10, 64)
+		}
+		dotTransactionRecord := &data.DotTransactionRecord{
+			BlockHash:            pbb.BlockHash,
+			BlockNumber:          int(pbb.BlockNumber),
+			Nonce:                int64(dbNonce),
+			TransactionHash:      pbb.TransactionHash,
+			FromAddress:          pbb.FromAddress,
+			ToAddress:            pbb.ToAddress,
+			FromUid:              pbb.Uid,
+			FeeAmount:            fa,
+			Amount:               a,
+			Status:               pbb.Status,
+			TxTime:               pbb.TxTime,
+			ContractAddress:      pbb.ContractAddress,
+			ParseData:            pbb.ParseData,
+			Data:                 pbb.Data,
+			EventLog:             pbb.EventLog,
+			TransactionType:      pbb.TransactionType,
+			DappData:             pbb.DappData,
+			ClientData:           pbb.ClientData,
+			CreatedAt:            pbb.CreatedAt,
+			UpdatedAt:            pbb.UpdatedAt,
+		}
+		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), dotTransactionRecord)
+
+
 	case EVM:
 		evm := make(map[string]interface{})
 		var dbNonce uint64
@@ -426,7 +461,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), evmTransactionRecord)
-		log.Info("asdf", zap.Any("插入数据库结果", result))
 		if result == 1 {
 			//插入redis 并设置过期时间为6个小时
 			key := pendingNonceKey + strconv.Itoa(int(dbNonce))
@@ -704,6 +738,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	chainType := chain2Type[req.ChainName]
 	switch chainType {
+	case POLKADOT:
+		var recordList []*data.DotTransactionRecord
+		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx,GetTalbeName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
 	case CASPER:
 		var recordList []*data.CsprTransactionRecord
 		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)

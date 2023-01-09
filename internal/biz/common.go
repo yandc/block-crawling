@@ -47,6 +47,7 @@ const (
 	NERVOS = "CKB"
 	CASPER = "CSPR"
 	COSMOS = "COSMOS"
+	POLKADOT = "POLKADOT"
 )
 
 const (

@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/nervos"
+	"block-crawling/internal/platform/polkadot"
 	"block-crawling/internal/platform/solana"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
@@ -63,6 +64,8 @@ func GetInnerPlatform(value *conf.PlatInfo) subhandle.Platform {
 		return nervos.Init(coins.Nervos().Handle, value, nodeURLS, height)
 	case biz.COSMOS:
 		return cosmos.Init(coins.Cosmos().Handle, value, nodeURLS, height)
+	case biz.POLKADOT:
+		return polkadot.Init(coins.Polkadot().Handle, value, nodeURLS, height)
 	}
 	return nil
 }

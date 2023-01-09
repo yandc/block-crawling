@@ -5,9 +5,11 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/utils"
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"time"
 
@@ -64,7 +66,11 @@ func main() {
 		fmt.Println(v)
 	}
 
-
+	x , _ := utils.HexStringToInt("0xcd3096")
+	fmt.Println(x)
+	l:= "Error: Block not found: 13481229"
+	yy := strings.Contains(l,"Block not found")
+	fmt.Println(yy)
 
 
 
