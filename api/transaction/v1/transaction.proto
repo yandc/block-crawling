@@ -22,8 +22,10 @@ service Transaction {
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //查询用户余额
   rpc GetBalance(AssetRequest) returns (ListBalanceResponse);
-  //根据uid维度查询用户余额列表
+  //根据uid维度查询用户金额列表
   rpc ListAmountUidDimension(ListAmountUidDimensionRequest) returns (ListAmountUidDimensionResponse);
+  //根据uid维度查询用户是否有余额列表
+  rpc ListHasBalanceUidDimension(ListHasBalanceUidDimensionRequest) returns (ListHasBalanceUidDimensionResponse);
   //客户端分页查询用户NFT资产分组列表
   rpc ClientPageListNftAssetGroup(PageListNftAssetRequest) returns (ClientPageListNftAssetGroupResponse);
   //客户端分页查询用户NFT资产列表
@@ -407,6 +409,19 @@ message ListAmountUidDimensionResponse {
 message AmountUidDimensionResponse {
   string uid = 1;
   string currencyAmount = 2;
+}
+
+message ListHasBalanceUidDimensionRequest {
+  repeated string uidList = 1 [(validate.rules).repeated = {min_items: 1}];//-- 必输
+}
+
+message ListHasBalanceUidDimensionResponse {
+  repeated HasBalanceUidDimensionResponse list = 1;
+}
+
+message HasBalanceUidDimensionResponse {
+  string uid = 1;
+  bool hasBalance = 2;
 }
 
 message PageListNftAssetRequest {

@@ -57,6 +57,7 @@ type UserAssetRepo interface {
 	List(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
 	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
+	ListBalanceGroupByUid(context.Context, *AssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
 }
@@ -372,6 +373,48 @@ func (r *UserAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageLi
 		}
 	}
 	sqlStr += " group by chain_name, token_address"
+
+	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query userAsset failed", err)
+		return nil, err
+	}
+	return userAssetList, nil
+}
+
+func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+
+	sqlStr := "select uid, sum(cast(balance as numeric)) as balance " +
+		"from user_asset " +
+		"where 1=1 "
+	if req.ChainName != "" {
+		sqlStr += " and chain_name = '" + req.ChainName + "'"
+	}
+	if req.Uid != "" {
+		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if len(req.UidList) > 0 {
+		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
+		sqlStr += " and uid in (" + uidList + ")"
+	}
+	if len(req.AddressList) > 0 {
+		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
+		sqlStr += " and address in (" + addressList + ")"
+	}
+	if len(req.TokenAddressList) > 0 {
+		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
+		sqlStr += " and token_address in (" + tokenAddressList + ")"
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			sqlStr += " and (balance is null or balance = '' or balance = '0')"
+		} else if req.AmountType == 2 {
+			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+	sqlStr += " group by uid"
 
 	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
 	err := ret.Error
