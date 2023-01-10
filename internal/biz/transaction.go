@@ -1362,6 +1362,37 @@ func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb
 	return result, err
 }
 
+func (s *TransactionUsecase) ListHasBalanceUidDimension(ctx context.Context, req *pb.ListHasBalanceUidDimensionRequest) (*pb.ListHasBalanceUidDimensionResponse, error) {
+	var request = &data.AssetRequest{
+		UidList: req.UidList,
+	}
+	var result = &pb.ListHasBalanceUidDimensionResponse{}
+	var list []*pb.HasBalanceUidDimensionResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, err = data.UserAssetRepoClient.ListBalanceGroupByUid(ctx, request)
+	if err == nil && len(recordList) > 0 {
+		for _, record := range recordList {
+			if record == nil {
+				continue
+			}
+
+			var hasBalance bool
+			if record.Balance != "" && record.Balance != "0" {
+				hasBalance = true
+			}
+			hasBalanceUidDimensionResponse := &pb.HasBalanceUidDimensionResponse{
+				Uid:        record.Uid,
+				HasBalance: hasBalance,
+			}
+			list = append(list, hasBalanceUidDimensionResponse)
+		}
+		result.List = list
+	}
+	return result, err
+}
+
 func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
 	chainType := chain2Type[req.ChainName]
 	switch chainType {

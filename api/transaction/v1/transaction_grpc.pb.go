@@ -35,8 +35,10 @@ type TransactionClient interface {
 	PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(ctx context.Context, in *AssetRequest, opts ...grpc.CallOption) (*ListBalanceResponse, error)
-	//根据uid维度查询用户余额列表
+	//根据uid维度查询用户金额列表
 	ListAmountUidDimension(ctx context.Context, in *ListAmountUidDimensionRequest, opts ...grpc.CallOption) (*ListAmountUidDimensionResponse, error)
+	//根据uid维度查询用户是否有余额列表
+	ListHasBalanceUidDimension(ctx context.Context, in *ListHasBalanceUidDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceUidDimensionResponse, error)
 	//客户端分页查询用户NFT资产分组列表
 	ClientPageListNftAssetGroup(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetGroupResponse, error)
 	//客户端分页查询用户NFT资产列表
@@ -155,6 +157,15 @@ func (c *transactionClient) ListAmountUidDimension(ctx context.Context, in *List
 	return out, nil
 }
 
+func (c *transactionClient) ListHasBalanceUidDimension(ctx context.Context, in *ListHasBalanceUidDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceUidDimensionResponse, error) {
+	out := new(ListHasBalanceUidDimensionResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ListHasBalanceUidDimension", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *transactionClient) ClientPageListNftAssetGroup(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetGroupResponse, error) {
 	out := new(ClientPageListNftAssetGroupResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ClientPageListNftAssetGroup", in, out, opts...)
@@ -253,8 +264,10 @@ type TransactionServer interface {
 	PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(context.Context, *AssetRequest) (*ListBalanceResponse, error)
-	//根据uid维度查询用户余额列表
+	//根据uid维度查询用户金额列表
 	ListAmountUidDimension(context.Context, *ListAmountUidDimensionRequest) (*ListAmountUidDimensionResponse, error)
+	//根据uid维度查询用户是否有余额列表
+	ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error)
 	//客户端分页查询用户NFT资产分组列表
 	ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error)
 	//客户端分页查询用户NFT资产列表
@@ -309,6 +322,9 @@ func (UnimplementedTransactionServer) GetBalance(context.Context, *AssetRequest)
 }
 func (UnimplementedTransactionServer) ListAmountUidDimension(context.Context, *ListAmountUidDimensionRequest) (*ListAmountUidDimensionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAmountUidDimension not implemented")
+}
+func (UnimplementedTransactionServer) ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListHasBalanceUidDimension not implemented")
 }
 func (UnimplementedTransactionServer) ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListNftAssetGroup not implemented")
@@ -530,6 +546,24 @@ func _Transaction_ListAmountUidDimension_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transaction_ListHasBalanceUidDimension_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListHasBalanceUidDimensionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).ListHasBalanceUidDimension(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/ListHasBalanceUidDimension",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).ListHasBalanceUidDimension(ctx, req.(*ListHasBalanceUidDimensionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Transaction_ClientPageListNftAssetGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PageListNftAssetRequest)
 	if err := dec(in); err != nil {
@@ -738,6 +772,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAmountUidDimension",
 			Handler:    _Transaction_ListAmountUidDimension_Handler,
+		},
+		{
+			MethodName: "ListHasBalanceUidDimension",
+			Handler:    _Transaction_ListHasBalanceUidDimension_Handler,
 		},
 		{
 			MethodName: "ClientPageListNftAssetGroup",

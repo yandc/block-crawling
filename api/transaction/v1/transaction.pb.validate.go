@@ -5019,6 +5019,368 @@ var _ interface {
 	ErrorName() string
 } = AmountUidDimensionResponseValidationError{}
 
+// Validate checks the field values on ListHasBalanceUidDimensionRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *ListHasBalanceUidDimensionRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ListHasBalanceUidDimensionRequest
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// ListHasBalanceUidDimensionRequestMultiError, or nil if none found.
+func (m *ListHasBalanceUidDimensionRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ListHasBalanceUidDimensionRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(m.GetUidList()) < 1 {
+		err := ListHasBalanceUidDimensionRequestValidationError{
+			field:  "UidList",
+			reason: "value must contain at least 1 item(s)",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return ListHasBalanceUidDimensionRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ListHasBalanceUidDimensionRequestMultiError is an error wrapping multiple
+// validation errors returned by
+// ListHasBalanceUidDimensionRequest.ValidateAll() if the designated
+// constraints aren't met.
+type ListHasBalanceUidDimensionRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ListHasBalanceUidDimensionRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ListHasBalanceUidDimensionRequestMultiError) AllErrors() []error { return m }
+
+// ListHasBalanceUidDimensionRequestValidationError is the validation error
+// returned by ListHasBalanceUidDimensionRequest.Validate if the designated
+// constraints aren't met.
+type ListHasBalanceUidDimensionRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ListHasBalanceUidDimensionRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ListHasBalanceUidDimensionRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ListHasBalanceUidDimensionRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ListHasBalanceUidDimensionRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ListHasBalanceUidDimensionRequestValidationError) ErrorName() string {
+	return "ListHasBalanceUidDimensionRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ListHasBalanceUidDimensionRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sListHasBalanceUidDimensionRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ListHasBalanceUidDimensionRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ListHasBalanceUidDimensionRequestValidationError{}
+
+// Validate checks the field values on ListHasBalanceUidDimensionResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *ListHasBalanceUidDimensionResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ListHasBalanceUidDimensionResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// ListHasBalanceUidDimensionResponseMultiError, or nil if none found.
+func (m *ListHasBalanceUidDimensionResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ListHasBalanceUidDimensionResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ListHasBalanceUidDimensionResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ListHasBalanceUidDimensionResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ListHasBalanceUidDimensionResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return ListHasBalanceUidDimensionResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ListHasBalanceUidDimensionResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// ListHasBalanceUidDimensionResponse.ValidateAll() if the designated
+// constraints aren't met.
+type ListHasBalanceUidDimensionResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ListHasBalanceUidDimensionResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ListHasBalanceUidDimensionResponseMultiError) AllErrors() []error { return m }
+
+// ListHasBalanceUidDimensionResponseValidationError is the validation error
+// returned by ListHasBalanceUidDimensionResponse.Validate if the designated
+// constraints aren't met.
+type ListHasBalanceUidDimensionResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ListHasBalanceUidDimensionResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ListHasBalanceUidDimensionResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ListHasBalanceUidDimensionResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ListHasBalanceUidDimensionResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ListHasBalanceUidDimensionResponseValidationError) ErrorName() string {
+	return "ListHasBalanceUidDimensionResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ListHasBalanceUidDimensionResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sListHasBalanceUidDimensionResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ListHasBalanceUidDimensionResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ListHasBalanceUidDimensionResponseValidationError{}
+
+// Validate checks the field values on HasBalanceUidDimensionResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *HasBalanceUidDimensionResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on HasBalanceUidDimensionResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// HasBalanceUidDimensionResponseMultiError, or nil if none found.
+func (m *HasBalanceUidDimensionResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *HasBalanceUidDimensionResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Uid
+
+	// no validation rules for HasBalance
+
+	if len(errors) > 0 {
+		return HasBalanceUidDimensionResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// HasBalanceUidDimensionResponseMultiError is an error wrapping multiple
+// validation errors returned by HasBalanceUidDimensionResponse.ValidateAll()
+// if the designated constraints aren't met.
+type HasBalanceUidDimensionResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m HasBalanceUidDimensionResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m HasBalanceUidDimensionResponseMultiError) AllErrors() []error { return m }
+
+// HasBalanceUidDimensionResponseValidationError is the validation error
+// returned by HasBalanceUidDimensionResponse.Validate if the designated
+// constraints aren't met.
+type HasBalanceUidDimensionResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e HasBalanceUidDimensionResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e HasBalanceUidDimensionResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e HasBalanceUidDimensionResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e HasBalanceUidDimensionResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e HasBalanceUidDimensionResponseValidationError) ErrorName() string {
+	return "HasBalanceUidDimensionResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e HasBalanceUidDimensionResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sHasBalanceUidDimensionResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = HasBalanceUidDimensionResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = HasBalanceUidDimensionResponseValidationError{}
+
 // Validate checks the field values on PageListNftAssetRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.

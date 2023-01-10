@@ -143,6 +143,15 @@ func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb
 	return result, err
 }
 
+func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req *pb.ListHasBalanceUidDimensionRequest) (*pb.ListHasBalanceUidDimensionResponse, error) {
+	if len(req.UidList) == 0 {
+		return nil, errors.New("uidList is required")
+	}
+
+	result, err := s.ts.ListHasBalanceUidDimension(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")
