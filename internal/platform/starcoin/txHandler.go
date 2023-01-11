@@ -36,6 +36,7 @@ type txHandler struct {
 func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *chain.Transaction) (err error) {
 	client := c.(*Client)
 	block := chainBlock.Raw.(*types.Block)
+	curHeight, _ := strconv.Atoi(block.BlockHeader.Height)
 	userTransaction := chainTx.Raw.(types.UserTransaction)
 	scriptFunction := userTransaction.RawTransaction.DecodedPayload.ScriptFunction
 	if strings.HasPrefix(scriptFunction.Function, "peer_to_peer") {
@@ -140,7 +141,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 			stcRecord := &data.StcTransactionRecord{
 				BlockHash:       block.BlockHeader.BlockHash,
-				BlockNumber:     int(h.curHeight),
+				BlockNumber:     curHeight,
 				Nonce:           int64(nonce),
 				TransactionHash: userTransaction.TransactionHash,
 				FromAddress:     fromAddress,
@@ -289,7 +290,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 		stcContractRecord = &data.StcTransactionRecord{
 			BlockHash:       block.BlockHeader.BlockHash,
-			BlockNumber:     int(h.curHeight),
+			BlockNumber:     curHeight,
 			Nonce:           int64(nonce),
 			TransactionHash: userTransaction.TransactionHash,
 			FromAddress:     fromAddress,
@@ -482,7 +483,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 				stcTransactionRecord := &data.StcTransactionRecord{
 					BlockHash:       block.BlockHeader.BlockHash,
-					BlockNumber:     int(h.curHeight),
+					BlockNumber:     curHeight,
 					Nonce:           int64(nonce),
 					TransactionHash: txHash,
 					FromAddress:     fromAddress,
