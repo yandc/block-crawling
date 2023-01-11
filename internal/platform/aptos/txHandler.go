@@ -105,7 +105,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
+			fromAddressExist, fromUid, err = biz.UserAddressSwitch(utils.AddressAdd0(fromAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -117,7 +117,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
+			toAddressExist, toUid, err = biz.UserAddressSwitch(utils.AddressAdd0(toAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -295,7 +295,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		contractAddress = creatorAddress + "::" + collectionName + "::" + propertyVersion
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
+			fromAddressExist, fromUid, err = biz.UserAddressSwitch(utils.AddressAdd0(fromAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -307,7 +307,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
+			toAddressExist, toUid, err = biz.UserAddressSwitch(utils.AddressAdd0(toAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -437,7 +437,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
+			fromAddressExist, fromUid, err = biz.UserAddressSwitch(utils.AddressAdd0(fromAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -449,7 +449,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
+			toAddressExist, toUid, err = biz.UserAddressSwitch(utils.AddressAdd0(toAddress))
 			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 				// redis出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -648,7 +648,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if fromAddress != "" {
-				fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
+				fromAddressExist, fromUid, err = biz.UserAddressSwitch(utils.AddressAdd0(fromAddress))
 				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 					// redis出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
@@ -660,7 +660,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if toAddress != "" {
-				toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
+				toAddressExist, toUid, err = biz.UserAddressSwitch(utils.AddressAdd0(toAddress))
 				if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
 					// redis出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
