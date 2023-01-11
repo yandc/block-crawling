@@ -203,6 +203,33 @@ func HexToAddress(hexList []string) []string {
 	return addressList
 }
 
+func AddressAdd0(address string) string {
+	addressLen := len(address)
+	if addressLen < 66 {
+		lackNum := 66 - addressLen
+		address = "0x" + strings.Repeat("0", lackNum) + address[2:]
+	}
+	return address
+}
+
+func AddressRemove0(address string) string {
+	if len(address) == 66 && strings.HasPrefix(address, "0x0") {
+		address = "0x" + strings.TrimLeft(address[2:], "0")
+	}
+	return address
+}
+
+func AddressListRemove0(list []string) []string {
+	var addressList []string
+	if len(list) > 0 {
+		for _, addr := range list {
+			addr = AddressRemove0(addr)
+			addressList = append(addressList, addr)
+		}
+	}
+	return addressList
+}
+
 func GetDayTime(t *time.Time) int64 {
 	var tm time.Time
 	if t == nil {

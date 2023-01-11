@@ -387,29 +387,28 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			dbNonce, _ = strconv.ParseUint(nonceStr, 10, 64)
 		}
 		dotTransactionRecord := &data.DotTransactionRecord{
-			BlockHash:            pbb.BlockHash,
-			BlockNumber:          int(pbb.BlockNumber),
-			Nonce:                int64(dbNonce),
-			TransactionHash:      pbb.TransactionHash,
-			FromAddress:          pbb.FromAddress,
-			ToAddress:            pbb.ToAddress,
-			FromUid:              pbb.Uid,
-			FeeAmount:            fa,
-			Amount:               a,
-			Status:               pbb.Status,
-			TxTime:               pbb.TxTime,
-			ContractAddress:      pbb.ContractAddress,
-			ParseData:            pbb.ParseData,
-			Data:                 pbb.Data,
-			EventLog:             pbb.EventLog,
-			TransactionType:      pbb.TransactionType,
-			DappData:             pbb.DappData,
-			ClientData:           pbb.ClientData,
-			CreatedAt:            pbb.CreatedAt,
-			UpdatedAt:            pbb.UpdatedAt,
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			Nonce:           int64(dbNonce),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			Data:            pbb.Data,
+			EventLog:        pbb.EventLog,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), dotTransactionRecord)
-
 
 	case EVM:
 		evm := make(map[string]interface{})
@@ -503,7 +502,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
 				}
 			}
-
 		}
 	case TVM:
 		trxRecord := &data.TrxTransactionRecord{
@@ -542,9 +540,11 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			if _, ok := ret["sequence_number"].(string); ok {
 				nonce = ret["sequence_number"].(string)
 			}
-
 		}
 		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
+
+		fromAddress := utils.AddressRemove0(pbb.FromAddress)
+		toAddress := utils.AddressRemove0(pbb.ToAddress)
 
 		aptRecord := &data.AptTransactionRecord{
 			BlockHash:   pbb.BlockHash,
@@ -552,8 +552,8 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			Nonce:       int64(dbNonce),
 			//TransactionVersion: int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
-			FromAddress:     pbb.FromAddress,
-			ToAddress:       pbb.ToAddress,
+			FromAddress:     fromAddress,
+			ToAddress:       toAddress,
 			FromUid:         pbb.Uid,
 			FeeAmount:       fa,
 			Amount:          a,
@@ -740,7 +740,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	switch chainType {
 	case POLKADOT:
 		var recordList []*data.DotTransactionRecord
-		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx,GetTalbeName(req.ChainName), req)
+		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
@@ -800,6 +800,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case APTOS:
+		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
+		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
+
 		var recordList []*data.AptTransactionRecord
 		recordList, total, err = data.AptTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
 		if err == nil {
@@ -983,7 +989,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 				}
 
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
-
 				if err == nil && evm != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
@@ -1036,6 +1041,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case APTOS:
+				if req.FromAddress != "" {
+					req.FromAddress = utils.AddressRemove0(req.FromAddress)
+				}
+
 				apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTalbeName(value.ChainName), value.LastTxhash)
 				if err == nil && apt != nil {
 					var r *pb.TransactionRecord
@@ -1144,6 +1153,8 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case APTOS:
+		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	}
 
 	var result = &pb.PageListAssetResponse{}
@@ -1262,6 +1273,10 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case APTOS:
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
 	}
 
 	var request = &data.AssetRequest{
@@ -1399,6 +1414,8 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case APTOS:
+		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	}
 
 	var result = &pb.ClientPageListNftAssetGroupResponse{}
@@ -1463,6 +1480,8 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case APTOS:
+		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	}
 
 	var result = &pb.ClientPageListNftAssetResponse{}
@@ -1540,6 +1559,10 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 		}
 		if req.TokenAddress != "" {
 			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+		}
+	case APTOS:
+		if req.Address != "" {
+			req.Address = utils.AddressAdd0(req.Address)
 		}
 	}
 
