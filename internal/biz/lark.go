@@ -219,18 +219,23 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	if len(disabledRPC) > 0 {
 		c = append(c, Content{Tag: "text", Text: "不可用rpc：\n"})
 		var rpcs string
+		rpcStat := make(map[string]int)
 		oneNodeStillAvail := false
 		for i := 0; i < len(disabledRPC); i++ {
 			failRate := utils.GetRPCFailureRate(disabledRPC[i])
 			oneNodeStillAvail = oneNodeStillAvail || failRate < 20
 			rpcs += "[" + disabledRPC[i] + "]半小时内失败率:" + fmt.Sprintf("%v", failRate) + "%\n"
+			rpcStat[disabledRPC[i]] = failRate
 		}
 		// At least one node is available(fail rate is below 20%).
 		// Skip this alarm.
 		if oneNodeStillAvail {
 			return
 		}
+		log.Info("NO AVAILABLE RPC NODE", zap.String("msg", msg), zap.Any("nodeFailRates", rpcStat))
 		c = append(c, Content{Tag: "text", Text: rpcs})
+		// Stop alarming about no available rpc node. Updated @ 2023-01-13
+		return
 	}
 	c = append(c, Content{Tag: "text", Text: "开始时间:\n"}, Content{Tag: "text", Text: BjNow()})
 	t := time.Now().Unix()
