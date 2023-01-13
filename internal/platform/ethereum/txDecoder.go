@@ -98,7 +98,23 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// Ignore this transaction.
 	if !(meta.User.MatchFrom || meta.User.MatchTo) {
-		return nil
+		if len(transaction.Data()) < 4 || transaction.To() == nil {
+			return nil
+		}
+		// dapp 白名单 判断 ，非白名单 直接 扔掉交易
+		whiteMethods := BridgeWhiteMethodIdList[h.chainName+"_MethodId"]
+		flag := true
+		s := h.chainName + "_" + transaction.To().String() + "_" + hex.EncodeToString(transaction.Data()[:4])
+		for _, whiteMethod := range whiteMethods {
+			if whiteMethod == s {
+				flag = false
+				break
+			}
+		}
+		//未命中白名 则丢弃该交易
+		if flag {
+			return nil
+		}
 	}
 
 	log.Info(
@@ -172,7 +188,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	var eventLogs []types.EventLog
 	var contractAddress, tokenId string
 	if meta.TransactionType != biz.NATIVE {
-		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
+		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 	}
 	status := biz.PENDING
 	if receipt.Status == "0x0" {
@@ -194,7 +210,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			var tokenTypeErr error
 			if meta.TransactionType == biz.NATIVE {
 				meta.TransactionType = biz.CONTRACT
-				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt)
+				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
 				ctx := context.Background()
 				if status == biz.FAIL && tokenId == "" {
@@ -543,24 +559,39 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt) (eventLogList []types.EventLog, tokenId string) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []types.EventLog, tokenId string) {
 	var eventLogs []*types.EventLog
+	arbitrumAmount := big.NewInt(0)
 	for _, log_ := range receipt.Logs {
-		if len(log_.Topics) <= 1 {
+		if len(log_.Topics) < 1 {
 			continue
 		}
 
 		topic0 := log_.Topics[0].String()
 		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC && topic0 != TRANSFERSINGLE_TOPIC &&
 			topic0 != TRANSFERBATCH_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
-			continue
+			whiteTopics := BridgeWhiteTopicList[h.chainName+"_Topic"]
+			flag := true
+			s := h.chainName + "_" + receipt.To + "_" + topic0
+			for _, whiteTopic := range whiteTopics {
+				if whiteTopic == s {
+					flag = false
+					break
+				}
+			}
+			if flag {
+				continue
+			}
 		}
 
 		var token types.TokenInfo
 		var err error
 		tokenAddress := log_.Address.String()
 		amount := big.NewInt(0)
-		fromAddress := common.HexToAddress(log_.Topics[1].String()).String()
+		var fromAddress string
+		if len(log_.Topics) >= 2 {
+			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+		}
 		var toAddress string
 
 		//判断合约 转账， 提现， 兑换。
@@ -674,6 +705,14 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 		} else if topic0 == TRANSFER_TOPIC {
 			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			//uniswap v3 代币换主币 function 销毁 主币 再发送主币。
+			if toAddress == "0x0000000000000000000000000000000000000000" && common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" {
+				fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				toAddress = common.HexToAddress(receipt.From).String()
+				amount = new(big.Int).SetBytes(log_.Data)
+				tokenAddress = ""
+			}
+
 		} else if topic0 == TRANSFERSINGLE_TOPIC {
 			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
@@ -736,7 +775,76 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			} else {
 				fromAddress = meta.ToAddress
 			}
+		} else if topic0 == BRIDGE_TRANSFERNATIVE {
+			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			amount = new(big.Int).SetBytes(log_.Data)
+			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			tokenAddress = ""
+		} else if topic0 == FANTOM_SWAPED {
+			fromAddress = common.HexToAddress(receipt.To).String()
+			if len(log_.Data) > 32 {
+				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+			}
+			if len(log_.Data) > 128 {
+				amount = new(big.Int).SetBytes(log_.Data[96:128])
+			}
+			tokenAddress = ""
+		} else if topic0 == FANTOM_SWAPED_V1 {
+			fromAddress = common.HexToAddress(receipt.To).String()
+			toAddress = common.HexToAddress(receipt.From).String()
+
+			if len(log_.Data) > 96 {
+				amount = new(big.Int).SetBytes(log_.Data[64:96])
+			}
+		} else if topic0 == ARBITRUM_TRANSFERNATIVE {
+			fromAddress = common.HexToAddress(receipt.To).String()
+			if len(log_.Data) > 96 {
+				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[64:96])).String()
+			}
+			if len(log_.Data) > 160 {
+				amount = new(big.Int).SetBytes(log_.Data[128:160])
+			}
+			tokenAddress = ""
+		} else if topic0 == OPTIMISM_WITHDRAWETH {
+			//无 转出地址
+			fromAddress = common.HexToAddress(receipt.To).String()
+			amount = new(big.Int).SetBytes(log_.Data)
+			tokenAddress = ""
+			toAddress = common.BytesToAddress(transaction.Data()[4:36]).String()
+		} else if topic0 == OPTIMISM_FANTOM_LOGANYSWAPIN {
+			fromAddress = tokenAddress
+			if len(log_.Data) >= 32 {
+				amount = new(big.Int).SetBytes(log_.Data[:32])
+			}
+			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
+			tokenAddress = ""
+		} else if topic0 == OPTIMISM_NONE {
+			fromAddress = tokenAddress
+			if len(log_.Data) >= 64 {
+				amount = new(big.Int).SetBytes(log_.Data[32:64])
+			}
+			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			tokenAddress = ""
+		} else if topic0 == ARBITRUM_INTXAMOUNT {
+			//获取amount
+			if len(log_.Data) >= 64 {
+				arbitrumAmount = new(big.Int).SetBytes(log_.Data[32:64])
+			}
+			continue
+		} else if topic0 == ARBITRUM_UNLOCKEVENT {
+			fromAddress = tokenAddress
+			toAddress = common.BytesToAddress(log_.Data[32:64]).String()
+			tokenAddress = ""
+			amount = arbitrumAmount
+		} else if topic0 == KLAYTN_EXCHANGEPOS && tokenAddress == "0xC6a2Ad8cC6e4A7E08FC37cC5954be07d499E7654" {
+			fromAddress = tokenAddress
+			toAddress = common.HexToAddress(receipt.From).String()
+			if len(log_.Data) >= 128 {
+				amount = new(big.Int).SetBytes(log_.Data[96:128])
+			}
+			tokenAddress = ""
 		}
+
 		//不展示event log中的授权记录
 		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
 			continue

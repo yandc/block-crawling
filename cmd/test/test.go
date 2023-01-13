@@ -9,6 +9,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"time"
@@ -72,10 +73,10 @@ func main() {
 	yy := strings.Contains(l,"Block not found")
 	fmt.Println(yy)
 
-
-
+	sy := "00000000000000000000000000000000000000000000000000e0fc3d0e3ac218"
+	y,_ := strconv.ParseUint(sy, 16, 0)
 	//y := strings.Replace(s,"T"," ",1)
-	//fmt.Println(y)
+	fmt.Println(y)
 	//s1 :="2022-03-05 01:38:32"
 	//y1 := strings.Replace(s1,"T"," ",1)
 	//fmt.Println(y1)
@@ -89,6 +90,37 @@ func main() {
 
 
 }
+
+func Dec2HexStr(v []byte) []string {
+	//v = {0x19,0xa3}
+	var data = make([]string, 0)
+	if len(v)%2 != 0 {
+		return data
+	}
+	k := ""
+	for i, b := range v {
+		i1 := int64(b)
+		k += strconv.FormatInt(i1, 16)
+		if (i+1)%2 == 0 {
+			data = append(data, "0x"+k)
+			k = ""
+		}
+	}
+	return data
+}
+func Hex2Dec(v []string) []int64 {
+	//v = ["0800","0800"]   result =  16*16*8
+	var data = make([]int64, 0)
+	for _, i2 := range v {
+		i, err := strconv.ParseUint(i2, 0, 16) // 第二个参数为0时会自动判断字符类型
+		if err != nil {
+			return data
+		}
+		data = append(data, int64(i))
+	}
+	return data
+}
+
 
 func getDappListPageList()  {
 	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
