@@ -2,6 +2,29 @@ package data
 
 import "time"
 
+type TransactionRequest struct {
+	FromUid                  string
+	ToUid                    string
+	Uid                      string
+	FromAddress              string
+	FromAddressList          []string
+	ToAddress                string
+	ToAddressList            []string
+	Address                  string
+	ContractAddress          string
+	ContractAddressList      []string
+	StatusList               []string
+	StatusNotInList          []string
+	TransactionTypeList      []string
+	TransactionTypeNotInList []string
+	TransactionHash          string
+	TransactionHashList      []string
+	TransactionHashLike      string
+	Nonce                    int64
+	DappDataEmpty            bool
+	OrderBy                  string
+}
+
 type TransactionResponse struct {
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`

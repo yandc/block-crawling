@@ -80,27 +80,40 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 		if record.TransactionType == biz.EVENTLOG {
 			continue
 		}
-		txHashs := strings.Split(record.TransactionHash, "#")
-		var ret int64
-		realAmount := record.Amount
-		realDappData := record.DappData
-		if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
-			ret, _ = data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
-		} else {
-			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
-				record.Amount = decimal.Zero
-				record.Data = ""
-			}
-			ret, _ = data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
+		if record.DappData != "" {
+			continue
 		}
 
-		if ret >= 1 {
-			if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
-				record.TransactionType = biz.CANCEL
-			} else {
-				record.TransactionType = biz.SPEED_UP
+		transactionRecordRequest := &data.TransactionRequest{
+			FromAddress:   record.FromAddress,
+			ToAddress:     record.ToAddress,
+			Nonce:         record.Nonce,
+			DappDataEmpty: true,
+			OrderBy:       "id asc",
+		}
+		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTalbeName(chainName), transactionRecordRequest)
+		if len(list) > 1 {
+			for i, transactionRecord := range list {
+				if record.Id != transactionRecord.Id {
+					transactionRecord.Status = biz.DROPPED_REPLACED
+				}
+
+				if i > 0 {
+					if transactionRecord.Amount.String() == "0" {
+						transactionRecord.TransactionType = biz.CANCEL
+					} else {
+						transactionRecord.TransactionType = biz.SPEED_UP
+					}
+				}
 			}
-			data.EvmTransactionRecordRepoClient.Update(nil, biz.GetTalbeName(chainName), record)
+			_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, biz.GetTalbeName(chainName), list)
+			if err != nil {
+				// 更新用户加速或取消信息失败 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s更新用户加速或取消信息失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"更新用户加速或取消信息失败", zap.Any("txHash", record.TransactionHash), zap.Any("fromAddress", record.FromAddress), zap.Any("toAddress", record.ToAddress), zap.Any("nonce", record.Nonce), zap.Any("error", err))
+			}
 		}
 	}
 }
