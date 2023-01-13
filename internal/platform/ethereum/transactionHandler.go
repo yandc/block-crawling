@@ -77,20 +77,30 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		if record.Type == biz.EVENTLOG {
+		if record.TransactionType == biz.EVENTLOG {
 			continue
 		}
 		txHashs := strings.Split(record.TransactionHash, "#")
+		var ret int64
 		realAmount := record.Amount
 		realDappData := record.DappData
 		if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
-			data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
+			ret, _ = data.EvmTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
 		} else {
 			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
 				record.Amount = decimal.Zero
 				record.Data = ""
 			}
-			data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
+			ret, _ = data.EvmTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
+		}
+
+		if ret >= 1 {
+			if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
+				record.TransactionType = biz.CANCEL
+			} else {
+				record.TransactionType = biz.SPEED_UP
+			}
+			data.EvmTransactionRecordRepoClient.Update(nil, biz.GetTalbeName(chainName), record)
 		}
 	}
 }
@@ -340,9 +350,9 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 	var userAssets []*data.UserAsset
 	var balanceList map[string]interface{}
 	var err error
-	if chainName == "Ronin"{
+	if chainName == "Ronin" {
 		balanceList, err = client.NewBatchTokenBalance(address, tokenDecimalsMap)
-	}else {
+	} else {
 		balanceList, err = client.BatchTokenBalance(address, tokenDecimalsMap)
 	}
 	if err != nil {

@@ -27,7 +27,7 @@ type StcTransactionRecord struct {
 	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
 	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
 	Amount          decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
-	Status          string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
+	Status          string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
 	TxTime          int64           `json:"txTime" form:"txTime"`
 	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(256);index"`
 	ParseData       string          `json:"parseData" form:"parseData"`
@@ -62,6 +62,8 @@ type StcTransactionRecordRepo interface {
 	FindOneByBlockNumber(context.Context, string, int) (*StcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*StcTransactionRecord, error)
+	UpdateStatusByNonce(context.Context, string, string, int64, string, string, decimal.Decimal, string) (int64, error)
+	UpdateCancelByNonce(context.Context, string, string, int64, string, string) (int64, error)
 }
 
 type StcTransactionRecordRepoImpl struct {
@@ -495,4 +497,26 @@ func (r *StcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *StcTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal, data string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ? and amount = ? and data = ? ", address, nonce, transactionHash+"%", toAddress, amount, data).Update("status", "dropped_replaced")
+	err := ret.Error
+	if err != nil {
+		log.Errore("update "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *StcTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ? ", address, nonce, transactionHash+"%", toAddress).Update("status", "dropped_replaced")
+	err := ret.Error
+	if err != nil {
+		log.Errore("update "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
 }

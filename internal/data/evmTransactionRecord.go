@@ -542,8 +542,7 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string, amount decimal.Decimal, data string) (int64, error) {
-	dest := map[string]interface{}{"status": "dropped_replaced", "transaction_type": "speed_up"}
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ? and transaction_hash not like ? and to_address = ? and amount = ? and data = ?", address, nonce, transactionHash+"%", toAddress, amount, data).Updates(dest)
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ? and amount = ? and data = ? ", address, nonce, transactionHash+"%", toAddress, amount, data).Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -554,8 +553,7 @@ func (r *EvmTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, 
 }
 
 func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string, toAddress string) (int64, error) {
-	dest := map[string]interface{}{"status": "dropped_replaced", "transaction_type": "cancel"}
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ? and transaction_hash not like ? and to_address = ?", address, nonce, transactionHash+"%", toAddress).Updates(dest)
+	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? and to_address = ? ", address, nonce, transactionHash+"%", toAddress).Update("status", "dropped_replaced")
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -564,6 +562,7 @@ func (r *EvmTransactionRecordRepoImpl) UpdateCancelByNonce(ctx context.Context, 
 	affected := ret.RowsAffected
 	return affected, nil
 }
+
 func (r *EvmTransactionRecordRepoImpl) FindFromAddress(ctx context.Context, tableName string) ([]string, error) {
 	var addresses []string
 	ret := r.gormDB.Select("from_address").Table(tableName).Group("from_address").Find(&addresses)
