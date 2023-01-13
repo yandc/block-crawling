@@ -522,6 +522,14 @@ platform:
     netType: main
     proxyCacheTime: 15
     rpcURL:
+      - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c/
+      - https://sparkling-alien-spring.solana-mainnet.discover.quiknode.pro/78c69f217ad5f25bae7f6aa753f4985d826a0767/
+      - https://weathered-omniscient-shard.solana-mainnet.discover.quiknode.pro/da0ac540b7559edcb003d470af1c8c60d4dc0723/
+      - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678/
+      - https://node.onekey.so/sol
+      - https://solana-mainnet.gateway.pokt.network/v1/lb/258bda9f3bb341d0eb211105
+      - https://solana-mainnet.gateway.pokt.network/v1/lb/9455d100ac9dbe2cbd786fc2
+      - https://solana-mainnet.gateway.pokt.network/v1/lb/9c7e3e56e3afc89dcbd3e9e9
       - https://solana-api.projectserum.com
       - https://ssc-dao.genesysgo.net
       - https://api.mainnet-beta.solana.com

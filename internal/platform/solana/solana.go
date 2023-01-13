@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/subhandle"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"go.uber.org/zap"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
+	ncommon "gitlab.bixin.com/mili/node-driver/common"
 )
 
 type Platform struct {
@@ -84,6 +86,11 @@ func (p *Platform) Coin() coins.Coin {
 }
 
 func (p *Platform) GetTransactions() {
+	// Solana node is slow that can't meet our requirements to index block.
+	// So only keep the logics to handle pending tx.
+	// Added at 2023-01-10
+	return
+
 	log.Info("GetTransactions starting, chainName:"+p.ChainName, zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()))
 	if p.conf.GetRoundRobinConcurrent() {
 		p.spider.EnableRoundRobin()
@@ -118,6 +125,78 @@ func (p *Platform) GetTransactionResultByTxhash() {
 	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
 }
 
+func (p *Platform) UpdateUserAsset(ctx context.Context, assets []*data.UserAsset) {
+	done := make(chan struct{})
+	uids := make(map[string]struct{})
+	for _, a := range assets {
+		uids[fmt.Sprintf("%s:%s", a.Uid, a.Symbol)] = struct{}{}
+	}
+
+	go p.doUpdateUserAsset(assets, done)
+	select {
+	case <-done:
+		log.Info("UPDATE SOL USER ASSETS SUCCESS", zap.Any("assets", uids))
+	case <-ctx.Done():
+		log.Info("UPDATE SOL USER ASSETS TIMEOUT", zap.Any("assets", uids))
+	}
+}
+
+func (p *Platform) doUpdateUserAsset(assets []*data.UserAsset, done chan<- struct{}) {
+	now := time.Now().Unix()
+	updatedAssets := make([]*data.UserAsset, 0, len(assets))
+
+	for _, asset := range assets {
+		if now-asset.UpdatedAt < 120 {
+			continue
+		}
+
+		if asset.ChainName != p.ChainName {
+			continue
+		}
+		if asset.Uid == "" || asset.Address == "" {
+			log.Info("USER ASSET INCOMPELETE", zap.Any("asset", asset))
+			continue
+		}
+
+		err := p.spider.WithRetry(func(c chain.Clienter) error {
+			client := c.(*Client)
+			newAsset, err := doHandleUserAsset(
+				p.ChainName, *client, "", asset.Uid, asset.Address, asset.TokenAddress,
+				asset.Decimals, asset.Symbol, now,
+			)
+			if err != nil {
+				return ncommon.Retry(err)
+			}
+			if newAsset == nil {
+				return nil
+			}
+
+			if newAsset.Balance != asset.Balance {
+				asset.Balance = newAsset.Balance
+				updatedAssets = append(updatedAssets, asset)
+			}
+			return nil
+		})
+		log.Error("QUERY ASSET FAILED", zap.Any("asset", asset), zap.Error(err))
+	}
+
+	if len(updatedAssets) > 0 {
+		_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, updatedAssets, biz.PAGE_SIZE)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, updatedAssets, biz.PAGE_SIZE)
+		}
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s 链更新用户资产数据失败", p.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(p.ChainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("error", err))
+		}
+	}
+	done <- struct{}{}
+}
+
 func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
@@ -149,6 +228,9 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 var monitorHeightSeq uint64
 
 func (p *Platform) MonitorHeight() {
+	// Disabled at 2023-01-10
+	return
+
 	// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
 	seq := atomic.AddUint64(&monitorHeightSeq, 1)
 	if seq == 60 {

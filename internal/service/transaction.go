@@ -7,8 +7,9 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"errors"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type TransactionService struct {
