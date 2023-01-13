@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -36,6 +37,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.StcTransact
 	}()
 	go handleUserStatistic(chainName, client, txRecords)
 	handleUserNonce(chainName, txRecords)
+	go HandleRecordStatus(chainName, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.StcTransactionRecord) {
@@ -60,6 +62,40 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.StcT
 		handleUserAsset(chainName, client, txRecords)
 	}()
 	handleUserNonce(chainName, txRecords)
+	go HandleRecordStatus(chainName, txRecords)
+}
+
+func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord) {
+	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		if record.TransactionType == biz.EVENTLOG {
+			continue
+		}
+		txHashs := strings.Split(record.TransactionHash, "#")
+		var ret int64
+		realAmount := record.Amount
+		realDappData := record.DappData
+		if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
+			ret, _ = data.StcTransactionRecordRepoClient.UpdateCancelByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress)
+		} else {
+			if record.TransactionType == biz.TRANSFER || record.TransactionType == biz.SPEED_UP {
+				record.Amount = decimal.Zero
+				record.Data = ""
+			}
+			ret, _ = data.StcTransactionRecordRepoClient.UpdateStatusByNonce(nil, biz.GetTalbeName(chainName), record.FromAddress, record.Nonce, txHashs[0], record.ToAddress, record.Amount, record.Data)
+		}
+
+		if ret >= 1 {
+			if (realAmount.String() == "0" || realAmount == decimal.Zero) && realDappData == "" {
+				record.TransactionType = biz.CANCEL
+			} else {
+				record.TransactionType = biz.SPEED_UP
+			}
+			data.StcTransactionRecordRepoClient.Update(nil, biz.GetTalbeName(chainName), record)
+		}
+	}
 }
 
 func handleUserNonce(chainName string, txRecords []*data.StcTransactionRecord) {
