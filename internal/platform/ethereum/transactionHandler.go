@@ -106,7 +106,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 					}
 				}
 			}
-			_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, biz.GetTalbeName(chainName), list)
+			_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTalbeName(chainName), list)
 			if err != nil {
 				// 更新用户加速或取消信息失败 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s更新用户加速或取消信息失败", chainName)
