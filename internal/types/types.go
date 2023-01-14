@@ -80,7 +80,9 @@ func (r *RecordRPCURLInfo) FailRate() int {
 		success += bucket.SuccessCount
 		nowSecs -= 60 // previous bucket
 	}
-
+	if sum == 0 {
+		return 0
+	}
 	fail := sum - success
 	failRate := int((fail * 100) / sum)
 	return failRate
