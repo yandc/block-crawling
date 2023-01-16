@@ -741,7 +741,6 @@ platform:
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
 
-
   Ronin:
     blockExplorerAddrUrl: https://explorer.roninchain.com/address/
     blockExplorerTxUrl: https://explorer.roninchain.com/tx/
@@ -764,6 +763,28 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+  ArbitrumNova:
+    blockExplorerAddrUrl: https://nova.arbiscan.io/address/
+    blockExplorerTxUrl: https://nova.arbiscan.io/tx/
+    blockExplorerUrl: https://nova.arbiscan.io/
+    chain: ArbitrumNova
+    chainId: 42170
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: ArbitrumNova
+    getPriceKey: ethereum
+    handler: arbitrumnova
+    icon: https://obstatic.243096.com/mili/images/currency/chain/ArbitrumNova.png
+    nativeCurrency: ETH
+    netType: main
+    rpcURL:
+      - https://nova.arbitrum.io/rpc
+    symbol: ArbitrumNova
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 160
 
 platformTest:
   AptosTEST:
