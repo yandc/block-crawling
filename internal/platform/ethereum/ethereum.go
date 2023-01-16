@@ -59,6 +59,8 @@ var BridgeWhiteMethodIdList = map[string][]string{
 	"Arbitrum_MethodId": {"Arbitrum_0x1619DE6B6B20eD217a58d00f37B9d47C7663feca_cdd1b25d", "Arbitrum_0x7ceA671DABFBa880aF6723bDdd6B9f4caA15C87B_d450e04c"},
 	"Fantom_MethodId":   {"Fantom_0xf3Ce95Ec61114a4b1bFC615C16E6726015913CCC_0175b1c4"},
 	"Polygon_MethodId":   {"Polygon_0x2eF4A574b72E1f555185AfA8A09c6d1A8AC4025C_0175b1c4"},
+	"ArbitrumNova_MethodId":   {"ArbitrumNova_0x28e0f3ebab59a998C4f1019358388B5E2ca92cfA_18cbafe5","ArbitrumNova_0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506_18cbafe5",
+		"ArbitrumNova_0xEe01c0CD76354C383B8c7B4e65EA88D00B06f36f_18cbafe5"},
 }
 
 //dapp 白名单 chainName + contractAddress + topic
@@ -79,6 +81,10 @@ var BridgeWhiteTopicList = map[string][]string{
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df"},
 	"Klaytn_Topic": {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
+	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+		"ArbitrumNova_0x1b02da8cb0d097eb8d57a175b88c7d8b47997506_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+	    "ArbitrumNova_0xee01c0cd76354c383b8c7b4e65ea88d00b06f36f_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"},
+
 }
 
 type Platform struct {

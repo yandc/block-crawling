@@ -790,12 +790,24 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			tokenAddress = ""
 		} else if topic0 == FANTOM_SWAPED_V1 {
-			fromAddress = common.HexToAddress(receipt.To).String()
-			toAddress = common.HexToAddress(receipt.From).String()
 
-			if len(log_.Data) > 96 {
-				amount = new(big.Int).SetBytes(log_.Data[64:96])
+			if h.chainName == "ArbitrumNova" && log_.Topics[1].String() == log_.Topics[2].String(){
+				fromAddress = common.HexToAddress(receipt.To).String()
+				toAddress = common.HexToAddress(receipt.From).String()
+				if len(log_.Data) >= 128 {
+					amount = new(big.Int).SetBytes(log_.Data[96:128])
+					if amount.String() == "0"{
+						amount = new(big.Int).SetBytes(log_.Data[64:96])
+					}
+				}
+			} else if h.chainName == "Fantom"{
+				fromAddress = common.HexToAddress(receipt.To).String()
+				toAddress = common.HexToAddress(receipt.From).String()
+				if len(log_.Data) > 96 {
+					amount = new(big.Int).SetBytes(log_.Data[64:96])
+				}
 			}
+			tokenAddress = ""
 		} else if topic0 == ARBITRUM_TRANSFERNATIVE {
 			fromAddress = common.HexToAddress(receipt.To).String()
 			if len(log_.Data) > 96 {
