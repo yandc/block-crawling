@@ -2,19 +2,15 @@ package polkadot
 
 import (
 	"block-crawling/internal/biz"
-	httpclient2 "block-crawling/internal/httpclient"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/common"
 	types2 "block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -83,19 +79,19 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	url := baseURL + PROKADOT + "/" + strconv.FormatUint(height, 10)
 
 	var polkBlock types2.PolkadotBlockInfo
-	err := httpclient2.HttpsSignGetForm(url, nil, key, &polkBlock)
-	if err != nil && strings.Contains(err.Error(),"Not Found"){
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &polkBlock)
+	if err != nil && strings.Contains(err.Error(), "Not Found") {
 		return &chain.Block{
-			Number:       height,
+			Number: height,
 		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	if strings.Contains(polkBlock.Error,"Block not found") {
+	if strings.Contains(polkBlock.Error, "Block not found") {
 		return &chain.Block{
-			Number:       height,
+			Number: height,
 		}, nil
 	}
 
@@ -103,13 +99,12 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 		return nil, errors.New(polkBlock.Error)
 	}
 
-
 	var transactions []*chain.Transaction
 	for _, transaction := range polkBlock.Extrinsics {
 		if transaction.Transfers == nil || len(transaction.Transfers) == 0 {
 			continue
 		}
-		for _ ,transfer := range transaction.Transfers{
+		for _, transfer := range transaction.Transfers {
 			txInfo := &chain.Transaction{
 				Hash:        transaction.ExtrinsicHash,
 				Nonce:       uint64(transaction.Nonce),
@@ -136,6 +131,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 		Transactions: transactions,
 	}, nil
 }
+
 // 块上链时，交易可能未完成。安全区块高度为 6 块，所以这样处理
 func (c *Client) GetBlockHeight() (uint64, error) {
 	param := model.JsonRpcRequest{
@@ -146,7 +142,7 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 	var pa = make([]interface{}, 0, 0)
 	param.Params = pa
 	var nbi types2.NodeBlockInfo
-	err := postResponse(RPC, param, &nbi)
+	err := httpclient.PostResponse(RPC, param, &nbi)
 	if err != nil {
 		return 0, err
 	}
@@ -157,41 +153,14 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 		h = h - 6
 	}
 	return h, nil
-
-}
-
-
-func postResponse(target string, encTarget interface{}, decTarget interface{}) (err error) {
-	var data bytes.Buffer
-	enc := json.NewEncoder(&data)
-	if err = enc.Encode(encTarget); err != nil {
-		return
-	}
-	resp, err := http.Post(target, "application/json", &data)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-	}
-	return
 }
 
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
-
 	key, baseURL := parseKeyFromNodeURL(c.Url)
 	url := baseURL + "tx/" + txHash
 
 	var txInfo types2.PolkadotTxInfo
-	err := httpclient2.HttpsSignGetForm(url, nil, key, &txInfo)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +179,7 @@ func (c *Client) GetBalance(address string) ([]types2.PolkadotAccountInfo, error
 	key, baseURL := parseKeyFromNodeURL(c.Url)
 	url := baseURL + "account/" + address
 	var accountInfo []types2.PolkadotAccountInfo
-	err := httpclient2.HttpsSignGetForm(url, nil, key, &accountInfo)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &accountInfo)
 	if err != nil {
 		return accountInfo, err
 	}
@@ -218,6 +187,6 @@ func (c *Client) GetBalance(address string) ([]types2.PolkadotAccountInfo, error
 		return accountInfo, errors.New(accountInfo[0].Error)
 	}
 
-	return accountInfo,nil
+	return accountInfo, nil
 
 }

@@ -5,11 +5,9 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 	"strconv"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -45,25 +43,6 @@ func (c *Client) URL() string {
 func (c *Client) Detect() error {
 	_, err := c.GetBlockHeight()
 	return err
-}
-
-func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
-	var resp types.Response
-	var header http.Header
-	var err error
-	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
-	} else {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
-	}
-	_ = header
-	if err != nil {
-		return err
-	}
-	if resp.Error != nil {
-		return resp.Error
-	}
-	return json.Unmarshal(resp.Result, &out)
 }
 
 // GetBlockHeight get current block height.
@@ -162,7 +141,7 @@ func (c *Client) getObjectsOwnedByAddress(address string) ([]SuiObjectInfo, erro
 	method := "sui_getObjectsOwnedByAddress"
 	params := []interface{}{address}
 	var out []SuiObjectInfo
-	err := c.call(JSONID, method, &out, params)
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
 	return out, err
 }
 
@@ -197,7 +176,7 @@ func (c *Client) GetObject(objectId string) (*SuiObject, error) {
 	method := "sui_getObject"
 	out := &SuiObject{}
 	params := []interface{}{objectId}
-	err := c.call(JSONID, method, &out, params)
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
 	if err != nil {
 		return out, err
 	}
@@ -210,7 +189,7 @@ func (c *Client) GetObject(objectId string) (*SuiObject, error) {
 func (c *Client) GetTransactionNumber() (int, error) {
 	method := "sui_getTotalTransactionNumber"
 	var out int
-	err := c.call(JSONID, method, &out, nil)
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, nil)
 	return out, err
 }
 
@@ -218,7 +197,7 @@ func (c *Client) getTransactionsInRange(number int) (string, error) {
 	method := "sui_getTransactionsInRange"
 	var out []interface{}
 	params := []interface{}{number, number + 1}
-	err := c.call(JSONID, method, &out, params)
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
 	if err != nil {
 		return "", err
 	}
@@ -435,7 +414,7 @@ func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
 	method := "sui_getTransaction"
 	var out TransactionInfo
 	params := []interface{}{hash}
-	err := c.call(JSONID, method, &out, params)
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
 	return out, err
 }
 

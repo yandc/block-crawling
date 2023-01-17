@@ -31,11 +31,11 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 
 	param["scroll"] = strconv.Itoa(int(now))
 
-	err := httpclient2.HttpsOpenSeaGetForm(NFTGO_URL, param, NFTGO_KEY, &events)
-	log.Info("YYDS",zap.Any("nftgo",events))
+	err := httpclient2.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events)
+	log.Info("YYDS", zap.Any("nftgo", events))
 	for i := 0; err != nil && i < 3; i++ {
-		err = httpclient2.HttpsOpenSeaGetForm(NFTGO_URL, param, NFTGO_KEY, &events)
-		log.Info("YYDS",zap.Any("nftgo-1",events))
+		err = httpclient2.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events)
+		log.Info("YYDS", zap.Any("nftgo-1", events))
 
 	}
 
@@ -49,7 +49,6 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 
 	for _, event := range events.Transactions {
 
-
 		fromAddress := event.Sender.Address
 		toAddress := event.Receiver.Address
 		var fromUid, toUid string
@@ -59,9 +58,9 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 			fromUid = userMeta.FromUid
 			toUid = userMeta.ToUid
 		}
-		txInfo,err := client.GetTransactionReceipt(context.Background(), common.HexToHash(event.TxHash))
+		txInfo, err := client.GetTransactionReceipt(context.Background(), common.HexToHash(event.TxHash))
 		for i := 0; err != nil && i < 3; i++ {
-			txInfo,err = client.GetTransactionReceipt(context.Background(), common.HexToHash(event.TxHash))
+			txInfo, err = client.GetTransactionReceipt(context.Background(), common.HexToHash(event.TxHash))
 		}
 
 		if err != nil {

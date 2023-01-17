@@ -79,7 +79,7 @@ var BridgeWhiteTopicList = map[string][]string{
 		//合约内部 调用amount
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38",
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df"},
-	"Klaytn_Topic": {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
+	"Klaytn_Topic":  {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
 		"ArbitrumNova_0x1b02da8cb0d097eb8d57a175b88c7d8b47997506_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
@@ -222,12 +222,4 @@ func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string)
 		}
 	}
 	return nil
-}
-
-// nonstandardEVM returns true if the block hash should be retrieved from tx receipt.
-func isNonstandardEVM(chainName string) bool {
-	return chainName == "OEC" || chainName == "Optimism" || chainName == "Cronos" || chainName == "Polygon" ||
-		chainName == "Fantom" || chainName == "Avalanche" || chainName == "Klaytn" || chainName == "xDai" ||
-		chainName == "OECTEST" || chainName == "OptimismTEST" || chainName == "CronosTEST" || chainName == "PolygonTEST" ||
-		chainName == "FantomTEST" || chainName == "AvalancheTEST" || chainName == "KlaytnTEST" || chainName == "xDaiTEST"
 }

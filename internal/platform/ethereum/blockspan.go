@@ -24,18 +24,17 @@ func GetETHNftHistoryByBlockspan(chainName string, contractAddress string, token
 	var events types.Blockspan
 	var param = make(map[string]string)
 
-
 	param["chain"] = "eth-main"
 
 	param["page_size"] = "25"
 
-	url := BLOCKSPAN_URL + contractAddress +"/token/" + tokenId
+	url := BLOCKSPAN_URL + contractAddress + "/token/" + tokenId
 
-	err := httpclient2.HttpsOpenSeaGetForm(url, param, BLOCKSPAN_KEY, &events)
-	log.Info("YYDS",zap.Any("blockspan",events))
+	err := httpclient2.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events)
+	log.Info("YYDS", zap.Any("blockspan", events))
 	for i := 0; err != nil && i < 3; i++ {
-		err = httpclient2.HttpsOpenSeaGetForm(url, param, BLOCKSPAN_KEY, &events)
-		log.Info("YYDS",zap.Any("blockspan-1",events))
+		err = httpclient2.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events)
+		log.Info("YYDS", zap.Any("blockspan-1", events))
 	}
 
 	if err != nil {
@@ -48,7 +47,6 @@ func GetETHNftHistoryByBlockspan(chainName string, contractAddress string, token
 
 	for _, event := range events.Results {
 
-
 		fromAddress := event.FromAddress
 		toAddress := event.ToAddress
 		var fromUid, toUid string
@@ -59,10 +57,9 @@ func GetETHNftHistoryByBlockspan(chainName string, contractAddress string, token
 			toUid = userMeta.ToUid
 		}
 
-
 		bn, _ := strconv.Atoi(event.BlockNumber)
 
-		tt := event.BlockTimestamp.Unix()*1000
+		tt := event.BlockTimestamp.Unix() * 1000
 
 		nrh := &data.NftRecordHistory{
 			ChainName:       chainName,

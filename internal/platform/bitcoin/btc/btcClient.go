@@ -1,19 +1,15 @@
 package btc
 
 import (
-	httpclient2 "block-crawling/internal/httpclient"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/blockcypher/gobcy"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -48,7 +44,7 @@ func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) 
 	var unspents types.UbiquityUtxo
 	var param = make(map[string]string)
 	param["spent"] = "false"
-	err := httpclient2.HttpsSignGetForm(url, param, key, &unspents)
+	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &unspents)
 
 	return unspents, err
 
@@ -76,7 +72,7 @@ func GetBalance(address string, c *base.Client) (string, error) {
 		return "", err
 	}
 	var addr gobcy.Addr
-	err = getResponse(u, &addr)
+	err = httpclient.GetResponse(u.String(), &addr)
 	if err != nil {
 		return "", err
 	}
@@ -90,27 +86,27 @@ func GetBlockNumber(c *base.Client) (int, error) {
 		return 0, err
 	}
 	var chain gobcy.Blockchain
-	err = getResponse(u, &chain)
+	err = httpclient.GetResponse(u.String(), &chain)
 	return chain.Height, err
 }
 
 func GetBlockHeight(c *base.Client) (int, error) {
 	url := c.StreamURL + "/blocks/tip/height"
 	var height int
-	err := httpclient2.HttpsGetForm(url, nil, &height)
+	err := httpclient.HttpsGetForm(url, nil, &height)
 	return height, err
 }
 
 func GetMempoolTxIds(c *base.Client) ([]string, error) {
 	url := c.StreamURL + "/mempool/txids"
 	var txIds []string
-	err := httpclient2.HttpsGetForm(url, nil, &txIds)
+	err := httpclient.HttpsGetForm(url, nil, &txIds)
 	return txIds, err
 }
 
 func GetBlockHashByNumber(number int, c *base.Client) (string, error) {
 	url := c.StreamURL + "/block-height/" + fmt.Sprintf("%d", number)
-	return httpclient2.HttpsGetFormString(url, nil)
+	return httpclient.HttpsGetFormString(url, nil)
 }
 
 func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlockerInfo, err error) {
@@ -123,7 +119,7 @@ func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlock
 	for {
 		var block types.BTCTestBlockerInfo
 		url := c.StreamURL + "/block/" + hash + "/txs/" + fmt.Sprintf("%d", starIndex*25)
-		err = httpclient2.HttpsGetForm(url, nil, &block)
+		err = httpclient.HttpsGetForm(url, nil, &block)
 		starIndex++
 		result = append(result, block...)
 		if len(block) < 25 {
@@ -216,7 +212,7 @@ func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = httpclient.GetResponse(u.String(), &tx)
 	return
 }
 
@@ -224,7 +220,7 @@ func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "tx/" + tx
 	var txInfo types.TxInfo
-	err := httpclient2.HttpsSignGetForm(url, nil, key, &txInfo)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo)
 	return txInfo, err
 }
 
@@ -233,54 +229,30 @@ func GetTransactionByPendingHash(hash string, c *base.Client) (tx types.TXByHash
 	if err != nil {
 		return
 	}
-	err = getResponse(u, &tx)
+	err = httpclient.GetResponse(u.String(), &tx)
 	return
 }
 
 func GetTransactionByPendingHashByNode(json model.JsonRpcRequest, c *base.Client) (tx model.BTCTX, err error) {
-	err = postResponse(c.StreamURL, json, &tx)
+	err = httpclient.PostResponse(c.StreamURL, json, &tx)
 	return
 }
 
 //MemoryPoolTX
 func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
-	err = postResponse(c.StreamURL, json, &txIds)
+	err = httpclient.PostResponse(c.StreamURL, json, &txIds)
 	return
 }
 
 func GetBlockCount(json model.JsonRpcRequest, c *base.Client) (count model.BTCCount, err error) {
-	err = postResponse(c.StreamURL, json, &count)
-	return
-}
-
-func postResponse(target string, encTarget interface{}, decTarget interface{}) (err error) {
-	var data bytes.Buffer
-	enc := json.NewEncoder(&data)
-	if err = enc.Encode(encTarget); err != nil {
-		return
-	}
-	resp, err := http.Post(target, "application/json", &data)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-	}
+	err = httpclient.PostResponse(c.StreamURL, json, &count)
 	return
 }
 
 func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, error) {
 	url := "https://blockchain.info/rawblock/" + fmt.Sprintf("%d", number)
 	var block types.BTCBlockerInfo
-	err := httpclient2.HttpsGetForm(url, nil, &block)
+	err := httpclient.HttpsGetForm(url, nil, &block)
 	return block, err
 }
 
@@ -298,25 +270,5 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 	//add token to url, if present
 
 	target.RawQuery = values.Encode()
-	return
-}
-
-//getResponse is a boilerplate for HTTP GET responses.
-func getResponse(target *url.URL, decTarget interface{}) (err error) {
-	resp, err := http.Get(target.String())
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-	}
 	return
 }

@@ -170,6 +170,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 		queryCount++
 
 		btcTx, err := p.client.DispatchClient.GetTransactionsByTXHash(txid)
+		transactionHash := btcTx.Result.Txid
 
 		if err != nil || btcTx.Error != nil {
 			continue
@@ -220,12 +221,9 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 		var fromAddress, toAddress, fromUid, toUid string
 
 		for _, vin := range vinAddressList {
-			exist, uid, err := biz.UserAddressSwitch(vin)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			exist, uid, err := biz.UserAddressSwitchRetryAlert(p.ChainName, vin)
+			if err != nil {
+				log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 			if exist {
@@ -253,12 +251,9 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 		if fromAddress == "" {
 			for _, vout := range btcTx.Result.Vout {
 				if vout.ScriptPubKey.Address != "" {
-					exist, uid, err := biz.UserAddressSwitch(vout.ScriptPubKey.Address)
-					if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-						// redis出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", p.ChainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					exist, uid, err := biz.UserAddressSwitchRetryAlert(p.ChainName, vout.ScriptPubKey.Address)
+					if err != nil {
+						log.Error(p.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
 						return
 					}
 					if exist {
@@ -285,7 +280,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 			btcTransactionRecord := &data.BtcTransactionRecord{
 				BlockHash:       btcTx.Result.Blockhash,
 				BlockNumber:     -1,
-				TransactionHash: btcTx.Result.Txid,
+				TransactionHash: transactionHash,
 				FromAddress:     fromAddress,
 				ToAddress:       toAddress,
 				FromUid:         fromUid,

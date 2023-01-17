@@ -6,9 +6,7 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
-	"encoding/json"
 	"math/big"
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -51,25 +49,6 @@ func (c *Client) URL() string {
 	return c.url
 }
 
-func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
-	var resp types.Response
-	var header http.Header
-	var err error
-	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params, args[0].(int))
-	} else {
-		header, err = httpclient.HttpsPost(c.url, id, method, JSONRPC, &resp, params)
-	}
-	_ = header
-	if err != nil {
-		return err
-	}
-	if resp.Error != nil {
-		return resp.Error
-	}
-	return json.Unmarshal(resp.Result, &out)
-}
-
 func (c *Client) GetBalance(address string) (string, error) {
 	return c.GetTokenBalance(address, GAS_TOKEN_CODE, 9)
 }
@@ -81,7 +60,7 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	}
 	params := []interface{}{address, "0x00000000000000000000000000000001::Account::Balance<" + tokenAddress + ">", d}
 	balance := &types.Balance{}
-	err := c.call(ID101, method, balance, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, balance, params)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +86,7 @@ func (c *Client) GetTransactionEventByNumber(number int, typeTags []string) (map
 	}
 	params := []interface{}{b, d}
 	var result []types.Event
-	err := c.call(ID101, method, &result, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +110,7 @@ func (c *Client) GetTransactionEventByHash(transactionHash string) ([]types.Even
 	}
 	params := []interface{}{transactionHash, d}
 	var result []types.Event
-	err := c.call(ID101, method, &result, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params)
 	return result, err
 }
 
@@ -142,7 +121,7 @@ func (c *Client) GetBlockByNumber(number int) (*types.Block, error) {
 	}
 	params := []interface{}{number, d}
 	result := &types.Block{}
-	err := c.call(ID101, method, result, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
 	return result, err
 }
 
@@ -150,7 +129,7 @@ func (c *Client) GetBlockTxnInfos(blockHash string) (*[]types.BlockTxnInfos, err
 	method := "chain.get_block_txn_infos"
 	params := []interface{}{blockHash}
 	result := &[]types.BlockTxnInfos{}
-	err := c.call(101, method, result, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
 	return result, err
 }
 
@@ -161,14 +140,14 @@ func (c *Client) GetTransactionByHash(transactionHash string) (*types.Transactio
 	}
 	params := []interface{}{transactionHash, d}
 	result := &types.Transaction{}
-	err := c.call(ID101, method, result, params)
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
 	return result, err
 }
 
 func (c *Client) GetBlockHeight() (uint64, error) {
 	method := "node.info"
 	result := &types.NodeInfo{}
-	err := c.call(ID200, method, result, nil)
+	_, err := httpclient.JsonrpcCall(c.url, ID200, JSONRPC, method, result, nil)
 	if err != nil {
 		return 0, err
 	}

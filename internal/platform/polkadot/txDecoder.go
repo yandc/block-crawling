@@ -74,41 +74,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	return nil
 }
 
-type userMeta struct {
-	matchFrom bool
-	fromUid   string
-	matchTo   bool
-	toUid     string
-}
-
-func (h *txDecoder) matchUser(fromAddress, toAddress string) (*userMeta, error) {
-	userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.ChainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.ChainName, fromAddress), zap.Any("error", err))
-		return nil, err
-	}
-	userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.ChainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.ChainName, toAddress), zap.Any("error", err))
-		return nil, err
-	}
-	return &userMeta{
-		matchFrom: userFromAddress,
-		fromUid:   fromUid,
-
-		matchTo: userToAddress,
-		toUid:   toUid,
-	}, nil
-}
-
 func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	var err error
@@ -116,7 +81,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		if h.newTxs {
 			err = BatchSaveOrUpdate(txRecords, biz.GetTalbeName(h.ChainName))
 		} else {
-			data.DotTransactionRecordRepoClient.UpdateStatus(nil, biz.GetTalbeName(h.ChainName), txRecords)
+			_, err = data.DotTransactionRecordRepoClient.UpdateStatus(nil, biz.GetTalbeName(h.ChainName), txRecords)
 		}
 
 		if err != nil {

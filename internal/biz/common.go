@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-redis/redis"
 	"strconv"
 	"strings"
 	"time"
@@ -37,16 +38,16 @@ const (
 )
 
 const (
-	STC    = "STC"
-	BTC    = "BTC"
-	EVM    = "EVM"
-	TVM    = "TVM"
-	APTOS  = "APTOS"
-	SUI    = "SUI"
-	SOLANA = "SOL"
-	NERVOS = "CKB"
-	CASPER = "CSPR"
-	COSMOS = "COSMOS"
+	STC      = "STC"
+	BTC      = "BTC"
+	EVM      = "EVM"
+	TVM      = "TVM"
+	APTOS    = "APTOS"
+	SUI      = "SUI"
+	SOLANA   = "SOL"
+	NERVOS   = "CKB"
+	CASPER   = "CSPR"
+	COSMOS   = "COSMOS"
 	POLKADOT = "POLKADOT"
 )
 
@@ -192,18 +193,29 @@ func GetAlarmTimestamp(key string) (int64, error) {
 	return timestamp, nil
 }
 
+func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error) {
+	enable, uid, err := UserAddressSwitch(address)
+	if err != nil {
+		// redis出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败，address:%s", chainName, address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return enable, uid, err
+}
+
 func UserAddressSwitch(address string) (bool, string, error) {
 	if address == "" {
 		return false, "", nil
 	}
 	enable := true
 	uid, err := data.RedisClient.Get(USER_ADDRESS_KEY + address).Result()
-	for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY; i++ {
+	for i := 0; i < 3 && err != nil && err != redis.Nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		uid, err = data.RedisClient.Get(USER_ADDRESS_KEY + address).Result()
 	}
 	if !AppConfig.ScanAll {
-		if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY {
+		if err != nil && err != redis.Nil {
 			return false, "", err
 		}
 		if uid == "" {

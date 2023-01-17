@@ -14,7 +14,7 @@ import (
 const OPENSEA_URL = "https://api.opensea.io/api/v1/events"
 const OPENSEA_KEY = "207e09c24d49409ca949578d7e3bde27"
 
-func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId string) bool{
+func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId string) bool {
 
 	var nftRecords []*data.NftRecordHistory
 	now := time.Now().Unix()
@@ -25,7 +25,7 @@ func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId
 	param["asset_contract_address"] = contractAddress
 	param["event_type"] = "transfer"
 
-	err := httpclient2.HttpsOpenSeaGetForm(OPENSEA_URL, param, OPENSEA_KEY, &events)
+	err := httpclient2.HttpsSignGetForm(OPENSEA_URL, param, map[string]string{"X-API-KEY": OPENSEA_KEY}, &events)
 
 	if err != nil {
 		// 更新用户资产出错 接入lark报警
@@ -46,8 +46,8 @@ func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId
 			toUid = userMeta.ToUid
 		}
 		bn, _ := strconv.Atoi(event.Transaction.BlockNumber)
-		ft,_ := time.Parse("2006-01-02T15:04:05",event.EventTimestamp)
-		tt := ft.Unix()*1000
+		ft, _ := time.Parse("2006-01-02T15:04:05", event.EventTimestamp)
+		tt := ft.Unix() * 1000
 
 		nrh := &data.NftRecordHistory{
 			ChainName:       chainName,

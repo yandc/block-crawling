@@ -1,15 +1,11 @@
 package base
 
 import (
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/model"
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
-	"strconv"
 )
 
 type Client struct {
@@ -34,7 +30,6 @@ func (c *Client) BuildURL(u string, params map[string]string) (target *url.URL, 
 	return
 }
 
-
 func (c *Client) BuildURLBTC(u string, node string, params map[string]string) (target *url.URL, err error) {
 	target, err = url.Parse(node + u)
 	if err != nil {
@@ -50,6 +45,7 @@ func (c *Client) BuildURLBTC(u string, node string, params map[string]string) (t
 	target.RawQuery = values.Encode()
 	return
 }
+
 //块信息根据块高
 func (c *Client) GetBlockHash(height int) (blockHash model.UTXOBlockHash, err error) {
 	countParam := model.JsonRpcRequest{
@@ -61,7 +57,7 @@ func (c *Client) GetBlockHash(height int) (blockHash model.UTXOBlockHash, err er
 	var pa = make([]interface{}, 0, 1)
 	pa = append(pa, height)
 	countParam.Params = pa
-	err = postResponse(c.StreamURL, countParam, &blockHash)
+	err = httpclient.PostResponse(c.StreamURL, countParam, &blockHash)
 	return
 }
 
@@ -75,10 +71,9 @@ func (c *Client) GetMemoryPoolTXByNode() (txIds model.MemoryPoolTX, err error) {
 	var pa = make([]interface{}, 0, 0)
 
 	memoryTxId.Params = pa
-	err = postResponse(c.URL, memoryTxId, &txIds)
+	err = httpclient.PostResponse(c.URL, memoryTxId, &txIds)
 	return
 }
-
 
 func (c *Client) GetUTXOBlock(height int) (utoxBlockInfo model.UTXOBlockInfo, err error) {
 
@@ -93,7 +88,6 @@ func (c *Client) GetUTXOBlock(height int) (utoxBlockInfo model.UTXOBlockInfo, er
 	return c.GetUTXOBlockByHash(blockHash.Result)
 }
 
-
 func (c *Client) GetBTCBlock(height int) (btcBlockInfo model.BTCBlockInfo, err error) {
 	blockHash, err := c.GetBlockHash(height)
 
@@ -103,8 +97,8 @@ func (c *Client) GetBTCBlock(height int) (btcBlockInfo model.BTCBlockInfo, err e
 	if blockHash.Error != nil {
 		return btcBlockInfo, errors.New(fmt.Sprintf("%v", blockHash.Error))
 	}
-	btcBlockInfo , err = c.GetBTCBlockByHash(blockHash.Result)
-	return btcBlockInfo ,err
+	btcBlockInfo, err = c.GetBTCBlockByHash(blockHash.Result)
+	return btcBlockInfo, err
 }
 
 func (c *Client) GetBTCBlockByHash(blockHash string) (btcBlockInfo model.BTCBlockInfo, err error) {
@@ -118,7 +112,7 @@ func (c *Client) GetBTCBlockByHash(blockHash string) (btcBlockInfo model.BTCBloc
 	pa = append(pa, 2)
 	countParam.Params = pa
 
-	err = postResponse(c.StreamURL, countParam, &btcBlockInfo)
+	err = httpclient.PostResponse(c.StreamURL, countParam, &btcBlockInfo)
 	return
 }
 
@@ -132,10 +126,9 @@ func (c *Client) GetUTXOBlockByHash(blockHash string) (utxoBlockInfo model.UTXOB
 	pa = append(pa, blockHash)
 	countParam.Params = pa
 
-	err = postResponse(c.StreamURL, countParam, &utxoBlockInfo)
+	err = httpclient.PostResponse(c.StreamURL, countParam, &utxoBlockInfo)
 	return
 }
-
 
 //当前块高
 func (c *Client) GetBlockCount() (count model.BTCCount, err error) {
@@ -146,7 +139,7 @@ func (c *Client) GetBlockCount() (count model.BTCCount, err error) {
 	}
 	var pa = make([]interface{}, 0, 0)
 	countParam.Params = pa
-	err = postResponse(c.StreamURL, countParam, &count)
+	err = httpclient.PostResponse(c.StreamURL, countParam, &count)
 	return
 }
 
@@ -163,7 +156,7 @@ func (c *Client) GetTxOut(txid string, n int, unconfirmed bool) (utxoList model.
 	pa = append(pa, unconfirmed)
 
 	param.Params = pa
-	err = postResponse(c.StreamURL, param, &utxoList)
+	err = httpclient.PostResponse(c.StreamURL, param, &utxoList)
 	return
 }
 
@@ -177,30 +170,6 @@ func (c *Client) GetTransactionsByTXHash(txid string) (tx model.BTCTX, err error
 	pa = append(pa, txid)
 	pa = append(pa, 1)
 	param.Params = pa
-	err = postResponse(c.StreamURL, param, &tx)
-	return
-}
-
-func postResponse(target string, encTarget interface{}, decTarget interface{}) (err error) {
-	var data bytes.Buffer
-	enc := json.NewEncoder(&data)
-	if err = enc.Encode(encTarget); err != nil {
-		return
-	}
-	resp, err := http.Post(target, "application/json", &data)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-	}
+	err = httpclient.PostResponse(c.StreamURL, param, &tx)
 	return
 }

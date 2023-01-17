@@ -2,16 +2,14 @@ package cosmos
 
 import (
 	"block-crawling/internal/biz"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -454,29 +452,10 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
-	resp, err := http.Get(target.String())
-	if err != nil {
-		if resp != nil && resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
-			// on test we only sleep for 3 seconds when we meet 429
-			c.SetRetryAfter(time.Second * 3)
-		}
-		return
-	}
-	if resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+	err, statusCode := httpclient.GetStatusCode(target.String(), &decTarget)
+	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
 	}
 
 	return

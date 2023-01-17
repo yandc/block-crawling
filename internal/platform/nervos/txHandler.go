@@ -6,7 +6,6 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	tokenTypes "block-crawling/internal/types"
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -97,9 +96,13 @@ func (h *txHandler) onTx(
 		contractAddr := rawTx.contractAddresses[i]
 		var tokenInfo tokenTypes.TokenInfo
 		if txType != chain.TxTypeNative {
-			var info *tokenTypes.TokenInfo
-			info = h.getTokenInfo(rawTx.amounts[i], contractAddr)
-			tokenInfo = *info
+			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddr)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("txHash", txHash), zap.Any("error", err))
+			}
+
+			tokenInfo.Amount = rawTx.amounts[i]
+			tokenInfo.Address = contractAddr
 		}
 		parseData, _ := json.Marshal(map[string]interface{}{
 			"cell":  rawTx.outputCells[i],
@@ -174,39 +177,6 @@ func (h *txHandler) parseInput(client *Client, rawTx *txWrapper) (fromAddr strin
 		}
 	}
 	return fromAddr, totalInput, nil
-}
-
-func (h *txHandler) getTokenInfo(amount string, contractAddr string) *tokenTypes.TokenInfo {
-	var tokenInfo tokenTypes.TokenInfo
-	ctx := context.Background()
-	getTokenInfo, err := biz.GetTokenInfo(ctx, h.chainName, contractAddr)
-	for i := 0; i < 3 && err != nil; i++ {
-		time.Sleep(time.Duration(i*1) * time.Second)
-		getTokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddr)
-	}
-	if err != nil {
-		// nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("error", err))
-	}
-	if err != nil || getTokenInfo.Symbol == "" {
-		tokenInfo = tokenTypes.TokenInfo{
-			Decimals: 0,
-			Amount:   amount,
-			Symbol:   "UNKNOWN",
-		}
-	} else {
-		tokenInfo = tokenTypes.TokenInfo{
-			Decimals: getTokenInfo.Decimals,
-			Amount:   amount,
-			Symbol:   getTokenInfo.Symbol,
-		}
-	}
-
-	tokenInfo.Address = contractAddr
-	return &tokenInfo
 }
 
 func (h *txHandler) Save(c chain.Clienter) error {
