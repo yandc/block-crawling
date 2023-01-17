@@ -56,6 +56,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		} else {
 			status = "fail"
 		}
+	} else {
+		status = "success"
 	}
 	var tokenInfo types.TokenInfo
 	txInfo, err := client.GetTransactionInfoByHash(transactionHash)
