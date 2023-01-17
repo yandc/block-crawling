@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -20,96 +22,94 @@ func init() {
 	}
 }
 
-func HttpsGetForm(url string, params map[string]string, out interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	q := req.URL.Query()
-	for k, v := range params {
-		q.Add(k, v)
-	}
-	req.URL.RawQuery = q.Encode()
-	client := &http.Client{Transport: globalTransport}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return err
-	}
-	return nil
+func HttpsGetForm(url string, urlParams map[string]string, out interface{}) (err error) {
+	err = HttpRequest(url, http.MethodGet, nil, urlParams, nil, out, nil, globalTransport)
+	return
 }
 
-func HttpsSignGetForm(url string, params map[string]string, authorization string, out interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authorization)
-	q := req.URL.Query()
-	for k, v := range params {
-		q.Add(k, v)
-	}
-	req.URL.RawQuery = q.Encode()
-	client := &http.Client{Transport: globalTransport}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return err
-	}
-	return nil
+func HttpsSignGetForm(url string, urlParams, headerParams map[string]string, out interface{}) (err error) {
+	err = HttpRequest(url, http.MethodGet, headerParams, urlParams, nil, out, nil, globalTransport)
+	return
 }
 
-func HttpsOpenSeaGetForm(url string, params map[string]string, headerValue string, out interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func HttpPostJson(url string, reqBody, out interface{}) (err error) {
+	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, nil, globalTransport)
+	return
+}
+
+func HttpsForm(url, method string, urlParams map[string]string, reqBody, out interface{}) (err error) {
+	err = HttpRequest(url, method, nil, urlParams, reqBody, out, nil, globalTransport)
+	return
+}
+
+func GetResponse(url string, out interface{}) (err error) {
+	err = HttpRequest(url, http.MethodGet, nil, nil, nil, out, nil, nil)
+	return err
+}
+
+func PostResponse(url string, reqBody, out interface{}) (err error) {
+	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, nil, nil)
+	return
+}
+
+func GetStatusCode(url string, out interface{}) (err error, statusCode int) {
+	resp, err := http.Get(url)
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
+	err = handleResponse(resp, err, out)
+	return
+}
+
+func JsonrpcCall(url string, id int, jsonrpc, method string, out interface{}, params interface{}) (header http.Header, err error) {
+	header, err = JsonrpcRequest(url, id, jsonrpc, method, out, params, nil, nil)
+	return
+}
+
+func JsonrpcRequest(url string, id int, jsonrpc, method string, out interface{}, params interface{}, timeout *time.Duration, transport *http.Transport) (header http.Header, err error) {
+	var resp types.Response
+	request := types.Request{
+		Id:      id,
+		Jsonrpc: jsonrpc,
+		Method:  method,
+		Params:  params,
+	}
+	header, err = HttpsPost(url, request, &resp, timeout, transport)
 	if err != nil {
-		return err
+		return
+	}
+	if resp.Error != nil {
+		return header, resp.Error
+	}
+	err = json.Unmarshal(resp.Result, out)
+	return
+}
+
+func HttpsPost(url string, reqBody, out interface{}, timeout *time.Duration, transport *http.Transport) (header http.Header, err error) {
+	byteArr, err := json.Marshal(reqBody)
+	if err != nil {
+		return
+	}
+	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(byteArr)))
+	if err != nil {
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-API-KEY", headerValue)
-	q := req.URL.Query()
-	for k, v := range params {
-		q.Add(k, v)
+	var client *http.Client
+	if transport == nil {
+		client = http.DefaultClient
+	} else {
+		client = &http.Client{Transport: transport}
 	}
-	req.URL.RawQuery = q.Encode()
-	client := &http.Client{Transport: globalTransport}
+	if timeout != nil {
+		client.Timeout = *timeout
+	}
 	resp, err := client.Do(req)
-	if err != nil {
-		return err
+	if resp != nil {
+		header = resp.Header
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return err
-	}
-	return nil
+	err = handleResponse(resp, err, out)
+	return
 }
 
 func HttpsGetFormString(url string, params map[string]string) (string, error) {
@@ -129,121 +129,12 @@ func HttpsGetFormString(url string, params map[string]string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-
 	return string(body), nil
-}
-
-func HttpPostJson(url string, v interface{}, out interface{}) error {
-	str, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(str)))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := http.Client{Transport: globalTransport}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return err
-	}
-	return nil
-}
-
-func HttpsForm(url, method string, params map[string]string, reqBody, out interface{}) error {
-	bytes, _ := json.Marshal(reqBody)
-	req, err := http.NewRequest(method, url, strings.NewReader(string(bytes)))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if params != nil {
-		q := req.URL.Query()
-		for k, v := range params {
-			q.Add(k, v)
-		}
-		req.URL.RawQuery = q.Encode()
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return err
-	}
-	return nil
-}
-
-func HttpsPost(url string, id int, method, jsonrpc string, out interface{}, params []interface{}, args ...interface{}) (http.Header, error) {
-	request := types.Request{
-		ID:      id,
-		Jsonrpc: jsonrpc,
-		Method:  method,
-		Params:  params,
-	}
-	str, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(str)))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := http.DefaultClient
-	if len(args) > 0 {
-		client.Timeout = time.Duration(args[0].(int)) * time.Millisecond
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		if resp != nil && resp.Header != nil {
-			return resp.Header, err
-		}
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return resp.Header, err
-	}
-	//fmt.Println(string(body))
-	if err = json.Unmarshal(body, out); err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
-		return resp.Header, err
-	}
-	return resp.Header, nil
 }
 
 func HttpsParamsPost(url string, params interface{}) (string, error) {
@@ -268,9 +159,79 @@ func HttpsParamsPost(url string, params interface{}) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 	return string(body), nil
+}
+
+func HttpRequest(url, method string, headerParams, urlParams map[string]string, reqBody, out interface{}, timeout *time.Duration, transport *http.Transport) (err error) {
+	var body io.Reader
+	if reqBody != nil {
+		var byteArr []byte
+		byteArr, err = json.Marshal(reqBody)
+		if err != nil {
+			return
+		}
+		body = strings.NewReader(string(byteArr))
+	}
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if headerParams != nil {
+		for k, v := range headerParams {
+			req.Header.Set(k, v)
+		}
+	}
+	if urlParams != nil {
+		q := req.URL.Query()
+		for k, v := range urlParams {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
+	}
+	var client *http.Client
+	if transport == nil {
+		client = http.DefaultClient
+	} else {
+		client = &http.Client{Transport: transport}
+	}
+	if timeout != nil {
+		client.Timeout = *timeout
+	}
+	resp, err := client.Do(req)
+	err = handleResponse(resp, err, out)
+	return
+}
+
+func handleResponse(resp *http.Response, e error, out interface{}) (err error) {
+	err = e
+	if err != nil {
+		if resp != nil {
+			statusCode := resp.StatusCode
+			status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+			err = errors.New(status + "\n" + fmt.Sprintf("%s", err))
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		statusCode := resp.StatusCode
+		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+		err = errors.New(status + "\n" + string(body) + "\n" + fmt.Sprintf("%s", err))
+		return
+	}
+	err = json.Unmarshal(body, out)
+	if err != nil {
+		statusCode := resp.StatusCode
+		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+		err = errors.New(status + "\n" + string(body) + "\n" + fmt.Sprintf("%s", err))
+	}
+	return
 }

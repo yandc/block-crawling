@@ -21,8 +21,8 @@ type CkbTransactionRecord struct {
 	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
 	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(516);index"`
-	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(516);index"`
+	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(550);index"`
+	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(550);index"`
 	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
 	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
 	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`

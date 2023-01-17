@@ -1,20 +1,22 @@
 package casper
 
 import (
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
+)
+
+const (
+	JSONRPC = "2.0"
+	JSONID  = 1
 )
 
 type Client struct {
@@ -49,45 +51,6 @@ func (c *Client) URL() string {
 	return c.Url
 }
 
-func (c *Client) rpcCall(method string, params interface{}) (types.RpcResponse, error) {
-	body, err := json.Marshal(types.RpcRequest{
-		Version: "2.0",
-		Method:  method,
-		Params:  params,
-	})
-
-	if err != nil {
-		return types.RpcResponse{}, err
-	}
-
-	resp, err := http.Post(c.Url, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return types.RpcResponse{}, fmt.Errorf("failed to make request: %w", err)
-	}
-
-	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return types.RpcResponse{}, fmt.Errorf("failed to get response body: %w", err)
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return types.RpcResponse{}, fmt.Errorf("request failed, status code - %d, response - %s", resp.StatusCode, string(b))
-	}
-
-	var rpcResponse types.RpcResponse
-	err = json.Unmarshal(b, &rpcResponse)
-	if err != nil {
-		return types.RpcResponse{}, fmt.Errorf("failed to parse response body: %w", err)
-	}
-
-	if rpcResponse.Error != nil {
-		return rpcResponse, fmt.Errorf("rpc call failed, code - %d, message - %s", rpcResponse.Error.Code, rpcResponse.Error.Message)
-	}
-
-	return rpcResponse, nil
-}
-
 func (c *Client) GetAccountMainPurseURef(accountHash string) string {
 	block, err := c.GetLatestBlock()
 	if err != nil {
@@ -102,8 +65,8 @@ func (c *Client) GetAccountMainPurseURef(accountHash string) string {
 	return item.Account.MainPurse
 }
 
-
 func (c *Client) GetStateItem(stateRootHash, key string, path []string) (types.StoredValue, error) {
+	method := "state_get_item"
 	params := map[string]interface{}{
 		"state_root_hash": stateRootHash,
 		"key":             key,
@@ -111,125 +74,92 @@ func (c *Client) GetStateItem(stateRootHash, key string, path []string) (types.S
 	if len(path) > 0 {
 		params["path"] = path
 	}
-	resp, err := c.rpcCall("state_get_item", params)
+	var result types.StoredValueResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return types.StoredValue{}, err
 	}
-
-	var result types.StoredValueResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return types.StoredValue{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.StoredValue, nil
 }
 
-func (c *Client) GetAccountInfoByAddress(address string)(string,error){
-	resp, err := c.rpcCall("state_get_account_info", map[string]string{
-		"public_key":      address,
-	})
+func (c *Client) GetAccountInfoByAddress(address string) (string, error) {
+	method := "state_get_account_info"
+	params := map[string]string{
+		"public_key": address,
+	}
+	var result types.AccountInfoResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return "", err
 	}
-
-	var result types.AccountInfoResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return "big.Int{}", fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.Account.MainPurse, nil
 }
-
 
 func (c *Client) GetBalance(address string) (big.Int, error) {
 	balance := big.Int{}
 	block, err := c.GetLatestBlock()
 	if err != nil {
 		balance.SetString("0", 10)
-		return balance,err
+		return balance, err
 	}
-	accountResult, err :=c.GetAccountInfoByAddress(address)
+	accountResult, err := c.GetAccountInfoByAddress(address)
 	if err != nil {
 		balance.SetString("0", 10)
-		return balance,err
+		return balance, err
 	}
 	return c.GetAccountBalance(block.Header.StateRootHash, accountResult)
 }
 
-
-
-
 func (c *Client) GetAccountBalance(stateRootHash, balanceUref string) (big.Int, error) {
-	resp, err := c.rpcCall("state_get_balance", map[string]string{
+	method := "state_get_balance"
+	params := map[string]string{
 		"state_root_hash": stateRootHash,
 		"purse_uref":      balanceUref,
-	})
+	}
+	var result types.BalanceResponse
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return big.Int{}, err
 	}
-
-	var result types.BalanceResponse
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return big.Int{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	balance := big.Int{}
 	balance.SetString(result.BalanceValue, 10)
 	return balance, nil
 }
 
 func (c *Client) GetLatestBlock() (types.CasperBlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block", nil)
+	method := "chain_get_block"
+	var result types.BlockResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, nil)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
-
-	var result types.BlockResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return types.CasperBlockResponse{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.Block, nil
 }
 
 func (c *Client) GetBlockByHeight(height uint64) (types.CasperBlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block",
-		types.BlockParams{
-			BlockIdentifier: types.BlockIdentifier{
-				Height: height,
-			}})
+	method := "chain_get_block"
+	params := types.BlockParams{
+		BlockIdentifier: types.BlockIdentifier{
+			Height: height,
+		}}
+	var result types.BlockResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
-
-	var result types.BlockResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return types.CasperBlockResponse{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.Block, nil
 }
 
 func (c *Client) GetBlockByHash(hash string) (types.CasperBlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block",
-		types.BlockParams{BlockIdentifier: types.BlockIdentifier{
-			Hash: hash,
-		}})
+	method := "chain_get_block"
+	params := types.BlockParams{BlockIdentifier: types.BlockIdentifier{
+		Hash: hash,
+	}}
+	var result types.BlockResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
-
-	var result types.BlockResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return types.CasperBlockResponse{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.Block, nil
 }
 
@@ -281,7 +211,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 			txInfo, err = c.GetTxByHash(transaction.DeployHash)
 		}
 		if err != nil {
-			log.Info(c.ChainName + "查询txhash失败",zap.Any(transaction.DeployHash,err))
+			log.Info(c.ChainName+"查询txhash失败", zap.Any(transaction.DeployHash, err))
 			return nil, err
 		}
 
@@ -304,20 +234,16 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 }
 
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
-
-	resp, err := c.rpcCall("info_get_deploy", map[string]string{
+	method := "info_get_deploy"
+	params := map[string]string{
 		"deploy_hash": txHash,
-	})
+	}
+	var result types.DeployResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return nil, err
 	}
 
-	var result types.DeployResult
-	err = json.Unmarshal(resp.Result, &result)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get result: %w", err)
-	}
 	//未查出结果
 	if len(result.ExecutionResults) != 1 {
 		return nil, nil
@@ -336,19 +262,14 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 }
 
 func (c *Client) GetBlockTransfersByHeight(height uint64) ([]types.TransferResponse, error) {
-	resp, err := c.rpcCall("chain_get_block_transfers",
-		types.BlockParams{BlockIdentifier: types.BlockIdentifier{
-			Height: height,
-		}})
+	method := "chain_get_block_transfers"
+	params := types.BlockParams{BlockIdentifier: types.BlockIdentifier{
+		Height: height,
+	}}
+	var result types.TransferResult
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
 	if err != nil {
 		return nil, err
 	}
-
-	var result types.TransferResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get result: %w", err)
-	}
-
 	return result.Transfers, nil
 }

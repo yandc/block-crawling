@@ -47,6 +47,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		)...,
 	)
 	rawTx := tx.Raw.(*rawTxWrapper)
+	transactionHash := rawTx.TxID
 	client := c.(*Client)
 	status := "pending"
 	if len(rawTx.Ret) > 0 {
@@ -57,13 +58,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 	var tokenInfo types.TokenInfo
-	txInfo, err := client.GetTransactionInfoByHash(rawTx.TxID)
+	txInfo, err := client.GetTransactionInfoByHash(transactionHash)
 	if err != nil {
 		return err
 	}
 
 	if tx.TxType == "transfer" {
-		tokenInfo, _ = biz.GetTokenInfo(nil, h.chainName, rawTx.contractAddress)
+		tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, rawTx.contractAddress)
+		if err != nil {
+			log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
+		}
 		tokenInfo.Amount = rawTx.tokenAmount
 		tokenInfo.Address = rawTx.contractAddress
 	}
@@ -97,7 +101,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	trxRecord := &data.TrxTransactionRecord{
 		BlockHash:       block.Hash,
 		BlockNumber:     rawBlock.BlockHeader.RawData.Number,
-		TransactionHash: rawTx.TxID,
+		TransactionHash: transactionHash,
 		FromAddress:     tx.FromAddress,
 		ToAddress:       tx.ToAddress,
 		FromUid:         meta.User.FromUid,

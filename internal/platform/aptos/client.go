@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -455,30 +453,31 @@ type TransactionInfo struct {
 		TypeArguments []string      `json:"type_arguments"`
 		Arguments     []interface{} `json:"arguments"`
 	} `json:"payload,omitempty"`
-	Signature struct {
+	Signature *struct {
 		Type      string `json:"type"`
 		PublicKey string `json:"public_key"`
 		Signature string `json:"signature"`
-	} `json:"signature"`
+	} `json:"signature,omitempty"`
 	Events []struct {
 		Guid struct {
 			CreationNumber string `json:"creation_number"`
 			AccountAddress string `json:"account_address"`
 		} `json:"guid"`
-		SequenceNumber string `json:"sequence_number"`
-		Type           string `json:"type"`
-		Data           struct {
+		SequenceNumber string      `json:"sequence_number"`
+		Type           string      `json:"type"`
+		Data           interface{} `json:"data,omitempty"`
+		/*Data           struct {
 			Amount string      `json:"amount,omitempty"`
 			Id     interface{} `json:"id,omitempty"`
-			/*Id     *struct {
-				PropertyVersion string `json:"property_version"`
-				TokenDataId     struct {
-					Collection string `json:"collection"`
-					Creator    string `json:"creator"`
-					Name       string `json:"name"`
-				} `json:"token_data_id"`
-			} `json:"id,omitempty"`*/
-		} `json:"data"`
+			//Id     *struct {
+			//	PropertyVersion string `json:"property_version"`
+			//	TokenDataId     struct {
+			//		Collection string `json:"collection"`
+			//		Creator    string `json:"creator"`
+			//		Name       string `json:"name"`
+			//	} `json:"token_data_id"`
+			//} `json:"id,omitempty"`
+		} `json:"data"`*/
 	} `json:"events"`
 	Timestamp string `json:"timestamp"`
 	AptosBadResp
@@ -539,29 +538,10 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
-	resp, err := http.Get(target.String())
-	if err != nil {
-		if resp != nil && resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
-			// on test we only sleep for 3 seconds when we meet 429
-			c.SetRetryAfter(time.Second * 3)
-		}
-		return
-	}
-	if resp.StatusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+	err, statusCode := httpclient.GetStatusCode(target.String(), &decTarget)
+	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(body, decTarget)
-	if err != nil {
-		statusCode := resp.StatusCode
-		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body))
 	}
 
 	return

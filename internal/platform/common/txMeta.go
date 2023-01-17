@@ -3,7 +3,6 @@ package common
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/log"
-	"fmt"
 	"strings"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -80,12 +79,8 @@ func (meta *TxMeta) matchUser() (*UserMeta, error) {
 	if fromAddress != "" {
 		fromAddressList := strings.Split(fromAddress, ",")
 		for i, addr := range fromAddressList {
-			tmpUserFromAddress, tmpFromUid, err := biz.UserAddressSwitch(addr)
+			tmpUserFromAddress, tmpFromUid, err := biz.UserAddressSwitchRetryAlert(chainName, addr)
 			if err != nil {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, fromAddress), zap.Any("error", err))
 				return nil, err
 			}
@@ -102,12 +97,8 @@ func (meta *TxMeta) matchUser() (*UserMeta, error) {
 	if toAddress != "" {
 		toAddressList := strings.Split(toAddress, ",")
 		for i, addr := range toAddressList {
-			tmpUserToAddress, tmpToUid, err := biz.UserAddressSwitch(addr)
+			tmpUserToAddress, tmpToUid, err := biz.UserAddressSwitchRetryAlert(chainName, addr)
 			if err != nil {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, toAddress), zap.Any("error", err))
 				return nil, err
 			}
@@ -131,21 +122,13 @@ func (meta *TxMeta) matchUser() (*UserMeta, error) {
 }
 
 func MatchUser(fromAddress, toAddress, chainName string) (*UserMeta, error) {
-	userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
+	userFromAddress, fromUid, err := biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, fromAddress), zap.Any("error", err))
 		return nil, err
 	}
-	userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
+	userToAddress, toUid, err := biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, toAddress), zap.Any("error", err))
 		return nil, err
 	}
@@ -159,12 +142,8 @@ func MatchUser(fromAddress, toAddress, chainName string) (*UserMeta, error) {
 }
 
 func MatchAddress(address, chainName string) (string, bool, error) {
-	ok, uid, err := biz.UserAddressSwitch(address)
+	ok, uid, err := biz.UserAddressSwitchRetryAlert(chainName, address)
 	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Info("查询redis缓存报错：用户中心获取", zap.Any(chainName, address), zap.Any("error", err))
 		return "", false, err
 	}

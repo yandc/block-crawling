@@ -111,51 +111,39 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 			continue
 		}
 
+		var decimals int64
+		var symbol string
 		//代币 累加
+		userAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
 		if userAsset.TokenAddress != "" {
-			tokenInfo, err := biz.GetTokenInfos(nil, chainName, userAsset.TokenAddress)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
-				tokenInfo, err = biz.GetTokenInfo(nil, chainName, userAsset.TokenAddress)
-			}
+			tokenInfo, err := biz.GetTokenInfoRetryAlert(nil, chainName, userAsset.TokenAddress)
 			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("error", err))
 				continue
 			}
-
-			userAsset.Balance = utils.StringDecimals(userAsset.Balance, int(tokenInfo.Decimals))
-			userAsset.Symbol = tokenInfo.Symbol
-			userAsset.Decimals = int32(tokenInfo.Decimals)
-			userAsset.CreatedAt = now
-			userAsset.UpdatedAt = now
-
-			userTokenAssetKey := userAsset.ChainName + userAsset.Address + userAsset.TokenAddress
-			oldUserAsset, ok := userAssetMap[userTokenAssetKey]
-			if ok {
-				userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)
-				oldUserAssetBalance, _ := decimal.NewFromString(oldUserAsset.Balance)
-				oldUserAsset.Balance = userAssetBalance.Add(oldUserAssetBalance).String()
-			} else {
-				userAssetMap[userTokenAssetKey] = userAsset
-			}
+			decimals = tokenInfo.Decimals
+			symbol = tokenInfo.Symbol
 		} else {
-			userAssetKey := userAsset.ChainName + userAsset.Address
-			userAsset.Decimals = 8
-			userAsset.CreatedAt = now
-			userAsset.UpdatedAt = now
-			userAsset.Balance = utils.StringDecimals(userAsset.Balance, 8)
-			o, ok := userAssetMap[userAssetKey]
-			if ok {
-				userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)
-				oldUserAssetBalance, _ := decimal.NewFromString(o.Balance)
-				o.Balance = userAssetBalance.Add(oldUserAssetBalance).String()
+			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+				decimals = int64(platInfo.Decimal)
+				symbol = platInfo.NativeCurrency
 			} else {
-				userAssetMap[userAssetKey] = userAsset
+				continue
 			}
+		}
+
+		userAsset.Decimals = int32(decimals)
+		userAsset.Symbol = symbol
+		userAsset.Balance = utils.StringDecimals(userAsset.Balance, int(decimals))
+		userAsset.CreatedAt = now
+		userAsset.UpdatedAt = now
+		oldUserAsset, ok := userAssetMap[userAssetKey]
+		if ok {
+			userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)
+			oldUserAssetBalance, _ := decimal.NewFromString(oldUserAsset.Balance)
+			oldUserAsset.Balance = userAssetBalance.Add(oldUserAssetBalance).String()
+		} else {
+			userAssetMap[userAssetKey] = userAsset
 		}
 		log.Info("DDDYYY", zap.Any("map", userAssetMap), zap.Any("len", len(userAssetMap)))
 
@@ -528,7 +516,6 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 	log.Info("fffff", zap.Any(chainName, userAssets))
 
 	go handleUserAsset(chainName, userAssets, tempList)
-
 }
 
 // 地址a,地址b,地址c

@@ -1,28 +1,8 @@
 package types
 
 import (
-	"encoding/json"
 	"time"
 )
-
-type RpcRequest struct {
-	Version string      `json:"jsonrpc"`
-	Id      string      `json:"id"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params"`
-}
-
-type RpcResponse struct {
-	Version string          `json:"jsonrpc"`
-	Id      string          `json:"id"`
-	Result  json.RawMessage `json:"result"`
-	Error   *RpcError       `json:"error,omitempty"`
-}
-
-type RpcError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
 
 type BalanceResponse struct {
 	BalanceValue string `json:"balance_value"`
@@ -100,7 +80,7 @@ type JsonDeploy struct {
 	Hash      string           `json:"hash"`
 	Header    JsonDeployHeader `json:"header"`
 	Approvals []JsonApproval   `json:"approvals"`
-	Payment struct {
+	Payment   struct {
 		ModuleBytes struct {
 			ModuleBytes string          `json:"module_bytes"`
 			Args        [][]interface{} `json:"args"`
@@ -135,11 +115,12 @@ type JsonExecutionResult struct {
 	BlockHash string          `json:"block_hash"`
 	Result    ExecutionResult `json:"result"`
 }
+
 //包含失败返回值
 type ExecutionResult struct {
 	Success      SuccessExecutionResult `json:"success"`
 	ErrorMessage *string                `json:"error_message,omitempty"`
-	Failure struct {
+	Failure      struct {
 		Effect struct {
 			Operations []interface{} `json:"operations"`
 			Transforms []struct {
@@ -177,11 +158,10 @@ type StoredValue struct {
 }
 
 type AccountInfoResult struct {
-	Account         AccountInfo          `json:"account,omitempty"`
-
+	Account AccountInfo `json:"account,omitempty"`
 }
 type AccountInfo struct {
-	MainPurse         string          `json:"main_purse,omitempty"`
+	MainPurse string `json:"main_purse,omitempty"`
 }
 
 type JsonCLValue struct {

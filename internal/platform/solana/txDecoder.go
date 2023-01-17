@@ -67,7 +67,8 @@ type Instructions struct {
 	//ProgramId string `json:"programId"`
 }
 
-func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
+func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) (err error) {
+	transactionHash := tx.Hash
 	curSlot := block.Number
 	curHeight := block.Raw.(int)
 	transactionInfo := tx.Raw.(*TransactionInfo)
@@ -78,9 +79,8 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	fee := meta.Fee
 	feeAmount := decimal.NewFromInt(meta.Fee)
 	var payload string
-	err := meta.Err
 	var status string
-	if err == nil {
+	if meta.Err == nil {
 		status = biz.SUCCESS
 	} else {
 		status = biz.FAIL
@@ -332,7 +332,8 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		txType := biz.NATIVE
 		var tokenInfo types.TokenInfo
 		var amount, contractAddress string
-		var fromAddress, toAddress string
+		var fromAddress, toAddress, fromUid, toUid string
+		var fromAddressExist, toAddressExist bool
 
 		parsed, ok := instruction.Parsed.(map[string]interface{})
 		if !ok {
@@ -401,34 +402,37 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			continue
 		}
 
-		user, err := h.matchUser(fromAddress, toAddress)
-		if err != nil {
-			return err
+		if fromAddress != "" {
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, utils.AddressAdd0(fromAddress))
+			if err != nil {
+				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				return
+			}
 		}
-		if !(user.matchFrom || user.matchTo) {
-			return nil
+
+		if toAddress != "" {
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, utils.AddressAdd0(toAddress))
+			if err != nil {
+				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				return
+			}
+		}
+		if !fromAddressExist && !toAddressExist {
+			continue
 		}
 
 		index++
 		var txHash string
 		if index == 1 {
-			txHash = tx.Hash
+			txHash = transactionHash
 		} else {
-			txHash = tx.Hash + "#result-" + fmt.Sprintf("%v", index)
+			txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
 		}
 
 		if contractAddress != "" {
-			tokenInfo, err = biz.GetTokenInfo(nil, h.ChainName, contractAddress)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
-				tokenInfo, err = biz.GetTokenInfo(nil, h.ChainName, contractAddress)
-			}
+			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.ChainName, contractAddress)
 			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.ChainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("error", err))
+				log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
@@ -446,8 +450,8 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			TransactionHash: txHash,
 			FromAddress:     fromAddress,
 			ToAddress:       toAddress,
-			FromUid:         user.fromUid,
-			ToUid:           user.toUid,
+			FromUid:         fromUid,
+			ToUid:           toUid,
 			FeeAmount:       feeAmount,
 			Amount:          amountValue,
 			Status:          status,
@@ -465,41 +469,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		h.txRecords = append(h.txRecords, solTransactionRecord)
 	}
 	return nil
-}
-
-type userMeta struct {
-	matchFrom bool
-	fromUid   string
-	matchTo   bool
-	toUid     string
-}
-
-func (h *txDecoder) matchUser(fromAddress, toAddress string) (*userMeta, error) {
-	userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.ChainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.ChainName, fromAddress), zap.Any("error", err))
-		return nil, err
-	}
-	userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
-	if err != nil {
-		// redis出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户地址失败", h.ChainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：用户中心获取", zap.Any(h.ChainName, toAddress), zap.Any("error", err))
-		return nil, err
-	}
-	return &userMeta{
-		matchFrom: userFromAddress,
-		fromUid:   fromUid,
-
-		matchTo: userToAddress,
-		toUid:   toUid,
-	}, nil
 }
 
 func (h *txDecoder) Save(client chain.Clienter) error {

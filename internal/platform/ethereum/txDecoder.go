@@ -46,51 +46,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	transaction := tx.Raw.(*Transaction)
 	client := c.(*Client)
 
-	/*start := time.Now()
-		if err := h.doOnNewTx(client, block, tx, transaction); err != nil {
-			return err
-		}
-
-		handleTxElapsed := time.Now().Sub(start).String()
-
-		var updateHashElapsed string
-		if h.blockHash == "" {
-			start := time.Now()
-			hash, err := h.getBlockHashFromReceipt(client, transaction)
-			updateHashElapsed = time.Now().Sub(start).String()
-			if err != nil {
-				log.Debug(
-					"UPDATE BLOCK HASH FROM RECEIPT FAILED WITH ERROR",
-					zap.String("chainName", h.chainName),
-					zap.Uint64("height", block.Number),
-					zap.String("prevHash", block.Hash),
-					zap.String("postHash", h.blockHash),
-					zap.String("updateHashElapsed", updateHashElapsed),
-					zap.String("handleTxElapsed", handleTxElapsed),
-					zap.Error(err),
-				)
-				return err
-			}
-			h.blockHash = hash
-		}
-
-		// Use block hash in receipt to fix block hash mismatch
-		if h.blockHashRetrieved && h.blockHash != block.Hash {
-			log.Debug(
-				"UPDATE BLOCK HASH FROM RECEIPT",
-				zap.String("chainName", h.chainName),
-				zap.Uint64("height", block.Number),
-				zap.String("prevHash", block.Hash),
-				zap.String("postHash", h.blockHash),
-				zap.String("updateHashElapsed", updateHashElapsed),
-				zap.String("handleTxElapsed", handleTxElapsed),
-			)
-			block.Hash = h.blockHash
-		}
-		return nil
-	}
-
-	func (h *txDecoder) doOnNewTx(client *Client, block *chain.Block, tx *chain.Transaction, transaction *Transaction) error {*/
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
@@ -196,6 +151,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	} else if receipt.Status == "0x1" {
 		status = biz.SUCCESS
 	}
+	transactionHash := transaction.Hash().String()
 
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
@@ -226,17 +182,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					} else if meta.TransactionType == biz.TRANSFERFROM {
 						meta.TransactionType = biz.TRANSFERNFT
 					}
-					tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
-					}
+					tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
 					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 					tokenInfo.TokenType = biz.ERC721
 					amount = "1"
@@ -251,17 +199,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 						meta.TransactionType = biz.NATIVE
 						contractAddress = ""
 					} else {
-						tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
-						for i := 0; i < 3 && err != nil; i++ {
-							time.Sleep(time.Duration(i*1) * time.Second)
-							tokenInfo, err = biz.GetTokenInfo(ctx, h.chainName, contractAddress)
-						}
+						tokenInfo, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, contractAddress)
 						if err != nil {
-							// nodeProxy出错 接入lark报警
-							alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-							alarmOpts := biz.WithMsgLevel("FATAL")
-							biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
 					}
@@ -269,17 +209,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			} else if meta.TransactionType == biz.SETAPPROVALFORALL {
 				ctx := context.Background()
 				meta.TransactionType = biz.APPROVENFT
-				tokenInfo, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, contractAddress)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					tokenInfo, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, contractAddress)
-				}
+				tokenInfo, err = biz.GetCollectionInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress)
 				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
 			} else if meta.TransactionType == biz.SAFETRANSFERFROM {
@@ -297,17 +229,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					amount = values[1]
 				}
 
-				tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					tokenInfo, err = biz.GetNftInfoDirectly(ctx, h.chainName, contractAddress, tokenId)
-				}
+				tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
 				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				tokenInfo.TokenType = tokenType
 				tokenInfo.Amount = amount
@@ -328,7 +252,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					alarmMsg := fmt.Sprintf("请注意：%s链解析contract的code失败", h.chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，解析contract的code失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，解析contract的code失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				if tokenType != "" {
 					if tokenInfo.TokenType == "" && tokenType != biz.ERC20 {
@@ -425,7 +349,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		// database btree index maximum is 2704
 		logAddressLen := len(logAddress)
 		if logAddressLen > 2704 {
-			log.Error(h.chainName+"扫块，logAddress长度超过最大限制", zap.Any("logAddressLen", logAddressLen))
+			log.Error(h.chainName+"扫块，logAddress长度超过最大限制", zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
 			logAddress = nil
 		}
 	}
@@ -433,7 +357,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		BlockHash:            h.blockHash,
 		BlockNumber:          bn,
 		Nonce:                int64(transaction.Nonce()),
-		TransactionHash:      transaction.Hash().String(),
+		TransactionHash:      transactionHash,
 		FromAddress:          meta.FromAddress,
 		ToAddress:            meta.ToAddress,
 		FromUid:              meta.User.FromUid,
@@ -476,7 +400,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			}
 			eventParseData, _ := json.Marshal(eventMap)
 			//b, _ := json.Marshal(eventLog)
-			txHash := transaction.Hash().String() + "#result-" + fmt.Sprintf("%v", index+1)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
@@ -562,6 +486,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []types.EventLog, tokenId string) {
 	var eventLogs []*types.EventLog
 	arbitrumAmount := big.NewInt(0)
+	transactionHash := transaction.Hash().String()
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
 			continue
@@ -600,32 +525,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				ctx := context.Background()
 				if len(log_.Topics) == 4 {
 					tokenId = log_.Topics[3].Big().String()
-					token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-					}
+					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 				} else {
-					token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
-					}
+					token, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, tokenAddress)
 					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 					if len(log_.Data) >= 32 {
 						amount = new(big.Int).SetBytes(log_.Data[:32])
@@ -647,32 +556,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				ctx := context.Background()
 				if len(log_.Topics) == 4 {
 					tokenId = log_.Topics[3].Big().String()
-					token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-					}
+					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 				} else {
-					token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
-					for i := 0; i < 3 && err != nil; i++ {
-						time.Sleep(time.Duration(i*1) * time.Second)
-						token, err = biz.GetTokenInfo(ctx, h.chainName, tokenAddress)
-					}
+					token, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, tokenAddress)
 					if err != nil {
-						// nodeProxy出错 接入lark报警
-						alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-						alarmOpts := biz.WithMsgLevel("FATAL")
-						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 					if len(log_.Data) >= 32 {
 						amount = new(big.Int).SetBytes(log_.Data[:32])
@@ -688,17 +581,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if tokenAddress != "" {
 				ctx := context.Background()
 				tokenId = log_.Topics[2].Big().String()
-				token, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, tokenAddress)
-				for i := 0; i < 3 && err != nil; i++ {
-					time.Sleep(time.Duration(i*1) * time.Second)
-					token, err = biz.GetCollectionInfoDirectly(ctx, h.chainName, tokenAddress)
-				}
+				token, err = biz.GetCollectionInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress)
 				if err != nil {
-					// nodeProxy出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币精度失败", h.chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				amount = new(big.Int).SetBytes(log_.Data)
 				token.Amount = amount.String()
@@ -717,17 +602,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
-			token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
-				token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-			}
+			token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
 			token.TokenType = biz.ERC1155
 			token.Amount = amount.String()
@@ -737,17 +614,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[96:128]).String()
 			amount = new(big.Int).SetBytes(log_.Data[128:160])
-			token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-			for i := 0; i < 3 && err != nil; i++ {
-				time.Sleep(time.Duration(i*1) * time.Second)
-				token, err = biz.GetNftInfoDirectly(ctx, h.chainName, tokenAddress, tokenId)
-			}
+			token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 			if err != nil {
-				// nodeProxy出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
 			token.TokenType = biz.ERC1155
 			token.Amount = amount.String()
@@ -791,16 +660,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		} else if topic0 == FANTOM_SWAPED_V1 {
 
-			if h.chainName == "ArbitrumNova" && log_.Topics[1].String() == log_.Topics[2].String(){
+			if h.chainName == "ArbitrumNova" && log_.Topics[1].String() == log_.Topics[2].String() {
 				fromAddress = common.HexToAddress(receipt.To).String()
 				toAddress = common.HexToAddress(receipt.From).String()
 				if len(log_.Data) >= 128 {
 					amount = new(big.Int).SetBytes(log_.Data[96:128])
-					if amount.String() == "0"{
+					if amount.String() == "0" {
 						amount = new(big.Int).SetBytes(log_.Data[64:96])
 					}
 				}
-			} else if h.chainName == "Fantom"{
+			} else if h.chainName == "Fantom" {
 				fromAddress = common.HexToAddress(receipt.To).String()
 				toAddress = common.HexToAddress(receipt.From).String()
 				if len(log_.Data) > 96 {
@@ -914,27 +783,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 	}
 	return
-}
-
-func (h *txDecoder) getBlockHashFromReceipt(client *Client, transaction *Transaction) (string, error) {
-	if isNonstandardEVM(h.chainName) {
-		if h.blockHashRetrieved {
-			return "", nil
-		}
-
-		receipt, err := client.GetTransactionReceipt(context.Background(), transaction.Hash())
-
-		h.blockHashRetrieved = true
-
-		if err != nil {
-			if err == ethereum.NotFound {
-				return "", nil
-			}
-			return "", err
-		}
-		return receipt.BlockHash, nil
-	}
-	return "", nil
 }
 
 func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) error {

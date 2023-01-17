@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -186,6 +187,21 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 	return tokenInfo, err
 }
 
+func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		tokenInfo, err = GetTokenInfo(ctx, chainName, tokenAddress)
+	}
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return tokenInfo, err
+}
+
 func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
 	tokenInfo := types.TokenInfo{}
 	if tokenAddress == "" {
@@ -263,6 +279,21 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 	return tokenInfo, nil
 }
 
+func GetNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	tokenInfo, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		tokenInfo, err = GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	}
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return tokenInfo, err
+}
+
 func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
 	tokenInfo := types.TokenInfo{}
 	if tokenAddress == "" {
@@ -285,6 +316,21 @@ func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress stri
 	tokenInfo.ItemName = respData.NftName
 	tokenInfo.ItemUri = respData.ImageURL
 	return tokenInfo, nil
+}
+
+func GetCollectionInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	tokenInfo, err := GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		tokenInfo, err = GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
+	}
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT集合信息失败，tokenAddress:%s", chainName, tokenAddress)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return tokenInfo, err
 }
 
 func GetCollectionInfoDirectly(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {

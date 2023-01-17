@@ -8,10 +8,10 @@ import (
 
 //Request is a jsonrpc request
 type Request struct {
-	ID      int           `json:"id"`
-	Jsonrpc string        `json:"jsonrpc"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
+	Id      int         `json:"id"`
+	Jsonrpc string      `json:"jsonrpc"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params"`
 }
 
 // ErrorObject is a jsonrpc error
@@ -23,9 +23,10 @@ type ErrorObject struct {
 
 // Response is a jsonrpc response
 type Response struct {
-	ID     uint64          `json:"id"`
-	Result json.RawMessage `json:"result"`
-	Error  *ErrorObject    `json:"error,omitempty"`
+	Id      uint64          `json:"id"`
+	Jsonrpc string          `json:"jsonrpc"`
+	Result  json.RawMessage `json:"result"`
+	Error   *ErrorObject    `json:"error,omitempty"`
 }
 
 type Balance struct {

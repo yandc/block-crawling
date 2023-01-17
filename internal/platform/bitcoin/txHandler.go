@@ -28,11 +28,11 @@ type txHandler struct {
 	txHashIndexMap map[string]int
 }
 
-func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
-	return h.onNewTx(tx.Raw.(types.Tx), int(tx.BlockNumber), int(h.chainHeight))
-}
-
-func (h *txHandler) onNewTx(tx types.Tx, curHeight int, height int) (err error) {
+func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain.Transaction) (err error) {
+	height := int(h.chainHeight)
+	curHeight := int(chainTx.BlockNumber)
+	tx := chainTx.Raw.(types.Tx)
+	transactionHash := tx.Hash
 	status := biz.PENDING
 	if tx.BlockHeight > 0 {
 		status = biz.SUCCESS
@@ -48,18 +48,14 @@ func (h *txHandler) onNewTx(tx types.Tx, curHeight int, height int) (err error) 
 		log.Error(h.chainName+"扫块，txInputs为0", zap.Any("current", curHeight), zap.Any("new", height))
 	}
 	if fromAddress != "" {
-		fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-		if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-			// redis出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+		fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+		if err != nil {
+			log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			return
 		}
 	}
 
-	index, _ := h.txHashIndexMap[tx.Hash]
+	index, _ := h.txHashIndexMap[transactionHash]
 
 	for _, out := range tx.Out {
 		toAddress = out.Addr
@@ -67,47 +63,44 @@ func (h *txHandler) onNewTx(tx types.Tx, curHeight int, height int) (err error) 
 			continue
 		}
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("error", err))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
-
-		if fromAddressExist || toAddressExist {
-			index++
-			h.txHashIndexMap[tx.Hash] = index
-			var txHash string
-			if index == 1 {
-				txHash = tx.Hash
-			} else {
-				txHash = tx.Hash + "#result-" + fmt.Sprintf("%v", index)
-			}
-			amount = decimal.NewFromInt(int64(out.Value))
-			btcTransactionRecord := &data.BtcTransactionRecord{
-				BlockHash:       h.block.Hash,
-				BlockNumber:     curHeight,
-				TransactionHash: txHash,
-				FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,
-				FeeAmount:       decimal.NewFromInt(int64(tx.Fee)),
-				Amount:          amount,
-				Status:          status,
-				TxTime:          int64(tx.Time),
-				ConfirmCount:    int32(height - curHeight),
-				DappData:        "",
-				ClientData:      "",
-				CreatedAt:       h.now,
-				UpdatedAt:       h.now,
-			}
-			h.txRecords = append(h.txRecords, btcTransactionRecord)
+		if !fromAddressExist && !toAddressExist {
+			continue
 		}
+
+		index++
+		h.txHashIndexMap[transactionHash] = index
+		var txHash string
+		if index == 1 {
+			txHash = transactionHash
+		} else {
+			txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
+		}
+		amount = decimal.NewFromInt(int64(out.Value))
+		btcTransactionRecord := &data.BtcTransactionRecord{
+			BlockHash:       h.block.Hash,
+			BlockNumber:     curHeight,
+			TransactionHash: txHash,
+			FromAddress:     fromAddress,
+			ToAddress:       toAddress,
+			FromUid:         fromUid,
+			ToUid:           toUid,
+			FeeAmount:       decimal.NewFromInt(int64(tx.Fee)),
+			Amount:          amount,
+			Status:          status,
+			TxTime:          int64(tx.Time),
+			ConfirmCount:    int32(height - curHeight),
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       h.now,
+			UpdatedAt:       h.now,
+		}
+		h.txRecords = append(h.txRecords, btcTransactionRecord)
 	}
 	return nil
 }
@@ -175,6 +168,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 	}
 
 	curHeight := tx.BlockHeight
+	transactionHash := tx.Hash
 	status := biz.PENDING
 	if tx.BlockHeight > 0 {
 		status = biz.SUCCESS
@@ -186,17 +180,9 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 	//openblock钱包转账中tx.Inputs只会有一笔
 	fromAddress = tx.Inputs[0].Addresses[0]
 	if fromAddress != "" {
-		fromAddressExist, fromUid, err = biz.UserAddressSwitch(fromAddress)
-		if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-			/*//更新 redis中的块高和区块hash
-			data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+p.ChainName, preHeight, 0)
-			data.RedisClient.Set(biz.BLOCK_HASH_KEY+p.ChainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)*/
-
-			// redis出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+		fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+		if err != nil {
+			log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("txHash", transactionHash), zap.Any("error", err))
 			return
 		}
 	}
@@ -208,52 +194,44 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 			continue
 		}
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitch(toAddress)
-			if err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY {
-				/*//更新 redis中的块高和区块hash
-				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+h.chainName, preHeight, 0)
-				data.RedisClient.Set(biz.BLOCK_HASH_KEY+h.chainName+":"+strconv.Itoa(preHeight), preBlockHash, biz.BLOCK_HASH_EXPIRATION_KEY)*/
-
-				// redis出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败", h.chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("error", err))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight) /*, zap.Any("new", height)*/, zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
-
-		if fromAddressExist || toAddressExist {
-			index++
-			var txHash string
-			if index == 1 {
-				txHash = tx.Hash
-			} else {
-				txHash = tx.Hash + "#result-" + fmt.Sprintf("%v", index)
-			}
-			amount = decimal.NewFromBigInt(&out.Value, 0)
-			btcTransactionRecord := &data.BtcTransactionRecord{
-				BlockHash:       tx.BlockHash,
-				BlockNumber:     curHeight,
-				TransactionHash: txHash,
-				FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,
-				FeeAmount:       decimal.NewFromInt(tx.Fees.Int64()),
-				Amount:          amount,
-				Status:          status,
-				TxTime:          tx.Confirmed.Unix(),
-				//ConfirmCount:    int32(height - curHeight),
-				DappData:   "",
-				ClientData: "",
-				CreatedAt:  h.now,
-				UpdatedAt:  h.now,
-			}
-			h.txRecords = append(h.txRecords, btcTransactionRecord)
+		if !fromAddressExist && !toAddressExist {
+			continue
 		}
-	}
 
+		index++
+		var txHash string
+		if index == 1 {
+			txHash = transactionHash
+		} else {
+			txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
+		}
+		amount = decimal.NewFromBigInt(&out.Value, 0)
+		btcTransactionRecord := &data.BtcTransactionRecord{
+			BlockHash:       tx.BlockHash,
+			BlockNumber:     curHeight,
+			TransactionHash: txHash,
+			FromAddress:     fromAddress,
+			ToAddress:       toAddress,
+			FromUid:         fromUid,
+			ToUid:           toUid,
+			FeeAmount:       decimal.NewFromInt(tx.Fees.Int64()),
+			Amount:          amount,
+			Status:          status,
+			TxTime:          tx.Confirmed.Unix(),
+			//ConfirmCount:    int32(height - curHeight),
+			DappData:   "",
+			ClientData: "",
+			CreatedAt:  h.now,
+			UpdatedAt:  h.now,
+		}
+		h.txRecords = append(h.txRecords, btcTransactionRecord)
+	}
 	return nil
 }
 

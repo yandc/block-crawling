@@ -4,12 +4,9 @@ import (
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
-	"block-crawling/internal/types"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -57,24 +54,16 @@ func (c *Client) URL() string {
 	return c.Url
 }
 
-func (c *Client) call(id int, method string, out interface{}, params []interface{}, args ...interface{}) error {
-	var resp types.Response
-	var err error
-	var header http.Header
-	if len(args) > 0 {
-		header, err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params, args[0].(int))
-	} else {
-		header, err = httpclient.HttpsPost(c.Url, id, method, JSONRPC, &resp, params)
+func (c *Client) call(id int, method string, out interface{}, params []interface{}, timeDuration ...*time.Duration) error {
+	var timeout *time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
 	}
+	header, err := httpclient.JsonrpcRequest(c.Url, id, JSONRPC, method, out, params, timeout, nil)
 	if err != nil {
 		c.ParseRetryAfter(header)
-		return err
 	}
-	if resp.Error != nil {
-		c.ParseRetryAfter(header)
-		return resp.Error
-	}
-	return json.Unmarshal(resp.Result, &out)
+	return err
 }
 
 type SolanaBalance struct {
@@ -230,8 +219,8 @@ func (c *Client) GetBlockByNumber(number int) (*Block, error) {
 	method := "getBlock"
 	params := []interface{}{number, map[string]interface{}{"encoding": "jsonParsed", "transactionDetails": "full", "maxSupportedTransactionVersion": 0, "rewards": false}}
 	result := &Block{}
-	timeoutMS := 10_000
-	err := c.call(JSONID, method, result, params, timeoutMS)
+	timeoutMS := time.Duration(10_000) * time.Millisecond
+	err := c.call(JSONID, method, result, params, &timeoutMS)
 	return result, err
 }
 
