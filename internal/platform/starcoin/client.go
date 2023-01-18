@@ -211,8 +211,12 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	scriptFunction := userTransaction.RawTransaction.DecodedPayload.ScriptFunction
 	if !strings.HasPrefix(scriptFunction.Function, "peer_to_peer") {
 		events, err := c.GetTransactionEventByHash(txHash)
+
 		if err != nil {
-			return nil, err
+			errObject,ok :=err.(*types.ErrorObject)
+			if !ok || !(ok && strings.HasPrefix(errObject.Message,"cannot find txn info of txn") ){
+				return nil, err
+			}
 		}
 		userTransaction.Events = events
 	}

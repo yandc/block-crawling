@@ -302,8 +302,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			log.Info("feedata数据解析失败！")
 		}
 	}
-
-	//pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":" + strconv.Itoa(int(pbb.Nonce))
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
 	switch chainType {
 	case CASPER:
@@ -328,9 +326,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.CsprTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), casperRecord)
 	case STC:
-
-		//{"stc":{"sequence_number":53}
-
 		stc := make(map[string]interface{})
 		nonce := ""
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &stc); jsonErr == nil {
@@ -369,10 +364,8 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-
 		result, err = data.StcTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), stcRecord)
 		if result == 1 {
-			//插入redis 并设置过期时间为6个小时
 			key := pendingNonceKey + nonce
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
@@ -461,9 +454,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), evmTransactionRecord)
 		if result == 1 {
-			//插入redis 并设置过期时间为6个小时
 			key := pendingNonceKey + strconv.Itoa(int(dbNonce))
-			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case BTC:
@@ -550,7 +541,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			BlockHash:   pbb.BlockHash,
 			BlockNumber: int(pbb.BlockNumber),
 			Nonce:       int64(dbNonce),
-			//TransactionVersion: int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     fromAddress,
 			ToAddress:       toAddress,
@@ -575,12 +565,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), aptRecord)
 		if result == 1 {
 			key := pendingNonceKey + nonce
-			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
 		suiRecord := &data.SuiTransactionRecord{
-			//TransactionVersion: int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -600,11 +588,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-
 		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), suiRecord)
 	case SOLANA:
 		solRecord := &data.SolTransactionRecord{
-			//SlotNumber:   int(pbb.BlockNumber),
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
@@ -713,11 +699,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-
 		result, err = data.AtomTransactionRecordRepoClient.Save(ctx, GetTalbeName(pbb.ChainName), atomRecord)
 		if result == 1 {
 			key := pendingNonceKey + nonce
-			log.Info("asdf", zap.Any("插入缓存", key), zap.Any("result", pbb.Uid))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	}
@@ -767,7 +751,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					feeAmount := utils.StringDecimals(record.FeeAmount, 8)
 					record.Amount = amount
 					record.FeeAmount = feeAmount
-
 					record.TransactionType = NATIVE
 				}
 			}
@@ -781,7 +764,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-
 		var recordList []*data.EvmTransactionRecord
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTalbeName(req.ChainName), req)
 		if err == nil {
@@ -910,7 +892,6 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 	case EVM:
 		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
 		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
-
 		amount, err = data.EvmTransactionRecordRepoClient.GetAmount(ctx, GetTalbeName(req.ChainName), req, PENDING)
 	case STC:
 		amount, err = data.StcTransactionRecordRepoClient.GetAmount(ctx, GetTalbeName(req.ChainName), req, PENDING)
@@ -939,12 +920,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	if req.FromAddress != "" {
 		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 	}
-	//if req.OrderBy == "" {
-	//	req.OrderBy = "tx_time desc"
-	//}
-
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
-
 	if err != nil {
 		log.Errore("返回授权dapp列表报错！", err)
 		return &pb.DappPageListResp{
@@ -1728,67 +1704,18 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 		}
 		return result, nil
 	} else {
-		//var utxoList []*pb.UtxoList
-		//dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
-		//if err != nil {
-		//	result.Ok = false
-		//	return result, err
-		//}
-		//for _, db := range dbUnspentRecord {
-		//	var lt []*pb.UnspentList
-		//	amount := make(map[string]string)
-		//	amount["amount"] = db.Amount
-		//	a := &pb.UnspentList{
-		//		Data: amount,
-		//	}
-		//	lt = append(lt, a)
-		//
-		//	hash := make(map[string]string)
-		//	hash["hash"] = db.Hash
-		//	b := &pb.UnspentList{
-		//		Data: hash,
-		//	}
-		//	lt = append(lt, b)
-		//
-		//	index := make(map[string]string)
-		//	index["index"] = strconv.Itoa(db.N)
-		//	c := &pb.UnspentList{
-		//		Data: index,
-		//	}
-		//	lt = append(lt, c)
-		//
-		//	script := make(map[string]string)
-		//	script["script"] = db.Script
-		//	d := &pb.UnspentList{
-		//		Data: script,
-		//	}
-		//	lt = append(lt, d)
-		//
-		//	r := &pb.UtxoList{
-		//		List: lt,
-		//	}
-		//	utxoList = append(utxoList, r)
-		//}
-		//
-		//result.Ok = true
-		//result.UtxoList = utxoList
-		//return result, nil
-
 		var unspentList []*pb.UnspentList
-
 		dbUnspentRecord, err := data.UtxoUnspentRecordRepoClient.FindByCondition(ctx, req)
 		if err != nil {
 			result.Ok = false
 			return result, err
 		}
-
 		for _, db := range dbUnspentRecord {
 			var r *pb.UnspentList
 			utils.CopyProperties(db, &r)
 			r.Index = fmt.Sprint(db.N)
 			unspentList = append(unspentList, r)
 		}
-
 		result.Ok = true
 		result.UtxoList = unspentList
 		return result, nil

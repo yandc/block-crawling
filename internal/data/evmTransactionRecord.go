@@ -26,7 +26,7 @@ type EvmTransactionRecord struct {
 	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
 	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
 	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
-	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
+	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
 	Amount               decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
 	Status               string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
 	TxTime               int64           `json:"txTime" form:"txTime"`
@@ -41,7 +41,7 @@ type EvmTransactionRecord struct {
 	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(20)"`
 	Data                 string          `json:"data" form:"data"`
 	EventLog             string          `json:"eventLog" form:"eventLog"`
-	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData             string          `json:"dappData" form:"dappData"`
 	ClientData           string          `json:"clientData" form:"clientData"`
@@ -231,9 +231,6 @@ func (r *EvmTransactionRecordRepoImpl) FindByStatus(ctx context.Context, tableNa
 		log.Errore("query "+tableName+" failed", err)
 		return nil, err
 	}
-
-	//rows := ret.RowsAffected
-
 	return evmTransactionRecordList, nil
 }
 
@@ -252,53 +249,6 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	var evmTransactionRecordList []*EvmTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
-
-	/*if req.FromUid != "" || len(req.FromAddressList) > 0 || req.ToUid != "" || len(req.ToAddressList) > 0 {
-		if req.FromUid == "" && len(req.FromAddressList) == 0 {
-			if req.ToUid != "" {
-				db = db.Where("to_uid = ?", req.ToUid)
-			}
-			if len(req.ToAddressList) > 0 {
-				db = db.Where("to_address in(?)", req.ToAddressList)
-			}
-		} else if req.ToUid == "" && len(req.ToAddressList) == 0 {
-			if req.FromUid != "" {
-				db = db.Where("from_uid = ?", req.FromUid)
-			}
-			if len(req.FromAddressList) > 0 {
-				db = db.Where("from_address in(?)", req.FromAddressList)
-			}
-		} else {
-			fromToSql := "(("
-
-			if req.FromUid != "" && len(req.FromAddressList) > 0 {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += " and from_address in(" + addressLists + ")"
-			} else if req.FromUid != "" {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-			} else if len(req.FromAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += "from_address in(" + addressLists + ")"
-			}
-
-			fromToSql += ") or ("
-
-			if req.ToUid != "" && len(req.ToAddressList) > 0 {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += " and to_address in(" + addressLists + ")"
-			} else if req.ToUid != "" {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-			} else if len(req.ToAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += "to_address in(" + addressLists + ")"
-			}
-
-			fromToSql += "))"
-			db = db.Where(fromToSql)
-		}
-	}*/
 	if req.FromUid != "" {
 		db = db.Where("from_uid = ?", req.FromUid)
 	}
