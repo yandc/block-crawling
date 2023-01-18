@@ -365,7 +365,6 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	var total int64
 
 	sqlStr := "with t as(" +
-		//"select chain_name, uid, address, token_address, token_uri, token_type, collection_name, " +
 		"select chain_name, uid, address, token_address, token_type, (array_agg(token_id))[1] as token_id, " +
 		"sum(cast(balance as numeric)) as balance, count(token_id) as token_id_amount " +
 		"from user_nft_asset " +
@@ -398,7 +397,6 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	if req.CollectionNameLike != "" {
 		sqlStr += " and collection_name like '%" + req.CollectionNameLike + "%'"
 	}
-	//sqlStr += " group by chain_name, uid, address, token_address, token_uri, token_type, collection_name" +
 	sqlStr += " group by chain_name, uid, address, token_address, token_type" +
 		")"
 

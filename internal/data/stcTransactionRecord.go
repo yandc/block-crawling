@@ -36,7 +36,7 @@ type StcTransactionRecord struct {
 	GasPrice        string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(20)"`
 	Data            string          `json:"data" form:"data"`
 	EventLog        string          `json:"eventLog" form:"eventLog"`
-	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
@@ -237,52 +237,6 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
 
-	/*if req.FromUid != "" || len(req.FromAddressList) > 0 || req.ToUid != "" || len(req.ToAddressList) > 0 {
-		if req.FromUid == "" && len(req.FromAddressList) == 0 {
-			if req.ToUid != "" {
-				db = db.Where("to_uid = ?", req.ToUid)
-			}
-			if len(req.ToAddressList) > 0 {
-				db = db.Where("to_address in(?)", req.ToAddressList)
-			}
-		} else if req.ToUid == "" && len(req.ToAddressList) == 0 {
-			if req.FromUid != "" {
-				db = db.Where("from_uid = ?", req.FromUid)
-			}
-			if len(req.FromAddressList) > 0 {
-				db = db.Where("from_address in(?)", req.FromAddressList)
-			}
-		} else {
-			fromToSql := "(("
-
-			if req.FromUid != "" && len(req.FromAddressList) > 0 {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += " and from_address in(" + addressLists + ")"
-			} else if req.FromUid != "" {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-			} else if len(req.FromAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += "from_address in(" + addressLists + ")"
-			}
-
-			fromToSql += ") or ("
-
-			if req.ToUid != "" && len(req.ToAddressList) > 0 {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += " and to_address in(" + addressLists + ")"
-			} else if req.ToUid != "" {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-			} else if len(req.ToAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += "to_address in(" + addressLists + ")"
-			}
-
-			fromToSql += "))"
-			db = db.Where(fromToSql)
-		}
-	}*/
 	if req.FromUid != "" {
 		db = db.Where("from_uid = ?", req.FromUid)
 	}

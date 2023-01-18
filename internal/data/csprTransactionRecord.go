@@ -223,52 +223,7 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
 
-	/*if req.FromUid != "" || len(req.FromAddressList) > 0 || req.ToUid != "" || len(req.ToAddressList) > 0 {
-		if req.FromUid == "" && len(req.FromAddressList) == 0 {
-			if req.ToUid != "" {
-				db = db.Where("to_uid = ?", req.ToUid)
-			}
-			if len(req.ToAddressList) > 0 {
-				db = db.Where("to_address in(?)", req.ToAddressList)
-			}
-		} else if req.ToUid == "" && len(req.ToAddressList) == 0 {
-			if req.FromUid != "" {
-				db = db.Where("from_uid = ?", req.FromUid)
-			}
-			if len(req.FromAddressList) > 0 {
-				db = db.Where("from_address in(?)", req.FromAddressList)
-			}
-		} else {
-			fromToSql := "(("
 
-			if req.FromUid != "" && len(req.FromAddressList) > 0 {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += " and from_address in(" + addressLists + ")"
-			} else if req.FromUid != "" {
-				fromToSql += "from_uid = '" + req.FromUid + "'"
-			} else if len(req.FromAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-				fromToSql += "from_address in(" + addressLists + ")"
-			}
-
-			fromToSql += ") or ("
-
-			if req.ToUid != "" && len(req.ToAddressList) > 0 {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += " and to_address in(" + addressLists + ")"
-			} else if req.ToUid != "" {
-				fromToSql += "to_uid = '" + req.ToUid + "'"
-			} else if len(req.ToAddressList) > 0 {
-				addressLists := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-				fromToSql += "to_address in(" + addressLists + ")"
-			}
-
-			fromToSql += "))"
-			db = db.Where(fromToSql)
-		}
-	}*/
 	if req.FromUid != "" {
 		db = db.Where("from_uid = ?", req.FromUid)
 	}
@@ -287,21 +242,14 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	if req.Address != "" {
 		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
 	}
-	/*if req.ContractAddress != "" {
-		db = db.Where("contract_address = ?", req.ContractAddress)
-	}*/
+
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
 	}
-	/*if len(req.TransactionTypeList) > 0 {
-		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
-	}
-	if len(req.TransactionTypeNotInList) > 0 {
-		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
-	}*/
+
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}

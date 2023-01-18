@@ -724,6 +724,13 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				amount = new(big.Int).SetBytes(log_.Data[96:128])
 			}
 			tokenAddress = ""
+		} else if topic0 == FANTOM_NEWLIQUIDITYORDER {
+			fromAddress = tokenAddress
+			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			if len(log_.Data) >= 64 {
+				amount = new(big.Int).SetBytes(log_.Data[32:64])
+			}
+			tokenAddress = ""
 		}
 
 		//不展示event log中的授权记录
