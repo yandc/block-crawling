@@ -803,18 +803,18 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 	}
 
 	// Ignore this transaction.
-	if !(meta.User.MatchFrom || meta.User.MatchTo) {
-		log.Warn(
-			"PENDING TX COULD NOT MATCH USER",
-			meta.WrapFields(
-				zap.String("chainName", h.chainName),
-				zap.Uint64("height", txByHash.BlockNumber),
-				zap.String("nodeUrl", client.URL()),
-				zap.String("txHash", txByHash.Hash),
-			)...,
-		)
-		return nil
-	}
+	//if !(meta.User.MatchFrom || meta.User.MatchTo) {
+	//	log.Warn(
+	//		"PENDING TX COULD NOT MATCH USER",
+	//		meta.WrapFields(
+	//			zap.String("chainName", h.chainName),
+	//			zap.Uint64("height", txByHash.BlockNumber),
+	//			zap.String("nodeUrl", client.URL()),
+	//			zap.String("txHash", txByHash.Hash),
+	//		)...,
+	//	)
+	//	return nil
+	//}
 
 	log.Info(
 		"PENDING TX HAS SEALED",
