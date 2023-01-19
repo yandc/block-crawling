@@ -22,6 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Arbitrum dapp 跨链时，提取交易，跟普通转账参数一致 20230119
+const ArbitrumDepositTxType = 100
+
 type rpcBlock struct {
 	Hash common.Hash `json:"hash"`
 	// Transactions []rpcTransaction `json:"transactions"`
@@ -441,7 +444,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType:
+	case types.LegacyTxType,ArbitrumDepositTxType:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {
