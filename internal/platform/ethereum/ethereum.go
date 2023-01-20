@@ -58,7 +58,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 		"Optimism_0xa81D244A1814468C734E5b4101F7b9c0c577a8fC_3d12a85a", "Optimism_0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b_17357892"},
 	//dapp: https://cbridge.celer.network/10/42161/ETH?ref=bitkeep2022
 	"Arbitrum_MethodId": {"Arbitrum_0x1619DE6B6B20eD217a58d00f37B9d47C7663feca_cdd1b25d", "Arbitrum_0x7ceA671DABFBa880aF6723bDdd6B9f4caA15C87B_d450e04c",
-		"Arbitrum_0x11D62807dAE812a0F1571243460Bf94325F43BB7_574ec1be"},
+		"Arbitrum_0x11D62807dAE812a0F1571243460Bf94325F43BB7_574ec1be","Arbitrum_0x650Af55D5877F289837c30b94af91538a7504b76_0175b1c4"},
 	"Fantom_MethodId":   {"Fantom_0xf3Ce95Ec61114a4b1bFC615C16E6726015913CCC_0175b1c4","Fantom_0x0c30b10462CdED51C3CA31e7C51019b7d25a965B_d0ee758c","Fantom_0x0c30b10462CdED51C3CA31e7C51019b7d25a965B_4af3e017"},
 	"Polygon_MethodId":   {"Polygon_0x2eF4A574b72E1f555185AfA8A09c6d1A8AC4025C_0175b1c4"},
 	"ArbitrumNova_MethodId":   {"ArbitrumNova_0x28e0f3ebab59a998C4f1019358388B5E2ca92cfA_18cbafe5","ArbitrumNova_0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506_18cbafe5",
@@ -81,7 +81,8 @@ var BridgeWhiteTopicList = map[string][]string{
 	"Arbitrum_Topic": {"Arbitrum_0x1619de6b6b20ed217a58d00f37b9d47c7663feca_0x79fa08de5149d912dce8e5e8da7a7c17ccdf23dd5d3bfe196802e6eb86347c7c",
 		//合约内部 调用amount
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38",
-		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df"},
+		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df",
+		"Arbitrum_0x650af55d5877f289837c30b94af91538a7504b76_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"Klaytn_Topic":  {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
