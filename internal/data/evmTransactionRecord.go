@@ -55,6 +55,8 @@ type EvmTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*EvmTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveById(context.Context, string, []*EvmTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*EvmTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *EvmTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*EvmTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*EvmTransactionRecord, error)
@@ -183,6 +185,77 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, evmTransactionRecords []*EvmTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			/*"block_hash":               clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":             clause.Column{Table: "excluded", Name: "block_number"},
+			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
+			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},*/
+			"to_address": gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			/*"from_uid":                 clause.Column{Table: "excluded", Name: "from_uid"},
+			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
+			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
+			"amount":                   clause.Column{Table: "excluded", Name: "amount"},
+			"status":                   clause.Column{Table: "excluded", Name: "status"},
+			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
+			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},*/
+			"parse_data": gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			/*"type":                     clause.Column{Table: "excluded", Name: "type"},
+			"gas_limit":                clause.Column{Table: "excluded", Name: "gas_limit"},
+			"gas_used":                 clause.Column{Table: "excluded", Name: "gas_used"},
+			"gas_price":                clause.Column{Table: "excluded", Name: "gas_price"},
+			"base_fee":                 clause.Column{Table: "excluded", Name: "base_fee"},
+			"max_fee_per_gas":          clause.Column{Table: "excluded", Name: "max_fee_per_gas"},
+			"max_priority_fee_per_gas": clause.Column{Table: "excluded", Name: "max_priority_fee_per_gas"},*/
+			"data":             gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&evmTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective evmTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*EvmTransactionRecord, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(txRecords)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subTxRecords := txRecords[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveById(ctx, tableName, subTxRecords)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
 }
 
 func (r *EvmTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, evmTransactionRecord *EvmTransactionRecord) (int64, error) {

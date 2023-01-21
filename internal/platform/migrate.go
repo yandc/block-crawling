@@ -374,7 +374,7 @@ func CheckNonce() {
 					nonce, _ := strconv.Atoi(nonceStr)
 					n, _ := data.EvmTransactionRecordRepoClient.FindLastNonceByAddress(nil, biz.GetTalbeName(key), address)
 					if n != int64(nonce) {
-						log.Info("noncecheck", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce),zap.Any("chainName",key))
+						log.Info("noncecheck", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce), zap.Any("chainName", key))
 					}
 					if total%100 == 0 {
 						log.Info("noncecheck-1", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce))
@@ -400,6 +400,149 @@ func BtcReset() {
 			}
 		}
 	}
+}
+
+type TokenParam struct {
+	TokenAddress string `json:"tokenAddress"`
+	OldDecimals  int    `json:"oldDecimals"`
+	OldSymbol    string `json:"oldSymbol"`
+	NewDecimals  int    `json:"newDecimals"`
+	NewSymbol    string `json:"newSymbol"`
+}
+
+type TxRecord struct {
+	Id        int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	ParseData string `json:"parseData" form:"parseData"`
+	EventLog  string `json:"eventLog" form:"eventLog"`
+}
+
+func HandleTokenInfo() {
+	chainName := "Arbitrum"
+	tokenParams := []TokenParam{{
+		TokenAddress: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+		OldDecimals:  18,
+		OldSymbol:    "WBTC",
+		NewDecimals:  8,
+		NewSymbol:    "WBTC",
+	}}
+
+	doHandleTokenInfo(chainName, tokenParams)
+}
+
+func doHandleTokenInfo(chainName string, tokenParams []TokenParam) {
+	log.Info("处理交易记录TokenInfo开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+
+	tableName := biz.GetTalbeName(chainName)
+
+	tokenParamMap := make(map[string]TokenParam)
+	var txRecords []*data.EvmTransactionRecord
+	for _, tokenParam := range tokenParams {
+		tokenParamMap[tokenParam.TokenAddress] = tokenParam
+		txRecordList, err := getTxRecord(dbSource, tableName, tokenParam, biz.PAGE_SIZE)
+		if err != nil {
+			log.Errore("migrate page query txRecord failed", err)
+			return
+		}
+		if len(txRecordList) > 0 {
+			txRecords = append(txRecords, txRecordList...)
+		}
+	}
+	if len(txRecords) == 0 {
+		log.Info("没有查到要处理的交易记录TokenInfo，处理结束")
+		return
+	}
+
+	for _, txRecord := range txRecords {
+		parseDataStr := txRecord.ParseData
+		if parseDataStr != "" {
+			tokenInfo, err := biz.PaseTokenInfo(parseDataStr)
+			if err != nil {
+				log.Error("parse TokenInfo failed", zap.Any("parseData", parseDataStr), zap.Any("error", err))
+				continue
+			}
+			address := tokenInfo.Address
+			tokenParam, ok := tokenParamMap[address]
+			if ok {
+				oldParseData := "\"decimals\":" + strconv.Itoa(tokenParam.OldDecimals) + ",\"symbol\":\"" + tokenParam.OldSymbol + "\""
+				newParseData := "\"decimals\":" + strconv.Itoa(tokenParam.NewDecimals) + ",\"symbol\":\"" + tokenParam.NewSymbol + "\""
+				parseDataStr = strings.ReplaceAll(parseDataStr, oldParseData, newParseData)
+				txRecord.ParseData = parseDataStr
+			}
+		}
+
+		eventLogStr := txRecord.EventLog
+		if eventLogStr != "" {
+			var eventLogs []*types.EventLog
+			err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+			if err != nil {
+				log.Error("parse EventLog failed", zap.Any("eventLog", eventLogStr), zap.Any("error", err))
+				continue
+			}
+			for _, eventLog := range eventLogs {
+				address := eventLog.Token.Address
+				tokenParam, ok := tokenParamMap[address]
+				if ok {
+					eventLog.Token.Decimals = int64(tokenParam.NewDecimals)
+					eventLog.Token.Symbol = tokenParam.NewSymbol
+				}
+			}
+			eventLogJson, _ := json.Marshal(eventLogs)
+			eventLogStr = string(eventLogJson)
+			txRecord.EventLog = eventLogStr
+		}
+	}
+
+	count, err := data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecords, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecords, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("处理交易记录TokenInfo结束", zap.Any("query size", len(txRecords)), zap.Any("affected count", count))
+}
+
+func getTxRecord(dbSource *gorm.DB, talbeName string, tokenParam TokenParam, limit int) ([]*data.EvmTransactionRecord, error) {
+	var txRecords []*data.EvmTransactionRecord
+	var txRecordList []*data.EvmTransactionRecord
+	id := 0
+	total := limit
+	for total == limit {
+		sqlStr := getSql(talbeName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
+
+		ret := dbSource.Raw(sqlStr).Find(&txRecordList)
+		err := ret.Error
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			ret = dbSource.Raw(sqlStr).Find(&txRecordList)
+			err = ret.Error
+		}
+		if err != nil {
+			log.Error("migrate page query txRecord failed", zap.Any("tokenParam", tokenParam), zap.Any("error", err))
+			return nil, err
+		}
+		total = len(txRecordList)
+		if total > 0 {
+			txRecord := txRecordList[total-1]
+			id = int(txRecord.Id)
+			txRecords = append(txRecords, txRecordList...)
+		}
+	}
+	return txRecords, nil
+}
+
+func getSql(talbeName string, tokenAdress string, decimals int, symbol string, id, limit int) string {
+	s := "SELECT id, parse_data, event_log from " + talbeName +
+		" where ((parse_data like '%" + tokenAdress + "%' and parse_data like '%\"decimals\":" + strconv.Itoa(decimals) + ",\"symbol\":\"" + symbol + "\"%') " +
+		"or (event_log like '%" + tokenAdress + "%' and event_log like '%\"decimals\":" + strconv.Itoa(decimals) + ",\"symbol\":\"" + symbol + "\"%')) " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
 }
 
 func UpdateAsset() {
