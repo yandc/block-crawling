@@ -55,5 +55,6 @@ func main() {
 	//platform.DeleteAsset()
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
-	platform.CheckNonce()
+	platform.HandleTokenInfo()
+	//platform.CheckNonce()
 }
