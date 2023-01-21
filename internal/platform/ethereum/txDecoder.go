@@ -384,12 +384,43 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		CreatedAt:            h.now.Unix(),
 		UpdatedAt:            h.now.Unix(),
 	}
-	h.txRecords = append(h.txRecords, evmTransactionRecord)
-	if !h.newTxs {
-		h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
+
+	isPlatformUser := false
+	if len(eventLogs) > 0 {
+		for _, eventLog := range eventLogs {
+			var err error
+			var fromAddressExist, toAddressExist bool
+			fromAddress := eventLog.From
+			toAddress := eventLog.To
+			if fromAddress != "" {
+				fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return err
+				}
+			}
+
+			if toAddress != "" {
+				toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return err
+				}
+			}
+			if fromAddressExist || toAddressExist {
+				isPlatformUser = true
+				break
+			}
+		}
+	}
+	if meta.User.MatchFrom || meta.User.MatchTo || isPlatformUser {
+		h.txRecords = append(h.txRecords, evmTransactionRecord)
+		if !h.newTxs {
+			h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
+		}
 	}
 
-	if len(eventLogs) > 0 && meta.TransactionType == biz.CONTRACT {
+	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
 		for index, eventLog := range eventLogs {
 			eventMap := map[string]interface{}{
 				"evm": map[string]string{
