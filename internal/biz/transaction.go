@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -538,9 +539,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		toAddress := utils.AddressRemove0(pbb.ToAddress)
 
 		aptRecord := &data.AptTransactionRecord{
-			BlockHash:   pbb.BlockHash,
-			BlockNumber: int(pbb.BlockNumber),
-			Nonce:       int64(dbNonce),
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			Nonce:           int64(dbNonce),
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     fromAddress,
 			ToAddress:       toAddress,
@@ -1236,6 +1237,174 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
 			}
 		}
+		result.TotalCurrencyAmount = totalCurrencyAmount.String()
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	}
+
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Uid:              req.Uid,
+		AddressList:      req.AddressList,
+		TokenAddressList: req.TokenAddressList,
+		AmountType:       req.AmountType,
+	}
+	var result = &pb.PageListAssetResponse{}
+	var total int64
+	var totalCurrencyAmount decimal.Decimal
+	var list []*pb.AssetResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordMap := make(map[string]*data.UserAsset)
+	recordList, err = data.UserAssetRepoClient.List(ctx, request)
+	if err == nil {
+		if req.AmountType != 2 {
+			for _, userAsset := range recordList {
+				recordMap[userAsset.TokenAddress] = userAsset
+			}
+			for _, tokenAddress := range req.TokenAddressList {
+				if _, ok := recordMap[tokenAddress]; !ok {
+					record := &data.UserAsset{
+						ChainName:    req.ChainName,
+						TokenAddress: tokenAddress,
+					}
+					recordList = append(recordList, record)
+				}
+			}
+		}
+
+		if req.Total {
+			total = int64(len(recordList))
+		}
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		var chainNameTokenAddressMap = make(map[string][]string)
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, asset := range recordList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key, _ := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
+		if err != nil {
+			return result, err
+		}
+
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				chainName := record.ChainName
+				tokenAddress := record.TokenAddress
+				var price string
+				tokenAddressPriceMap := resultMap[chainName]
+				if tokenAddress == "" {
+					price = tokenAddressPriceMap[chainName]
+				} else {
+					price = tokenAddressPriceMap[tokenAddress]
+				}
+				prices, _ := decimal.NewFromString(price)
+				balances, _ := decimal.NewFromString(record.Balance)
+				cnyAmount := prices.Mul(balances)
+				record.CurrencyAmount = cnyAmount.String()
+				record.Price = price
+
+				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
+			}
+
+			//处理排序
+			orderBy := req.OrderBy
+			orderBys := strings.Split(orderBy, " ")
+			orderByColumn := orderBys[0]
+			orderByDirection := orderBys[1]
+			if orderByColumn == "currencyAmount" {
+				sort.SliceStable(list, func(i, j int) bool {
+					if list[i] == nil || list[j] == nil {
+						return true
+					}
+					iCurrencyAmount, _ := decimal.NewFromString(list[i].CurrencyAmount)
+					jCurrencyAmount, _ := decimal.NewFromString(list[j].CurrencyAmount)
+					/*if list[i].Price == "" || list[i].Price == "0" {
+						return false
+					} else if list[j].Price == "" || list[j].Price == "0" {
+						return true
+					} else {*/
+					if strings.EqualFold(orderByDirection, "asc") {
+						return iCurrencyAmount.LessThan(jCurrencyAmount)
+					} else {
+						return iCurrencyAmount.GreaterThan(jCurrencyAmount)
+					}
+					//}
+				})
+			} else if orderByColumn == "price" {
+				sort.SliceStable(list, func(i, j int) bool {
+					if list[i] == nil || list[j] == nil {
+						return true
+					}
+					iPrice, _ := decimal.NewFromString(list[i].Price)
+					jPrice, _ := decimal.NewFromString(list[j].Price)
+					if list[i].Price == "" || list[i].Price == "0" {
+						return false
+					} else if list[j].Price == "" || list[j].Price == "0" {
+						return true
+					} else {
+						if strings.EqualFold(orderByDirection, "asc") {
+							return iPrice.LessThan(jPrice)
+						} else {
+							return iPrice.GreaterThan(jPrice)
+						}
+					}
+				})
+			}
+
+			//处理分页
+			if req.DataDirection == 0 {
+				listLen := int32(len(list))
+				var offset int32
+				var stopIndex int32
+				if req.PageNum > 0 {
+					offset = (req.PageNum - 1) * req.PageSize
+				}
+				if offset < listLen {
+					stopIndex = offset + req.PageSize
+					if stopIndex > listLen {
+						stopIndex = listLen
+					}
+					list = list[offset:stopIndex]
+				} else {
+					list = nil
+				}
+			} else {
+				list = nil
+			}
+		}
+		result.Total = total
+		result.List = list
 		result.TotalCurrencyAmount = totalCurrencyAmount.String()
 	}
 	return result, err

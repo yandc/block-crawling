@@ -293,11 +293,24 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 	if req.ChainName != "" {
 		db = db.Where("chain_name = ?", req.ChainName)
 	}
+	if req.Uid != "" {
+		db = db.Where("uid = ?", req.Uid)
+	}
 	if req.Address != "" {
 		db = db.Where("address = ?", req.Address)
 	}
+	if len(req.AddressList) > 0 {
+		db = db.Where("address in(?)", req.AddressList)
+	}
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			db = db.Where("(balance is null or balance = '' or balance = '0')")
+		} else if req.AmountType == 2 {
+			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
 	}
 
 	ret := db.Find(&userAssetList)

@@ -18,8 +18,10 @@ service Transaction {
   rpc GetAllOpenAmount(OpenAmountReq) returns (OpenAmoutResp);
   rpc GetNonce(NonceReq) returns (NonceResp);
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
-  //分页查询用户资产列表
+  //管理平台分页查询用户资产列表
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
+  //客户端分页查询用户资产列表
+  rpc ClientPageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //查询用户余额
   rpc GetBalance(AssetRequest) returns (ListBalanceResponse);
   //根据uid维度查询用户金额列表
@@ -32,11 +34,11 @@ service Transaction {
   rpc ClientPageListNftAsset(PageListNftAssetRequest) returns (ClientPageListNftAssetResponse);
   //查询用户NFT余额
   rpc GetNftBalance(NftAssetRequest) returns (NftBalanceResponse);
-  //分页查询交易数据统计列表
+  //管理平台分页查询交易数据统计列表
   rpc PageListStatistic(PageListStatisticRequest) returns (PageListStatisticResponse);
-  //交易数据看板查询金额趋势图
+  //管理平台交易数据看板查询金额趋势图
   rpc StatisticFundAmount(StatisticFundRequest) returns (FundAmountListResponse);
-  //交易数据看板查询金额占比图
+  //管理平台交易数据看板查询金额占比图
   rpc StatisticFundRate(StatisticFundRequest) returns (FundRateListResponse);
   //未花费资产查询
   rpc GetUnspentTx(UnspentReq) returns (UnspentResponse);
@@ -380,6 +382,7 @@ message AssetResponse {
   int64 createdAt = 10;
   int64 updatedAt = 11;
   int64 cursor = 12;
+  string price = 13;
 }
 
 message AssetRequest {
