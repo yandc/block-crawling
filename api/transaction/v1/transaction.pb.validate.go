@@ -4210,6 +4210,8 @@ func (m *AssetResponse) validate(all bool) error {
 
 	// no validation rules for Cursor
 
+	// no validation rules for Price
+
 	if len(errors) > 0 {
 		return AssetResponseMultiError(errors)
 	}

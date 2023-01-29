@@ -31,8 +31,10 @@ type TransactionClient interface {
 	GetAllOpenAmount(ctx context.Context, in *OpenAmountReq, opts ...grpc.CallOption) (*OpenAmoutResp, error)
 	GetNonce(ctx context.Context, in *NonceReq, opts ...grpc.CallOption) (*NonceResp, error)
 	GetDappListPageList(ctx context.Context, in *DappPageListReq, opts ...grpc.CallOption) (*DappPageListResp, error)
-	//分页查询用户资产列表
+	//管理平台分页查询用户资产列表
 	PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
+	//客户端分页查询用户资产列表
+	ClientPageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(ctx context.Context, in *AssetRequest, opts ...grpc.CallOption) (*ListBalanceResponse, error)
 	//根据uid维度查询用户金额列表
@@ -45,11 +47,11 @@ type TransactionClient interface {
 	ClientPageListNftAsset(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetResponse, error)
 	//查询用户NFT余额
 	GetNftBalance(ctx context.Context, in *NftAssetRequest, opts ...grpc.CallOption) (*NftBalanceResponse, error)
-	//分页查询交易数据统计列表
+	//管理平台分页查询交易数据统计列表
 	PageListStatistic(ctx context.Context, in *PageListStatisticRequest, opts ...grpc.CallOption) (*PageListStatisticResponse, error)
-	//交易数据看板查询金额趋势图
+	//管理平台交易数据看板查询金额趋势图
 	StatisticFundAmount(ctx context.Context, in *StatisticFundRequest, opts ...grpc.CallOption) (*FundAmountListResponse, error)
-	//交易数据看板查询金额占比图
+	//管理平台交易数据看板查询金额占比图
 	StatisticFundRate(ctx context.Context, in *StatisticFundRequest, opts ...grpc.CallOption) (*FundRateListResponse, error)
 	//未花费资产查询
 	GetUnspentTx(ctx context.Context, in *UnspentReq, opts ...grpc.CallOption) (*UnspentResponse, error)
@@ -133,6 +135,15 @@ func (c *transactionClient) GetDappListPageList(ctx context.Context, in *DappPag
 func (c *transactionClient) PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error) {
 	out := new(PageListAssetResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/PageListAsset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) ClientPageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error) {
+	out := new(PageListAssetResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ClientPageListAsset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -260,8 +271,10 @@ type TransactionServer interface {
 	GetAllOpenAmount(context.Context, *OpenAmountReq) (*OpenAmoutResp, error)
 	GetNonce(context.Context, *NonceReq) (*NonceResp, error)
 	GetDappListPageList(context.Context, *DappPageListReq) (*DappPageListResp, error)
-	//分页查询用户资产列表
+	//管理平台分页查询用户资产列表
 	PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
+	//客户端分页查询用户资产列表
+	ClientPageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//查询用户余额
 	GetBalance(context.Context, *AssetRequest) (*ListBalanceResponse, error)
 	//根据uid维度查询用户金额列表
@@ -274,11 +287,11 @@ type TransactionServer interface {
 	ClientPageListNftAsset(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetResponse, error)
 	//查询用户NFT余额
 	GetNftBalance(context.Context, *NftAssetRequest) (*NftBalanceResponse, error)
-	//分页查询交易数据统计列表
+	//管理平台分页查询交易数据统计列表
 	PageListStatistic(context.Context, *PageListStatisticRequest) (*PageListStatisticResponse, error)
-	//交易数据看板查询金额趋势图
+	//管理平台交易数据看板查询金额趋势图
 	StatisticFundAmount(context.Context, *StatisticFundRequest) (*FundAmountListResponse, error)
-	//交易数据看板查询金额占比图
+	//管理平台交易数据看板查询金额占比图
 	StatisticFundRate(context.Context, *StatisticFundRequest) (*FundRateListResponse, error)
 	//未花费资产查询
 	GetUnspentTx(context.Context, *UnspentReq) (*UnspentResponse, error)
@@ -316,6 +329,9 @@ func (UnimplementedTransactionServer) GetDappListPageList(context.Context, *Dapp
 }
 func (UnimplementedTransactionServer) PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListAsset not implemented")
+}
+func (UnimplementedTransactionServer) ClientPageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListAsset not implemented")
 }
 func (UnimplementedTransactionServer) GetBalance(context.Context, *AssetRequest) (*ListBalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBalance not implemented")
@@ -506,6 +522,24 @@ func _Transaction_PageListAsset_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TransactionServer).PageListAsset(ctx, req.(*PageListAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_ClientPageListAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).ClientPageListAsset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/ClientPageListAsset",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).ClientPageListAsset(ctx, req.(*PageListAssetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -764,6 +798,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PageListAsset",
 			Handler:    _Transaction_PageListAsset_Handler,
+		},
+		{
+			MethodName: "ClientPageListAsset",
+			Handler:    _Transaction_ClientPageListAsset_Handler,
 		},
 		{
 			MethodName: "GetBalance",
