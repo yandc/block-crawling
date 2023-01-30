@@ -265,6 +265,7 @@ message TransactionReq {
   string maxFeePerGas = 29;
   string maxPriorityFeePerGas = 30;
   string feeData = 31;
+  string operateType = 32;
 }
 
 message PageListRequest {
@@ -291,6 +292,7 @@ message PageListRequest {
   bool total = 21;
   string platform = 22;
   int32 osVersion = 23;
+  repeated string operateTypeList = 24;
 }
 
 message PageListResponse {
@@ -333,6 +335,7 @@ message TransactionRecord {
   string clientData = 32;
   string feeData = 33;
   int64 cursor = 34;
+  string operateType = 35;
 }
 
 message AmountRequest {

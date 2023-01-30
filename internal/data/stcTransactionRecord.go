@@ -38,6 +38,7 @@ type StcTransactionRecord struct {
 	EventLog        string          `json:"eventLog" form:"eventLog"`
 	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	OperateType     string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
@@ -157,9 +158,11 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"data":             clause.Column{Table: "excluded", Name: "data"},
 			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
 			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
-			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":       gorm.Expr("excluded.updated_at"),
+			//"operate_type":     gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type else " + tableName + ".operate_type end"),
+			"operate_type": gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
+			"dapp_data":    gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":  gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":   gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&stcTransactionRecords)
 	err := ret.Error
@@ -272,6 +275,9 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
+	}
+	if len(req.OperateTypeList) > 0 {
+		db = db.Where("operate_type in(?)", req.OperateTypeList)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
