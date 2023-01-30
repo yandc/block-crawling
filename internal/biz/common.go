@@ -80,6 +80,7 @@ const (
 	CREATEACCOUNT           = "createAccount"
 	REGISTERTOKEN           = "registerToken"
 	DIRECTTRANSFERNFTSWITCH = "directTransferNFTSwitch"
+	OTHER                   = "other"
 )
 
 const (

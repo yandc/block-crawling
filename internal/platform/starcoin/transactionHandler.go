@@ -91,10 +91,12 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 				}
 
 				if i > 0 {
-					if transactionRecord.Amount.String() == "0" {
-						transactionRecord.TransactionType = biz.CANCEL
-					} else {
-						transactionRecord.TransactionType = biz.SPEED_UP
+					if transactionRecord.OperateType == "" {
+						if transactionRecord.Amount.String() == "0" {
+							transactionRecord.OperateType = biz.CANCEL
+						} else {
+							transactionRecord.OperateType = biz.SPEED_UP
+						}
 					}
 				}
 			}

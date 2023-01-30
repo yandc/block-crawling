@@ -360,6 +360,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			GasPrice:        paseJson["gas_price"],
 			Data:            pbb.Data,
 			TransactionType: pbb.TransactionType,
+			OperateType:     pbb.OperateType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
 			CreatedAt:       pbb.CreatedAt,
@@ -447,6 +448,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			Data:                 pbb.Data,
 			EventLog:             pbb.EventLog,
 			TransactionType:      pbb.TransactionType,
+			OperateType:          pbb.OperateType,
 			DappData:             pbb.DappData,
 			ClientData:           pbb.ClientData,
 			CreatedAt:            pbb.CreatedAt,
@@ -837,13 +839,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.Cursor = record.CreatedAt
 				} else if strings.Contains(req.OrderBy, "updated_at ") {
 					record.Cursor = record.UpdatedAt
-				}
-
-				if record.Status == DROPPED_REPLACED || record.Status == DROPPED {
-					record.Status = FAIL
-				}
-				if record.Status == NO_STATUS {
-					record.Status = PENDING
 				}
 
 				feeData := make(map[string]string)
@@ -1957,7 +1952,7 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 
 func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictionary, error) {
 	var result = &DataDictionary{}
-	var serviceTransactionType = []string{CANCEL, SPEED_UP, NATIVE, TRANSFERNFT, CONTRACT, EVENTLOG, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, APPROVE, TRANSFER}
+	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT, CONTRACT, EVENTLOG, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, OTHER}
 	var serviceStaus = []string{SUCCESS, FAIL, PENDING, NO_STATUS, DROPPED_REPLACED, DROPPED}
 	result.Ok = true
 	result.ServiceTransactionType = serviceTransactionType

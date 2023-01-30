@@ -3043,6 +3043,8 @@ func (m *TransactionReq) validate(all bool) error {
 
 	// no validation rules for FeeData
 
+	// no validation rules for OperateType
+
 	if len(errors) > 0 {
 		return TransactionReqMultiError(errors)
 	}
@@ -3547,6 +3549,8 @@ func (m *TransactionRecord) validate(all bool) error {
 	// no validation rules for FeeData
 
 	// no validation rules for Cursor
+
+	// no validation rules for OperateType
 
 	if len(errors) > 0 {
 		return TransactionRecordMultiError(errors)

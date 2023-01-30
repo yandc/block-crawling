@@ -47,6 +47,12 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			req.TransactionTypeNotInList = []string{biz.CONTRACT}
 		}
 	}
+	for _, transactionType := range req.TransactionTypeList {
+		if transactionType == biz.OTHER {
+			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH)
+			break
+		}
+	}
 
 	if req.OrderBy == "" {
 		req.OrderBy = "tx_time desc"
@@ -69,6 +75,26 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	}
 
 	result, err := s.ts.PageList(subctx, req)
+	if result != nil && len(result.List) > 0 {
+		for _, record := range result.List {
+			if record == nil {
+				continue
+			}
+
+			if record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
+				record.Status = biz.FAIL
+			}
+			if record.Status == biz.NO_STATUS {
+				record.Status = biz.PENDING
+			}
+
+			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
+				if req.OsVersion < 2023011001 && record.OperateType != "" {
+					record.TransactionType = record.OperateType
+				}
+			}
+		}
+	}
 	return result, err
 }
 
