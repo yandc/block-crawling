@@ -50,6 +50,10 @@ const ARBITRUM_INTXAMOUNT = "0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819de
 const ARBITRUM_UNLOCKEVENT = "0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df"
 const KLAYTN_EXCHANGEPOS = "0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"
 
+const ARBITRUM_GMX_SWAP = "0x0874b2d545cb271cdbda4e093020c452328b24af12382ed62c4d00f5c26709db"
+const ARBITRUM_GMX_EXECUTEDECREASEPOSITION = "0x21435c5b618d77ff3657140cd3318e2cffaebc5e0e1b7318f56a9ba4044c3ed2"
+
+
 //dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
 	//dapp: https://stargate.finance/ 代币，主币 兑换
@@ -82,7 +86,9 @@ var BridgeWhiteTopicList = map[string][]string{
 		//合约内部 调用amount
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38",
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df",
-		"Arbitrum_0x650af55d5877f289837c30b94af91538a7504b76_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
+		"Arbitrum_0x650af55d5877f289837c30b94af91538a7504b76_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
+		"Arbitrum_0x11d62807dae812a0f1571243460bf94325f43bb7_0x0874b2d545cb271cdbda4e093020c452328b24af12382ed62c4d00f5c26709db",
+		"Arbitrum_0x11d62807dae812a0f1571243460bf94325f43bb7_0x21435c5b618d77ff3657140cd3318e2cffaebc5e0e1b7318f56a9ba4044c3ed2"},
 	"Klaytn_Topic":  {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
