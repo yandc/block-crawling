@@ -24,14 +24,19 @@ import (
 var Platforms []subhandle.Platform
 var grpcPlatformInfos []biz.GrpcPlatformInfo
 
-func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string]*conf.PlatInfo, testConfig map[string]*conf.PlatInfo) {
-	if biz.AppConfig.Mode != "" {
-		if strings.ToLower(biz.AppConfig.Mode) == "debug" {
+type PlatformContainer []subhandle.Platform
+
+func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf) PlatformContainer {
+	c := bc.Platform
+	confInnerPublicNodeList := bc.InnerPublicNodeList
+	testConfig := bc.PlatformTest
+	if appConfig.Mode != "" {
+		if strings.ToLower(appConfig.Mode) == "debug" {
 			for key, platInfo := range testConfig {
 				c[key] = platInfo
 			}
 		} else {
-			modes := strings.Split(biz.AppConfig.Mode, ",")
+			modes := strings.Split(appConfig.Mode, ",")
 			for _, chainName := range modes {
 				if platInfo := testConfig[chainName]; platInfo != nil {
 					c[chainName] = platInfo
@@ -74,6 +79,7 @@ func NewPlatform(confInnerPublicNodeList map[string]*conf.PlatInfo, c map[string
 	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
 	DynamicCreateTable(PlatInfos)
+	return Platforms
 }
 
 func DynamicCreateTable(platInfos []*conf.PlatInfo) {

@@ -9,13 +9,17 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/server"
 	"block-crawling/internal/service"
+	"github.com/go-kratos/kratos/v2"
 	"github.com/google/wire"
 )
 
 // wireApp init kratos application.
-func wireApp( *conf.Logger, *conf.Data, confApp *conf.App, map[string]*conf.PlatInfo, map[string]*conf.PlatInfo, map[string]*conf.PlatInfo,
-	map[string]*conf.PlatInfo) (func(), error) {
-	panic(wire.Build(server.ProviderSet, data.ProviderSet, biz.ProviderSet, service.ProviderSet, newApp))
+func wireApp(*conf.Logger, *conf.Data, *conf.App, *conf.Bootstrap) (*kratos.App, func(), error) {
+	panic(wire.Build(
+		data.ProviderSet,
+		biz.ProviderSet,
+		service.ProviderSet,
+		newApp,
+	))
 }

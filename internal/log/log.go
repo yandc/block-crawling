@@ -2,11 +2,12 @@ package log
 
 import (
 	"block-crawling/internal/conf"
+	"runtime"
+	"strings"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"runtime"
-	"strings"
 )
 
 var log *zap.SugaredLogger
@@ -42,7 +43,7 @@ func newLoggerConfig(c *conf.Logger) (loggerConfig zap.Config) {
 	return
 }
 
-func NewLogger(c *conf.Logger) {
+func BootstrapLogger(c *conf.Logger) {
 	/*if err := config.GetConfig("logger").UnmarshalExact(&c); err != nil {
 		panic(errors.Wrap(err, "get config logger error"))
 	}*/

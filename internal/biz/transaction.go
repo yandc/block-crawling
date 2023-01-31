@@ -9,17 +9,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
-	"reflect"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var grpcPlatformInfos []*GrpcPlatformInfo
@@ -51,7 +52,7 @@ type TransactionUsecase struct {
 	lark   *Lark
 }
 
-func NewTransactionUsecase(grom *gorm.DB, lark *Lark) *TransactionUsecase {
+func NewTransactionUsecase(grom *gorm.DB, lark *Lark, bundle *data.Bundle) *TransactionUsecase {
 	return &TransactionUsecase{
 		gormDB: grom,
 		lark:   lark,
