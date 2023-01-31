@@ -27,7 +27,7 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 	var userTokenPushs []UserTokenPush
 	for _, userTokenPush := range userTokenPushList {
 		if userTokenPush.Decimals == 0 && (userTokenPush.Symbol == "" || userTokenPush.Symbol == "Unknown Token") {
-			alarmMsg := fmt.Sprintf("请注意：%s链推送用户token信息失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链推送用户token信息失败，tokenAddress:%s，symbol:%s", chainName, userTokenPush.TokenAddress, userTokenPush.Symbol)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error(chainName+"推送，推送用户token信息失败", zap.Any("address", userTokenPush.Address), zap.Any("tokenAddress", userTokenPush.TokenAddress), zap.Any("symbol", userTokenPush.Symbol))

@@ -22,47 +22,38 @@ func init() {
 	}
 }
 
-func HttpsGetForm(url string, urlParams map[string]string, out interface{}) (err error) {
-	err = HttpRequest(url, http.MethodGet, nil, urlParams, nil, out, nil, globalTransport)
+func HttpsGetForm(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (err error) {
+	err = HttpRequest(url, http.MethodGet, nil, urlParams, nil, out, timeout, globalTransport)
 	return
 }
 
-func HttpsSignGetForm(url string, urlParams, headerParams map[string]string, out interface{}) (err error) {
-	err = HttpRequest(url, http.MethodGet, headerParams, urlParams, nil, out, nil, globalTransport)
+func HttpsSignGetForm(url string, urlParams, headerParams map[string]string, out interface{}, timeout *time.Duration) (err error) {
+	err = HttpRequest(url, http.MethodGet, headerParams, urlParams, nil, out, timeout, globalTransport)
 	return
 }
 
-func HttpPostJson(url string, reqBody, out interface{}) (err error) {
-	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, nil, globalTransport)
+func HttpPostJson(url string, reqBody, out interface{}, timeout *time.Duration) (err error) {
+	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, timeout, globalTransport)
 	return
 }
 
-func HttpsForm(url, method string, urlParams map[string]string, reqBody, out interface{}) (err error) {
-	err = HttpRequest(url, method, nil, urlParams, reqBody, out, nil, globalTransport)
-	return
-}
-
-func GetResponse(url string, out interface{}) (err error) {
-	err = HttpRequest(url, http.MethodGet, nil, nil, nil, out, nil, nil)
+func GetResponse(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (err error) {
+	err = HttpRequest(url, http.MethodGet, nil, urlParams, nil, out, timeout, nil)
 	return err
 }
 
-func PostResponse(url string, reqBody, out interface{}) (err error) {
-	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, nil, nil)
+func PostResponse(url string, reqBody, out interface{}, timeout *time.Duration) (err error) {
+	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, timeout, nil)
 	return
 }
 
-func GetStatusCode(url string, out interface{}) (err error, statusCode int) {
-	resp, err := http.Get(url)
-	if resp != nil {
-		statusCode = resp.StatusCode
-	}
-	err = handleResponse(resp, err, out)
+func GetStatusCode(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (statusCode int, err error) {
+	statusCode, err = HttpGet(url, urlParams, out, timeout, nil)
 	return
 }
 
-func JsonrpcCall(url string, id int, jsonrpc, method string, out interface{}, params interface{}) (header http.Header, err error) {
-	header, err = JsonrpcRequest(url, id, jsonrpc, method, out, params, nil, nil)
+func JsonrpcCall(url string, id int, jsonrpc, method string, out interface{}, params interface{}, timeout *time.Duration) (header http.Header, err error) {
+	header, err = JsonrpcRequest(url, id, jsonrpc, method, out, params, timeout, nil)
 	return
 }
 
@@ -74,7 +65,7 @@ func JsonrpcRequest(url string, id int, jsonrpc, method string, out interface{},
 		Method:  method,
 		Params:  params,
 	}
-	header, err = HttpsPost(url, request, &resp, timeout, transport)
+	header, err = HttpPost(url, request, &resp, timeout, transport)
 	if err != nil {
 		return
 	}
@@ -85,7 +76,37 @@ func JsonrpcRequest(url string, id int, jsonrpc, method string, out interface{},
 	return
 }
 
-func HttpsPost(url string, reqBody, out interface{}, timeout *time.Duration, transport *http.Transport) (header http.Header, err error) {
+func HttpGet(url string, urlParams map[string]string, out interface{}, timeout *time.Duration, transport *http.Transport) (statusCode int, err error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if urlParams != nil {
+		q := req.URL.Query()
+		for k, v := range urlParams {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
+	}
+	var client *http.Client
+	if transport == nil {
+		client = http.DefaultClient
+	} else {
+		client = &http.Client{Transport: transport}
+	}
+	if timeout != nil {
+		client.Timeout = *timeout
+	}
+	resp, err := client.Do(req)
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
+	err = handleResponse(resp, err, out)
+	return
+}
+
+func HttpPost(url string, reqBody, out interface{}, timeout *time.Duration, transport *http.Transport) (header http.Header, err error) {
 	byteArr, err := json.Marshal(reqBody)
 	if err != nil {
 		return

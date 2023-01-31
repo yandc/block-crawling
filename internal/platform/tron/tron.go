@@ -12,7 +12,6 @@ import (
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -98,7 +97,8 @@ func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
 		"contract": token,
 	}
 	out := &types.TronTokenInfo{}
-	err := httpclient.HttpsForm(url, http.MethodGet, params, nil, out)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, params, out, &timeoutMS)
 	if err != nil {
 		return types.TokenInfo{}, err
 	}

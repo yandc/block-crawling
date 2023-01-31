@@ -44,7 +44,8 @@ func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) 
 	var unspents types.UbiquityUtxo
 	var param = make(map[string]string)
 	param["spent"] = "false"
-	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &unspents)
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &unspents, &timeoutMS)
 
 	return unspents, err
 
@@ -72,7 +73,8 @@ func GetBalance(address string, c *base.Client) (string, error) {
 		return "", err
 	}
 	var addr gobcy.Addr
-	err = httpclient.GetResponse(u.String(), &addr)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.GetResponse(u.String(), nil, &addr, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -86,21 +88,24 @@ func GetBlockNumber(c *base.Client) (int, error) {
 		return 0, err
 	}
 	var chain gobcy.Blockchain
-	err = httpclient.GetResponse(u.String(), &chain)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.GetResponse(u.String(), nil, &chain, &timeoutMS)
 	return chain.Height, err
 }
 
 func GetBlockHeight(c *base.Client) (int, error) {
 	url := c.StreamURL + "/blocks/tip/height"
 	var height int
-	err := httpclient.HttpsGetForm(url, nil, &height)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &height, &timeoutMS)
 	return height, err
 }
 
 func GetMempoolTxIds(c *base.Client) ([]string, error) {
 	url := c.StreamURL + "/mempool/txids"
 	var txIds []string
-	err := httpclient.HttpsGetForm(url, nil, &txIds)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &txIds, &timeoutMS)
 	return txIds, err
 }
 
@@ -116,13 +121,15 @@ func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlock
 		return result, err
 	}
 	starIndex := 0
+	pageSize := 25
+	timeoutMS := 10_000 * time.Millisecond
 	for {
 		var block types.BTCTestBlockerInfo
-		url := c.StreamURL + "/block/" + hash + "/txs/" + fmt.Sprintf("%d", starIndex*25)
-		err = httpclient.HttpsGetForm(url, nil, &block)
+		url := c.StreamURL + "/block/" + hash + "/txs/" + fmt.Sprintf("%d", starIndex*pageSize)
+		err = httpclient.HttpsGetForm(url, nil, &block, &timeoutMS)
 		starIndex++
 		result = append(result, block...)
-		if len(block) < 25 {
+		if len(block) < pageSize {
 			break
 		}
 	}
@@ -198,13 +205,9 @@ func GetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) 
 				}
 				return tx, nil
 			}
-
 		}
-
 	}
-
 	return
-
 }
 
 func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
@@ -212,7 +215,8 @@ func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error
 	if err != nil {
 		return
 	}
-	err = httpclient.GetResponse(u.String(), &tx)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.GetResponse(u.String(), nil, &tx, &timeoutMS)
 	return
 }
 
@@ -220,7 +224,8 @@ func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "tx/" + tx
 	var txInfo types.TxInfo
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo)
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
 	return txInfo, err
 }
 
@@ -229,30 +234,35 @@ func GetTransactionByPendingHash(hash string, c *base.Client) (tx types.TXByHash
 	if err != nil {
 		return
 	}
-	err = httpclient.GetResponse(u.String(), &tx)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.GetResponse(u.String(), nil, &tx, &timeoutMS)
 	return
 }
 
 func GetTransactionByPendingHashByNode(json model.JsonRpcRequest, c *base.Client) (tx model.BTCTX, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &tx)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &tx, &timeoutMS)
 	return
 }
 
 //MemoryPoolTX
 func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &txIds)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &txIds, &timeoutMS)
 	return
 }
 
 func GetBlockCount(json model.JsonRpcRequest, c *base.Client) (count model.BTCCount, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &count)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &count, &timeoutMS)
 	return
 }
 
 func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, error) {
 	url := "https://blockchain.info/rawblock/" + fmt.Sprintf("%d", number)
 	var block types.BTCBlockerInfo
-	err := httpclient.HttpsGetForm(url, nil, &block)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &block, &timeoutMS)
 	return block, err
 }
 

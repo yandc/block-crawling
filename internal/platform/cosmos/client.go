@@ -452,7 +452,8 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
-	err, statusCode := httpclient.GetStatusCode(target.String(), &decTarget)
+	timeoutMS := 5_000 * time.Millisecond
+	statusCode, err := httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS)
 	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)

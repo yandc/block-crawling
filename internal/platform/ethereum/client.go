@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/metachris/eth-go-bindings/erc1155"
 	"github.com/metachris/eth-go-bindings/erc165"
 	"github.com/metachris/eth-go-bindings/erc721"
@@ -44,14 +45,11 @@ type Client struct {
 func NewClient(rawUrl string, chainName string) (*Client, error) {
 	c, err := rpc.DialContext(context.Background(), rawUrl)
 	if err != nil {
+		log.Error("new client error:", zap.Any("url", rawUrl), zap.Error(err))
 		return nil, err
 	}
 	client := ethclient.NewClient(c)
 
-	if err != nil {
-		log.Error("new client error:", zap.Error(err), zap.Any("url", rawUrl))
-		return &Client{}, err
-	}
 	return &Client{
 		Client: client,
 		c:      c,
@@ -409,10 +407,14 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 
 // 3
 func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	return c.BlockNumber(ctx)
 }
 
 func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return c.BlockByNumber(ctx, number)
 }
 
@@ -463,58 +465,32 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 
 // 1
 func (c *Client) GetTransactionByHash(ctx context.Context, txHash common.Hash) (*Transaction, bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return c.TransactionByHash(ctx, txHash)
-}
-
-// Receipt represents the results of a transaction.
-type Receipt struct {
-	// Consensus fields: These fields are defined by the Yellow Paper
-	Type              string        `json:"type,omitempty"`
-	PostState         string        `json:"root,omitempty"`
-	Status            string        `json:"status,omitempty"`
-	From              string        `json:"from,omitempty"`
-	To                string        `json:"to,omitempty"`
-	CumulativeGasUsed string        `json:"cumulativeGasUsed"` //`json:"cumulativeGasUsed" gencodec:"required"`
-	EffectiveGasPrice string        `json:"effectiveGasPrice,omitempty"`
-	Bloom             string        `json:"logsBloom"` //`json:"logsBloom" gencodec:"required"`
-	Logs              []*types2.Log `json:"logs" gencodec:"required"`
-
-	// Implementation fields: These fields are added by geth when processing a transaction.
-	// They are stored in the chain database.
-	TxHash          string `json:"transactionHash" gencodec:"required"`
-	ContractAddress string `json:"contractAddress,omitempty"`
-	GasUsed         string `json:"gasUsed" gencodec:"required"`
-
-	// Inclusion information: These fields provide information about the inclusion of the
-	// transaction corresponding to this receipt.
-	BlockHash        string `json:"blockHash,omitempty"`
-	BlockNumber      string `json:"blockNumber,omitempty"`
-	TransactionIndex string `json:"transactionIndex,omitempty"`
 }
 
 // 2
 func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*Receipt, error) {
-	//return c.TransactionReceipt(ctx, txHash)
-	var r *Receipt
-	rpcClient, err := rpc.DialHTTP(c.url)
-	err = rpcClient.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
-	if err == nil {
-		if r == nil {
-			return nil, ethereum.NotFound
-		}
-	}
-	return r, err
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return c.TransactionReceipt(ctx, txHash)
 }
 
 // client.TransactionSender(ctx,tx,block.Hash(),r.TransactionIndex)
 func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transaction, block common.Hash,
 	index uint) (common.Address, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	return c.TransactionSender(ctx, tx, block, index)
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	account := common.HexToAddress(address)
-	balance, err := c.BalanceAt(context.Background(), account, nil)
+	balance, err := c.BalanceAt(ctx, account, nil)
 	if err != nil {
 		return "", err
 	}
@@ -523,6 +499,9 @@ func (c *Client) GetBalance(address string) (string, error) {
 }
 
 func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map[string]interface{}, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	result := make(map[string]interface{})
 	destAddress := common.HexToAddress(address)
 	balanceFun := []byte("balanceOf(address)")
@@ -552,7 +531,7 @@ func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map
 		})
 		tokenAddrs = append(tokenAddrs, token)
 	}
-	err = rpcClient.BatchCall(be)
+	err = rpcClient.BatchCallContext(ctx, be)
 	if err != nil {
 		return result, err
 	}
@@ -574,7 +553,11 @@ func (c *Client) BatchTokenBalance(address string, tokenMap map[string]int) (map
 	}
 	return result, nil
 }
+
 func (c *Client) NewBatchTokenBalance(address string, tokenMap map[string]int) (map[string]interface{}, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	result := make(map[string]interface{})
 	destAddress := common.HexToAddress(address)
 	balanceFun := []byte("balanceOf(address)")
@@ -596,7 +579,7 @@ func (c *Client) NewBatchTokenBalance(address string, tokenMap map[string]int) (
 			"to":   tokenAddress,
 			"data": hexutil.Bytes(data),
 		}
-		err = rpcClient.Call(&b,"eth_call",callMsg, "latest")
+		err = rpcClient.CallContext(ctx, &b, "eth_call", callMsg, "latest")
 		if err != nil {
 			return result, err
 		}
@@ -618,6 +601,12 @@ func (c *Client) NewBatchTokenBalance(address string, tokenMap map[string]int) (
 }
 
 func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId string) (string, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
 	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
 	if err != nil {
@@ -627,7 +616,7 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 	if !ok {
 		return "", errors.New("tokenId " + tokenId + " is invalid")
 	}
-	ownerAddress, err := erc721Token.OwnerOf(nil, tokenIdBig)
+	ownerAddress, err := erc721Token.OwnerOf(opts, tokenIdBig)
 	if err != nil {
 		return "", err
 	}
@@ -638,6 +627,12 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 }
 
 func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId string) (string, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
 	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
 	if err != nil {
@@ -648,7 +643,7 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 		return "", errors.New("tokenId " + tokenId + " is invalid")
 	}
 	hexAddress := common.HexToAddress(address)
-	balance, err := erc1155Token.BalanceOf(nil, hexAddress, tokenIdBig)
+	balance, err := erc1155Token.BalanceOf(opts, hexAddress, tokenIdBig)
 	if err != nil {
 		return "", err
 	}
@@ -656,13 +651,19 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 }
 
 func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
 	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
 	if err != nil {
 		return false, err
 	}
 
-	result, err := erc721Token.SupportsInterface(nil, erc165.InterfaceIdErc721)
+	result, err := erc721Token.SupportsInterface(opts, erc165.InterfaceIdErc721)
 	if err != nil {
 		return false, err
 	}
@@ -670,13 +671,19 @@ func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
 }
 
 func (c *Client) IsErc1155Contract(tokenAddress string) (bool, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
 	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
 	if err != nil {
 		return false, err
 	}
 
-	result, err := erc1155Token.SupportsInterface(nil, erc165.InterfaceIdErc1155)
+	result, err := erc1155Token.SupportsInterface(opts, erc165.InterfaceIdErc1155)
 	if err != nil {
 		return false, err
 	}
@@ -688,6 +695,12 @@ var lock = icommon.NewSyncronized(0)
 var mutex = new(sync.Mutex)
 
 func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.TokenInfo, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
 	var key = chainName + tokenAddress
 	tokenInfo, ok := EvmTokenInfoMap[key]
 	if ok {
@@ -705,11 +718,11 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	if err != nil {
 		return tokenInfo, err
 	}
-	decimals, err := erc20Token.Decimals(nil)
+	decimals, err := erc20Token.Decimals(opts)
 	if err != nil {
 		return tokenInfo, err
 	}
-	symbol, err := erc20Token.Symbol(nil)
+	symbol, err := erc20Token.Symbol(opts)
 	if err != nil {
 		return tokenInfo, err
 	}
@@ -718,23 +731,4 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	EvmTokenInfoMap[key] = tokenInfo
 	mutex.Unlock()
 	return tokenInfo, nil
-}
-
-// --- start override ---
-
-// BlockByHash returns the given full block.
-//
-// Note that loading full blocks requires two requests. Use HeaderByHash
-// if you don't need all transactions or uncle headers.
-func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
-	return c.getBlock(ctx, "eth_getBlockByHash", hash, true)
-}
-
-// BlockByNumber returns a block from the current canonical chain. If number is nil, the
-// latest known block is returned.
-//
-// Note that loading full blocks requires two requests. Use HeaderByNumber
-// if you don't need all transactions or uncle headers.
-func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
-	return c.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }

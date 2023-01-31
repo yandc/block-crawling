@@ -661,6 +661,7 @@ platform:
     rpcURL:
       - https://smartbch.greyh.at
       - https://smartbch.fountainhead.cash/mainnet
+      - https://global.uat.cash
     symbol: SmartBCH
     type: EVM
     safelyConcurrentBlockDelta: 100

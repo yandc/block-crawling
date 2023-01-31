@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -141,7 +142,8 @@ func (c *Client) getObjectsOwnedByAddress(address string) ([]SuiObjectInfo, erro
 	method := "sui_getObjectsOwnedByAddress"
 	params := []interface{}{address}
 	var out []SuiObjectInfo
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	return out, err
 }
 
@@ -176,7 +178,8 @@ func (c *Client) GetObject(objectId string) (*SuiObject, error) {
 	method := "sui_getObject"
 	out := &SuiObject{}
 	params := []interface{}{objectId}
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	if err != nil {
 		return out, err
 	}
@@ -189,7 +192,8 @@ func (c *Client) GetObject(objectId string) (*SuiObject, error) {
 func (c *Client) GetTransactionNumber() (int, error) {
 	method := "sui_getTotalTransactionNumber"
 	var out int
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, nil)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, nil, &timeoutMS)
 	return out, err
 }
 
@@ -197,7 +201,8 @@ func (c *Client) getTransactionsInRange(number int) (string, error) {
 	method := "sui_getTransactionsInRange"
 	var out []interface{}
 	params := []interface{}{number, number + 1}
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -414,7 +419,8 @@ func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
 	method := "sui_getTransaction"
 	var out TransactionInfo
 	params := []interface{}{hash}
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	return out, err
 }
 

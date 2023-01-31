@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 )
 
 type Client struct {
@@ -53,11 +54,11 @@ func (c *Client) GetBlockHash(height int) (blockHash model.UTXOBlockHash, err er
 		Id:      "curltest",
 		Method:  "getblockhash",
 	}
-
 	var pa = make([]interface{}, 0, 1)
 	pa = append(pa, height)
 	countParam.Params = pa
-	err = httpclient.PostResponse(c.StreamURL, countParam, &blockHash)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, countParam, &blockHash, &timeoutMS)
 	return
 }
 
@@ -69,14 +70,13 @@ func (c *Client) GetMemoryPoolTXByNode() (txIds model.MemoryPoolTX, err error) {
 		Method:  "getrawmempool",
 	}
 	var pa = make([]interface{}, 0, 0)
-
 	memoryTxId.Params = pa
-	err = httpclient.PostResponse(c.URL, memoryTxId, &txIds)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.URL, memoryTxId, &txIds, &timeoutMS)
 	return
 }
 
 func (c *Client) GetUTXOBlock(height int) (utoxBlockInfo model.UTXOBlockInfo, err error) {
-
 	blockHash, err := c.GetBlockHash(height)
 	if err != nil {
 		return utoxBlockInfo, err
@@ -111,8 +111,8 @@ func (c *Client) GetBTCBlockByHash(blockHash string) (btcBlockInfo model.BTCBloc
 	pa = append(pa, blockHash)
 	pa = append(pa, 2)
 	countParam.Params = pa
-
-	err = httpclient.PostResponse(c.StreamURL, countParam, &btcBlockInfo)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, countParam, &btcBlockInfo, &timeoutMS)
 	return
 }
 
@@ -125,8 +125,8 @@ func (c *Client) GetUTXOBlockByHash(blockHash string) (utxoBlockInfo model.UTXOB
 	var pa = make([]interface{}, 0, 1)
 	pa = append(pa, blockHash)
 	countParam.Params = pa
-
-	err = httpclient.PostResponse(c.StreamURL, countParam, &utxoBlockInfo)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, countParam, &utxoBlockInfo, &timeoutMS)
 	return
 }
 
@@ -139,7 +139,8 @@ func (c *Client) GetBlockCount() (count model.BTCCount, err error) {
 	}
 	var pa = make([]interface{}, 0, 0)
 	countParam.Params = pa
-	err = httpclient.PostResponse(c.StreamURL, countParam, &count)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, countParam, &count, &timeoutMS)
 	return
 }
 
@@ -154,9 +155,9 @@ func (c *Client) GetTxOut(txid string, n int, unconfirmed bool) (utxoList model.
 	pa = append(pa, txid)
 	pa = append(pa, n)
 	pa = append(pa, unconfirmed)
-
 	param.Params = pa
-	err = httpclient.PostResponse(c.StreamURL, param, &utxoList)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, param, &utxoList, &timeoutMS)
 	return
 }
 
@@ -170,6 +171,7 @@ func (c *Client) GetTransactionsByTXHash(txid string) (tx model.BTCTX, err error
 	pa = append(pa, txid)
 	pa = append(pa, 1)
 	param.Params = pa
-	err = httpclient.PostResponse(c.StreamURL, param, &tx)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, param, &tx, &timeoutMS)
 	return
 }

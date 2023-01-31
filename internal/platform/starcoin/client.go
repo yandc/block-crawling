@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/starcoinorg/starcoin-go/client"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -60,7 +61,8 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	}
 	params := []interface{}{address, "0x00000000000000000000000000000001::Account::Balance<" + tokenAddress + ">", d}
 	balance := &types.Balance{}
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, balance, params)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, balance, params, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +70,10 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 }
 
 func (c *Client) GetTransactionInfoByHash(transactionHash string) (*client.TransactionInfo, error) {
-	return c.client.GetTransactionInfoByHash(context.Background(), transactionHash)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return c.client.GetTransactionInfoByHash(ctx, transactionHash)
 }
 
 func (c *Client) GetTransactionEventByNumber(number int, typeTags []string) (map[string][]types.Event, error) {
@@ -86,7 +91,8 @@ func (c *Client) GetTransactionEventByNumber(number int, typeTags []string) (map
 	}
 	params := []interface{}{b, d}
 	var result []types.Event
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +116,8 @@ func (c *Client) GetTransactionEventByHash(transactionHash string) ([]types.Even
 	}
 	params := []interface{}{transactionHash, d}
 	var result []types.Event
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, &result, params, &timeoutMS)
 	return result, err
 }
 
@@ -121,7 +128,8 @@ func (c *Client) GetBlockByNumber(number int) (*types.Block, error) {
 	}
 	params := []interface{}{number, d}
 	result := &types.Block{}
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params, &timeoutMS)
 	return result, err
 }
 
@@ -129,7 +137,8 @@ func (c *Client) GetBlockTxnInfos(blockHash string) (*[]types.BlockTxnInfos, err
 	method := "chain.get_block_txn_infos"
 	params := []interface{}{blockHash}
 	result := &[]types.BlockTxnInfos{}
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params, &timeoutMS)
 	return result, err
 }
 
@@ -140,14 +149,16 @@ func (c *Client) GetTransactionByHash(transactionHash string) (*types.Transactio
 	}
 	params := []interface{}{transactionHash, d}
 	result := &types.Transaction{}
-	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID101, JSONRPC, method, result, params, &timeoutMS)
 	return result, err
 }
 
 func (c *Client) GetBlockHeight() (uint64, error) {
 	method := "node.info"
 	result := &types.NodeInfo{}
-	_, err := httpclient.JsonrpcCall(c.url, ID200, JSONRPC, method, result, nil)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, ID200, JSONRPC, method, result, nil, &timeoutMS)
 	if err != nil {
 		return 0, err
 	}
@@ -213,8 +224,8 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		events, err := c.GetTransactionEventByHash(txHash)
 
 		if err != nil {
-			errObject,ok :=err.(*types.ErrorObject)
-			if !ok || !(ok && strings.HasPrefix(errObject.Message,"cannot find txn info of txn") ){
+			errObject, ok := err.(*types.ErrorObject)
+			if !ok || !(ok && strings.HasPrefix(errObject.Message, "cannot find txn info of txn")) {
 				return nil, err
 			}
 		}
