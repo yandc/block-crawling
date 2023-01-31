@@ -3,7 +3,7 @@ package ethereum
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
-	httpclient2 "block-crawling/internal/httpclient"
+	"block-crawling/internal/httpclient"
 	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"fmt"
@@ -15,7 +15,6 @@ const OPENSEA_URL = "https://api.opensea.io/api/v1/events"
 const OPENSEA_KEY = "207e09c24d49409ca949578d7e3bde27"
 
 func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId string) bool {
-
 	var nftRecords []*data.NftRecordHistory
 	now := time.Now().Unix()
 
@@ -25,7 +24,8 @@ func GetETHNftHistoryByOpenSea(chainName string, contractAddress string, tokenId
 	param["asset_contract_address"] = contractAddress
 	param["event_type"] = "transfer"
 
-	err := httpclient2.HttpsSignGetForm(OPENSEA_URL, param, map[string]string{"X-API-KEY": OPENSEA_KEY}, &events)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(OPENSEA_URL, param, map[string]string{"X-API-KEY": OPENSEA_KEY}, &events, &timeoutMS)
 
 	if err != nil {
 		// 更新用户资产出错 接入lark报警

@@ -173,7 +173,8 @@ type AptosResourceResp []struct {
 func (c *Client) GetResourceByAddress(address string) *AptosResourceResp {
 	url := fmt.Sprintf("%s/accounts/%s/resources", c.url, address)
 	out := &AptosResourceResp{}
-	err := httpclient.HttpsGetForm(url, nil, out)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, out, &timeoutMS)
 	if err != nil {
 		return nil
 	}
@@ -193,7 +194,8 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	resourceType := fmt.Sprintf("%s<%s>", TYPE_PREFIX, tokenAddress)
 	url := fmt.Sprintf("%s/accounts/%s/resource/%s", c.url, address, resourceType)
 	out := &AptosBalanceResp{}
-	err := httpclient.HttpsGetForm(url, nil, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, out, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +286,8 @@ func (c *Client) GetEventTransfer(tokenId string, offset int, limit int, chainNa
 		},
 		Query: "query TokenActivities($token_id: String, $limit: Int, $offset: Int) {\n  token_activities(\n    where: {token_data_id_hash: {_eq: $token_id}}\n    order_by: {transaction_version: desc}\n    limit: $limit\n    offset: $offset\n  ) {\n    transaction_version\n    from_address\n    property_version\n    to_address\n    token_amount\n    transfer_type\n    __typename\n  }\n}",
 	}
-	err = httpclient.HttpPostJson(url, tokenRequest, &tar)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.HttpPostJson(url, tokenRequest, &tar, &timeoutMS)
 	return
 }
 
@@ -305,7 +308,8 @@ func (c *Client) Erc1155BalanceByName(address string, creatorAddress string, col
 		Query: "query AccountTokensData($owner_address: String, $creator_address: String, $collection_name: String, $name: String, $property_version: numeric) {\n  current_token_ownerships(\n    where: {owner_address: {_eq: $owner_address}, creator_address: {_eq: $creator_address}, collection_name: {_eq: $collection_name}, name: {_eq: $name}, property_version: {_eq: $property_version}, amount: {_gt: \"0\"}}) {\n    token_data_id_hash\n    name\n    collection_name\n    creator_address\n    table_type\n    property_version\n    amount\n    __typename\n  }\n}",
 	}
 	out := &TokenResponse{}
-	err := httpclient.HttpPostJson(url, tokenRequest, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -341,7 +345,8 @@ func (c *Client) Erc1155BalanceByTokenId(address string, tokenId string, propert
 		Query: "query AccountTokensData($owner_address: String, $token_id: String, $property_version: numeric) {\n  current_token_ownerships(\n    where: {owner_address: {_eq: $owner_address}, token_data_id_hash: {_eq: $token_id}, property_version: {_eq: $property_version}, amount: {_gt: \"0\"}}) {\n    token_data_id_hash\n    name\n    collection_name\n    creator_address\n    table_type\n    property_version\n    amount\n    __typename\n  }\n}",
 	}
 	out := &TokenResponse{}
-	err := httpclient.HttpPostJson(url, tokenRequest, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -538,7 +543,8 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
-	err, statusCode := httpclient.GetStatusCode(target.String(), &decTarget)
+	timeoutMS := 5_000 * time.Millisecond
+	statusCode, err := httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS)
 	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)

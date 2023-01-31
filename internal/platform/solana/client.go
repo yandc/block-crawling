@@ -78,7 +78,8 @@ func (c *Client) GetBalance(address string) (string, error) {
 	method := "getBalance"
 	params := []interface{}{address}
 	out := &SolanaBalance{}
-	err := c.call(JSONID, method, out, params)
+	timeoutMS := 3_000 * time.Millisecond
+	err := c.call(JSONID, method, out, params, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -125,7 +126,8 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	method := "getTokenAccountsByOwner"
 	params := []interface{}{address, map[string]string{"mint": tokenAddress}, map[string]string{"encoding": "jsonParsed"}}
 	out := &SolanaTokenAccount{}
-	err := c.call(JSONID, method, out, params)
+	timeoutMS := 3_000 * time.Millisecond
+	err := c.call(JSONID, method, out, params, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -147,14 +149,16 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 func (c *Client) GetBlockNumber() (int, error) {
 	method := "getBlockHeight"
 	var out int
-	err := c.call(JSONID, method, &out, nil)
+	timeoutMS := 3_000 * time.Millisecond
+	err := c.call(JSONID, method, &out, nil, &timeoutMS)
 	return out, err
 }
 
 func (c *Client) GetSlotNumber() (int, error) {
 	method := "getSlot"
 	var out int
-	err := c.call(JSONID, method, &out, nil)
+	timeoutMS := 3_000 * time.Millisecond
+	err := c.call(JSONID, method, &out, nil, &timeoutMS)
 	return out, err
 }
 
@@ -219,7 +223,7 @@ func (c *Client) GetBlockByNumber(number int) (*Block, error) {
 	method := "getBlock"
 	params := []interface{}{number, map[string]interface{}{"encoding": "jsonParsed", "transactionDetails": "full", "maxSupportedTransactionVersion": 0, "rewards": false}}
 	result := &Block{}
-	timeoutMS := time.Duration(10_000) * time.Millisecond
+	timeoutMS := 10_000 * time.Millisecond
 	err := c.call(JSONID, method, result, params, &timeoutMS)
 	return result, err
 }

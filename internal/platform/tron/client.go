@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 	"net/http"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -175,7 +176,6 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		Raw:         rawTx,
 		Record:      nil,
 	}, nil
-
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
@@ -185,7 +185,8 @@ func (c *Client) GetBalance(address string) (string, error) {
 		Visible: true,
 	}
 	out := &types.TronBalance{}
-	err := httpclient.HttpsForm(url, http.MethodPost, nil, reqBody, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +219,8 @@ func (c *Client) GetTokenBalance(ownerAddress string, contractAddress string, de
 		Parameter:        parameter,
 		Visible:          true,
 	}
-	err := httpclient.HttpsForm(url, http.MethodPost, nil, reqBody, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
 	if err != nil {
 		return "0", err
 	}
@@ -248,7 +250,8 @@ func (c *Client) GetTokenBalance(ownerAddress string, contractAddress string, de
 func (c *Client) GetBlockHeight() (uint64, error) {
 	url := c.url + "/wallet/getnowblock"
 	out := &types.NowBlock{}
-	err := httpclient.HttpsForm(url, http.MethodGet, nil, nil, out)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, out, &timeoutMS)
 	if err != nil {
 		return 0, err
 	}
@@ -275,7 +278,8 @@ func (c *Client) GetBlockByNum(num int) (*types.BlockResponse, error) {
 		Num:     num,
 		Visible: true,
 	}
-	err := httpclient.HttpsForm(url, http.MethodPost, nil, reqBody, out)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +306,8 @@ func (c *Client) GetTransactionInfoByHash(txHash string) (*types.TronTxInfoRespo
 		Value:   txHash,
 		Visible: true,
 	}
-	err := httpclient.HttpsForm(url, http.MethodPost, nil, reqBody, out)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}

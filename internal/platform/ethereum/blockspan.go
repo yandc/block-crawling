@@ -3,7 +3,7 @@ package ethereum
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
-	httpclient2 "block-crawling/internal/httpclient"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
@@ -17,23 +17,21 @@ const BLOCKSPAN_URL = "https://api.blockspan.com/v1/transfers/contract/"
 const BLOCKSPAN_KEY = "QEhydRzXWozNUV5r1AgiPmySQSRdi09Y"
 
 func GetETHNftHistoryByBlockspan(chainName string, contractAddress string, tokenId string) bool {
-
 	var nftRecords []*data.NftRecordHistory
 	now := time.Now().Unix()
 
 	var events types.Blockspan
 	var param = make(map[string]string)
-
 	param["chain"] = "eth-main"
-
 	param["page_size"] = "25"
 
 	url := BLOCKSPAN_URL + contractAddress + "/token/" + tokenId
 
-	err := httpclient2.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events, &timeoutMS)
 	log.Info("YYDS", zap.Any("blockspan", events))
 	for i := 0; err != nil && i < 3; i++ {
-		err = httpclient2.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events)
+		err = httpclient.HttpsSignGetForm(url, param, map[string]string{"X-API-KEY": BLOCKSPAN_KEY}, &events, &timeoutMS)
 		log.Info("YYDS", zap.Any("blockspan-1", events))
 	}
 
@@ -46,7 +44,6 @@ func GetETHNftHistoryByBlockspan(chainName string, contractAddress string, token
 	}
 
 	for _, event := range events.Results {
-
 		fromAddress := event.FromAddress
 		toAddress := event.ToAddress
 		var fromUid, toUid string

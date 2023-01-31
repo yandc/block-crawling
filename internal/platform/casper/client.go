@@ -75,7 +75,8 @@ func (c *Client) GetStateItem(stateRootHash, key string, path []string) (types.S
 		params["path"] = path
 	}
 	var result types.StoredValueResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return types.StoredValue{}, err
 	}
@@ -88,7 +89,8 @@ func (c *Client) GetAccountInfoByAddress(address string) (string, error) {
 		"public_key": address,
 	}
 	var result types.AccountInfoResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return "", err
 	}
@@ -117,7 +119,8 @@ func (c *Client) GetAccountBalance(stateRootHash, balanceUref string) (big.Int, 
 		"purse_uref":      balanceUref,
 	}
 	var result types.BalanceResponse
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return big.Int{}, err
 	}
@@ -129,7 +132,8 @@ func (c *Client) GetAccountBalance(stateRootHash, balanceUref string) (big.Int, 
 func (c *Client) GetLatestBlock() (types.CasperBlockResponse, error) {
 	method := "chain_get_block"
 	var result types.BlockResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, nil)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, nil, &timeoutMS)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
@@ -143,7 +147,8 @@ func (c *Client) GetBlockByHeight(height uint64) (types.CasperBlockResponse, err
 			Height: height,
 		}}
 	var result types.BlockResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
@@ -156,7 +161,8 @@ func (c *Client) GetBlockByHash(hash string) (types.CasperBlockResponse, error) 
 		Hash: hash,
 	}}
 	var result types.BlockResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return types.CasperBlockResponse{}, err
 	}
@@ -239,7 +245,8 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		"deploy_hash": txHash,
 	}
 	var result types.DeployResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +274,8 @@ func (c *Client) GetBlockTransfersByHeight(height uint64) ([]types.TransferRespo
 		Height: height,
 	}}
 	var result types.TransferResult
-	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params)
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}

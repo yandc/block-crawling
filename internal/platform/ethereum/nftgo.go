@@ -3,7 +3,7 @@ package ethereum
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
-	httpclient2 "block-crawling/internal/httpclient"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	pCommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
@@ -19,7 +19,6 @@ const NFTGO_URL = "https://data-api.nftgo.io/eth/v1/history/nft/transactions"
 const NFTGO_KEY = "c156869d-fac6-4118-a0d3-d0d9af1dbe17"
 
 func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId string, client Client) bool {
-
 	var nftRecords []*data.NftRecordHistory
 	now := time.Now().Unix()
 
@@ -28,15 +27,14 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 	param["token_id"] = tokenId
 	param["contract_address"] = contractAddress
 	param["event_type"] = "all"
-
 	param["scroll"] = strconv.Itoa(int(now))
 
-	err := httpclient2.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events, &timeoutMS)
 	log.Info("YYDS", zap.Any("nftgo", events))
 	for i := 0; err != nil && i < 3; i++ {
-		err = httpclient2.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events)
+		err = httpclient.HttpsSignGetForm(NFTGO_URL, param, map[string]string{"X-API-KEY": NFTGO_KEY}, &events, &timeoutMS)
 		log.Info("YYDS", zap.Any("nftgo-1", events))
-
 	}
 
 	if err != nil {
@@ -48,7 +46,6 @@ func GetETHNftHistoryByNftgo(chainName string, contractAddress string, tokenId s
 	}
 
 	for _, event := range events.Transactions {
-
 		fromAddress := event.Sender.Address
 		toAddress := event.Receiver.Address
 		var fromUid, toUid string

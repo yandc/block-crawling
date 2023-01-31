@@ -79,7 +79,8 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	url := baseURL + PROKADOT + "/" + strconv.FormatUint(height, 10)
 
 	var polkBlock types2.PolkadotBlockInfo
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &polkBlock)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &polkBlock, &timeoutMS)
 	if err != nil && strings.Contains(err.Error(), "Not Found") {
 		return &chain.Block{
 			Number: height,
@@ -142,7 +143,8 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 	var pa = make([]interface{}, 0, 0)
 	param.Params = pa
 	var nbi types2.NodeBlockInfo
-	err := httpclient.PostResponse(RPC, param, &nbi)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.PostResponse(RPC, param, &nbi, &timeoutMS)
 	if err != nil {
 		return 0, err
 	}
@@ -160,7 +162,8 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	url := baseURL + "tx/" + txHash
 
 	var txInfo types2.PolkadotTxInfo
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +182,8 @@ func (c *Client) GetBalance(address string) ([]types2.PolkadotAccountInfo, error
 	key, baseURL := parseKeyFromNodeURL(c.Url)
 	url := baseURL + "account/" + address
 	var accountInfo []types2.PolkadotAccountInfo
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &accountInfo)
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &accountInfo, &timeoutMS)
 	if err != nil {
 		return accountInfo, err
 	}

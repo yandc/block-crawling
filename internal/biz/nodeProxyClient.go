@@ -44,7 +44,7 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 	client := v1.NewTokenlistClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -128,7 +128,7 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 	client := v1.NewTokenlistClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -229,7 +229,7 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	client := v1.NewTokenlistClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -380,7 +380,7 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 	client := v1.NewNftClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -422,7 +422,7 @@ func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress s
 	client := v1.NewNftClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -461,7 +461,7 @@ func GetRawCollectionInfoDirectly(ctx context.Context, chainName string, tokenAd
 	client := v1.NewNftClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
@@ -500,7 +500,7 @@ func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string
 	client := v1.NewNftClient(conn)
 
 	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), time.Second*3000)
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}

@@ -28,7 +28,8 @@ func NewClient(nodeUrl string) Client {
 func GetMempoolTxIds(c *base.Client) ([]string, error) {
 	url := c.StreamURL + "/mempool/txids"
 	var txIds []string
-	err := httpclient.HttpsGetForm(url, nil, &txIds)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &txIds, &timeoutMS)
 	return txIds, err
 }
 
@@ -36,7 +37,8 @@ func GetBlockNumber(c *base.Client) (int, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "sync/block_number"
 	var height int
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &height)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &height, &timeoutMS)
 	return height, err
 }
 
@@ -60,7 +62,8 @@ func GetBlockByNumber(number int, c *base.Client) (types.Dogecoin, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "block/" + fmt.Sprintf("%d", number)
 	var block types.Dogecoin
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &block)
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &block, &timeoutMS)
 
 	return block, err
 }
@@ -69,7 +72,8 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "account/" + address
 	var balances []types.Balances
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &balances)
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &balances, &timeoutMS)
 	if err == nil {
 		if len(balances) > 0 {
 			btcValue := utils.StringDecimals(balances[0].ConfirmedBalance, 8)
@@ -78,11 +82,13 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	}
 	return "", err
 }
+
 func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	key, baseURL := parseKeyFromNodeURL(c.URL)
 	url := baseURL + "tx/" + tx
 	var txInfo types.TxInfo
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo)
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
 	return txInfo, err
 }
 
@@ -91,7 +97,8 @@ func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
 
 	var tx types.TX
 	var txInfo types.ChainSOTX
-	err := httpclient.HttpsGetForm(url, nil, &txInfo)
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &txInfo, &timeoutMS)
 	if err != nil || txInfo.Status != "success" {
 		return tx, err
 	}
@@ -119,7 +126,6 @@ func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
 			OutputIndex: in.FromOutput.OutputNo,
 		}
 		inputs = append(inputs, input)
-
 	}
 
 	for _, out := range txInfo.Data.Outputs {
@@ -144,19 +150,21 @@ func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
 		Error:       "",
 	}
 	return tx, err
-
 }
 
 func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &txIds)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &txIds, &timeoutMS)
 	return
 
 }
 func GetTransactionByPendingHashByNode(json model.JsonRpcRequest, c *base.Client) (tx model.BTCTX, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &tx)
+	timeoutMS := 10_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &tx, &timeoutMS)
 	return
 }
 func GetBlockCount(json model.JsonRpcRequest, c *base.Client) (count model.BTCCount, err error) {
-	err = httpclient.PostResponse(c.StreamURL, json, &count)
+	timeoutMS := 5_000 * time.Millisecond
+	err = httpclient.PostResponse(c.StreamURL, json, &count, &timeoutMS)
 	return
 }

@@ -32,84 +32,6 @@ type rpcBlock struct {
 	UncleHashes  []common.Hash     `json:"uncles"`
 }
 
-func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*Block, error) {
-	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, method, args...)
-	if err != nil {
-		return nil, err
-	} else if len(raw) == 0 {
-		return nil, ethereum.NotFound
-	}
-	// Decode header and transactions.
-	var head *Header
-	var body rpcBlock
-	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, err
-	}
-
-	// Arbitrum 支持了一些内部的交易类型，参见：
-	// https://github.com/OffchainLabs/go-ethereum/blob/382f6cd90f60fc082b300ec464dcbabb7e3279ac/core/types/transaction.go#L43-L56
-	// 这里为了兼容现存的 EVM 链，忽略这些交易类型，下面将非 EVM 标准交易类型忽略：
-	// 1. 首先将 rpcBlock  中的 rawTransction 不进行解析；
-	// 2. 然后过滤掉不支持的交易类型通过  json.Unmarshal 进行解码。
-	//
-	// 避免 ErrTxTypeNotSupported，参见：
-	// https://gitlab.bixin.com/mili/go-ethereum/-/blob/master/core/types/transaction.go#L188
-	rpcTxs := make([]*Transaction, 0, len(body.Transactions))
-	for _, rawTx := range body.Transactions {
-		var tx *Transaction
-		err := json.Unmarshal(rawTx, &tx)
-		if err == types.ErrInvalidSig || err == types.ErrTxTypeNotSupported ||
-			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'nonce' in transaction") ||
-			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'v' in transaction") ||
-			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'r' in transaction") ||
-			strings.Contains(fmt.Sprintf("%s", err), "missing required field 's' in transaction") {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		rpcTxs = append(rpcTxs, tx)
-	}
-
-	// Quick-verify transaction and uncle lists. This mostly helps with debugging the server.
-	if head.UncleHash == types.EmptyUncleHash && len(body.UncleHashes) > 0 {
-		return nil, fmt.Errorf("server returned non-empty uncle list but block header indicates no uncles")
-	}
-	/*if head.UncleHash != types.EmptyUncleHash && len(body.UncleHashes) == 0 {
-		return nil, fmt.Errorf("server returned empty uncle list but block header indicates uncles")
-	}*/
-	if head.TxHash == types.EmptyRootHash && len(rpcTxs) > 0 {
-		return nil, fmt.Errorf(BLOCK_NONAL_TRANSCATION)
-	}
-	if head.TxHash != types.EmptyRootHash && len(rpcTxs) == 0 {
-		return nil, fmt.Errorf(BLOCK_NO_TRANSCATION)
-	}
-	block := &Block{
-		header:       head,
-		transactions: rpcTxs,
-		//uncles:       uncles,
-	}
-	return block, nil
-}
-
-// TransactionByHash returns the transaction with the given hash.
-func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *Transaction, isPending bool, err error) {
-	var json *Transaction
-	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
-	if err != nil {
-		return nil, false, err
-	} else if json == nil {
-		return nil, false, ethereum.NotFound
-	} else if _, r, _ := json.RawSignatureValues(); r == nil {
-		return nil, false, fmt.Errorf("server returned transaction without signature")
-	}
-	return json, json.BlockNumber == nil, nil
-}
-
 // Header represents a block header in the Ethereum blockchain.
 type Header struct {
 	ParentHash  common.Hash      `json:"parentHash"       gencodec:"required"`
@@ -234,6 +156,151 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	}
 	h.Hash = *dec.Hash
 	return nil
+}
+
+// BlockByHash returns the given full block.
+//
+// Note that loading full blocks requires two requests. Use HeaderByHash
+// if you don't need all transactions or uncle headers.
+func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
+	return ec.getBlock(ctx, "eth_getBlockByHash", hash, true)
+}
+
+// BlockByNumber returns a block from the current canonical chain. If number is nil, the
+// latest known block is returned.
+//
+// Note that loading full blocks requires two requests. Use HeaderByNumber
+// if you don't need all transactions or uncle headers.
+func (ec *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
+	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
+}
+
+func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*Block, error) {
+	var raw json.RawMessage
+	err := ec.c.CallContext(ctx, &raw, method, args...)
+	if err != nil {
+		return nil, err
+	} else if len(raw) == 0 {
+		return nil, ethereum.NotFound
+	}
+	// Decode header and transactions.
+	var head *Header
+	var body rpcBlock
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, err
+	}
+
+	// Arbitrum 支持了一些内部的交易类型，参见：
+	// https://github.com/OffchainLabs/go-ethereum/blob/382f6cd90f60fc082b300ec464dcbabb7e3279ac/core/types/transaction.go#L43-L56
+	// 这里为了兼容现存的 EVM 链，忽略这些交易类型，下面将非 EVM 标准交易类型忽略：
+	// 1. 首先将 rpcBlock  中的 rawTransction 不进行解析；
+	// 2. 然后过滤掉不支持的交易类型通过  json.Unmarshal 进行解码。
+	//
+	// 避免 ErrTxTypeNotSupported，参见：
+	// https://gitlab.bixin.com/mili/go-ethereum/-/blob/master/core/types/transaction.go#L188
+	rpcTxs := make([]*Transaction, 0, len(body.Transactions))
+	for _, rawTx := range body.Transactions {
+		var tx *Transaction
+		err := json.Unmarshal(rawTx, &tx)
+		if err == types.ErrInvalidSig || err == types.ErrTxTypeNotSupported ||
+			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'nonce' in transaction") ||
+			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'v' in transaction") ||
+			strings.Contains(fmt.Sprintf("%s", err), "missing required field 'r' in transaction") ||
+			strings.Contains(fmt.Sprintf("%s", err), "missing required field 's' in transaction") {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		rpcTxs = append(rpcTxs, tx)
+	}
+
+	// Quick-verify transaction and uncle lists. This mostly helps with debugging the server.
+	if head.UncleHash == types.EmptyUncleHash && len(body.UncleHashes) > 0 {
+		return nil, fmt.Errorf("server returned non-empty uncle list but block header indicates no uncles")
+	}
+	/*if head.UncleHash != types.EmptyUncleHash && len(body.UncleHashes) == 0 {
+		return nil, fmt.Errorf("server returned empty uncle list but block header indicates uncles")
+	}*/
+	if head.TxHash == types.EmptyRootHash && len(rpcTxs) > 0 {
+		return nil, fmt.Errorf(BLOCK_NONAL_TRANSCATION)
+	}
+	if head.TxHash != types.EmptyRootHash && len(rpcTxs) == 0 {
+		return nil, fmt.Errorf(BLOCK_NO_TRANSCATION)
+	}
+	block := &Block{
+		header:       head,
+		transactions: rpcTxs,
+		//uncles:       uncles,
+	}
+	return block, nil
+}
+
+// Block represents an entire block in the Ethereum blockchain.
+type Block struct {
+	header       *Header
+	uncles       []*Header
+	transactions []*Transaction
+
+	// caches
+	hash common.Hash
+	size atomic.Value
+
+	// These fields are used by package eth to track
+	// inter-peer block relay.
+	ReceivedAt   time.Time
+	ReceivedFrom interface{}
+}
+
+// Hash returns the keccak256 hash of b's header.
+// The hash is computed on the first call and cached thereafter.
+func (b *Block) Hash() common.Hash {
+	b.hash = b.header.Hash
+	return b.hash
+}
+
+func (b *Block) Transactions() []*Transaction {
+	return b.transactions
+}
+
+func (b *Block) BaseFee() *big.Int {
+	if b.header.BaseFee == nil {
+		return nil
+	}
+	return new(big.Int).Set(b.header.BaseFee)
+}
+
+func (b *Block) ParentHash() common.Hash {
+	return b.header.ParentHash
+}
+
+func (b *Block) NumberU64() uint64 {
+	return b.header.Number.Uint64()
+}
+
+func (b *Block) Nonce() uint64 {
+	return binary.BigEndian.Uint64(b.header.Nonce[:])
+}
+
+func (b *Block) Time() uint64 {
+	return b.header.Time
+}
+
+// TransactionByHash returns the transaction with the given hash.
+func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *Transaction, isPending bool, err error) {
+	var json *Transaction
+	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
+	if err != nil {
+		return nil, false, err
+	} else if json == nil {
+		return nil, false, ethereum.NotFound
+	} else if _, r, _ := json.RawSignatureValues(); r == nil {
+		return nil, false, fmt.Errorf("server returned transaction without signature")
+	}
+	return json, json.BlockNumber == nil, nil
 }
 
 // Transaction is an Ethereum transaction.
@@ -444,7 +511,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType,ArbitrumDepositTxType:
+	case types.LegacyTxType, ArbitrumDepositTxType:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {
@@ -636,54 +703,41 @@ func deriveChainId(v *big.Int) *big.Int {
 	return v.Div(v, big.NewInt(2))
 }
 
-// Block represents an entire block in the Ethereum blockchain.
-type Block struct {
-	header       *Header
-	uncles       []*Header
-	transactions []*Transaction
-
-	// caches
-	hash common.Hash
-	size atomic.Value
-
-	// These fields are used by package eth to track
-	// inter-peer block relay.
-	ReceivedAt   time.Time
-	ReceivedFrom interface{}
-}
-
-// Hash returns the keccak256 hash of b's header.
-// The hash is computed on the first call and cached thereafter.
-func (b *Block) Hash() common.Hash {
-	b.hash = b.header.Hash
-	return b.hash
-}
-
-func (b *Block) Transactions() []*Transaction {
-	return b.transactions
-}
-
-func (b *Block) BaseFee() *big.Int {
-	if b.header.BaseFee == nil {
-		return nil
+func (ec *Client) TransactionReceipt(ctx context.Context, txHash common.Hash) (receipt *Receipt, err error) {
+	var r *Receipt
+	err = ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	if err == nil {
+		if r == nil {
+			return nil, ethereum.NotFound
+		}
 	}
-	return new(big.Int).Set(b.header.BaseFee)
+	return r, err
 }
 
-func (b *Block) ParentHash() common.Hash {
-	return b.header.ParentHash
-}
+// Receipt represents the results of a transaction.
+type Receipt struct {
+	// Consensus fields: These fields are defined by the Yellow Paper
+	Type              string       `json:"type,omitempty"`
+	PostState         string       `json:"root,omitempty"`
+	Status            string       `json:"status,omitempty"`
+	From              string       `json:"from,omitempty"`
+	To                string       `json:"to,omitempty"`
+	CumulativeGasUsed string       `json:"cumulativeGasUsed"` //`json:"cumulativeGasUsed" gencodec:"required"`
+	EffectiveGasPrice string       `json:"effectiveGasPrice,omitempty"`
+	Bloom             string       `json:"logsBloom"` //`json:"logsBloom" gencodec:"required"`
+	Logs              []*types.Log `json:"logs" gencodec:"required"`
 
-func (b *Block) NumberU64() uint64 {
-	return b.header.Number.Uint64()
-}
+	// Implementation fields: These fields are added by geth when processing a transaction.
+	// They are stored in the chain database.
+	TxHash          string `json:"transactionHash" gencodec:"required"`
+	ContractAddress string `json:"contractAddress,omitempty"`
+	GasUsed         string `json:"gasUsed" gencodec:"required"`
 
-func (b *Block) Nonce() uint64 {
-	return binary.BigEndian.Uint64(b.header.Nonce[:])
-}
-
-func (b *Block) Time() uint64 {
-	return b.header.Time
+	// Inclusion information: These fields provide information about the inclusion of the
+	// transaction corresponding to this receipt.
+	BlockHash        string `json:"blockHash,omitempty"`
+	BlockNumber      string `json:"blockNumber,omitempty"`
+	TransactionIndex string `json:"transactionIndex,omitempty"`
 }
 
 func toBlockNumArg(number *big.Int) string {
