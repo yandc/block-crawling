@@ -2,7 +2,10 @@ package main
 
 import (
 	"block-crawling/internal/conf"
+	bizLog "block-crawling/internal/log"
 	"flag"
+	"os"
+
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -10,7 +13,6 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
-	"os"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -69,9 +71,9 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-
+	bizLog.BootstrapLogger(bc.Logger)
 	app, cleanup, err := wireApp(bc.Server, bc.Data, bc.App, bc.AddressServer, bc.Lark, bc.Logger,
-		bc.Transaction, bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest, logger)
+		bc.Transaction, &bc, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -82,4 +84,3 @@ func main() {
 		panic(err)
 	}
 }
-

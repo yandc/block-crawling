@@ -1,12 +1,12 @@
 package server
 
 import (
-	v1 "block-crawling/api/helloworld/v1"
 	"block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/encoder"
 	"block-crawling/internal/service"
 	"context"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
@@ -31,7 +31,7 @@ func NewSkipRoutersMatcher() selector.MatchFunc {
 }
 
 // NewHTTPServer new a HTTP server.
-func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *http.Server {
+func NewHTTPServer(c *conf.Server, tx *service.TransactionService, logger log.Logger) *http.Server {
 	var opts = []http.ServerOption{
 		http.ResponseEncoder(encoder.HttpResponseEncoder),
 		http.ErrorEncoder(encoder.HttpErrorEncoder),
@@ -65,6 +65,5 @@ func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
-	v1.RegisterGreeterHTTPServer(srv, greeter)
 	return srv
 }

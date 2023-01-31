@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform"
 	"context"
 	"errors"
 	"time"
@@ -17,7 +18,7 @@ type TransactionService struct {
 	ts *biz.TransactionUsecase
 }
 
-func NewTransactionService(ts *biz.TransactionUsecase) *TransactionService {
+func NewTransactionService(ts *biz.TransactionUsecase, p platform.PlatformContainer, ip platform.InnerPlatformContainer) *TransactionService {
 	return &TransactionService{ts: ts}
 }
 

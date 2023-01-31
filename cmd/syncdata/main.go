@@ -2,11 +2,15 @@ package main
 
 import (
 	"block-crawling/internal/conf"
+	"block-crawling/internal/data"
+	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"flag"
+	"os"
+
+	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
-	"os"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -23,6 +27,15 @@ var (
 
 func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
+}
+
+func newApp(*data.Bundle, platform.PlatformContainer, platform.InnerPlatformContainer) *kratos.App {
+	return kratos.New(
+		kratos.ID(id),
+		kratos.Name(Name),
+		kratos.Version(Version),
+		kratos.Metadata(map[string]string{}),
+	)
 }
 
 func main() {
@@ -42,7 +55,9 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-	cleanup, err := wireApp(bc.Logger, bc.Data, bc.App, bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest)
+	bizLog.BootstrapLogger(bc.Logger)
+
+	_, cleanup, err := wireApp(bc.Logger, bc.Data, bc.App, &bc)
 	if err != nil {
 		panic(err)
 	}

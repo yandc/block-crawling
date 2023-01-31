@@ -2,6 +2,7 @@ package main
 
 import (
 	"block-crawling/internal/conf"
+	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/subhandle"
@@ -75,9 +76,11 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-
-	app, cleanup, err := wireApp(bc.Server, bc.Data, bc.App, bc.AddressServer, bc.Lark, bc.Logger,
-		bc.Transaction, bc.InnerNodeList, bc.InnerPublicNodeList, bc.Platform, bc.PlatformTest, logger)
+	bizLog.BootstrapLogger(bc.Logger)
+	app, cleanup, err := wireApp(
+		bc.Server, bc.Data, bc.App, bc.AddressServer, bc.Lark, bc.Logger,
+		bc.Transaction, &bc, logger,
+	)
 	if err != nil {
 		panic(err)
 	}

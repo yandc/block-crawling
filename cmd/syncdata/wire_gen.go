@@ -10,39 +10,50 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	logger "block-crawling/internal/log"
 	"block-crawling/internal/platform"
+	"github.com/go-kratos/kratos/v2"
 )
 
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-
-func wireApp(confLogger *conf.Logger, confData *conf.Data, confApp *conf.App, confInnerNodeList map[string]*conf.PlatInfo, confInnerPublicNodeList map[string]*conf.PlatInfo, confPlatform map[string]*conf.PlatInfo,
-	confPlatformTest map[string]*conf.PlatInfo) (func(), error) {
-	logger.NewLogger(confLogger)
-	gormDB, cleanup, err := data.NewGormDB(confData)
+func wireApp(logger *conf.Logger, confData *conf.Data, app *conf.App, bootstrap *conf.Bootstrap) (*kratos.App, func(), error) {
+	db, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	data.NewRedisClient(confData)
-	biz.NewConfig(confApp)
-	platform.NewPlatform(confInnerPublicNodeList, confPlatform, confPlatformTest)
-	platform.NewInnerNodeList(confInnerNodeList)
-	data.NewBtcTransactionRecordRepo(gormDB)
-	data.NewEvmTransactionRecordRepo(gormDB)
-	data.NewStcTransactionRecordRepo(gormDB)
-	data.NewTrxTransactionRecordRepo(gormDB)
-	data.NewDappApproveRecordRepo(gormDB)
-	data.NewUtxoUnspentRecordRepo(gormDB)
-	data.NewUserAssetRepo(gormDB)
-	data.NewNervosCellRecordRepo(gormDB)
-	data.NewUserNftAssetRepo(gormDB)
-	data.NewNftRecordHistoryRepo(gormDB)
-	data.NewCsprTransactionRecordRepo(gormDB)
-
-
-	return func() {
+	atomTransactionRecordRepo := data.NewAtomTransactionRecordRepo(db)
+	btcTransactionRecordRepo := data.NewBtcTransactionRecordRepo(db)
+	dotTransactionRecordRepo := data.NewDotTransactionRecordRepo(db)
+	evmTransactionRecordRepo := data.NewEvmTransactionRecordRepo(db)
+	stcTransactionRecordRepo := data.NewStcTransactionRecordRepo(db)
+	trxTransactionRecordRepo := data.NewTrxTransactionRecordRepo(db)
+	aptTransactionRecordRepo := data.NewAptTransactionRecordRepo(db)
+	suiTransactionRecordRepo := data.NewSuiTransactionRecordRepo(db)
+	solTransactionRecordRepo := data.NewSolTransactionRecordRepo(db)
+	ckbTransactionRecordRepo := data.NewCkbTransactionRecordRepo(db)
+	csprTransactionRecordRepo := data.NewCsprTransactionRecordRepo(db)
+	userNftAssetRepo := data.NewUserNftAssetRepo(db)
+	nftRecordHistoryRepo := data.NewNftRecordHistoryRepo(db)
+	transactionStatisticRepo := data.NewTransactionStatisticRepo(db)
+	nervosCellRecordRepo := data.NewNervosCellRecordRepo(db)
+	utxoUnspentRecordRepo := data.NewUtxoUnspentRecordRepo(db)
+	userGormDB, cleanup2, err := data.NewUserGormDB(confData)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	userRecordRepo := data.NewUserRecordRepo(userGormDB)
+	userAssetRepo := data.NewUserAssetRepo(db)
+	dappApproveRecordRepo := data.NewDappApproveRecordRepo(db)
+	client := data.NewRedisClient(confData)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, dappApproveRecordRepo, client)
+	appConf := biz.NewConfig(app)
+	platformContainer := platform.NewPlatform(bootstrap, bundle, appConf)
+	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
+	kratosApp := newApp(bundle, platformContainer, innerPlatformContainer)
+	return kratosApp, func() {
+		cleanup2()
 		cleanup()
 	}, nil
 }

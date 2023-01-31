@@ -21,7 +21,10 @@ import (
 
 var InnerPlatforms []subhandle.Platform
 
-func NewInnerNodeList(c map[string]*conf.PlatInfo) {
+type InnerPlatformContainer []subhandle.Platform
+
+func NewInnerNodeList(bc *conf.Bootstrap, bundle *data.Bundle) InnerPlatformContainer {
+	c := bc.InnerNodeList
 	//var c InnerConfig
 	//if err := config.GetConfig("innerNodeList").Unmarshal(&c.InnerPlatform); err != nil {
 	//	log.Panic("get innerNodeList  error:", zap.Error(err))
@@ -31,6 +34,7 @@ func NewInnerNodeList(c map[string]*conf.PlatInfo) {
 		platform := GetInnerPlatform(value)
 		InnerPlatforms = append(InnerPlatforms, platform)
 	}
+	return InnerPlatforms
 }
 
 func GetInnerPlatform(value *conf.PlatInfo) subhandle.Platform {

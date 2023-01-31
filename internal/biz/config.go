@@ -15,6 +15,9 @@ var AppConfig *conf.App
 var GetNervosUTXOTransaction func(string) (*types.TransactionWithStatus, error)
 var GetUTXOByHash = make(map[string]func(string) (tx in.TX, err error))
 
-func NewConfig(conf *conf.App) {
+type AppConf *conf.App
+
+func NewConfig(conf *conf.App) AppConf {
 	AppConfig = conf
+	return conf
 }
