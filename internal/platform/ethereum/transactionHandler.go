@@ -85,11 +85,12 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 		}
 
 		transactionRecordRequest := &data.TransactionRequest{
-			FromAddress:   record.FromAddress,
-			ToAddress:     record.ToAddress,
-			Nonce:         record.Nonce,
-			DappDataEmpty: true,
-			OrderBy:       "id asc",
+			FromAddress:     record.FromAddress,
+			ToAddress:       record.ToAddress,
+			StatusNotInList: []string{biz.SUCCESS, biz.FAIL},
+			Nonce:           record.Nonce,
+			DappDataEmpty:   true,
+			OrderBy:         "id asc",
 		}
 		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTalbeName(chainName), transactionRecordRequest)
 		if len(list) > 1 {

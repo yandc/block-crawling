@@ -462,13 +462,13 @@ func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
 	if req.TransactionHash != "" {
-		db = db.Where("contract_address = ?", req.TransactionHashLike)
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
 	if req.TransactionHashLike != "" {
-		db = db.Where("contract_address like ?", req.TransactionHashLike+"%")
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
 	if req.Nonce > 0 {
 		db = db.Where("nonce = ?", req.Nonce)
