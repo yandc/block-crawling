@@ -775,11 +775,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				gmxAmount = new(big.Int).SetBytes(xx)
 				continue
 			}
-		} else if topic0 == ARBITRUM_GMX_EXECUTEDECREASEPOSITION && gmxSwapFlag{
+		} else if topic0 == ARBITRUM_GMX_EXECUTEDECREASEPOSITION && gmxSwapFlag {
 			fromAddress = gmxFromAddress
 			amount = gmxAmount
 			if len(log_.Data) >= 192 {
 				toAddress = common.BytesToAddress(log_.Data[160:192]).String()
+			}
+			tokenAddress = ""
+		} else if topic0 == ETH_BRIDGECALLTRIGGERED {
+			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			if len(log_.Data) >= 32 {
+				amount = new(big.Int).SetBytes(log_.Data[:32])
 			}
 			tokenAddress = ""
 		}
