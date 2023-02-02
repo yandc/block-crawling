@@ -72,7 +72,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error {
 	rows, _ := data.SolTransactionRecordRepoClient.DeleteByBlockNumber(
 		context.Background(),
-		biz.GetTalbeName(h.ChainName),
+		biz.GetTableName(h.ChainName),
 		int(block.Number),
 	)
 	pcommon.NotifyForkedDelete(h.ChainName, block.Number, rows)

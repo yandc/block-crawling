@@ -92,7 +92,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 			DappDataEmpty:   true,
 			OrderBy:         "id asc",
 		}
-		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTalbeName(chainName), transactionRecordRequest)
+		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
 		if len(list) > 1 {
 			for i, transactionRecord := range list {
 				if record.Id != transactionRecord.Id {
@@ -109,7 +109,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 					}
 				}
 			}
-			_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTalbeName(chainName), list)
+			_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTableName(chainName), list)
 			if err != nil {
 				// 更新用户加速或取消信息失败 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s更新用户加速或取消信息失败", chainName)
@@ -197,7 +197,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 		if strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE {
 			tokenAddress = ""
 		}
-		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -566,7 +566,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 			continue
 		}
 
-		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -626,7 +626,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 			continue
 		}
 
-		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -685,7 +685,7 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 			continue
 		}
 
-		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)

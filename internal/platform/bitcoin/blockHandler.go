@@ -79,10 +79,10 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 	curHeight := int(block.Number)
 	//删除 DB中 比curHeight 高的 块交易数据
-	rows, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(h.chainName), curHeight)
+	rows, err := data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTableName(h.chainName), curHeight)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		rows, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTalbeName(h.chainName), curHeight)
+		rows, err = data.BtcTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTableName(h.chainName), curHeight)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警

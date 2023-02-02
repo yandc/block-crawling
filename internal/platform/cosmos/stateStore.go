@@ -26,7 +26,7 @@ func newStateStore(chainName string) chain.StateStore {
 }
 
 func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
-	lastRecord, err := data.AtomTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(chainName))
+	lastRecord, err := data.AtomTransactionRecordRepoClient.FindLast(nil, biz.GetTableName(chainName))
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 }
 
 func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
-	records, err := data.AtomTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
+	records, err := data.AtomTransactionRecordRepoClient.FindByStatus(nil, biz.GetTableName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))
 		return

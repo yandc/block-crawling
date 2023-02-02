@@ -69,7 +69,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -265,7 +265,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 		if tokenAddress == APT_CODE {
 			tokenAddress = ""
 		}
-		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -638,7 +638,7 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 			continue
 		}
 
-		tokenInfo, err := biz.PaseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -702,7 +702,7 @@ func handleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 			continue
 		}
 
-		tokenInfo, err := biz.PaseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)

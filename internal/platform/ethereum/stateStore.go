@@ -28,7 +28,7 @@ func NewStateStore(chainName string) chain.StateStore {
 
 func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 	ctx := context.Background()
-	lastRecord, err := data.EvmTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(chainName))
+	lastRecord, err := data.EvmTransactionRecordRepoClient.FindLast(ctx, biz.GetTableName(chainName))
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 }
 
 func (store *StateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
-	records, err := data.EvmTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
+	records, err := data.EvmTransactionRecordRepoClient.FindByStatus(nil, biz.GetTableName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))
 		return nil, err

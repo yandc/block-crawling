@@ -546,7 +546,7 @@ func (h *txHandler) Save(c chain.Clienter) (err error) {
 	client := c.(*Client)
 
 	if txRecords != nil && len(txRecords) > 0 {
-		e := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(h.chainName))
+		e := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if e != nil {
 			// postgres出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库库中失败", h.chainName)

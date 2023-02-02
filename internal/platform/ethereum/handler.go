@@ -99,7 +99,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 	// XXX: is the removal correct?
 	rows, _ := data.EvmTransactionRecordRepoClient.DeleteByBlockNumber(
 		context.Background(),
-		biz.GetTalbeName(h.chainName),
+		biz.GetTableName(h.chainName),
 		int(block.Number),
 	)
 	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)

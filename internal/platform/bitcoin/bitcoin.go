@@ -301,7 +301,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 	}
 	if txRecords != nil && len(txRecords) > 0 {
 		//保存交易数据
-		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(p.ChainName))
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(p.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
 			log.Error(p.ChainName+"扫块，插入数据到数据库中失败", zap.Any("size", len(txRecords)))

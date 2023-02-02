@@ -17,16 +17,14 @@ type stateStore struct {
 
 func newStateStore(chainName string) chain.StateStore {
 	return &stateStore{
-		StateStore: *common.NewStateStore(chainName, loadHeightFromDB),
-		chainName: chainName,
+		StateStore:   *common.NewStateStore(chainName, loadHeightFromDB),
+		chainName:    chainName,
 		dbBlockHashs: make(map[uint64]string),
 	}
 }
 
-
-
 func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
-	lastRecord, err := data.DotTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(chainName))
+	lastRecord, err := data.DotTransactionRecordRepoClient.FindLast(nil, biz.GetTableName(chainName))
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +38,7 @@ func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 }
 
 func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
-	records, err := data.DotTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
+	records, err := data.DotTransactionRecordRepoClient.FindByStatus(nil, biz.GetTableName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))
 		return
@@ -48,7 +46,7 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 	txs = make([]*chain.Transaction, 0, len(records))
 	for _, r := range records {
 		txs = append(txs, &chain.Transaction{
-			Hash: r.TransactionHash,
+			Hash:        r.TransactionHash,
 			BlockNumber: uint64(r.BlockNumber),
 			FromAddress: r.FromAddress,
 			ToAddress:   r.ToAddress,
@@ -60,8 +58,3 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 	log.Info("LOAD PENDING TXs", zap.String("chainName", store.chainName), zap.Any("records", records))
 	return txs, nil
 }
-
-
-
-
-

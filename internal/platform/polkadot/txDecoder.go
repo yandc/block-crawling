@@ -79,9 +79,9 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	var err error
 	if txRecords != nil && len(txRecords) > 0 {
 		if h.newTxs {
-			err = BatchSaveOrUpdate(txRecords, biz.GetTalbeName(h.ChainName))
+			err = BatchSaveOrUpdate(txRecords, biz.GetTableName(h.ChainName))
 		} else {
-			_, err = data.DotTransactionRecordRepoClient.UpdateStatus(nil, biz.GetTalbeName(h.ChainName), txRecords)
+			_, err = data.DotTransactionRecordRepoClient.UpdateStatus(nil, biz.GetTableName(h.ChainName), txRecords)
 		}
 
 		if err != nil {

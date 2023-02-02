@@ -44,12 +44,12 @@ func (store *stateStore) LoadHeight() (uint64, error) {
 
 func (store *stateStore) loadHeightFromDB() (uint64, error) {
 	ctx := context.Background()
-	lastRecord, err := data.SolTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(store.chainName))
+	lastRecord, err := data.SolTransactionRecordRepoClient.FindLast(ctx, biz.GetTableName(store.chainName))
 
 	// NOTE: can we remove this retry logic?
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		lastRecord, err = data.SolTransactionRecordRepoClient.FindLast(ctx, biz.GetTalbeName(store.chainName))
+		lastRecord, err = data.SolTransactionRecordRepoClient.FindLast(ctx, biz.GetTableName(store.chainName))
 	}
 
 	if err != nil {
@@ -99,7 +99,7 @@ func (store *stateStore) StoreBlockHash(height uint64, blockHash string) error {
 }
 
 func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
-	records, err := data.SolTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
+	records, err := data.SolTransactionRecordRepoClient.FindByStatus(nil, biz.GetTableName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))
 		return nil, err
