@@ -241,7 +241,7 @@ func BjNow() string {
 	return now
 }
 
-func GetTalbeName(chainName string) string {
+func GetTableName(chainName string) string {
 	return strings.ToLower(chainName) + TABLE_POSTFIX
 }
 
@@ -289,8 +289,8 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	return decimals, symbol, nil
 }
 
-func PaseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
-	tokenInfo, err := PaseTokenInfo(parseData)
+func ParseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
+	tokenInfo, err := ParseTokenInfo(parseData)
 	if err == nil && tokenInfo.Address == "" {
 		if platInfo, ok := PlatInfoMap[chainName]; ok {
 			tokenInfo.Decimals = int64(platInfo.Decimal)
@@ -302,7 +302,7 @@ func PaseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
 	return tokenInfo, err
 }
 
-func PaseTokenInfo(parseData string) (*types.TokenInfo, error) {
+func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 	paseDataJson := make(map[string]interface{})
 	err := json.Unmarshal([]byte(parseData), &paseDataJson)
 	if err != nil {

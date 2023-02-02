@@ -253,7 +253,7 @@ func MigrateRecord() {
 
 			var btc []*data.BtcTransactionRecord
 			btc = append(btc, btcTransactionRecord)
-			data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, biz.GetTalbeName(record.ChainName), btc)
+			data.BtcTransactionRecordRepoClient.BatchSaveOrUpdate(nil, biz.GetTableName(record.ChainName), btc)
 
 			count++
 
@@ -350,7 +350,7 @@ func DappReset() {
 		switch platform.Type {
 
 		case biz.EVM:
-			rs, e := data.EvmTransactionRecordRepoClient.ListByTransactionType(nil, biz.GetTalbeName(key), "approve")
+			rs, e := data.EvmTransactionRecordRepoClient.ListByTransactionType(nil, biz.GetTableName(key), "approve")
 			if e == nil && len(rs) > 0 {
 
 				biz.DappApproveFilter(key, rs)
@@ -364,7 +364,7 @@ func CheckNonce() {
 		switch platform.Type {
 
 		case biz.EVM:
-			rs, e := data.EvmTransactionRecordRepoClient.FindFromAddress(nil, biz.GetTalbeName(key))
+			rs, e := data.EvmTransactionRecordRepoClient.FindFromAddress(nil, biz.GetTableName(key))
 			if e == nil && len(rs) > 0 {
 				total := 0
 				for _, address := range rs {
@@ -372,7 +372,7 @@ func CheckNonce() {
 					nonceKey := biz.ADDRESS_DONE_NONCE + key + ":" + address
 					nonceStr, _ := data.RedisClient.Get(nonceKey).Result()
 					nonce, _ := strconv.Atoi(nonceStr)
-					n, _ := data.EvmTransactionRecordRepoClient.FindLastNonceByAddress(nil, biz.GetTalbeName(key), address)
+					n, _ := data.EvmTransactionRecordRepoClient.FindLastNonceByAddress(nil, biz.GetTableName(key), address)
 					if n != int64(nonce) {
 						log.Info("noncecheck", zap.Any("地址", address), zap.Any("DBnonce", n), zap.Any("redisnonce", nonce), zap.Any("chainName", key))
 					}
@@ -385,7 +385,6 @@ func CheckNonce() {
 			}
 		}
 	}
-
 }
 
 func BtcReset() {
@@ -393,13 +392,129 @@ func BtcReset() {
 		switch platform.Type {
 
 		case biz.BTC:
-			rs, e := data.BtcTransactionRecordRepoClient.ListAll(nil, biz.GetTalbeName(key))
+			rs, e := data.BtcTransactionRecordRepoClient.ListAll(nil, biz.GetTableName(key))
 			if e == nil && len(rs) > 0 {
 				client := bitcoin.NewClient(platform.RpcURL[0], key)
 				bitcoin.UnspentTx(key, client, rs)
 			}
 		}
 	}
+}
+
+func DeleteRecordData() {
+	log.Info("清除非平台用户的交易记录数据开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+	limit := data.MAX_PAGE_SIZE
+
+	var total int
+	for chainName, chainType := range biz.ChainNameType {
+		if !strings.HasSuffix(chainName, "TEST") && chainType == "EVM" {
+			log.Info("清除非平台用户的交易记录数据中", zap.Any("chainName", chainName))
+			talbeName := biz.GetTableName(chainName)
+			contractRecordList, err := getTxRecords(dbSource, talbeName, "contract", limit)
+			if err != nil {
+				log.Error("清除非平台用户的交易记录数据, migrate page query contract txRecord failed", zap.Any("chainName", chainName), zap.Any("error", err))
+				return
+			}
+			if len(contractRecordList) == 0 {
+				continue
+			}
+			eventLogRecordList, err := getTxRecords(dbSource, talbeName, "eventLog", limit)
+			if err != nil {
+				log.Error("清除非平台用户的交易记录数据, migrate page query eventLog txRecord failed", zap.Any("talbeName", talbeName), zap.Any("error", err))
+				return
+			}
+
+			var txRecords []*data.EvmTransactionRecord
+			if len(eventLogRecordList) == 0 {
+				txRecords = contractRecordList
+			} else {
+				eventLogMap := make(map[string]bool)
+				for _, record := range eventLogRecordList {
+					txHash := strings.Split(record.TransactionHash, "#")[0]
+					eventLogMap[txHash] = true
+				}
+				for _, record := range contractRecordList {
+					txHash := record.TransactionHash
+					if !eventLogMap[txHash] {
+						txRecords = append(txRecords, record)
+					}
+				}
+			}
+
+			size := len(txRecords)
+			total += size
+			for i, record := range txRecords {
+				transactionRequest := &data.TransactionRequest{
+					TransactionHashLike: record.TransactionHash,
+				}
+				count, err := data.EvmTransactionRecordRepoClient.Delete(nil, talbeName, transactionRequest)
+				if err != nil {
+					log.Error("清除非平台用户的交易记录数据, delete txRecord failed", zap.Any("talbeName", talbeName), zap.Any("affected count", count), zap.Any("error", err))
+					return
+				}
+				if i%50 == 0 {
+					time.Sleep(1 * time.Second)
+				}
+			}
+			log.Info("清除非平台用户的交易记录数据完成", zap.Any("chainName", chainName), zap.Any("query contract size", size))
+		}
+	}
+	log.Info("清除非平台用户的交易记录数据结束", zap.Any("query contract size", total))
+}
+
+func getTxRecords(dbSource *gorm.DB, talbeName, transactionType string, limit int) ([]*data.EvmTransactionRecord, error) {
+	var txRecords []*data.EvmTransactionRecord
+	var txRecordList []*data.EvmTransactionRecord
+	id := 0
+	total := limit
+	for total == limit {
+		var sqlStr string
+		if transactionType == "contract" {
+			sqlStr = getSqlContract(talbeName, id, limit)
+		} else if transactionType == "eventLog" {
+			sqlStr = getSqlEventLog(talbeName, id, limit)
+		} else {
+			return nil, nil
+		}
+
+		ret := dbSource.Raw(sqlStr).Find(&txRecordList)
+		err := ret.Error
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			ret = dbSource.Raw(sqlStr).Find(&txRecordList)
+			err = ret.Error
+		}
+		if err != nil {
+			log.Error("migrate page query txRecord failed", zap.Any("error", err))
+			return nil, err
+		}
+		total = len(txRecordList)
+		if total > 0 {
+			txRecord := txRecordList[total-1]
+			id = int(txRecord.Id)
+			txRecords = append(txRecords, txRecordList...)
+		}
+	}
+	return txRecords, nil
+}
+
+func getSqlContract(talbeName string, id, limit int) string {
+	s := "SELECT id, transaction_hash, parse_data, event_log from " + talbeName +
+		" where from_uid = '' and to_uid = '' and transaction_type = 'contract' " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
+}
+
+func getSqlEventLog(talbeName string, id, limit int) string {
+	s := "SELECT id, transaction_hash, parse_data, event_log from " + talbeName +
+		" where (from_uid != '' or to_uid != '') and transaction_type = 'eventLog' " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
 }
 
 type TokenParam struct {
@@ -437,7 +552,7 @@ func doHandleTokenInfo(chainName string, tokenParams []TokenParam) {
 		log.Errore("source DB error", err)
 	}
 
-	tableName := biz.GetTalbeName(chainName)
+	tableName := biz.GetTableName(chainName)
 
 	tokenParamMap := make(map[string]TokenParam)
 	var txRecords []*data.EvmTransactionRecord
@@ -460,7 +575,7 @@ func doHandleTokenInfo(chainName string, tokenParams []TokenParam) {
 	for _, txRecord := range txRecords {
 		parseDataStr := txRecord.ParseData
 		if parseDataStr != "" {
-			tokenInfo, err := biz.PaseTokenInfo(parseDataStr)
+			tokenInfo, err := biz.ParseTokenInfo(parseDataStr)
 			if err != nil {
 				log.Error("parse TokenInfo failed", zap.Any("parseData", parseDataStr), zap.Any("error", err))
 				continue

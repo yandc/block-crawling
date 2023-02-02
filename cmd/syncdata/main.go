@@ -70,6 +70,7 @@ func main() {
 	//platform.DeleteAsset()
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
-	platform.HandleTokenInfo()
+	//platform.HandleTokenInfo()
+	platform.DeleteRecordData()
 	//platform.CheckNonce()
 }

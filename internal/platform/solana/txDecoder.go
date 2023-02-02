@@ -474,7 +474,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	if txRecords != nil && len(txRecords) > 0 {
-		err := BatchSaveOrUpdate(txRecords, biz.GetTalbeName(h.ChainName))
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
 			log.Error("插入数据到数据库库中失败", zap.Any("current", h.block.Number), zap.Any("chain", h.ChainName))

@@ -74,7 +74,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 	rows, _ := data.CsprTransactionRecordRepoClient.DeleteByBlockNumber(
 		context.Background(),
-		biz.GetTalbeName(h.ChainName),
+		biz.GetTableName(h.ChainName),
 		int(block.Number),
 	)
 	pcommon.NotifyForkedDelete(h.ChainName, block.Number, rows)

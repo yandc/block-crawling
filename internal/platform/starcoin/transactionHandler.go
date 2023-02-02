@@ -84,7 +84,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 			DappDataEmpty:   true,
 			OrderBy:         "id asc",
 		}
-		list, _ := data.StcTransactionRecordRepoClient.List(nil, biz.GetTalbeName(chainName), transactionRecordRequest)
+		list, _ := data.StcTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
 		if len(list) > 1 {
 			for i, transactionRecord := range list {
 				if record.Id != transactionRecord.Id {
@@ -101,7 +101,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 					}
 				}
 			}
-			_, err := data.StcTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTalbeName(chainName), list)
+			_, err := data.StcTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTableName(chainName), list)
 			if err != nil {
 				// 更新用户加速或取消信息失败 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s更新用户加速或取消信息失败", chainName)

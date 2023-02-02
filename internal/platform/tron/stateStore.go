@@ -28,7 +28,7 @@ func newStateStore(chainName string) chain.StateStore {
 }
 
 func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
-	lastRecord, err := data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(chainName))
+	lastRecord, err := data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTableName(chainName))
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 }
 
 func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) {
-	records, err := data.TrxTransactionRecordRepoClient.FindByStatus(nil, biz.GetTalbeName(store.chainName), biz.PENDING, biz.NO_STATUS)
+	records, err := data.TrxTransactionRecordRepoClient.FindByStatus(nil, biz.GetTableName(store.chainName), biz.PENDING, biz.NO_STATUS)
 	if err != nil {
 		log.Error(store.chainName+"查询数据库失败", zap.Any("error", err))
 		return
@@ -76,10 +76,10 @@ func (store *stateStore) LoadBlockHash(height uint64) (string, error) {
 	if err != nil {
 		if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
 			// 从数据库中查询指定块高的数据
-			lastRecord, err := data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(store.chainName))
+			lastRecord, err := data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTableName(store.chainName))
 			for i := 0; i < 3 && err != nil; i++ {
 				time.Sleep(time.Duration(i*1) * time.Second)
-				lastRecord, err = data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTalbeName(store.chainName))
+				lastRecord, err = data.TrxTransactionRecordRepoClient.FindLast(nil, biz.GetTableName(store.chainName))
 			}
 			if err != nil {
 				// postgres出错 接入lark报警
