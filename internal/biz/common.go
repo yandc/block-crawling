@@ -246,12 +246,12 @@ func GetTableName(chainName string) string {
 }
 
 func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
-	paseDataJson := make(map[string]interface{})
-	err := json.Unmarshal([]byte(parseData), &paseDataJson)
+	parseDataJson := make(map[string]interface{})
+	err := json.Unmarshal([]byte(parseData), &parseDataJson)
 	if err != nil {
 		return 0, "", err
 	}
-	tokenInfoMap := paseDataJson["token"]
+	tokenInfoMap := parseDataJson["token"]
 	if tokenInfoMap == nil {
 		return 0, "", errors.New("token is null")
 	}
@@ -303,12 +303,12 @@ func ParseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
 }
 
 func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
-	paseDataJson := make(map[string]interface{})
-	err := json.Unmarshal([]byte(parseData), &paseDataJson)
+	parseDataJson := make(map[string]interface{})
+	err := json.Unmarshal([]byte(parseData), &parseDataJson)
 	if err != nil {
 		return nil, err
 	}
-	tokenInfoMap := paseDataJson["token"]
+	tokenInfoMap := parseDataJson["token"]
 	if tokenInfoMap == nil {
 		return nil, errors.New("token is null")
 	}
