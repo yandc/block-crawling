@@ -153,44 +153,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 	transactionHash := transaction.Hash().String()
 
-	var platformUserCount int
-	if len(eventLogs) > 0 {
-		for _, eventLog := range eventLogs {
-			var err error
-			var fromAddressExist, toAddressExist bool
-			fromAddress := eventLog.From
-			toAddress := eventLog.To
-			if fromAddress != "" {
-				fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
-					return err
-				}
-			}
-
-			if toAddress != "" {
-				toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
-					return err
-				}
-			}
-			if fromAddressExist || toAddressExist {
-				platformUserCount++
-			}
-		}
-	}
-
-	isPlatformUser := false
-	if platformUserCount > 0 {
-		isPlatformUser = true
-	}
-
-	if platformUserCount > 1 && meta.TransactionType != biz.CONTRACT {
-		meta.TransactionType = biz.CONTRACT
-		amount = transaction.Value().String()
-	}
-
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
 		codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(toAddress), nil)
@@ -315,6 +277,45 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				contractAddress = ""
 			}
 		}
+	}
+
+	var platformUserCount int
+	if len(eventLogs) > 0 {
+		for _, eventLog := range eventLogs {
+			var err error
+			var fromAddressExist, toAddressExist bool
+			fromAddress := eventLog.From
+			toAddress := eventLog.To
+			if fromAddress != "" {
+				fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return err
+				}
+			}
+
+			if toAddress != "" {
+				toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return err
+				}
+			}
+			if fromAddressExist || toAddressExist {
+				platformUserCount++
+			}
+		}
+	}
+
+	isPlatformUser := false
+	if platformUserCount > 0 {
+		isPlatformUser = true
+	}
+
+	if platformUserCount > 1 && meta.TransactionType != biz.CONTRACT {
+		meta.TransactionType = biz.CONTRACT
+		amount = transaction.Value().String()
+		tokenInfo = types.TokenInfo{}
 	}
 
 	if h.blockHash == "" {
@@ -644,7 +645,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				amount = new(big.Int).SetBytes(log_.Data)
 				tokenAddress = ""
 			}
-
 		} else if topic0 == TRANSFERSINGLE_TOPIC {
 			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
