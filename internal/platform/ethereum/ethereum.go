@@ -67,7 +67,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 	"Fantom_MethodId":   {"Fantom_0xf3Ce95Ec61114a4b1bFC615C16E6726015913CCC_0175b1c4","Fantom_0x0c30b10462CdED51C3CA31e7C51019b7d25a965B_d0ee758c","Fantom_0x0c30b10462CdED51C3CA31e7C51019b7d25a965B_4af3e017"},
 	"Polygon_MethodId":   {"Polygon_0x2eF4A574b72E1f555185AfA8A09c6d1A8AC4025C_0175b1c4"},
 	"ArbitrumNova_MethodId":   {"ArbitrumNova_0x28e0f3ebab59a998C4f1019358388B5E2ca92cfA_18cbafe5","ArbitrumNova_0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506_18cbafe5",
-		"ArbitrumNova_0xEe01c0CD76354C383B8c7B4e65EA88D00B06f36f_18cbafe5"},
+		"ArbitrumNova_0xEe01c0CD76354C383B8c7B4e65EA88D00B06f36f_18cbafe5","ArbitrumNova_0x639A647fbe20b6c8ac19E48E2de44ea792c62c5C_0175b1c4"},
 }
 
 //dapp 白名单 chainName + contractAddress + topic
@@ -95,7 +95,8 @@ var BridgeWhiteTopicList = map[string][]string{
 	"ETH_Topic": {"ETH_0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840_0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d48007b0526749c3d466"},
 	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
 		"ArbitrumNova_0x1b02da8cb0d097eb8d57a175b88c7d8b47997506_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
-	    "ArbitrumNova_0xee01c0cd76354c383b8c7b4e65ea88d00b06f36f_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"},
+	    "ArbitrumNova_0xee01c0cd76354c383b8c7b4e65ea88d00b06f36f_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+		"ArbitrumNova_0x639a647fbe20b6c8ac19e48e2de44ea792c62c5c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 
 }
 
