@@ -288,5 +288,14 @@ func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	subctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	result, err := s.ts.JsonRpc(subctx, req)
+	log.Info(
+		"JsonRpc",
+		zap.String("method", req.Method),
+		zap.String("uid", req.Uid),
+		zap.String("chainName", req.ChainName),
+		zap.String("params", req.Params),
+		zap.Any("response", result),
+		zap.Error(err),
+	)
 	return result, err
 }

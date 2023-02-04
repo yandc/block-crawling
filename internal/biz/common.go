@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis"
 
 	"go.uber.org/zap"
 )
@@ -101,7 +102,7 @@ const (
 const TOKEN_INFO_QUEUE_TOPIC = "token:info:queue:topic"
 const TOKEN_INFO_QUEUE_PARTITION = "partition1"
 
-//token类型
+// token类型
 const (
 	ERC20    = "ERC20"
 	ERC721   = "ERC721"
@@ -120,6 +121,18 @@ type DataDictionary struct {
 	Ok                     bool     `json:"ok,omitempty"`
 	ServiceTransactionType []string `json:"serviceTransactionType,omitempty"`
 	ServiceStatus          []string `json:"serviceStatus,omitempty"`
+}
+
+type UserAssetUpdateRequest struct {
+	ChainName string `json:"chainName"`
+	Address   string `json:"address"`
+
+	Assets []UserAsset `json:"assets"`
+}
+
+type UserAsset struct {
+	TokenAddress string `json:"tokenAddress"`
+	Balance      string `json:"balance"`
 }
 
 // alarmOptions 报警相关的一些可自定义参数

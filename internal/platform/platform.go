@@ -68,9 +68,6 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 		if p, ok := platform.(*bitcoin.Platform); ok {
 			biz.GetUTXOByHash[value.Chain] = p.GetUTXOByHash
 		}
-		if p, ok := platform.(*solana.Platform); ok {
-			data.UpdateUserAsset[value.Chain] = p.UpdateUserAsset
-		}
 
 		chainNameType[value.Chain] = value.Type
 		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)

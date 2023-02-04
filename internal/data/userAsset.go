@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -206,7 +205,6 @@ func (r *UserAssetRepoImpl) ListByID(ctx context.Context, id int64) ([]*UserAsse
 		log.Errore("query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -218,7 +216,6 @@ func (r *UserAssetRepoImpl) ListAll(ctx context.Context) ([]*UserAsset, error) {
 		log.Errore("query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -282,7 +279,6 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetR
 		log.Errore("page query userAsset failed", err)
 		return nil, 0, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, total, nil
 }
 
@@ -319,7 +315,6 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 		log.Errore("list query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -361,7 +356,6 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 		log.Errore("page query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -400,7 +394,6 @@ func (r *UserAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageLi
 		log.Errore("page query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -443,7 +436,6 @@ func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *Asse
 		log.Errore("page query userAsset failed", err)
 		return nil, err
 	}
-	doUpdateUserAsset(ctx, userAssetList, time.Second)
 	return userAssetList, nil
 }
 
@@ -477,28 +469,4 @@ func (r *UserAssetRepoImpl) UpdateZeroByAddress(ctx context.Context, address str
 	}
 	affected := ret.RowsAffected
 	return affected, nil
-}
-
-// Injected during initalization of platforms
-var UpdateUserAsset = make(map[string]func(context.Context, []*UserAsset))
-
-func doUpdateUserAsset(ctx context.Context, assets []*UserAsset, maxWaitTime time.Duration) {
-	needUpdateGroupByChain := make(map[string][]*UserAsset)
-	for _, a := range assets {
-		// No need to update assets during querying.
-		if _, ok := UpdateUserAsset[a.ChainName]; !ok {
-			continue
-		}
-
-		if _, ok := needUpdateGroupByChain[a.ChainName]; !ok {
-			needUpdateGroupByChain[a.ChainName] = make([]*UserAsset, 0, 1)
-		}
-		needUpdateGroupByChain[a.ChainName] = append(needUpdateGroupByChain[a.ChainName], a)
-	}
-	for chainName, assets := range needUpdateGroupByChain {
-		updateUserAsset := UpdateUserAsset[chainName]
-		ctx, cancel := context.WithTimeout(ctx, maxWaitTime)
-		defer cancel()
-		updateUserAsset(ctx, assets)
-	}
 }
