@@ -5,9 +5,11 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1169,7 +1171,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 
 		for chainName, tokenAddressMap := range tokenAddressMapMap {
 			tokenAddressList := make([]string, 0, len(tokenAddressMap))
-			for key, _ := range tokenAddressMap {
+			for key := range tokenAddressMap {
 				tokenAddressList = append(tokenAddressList, key)
 			}
 			chainNameTokenAddressMap[chainName] = tokenAddressList
@@ -1943,6 +1945,17 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 		}
 	}
 	ss := mv.Func.Call(args)
+
+	// Error handling.
+	if len(ss) > 1 {
+		if err, ok := ss[1].Interface().(error); ok && err != nil {
+			return &pb.JsonResponse{
+				Ok:       false,
+				ErrorMsg: err.Error(),
+			}, nil
+		}
+	}
+
 	respone := ss[0].Interface()
 	ret, _ := json.Marshal(respone)
 	return &pb.JsonResponse{
@@ -1960,4 +1973,107 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 	result.ServiceStatus = serviceStaus
 
 	return result, nil
+}
+
+// JsonRPC
+func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
+	assets, err := data.UserAssetRepoClient.List(ctx, &data.AssetRequest{
+		ChainName: req.ChainName,
+		Address:   req.Address,
+	})
+	if err != nil {
+		return nil, err
+	}
+	assetsGroupByToken := make(map[string]*data.UserAsset)
+	for _, item := range assets {
+		assetsGroupByToken[item.TokenAddress] = item
+	}
+
+	needUpdateAssets := make([]*data.UserAsset, 0, len(assets))
+	needPush := make([]UserTokenPush, 0, len(assets))
+	for _, newItem := range req.Assets {
+		tokenAddress := newItem.TokenAddress
+		if tokenAddress == req.Address {
+			tokenAddress = ""
+		}
+
+		oldItem, ok := assetsGroupByToken[tokenAddress]
+		if !ok {
+			uidOk, uid, err := UserAddressSwitchRetryAlert(req.ChainName, req.Address)
+			if err != nil {
+				return nil, err
+			}
+
+			if !uidOk {
+				return nil, errors.New("unknown address")
+			}
+			tokenInfo, err := s.getTokenInfo(ctx, req.ChainName, req.Address, &newItem)
+			if err != nil {
+				return nil, err
+			}
+
+			needUpdateAssets = append(needUpdateAssets, &data.UserAsset{
+				ChainName:    req.ChainName,
+				Uid:          uid,
+				Address:      req.Address,
+				TokenAddress: tokenInfo.Address,
+				Balance:      newItem.Balance,
+				Decimals:     int32(tokenInfo.Decimals),
+				Symbol:       tokenInfo.Symbol,
+				CreatedAt:    time.Now().Unix(),
+				UpdatedAt:    time.Now().Unix(),
+			})
+			needPush = append(needPush, UserTokenPush{
+				ChainName:    req.ChainName,
+				Uid:          uid,
+				Address:      req.Address,
+				TokenAddress: tokenAddress,
+				Decimals:     int32(tokenInfo.Decimals),
+				Symbol:       tokenInfo.Symbol,
+			})
+			continue
+		}
+		// update
+		if oldItem.Balance != newItem.Balance {
+			// XXX: only update balance here.
+			oldItem.Balance = newItem.Balance
+			needUpdateAssets = append(needUpdateAssets, oldItem)
+		}
+	}
+	if len(needUpdateAssets) > 0 {
+		_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, needUpdateAssets, PAGE_SIZE)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, needUpdateAssets, PAGE_SIZE)
+		}
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s 链更新用户资产数据失败", req.ChainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(req.ChainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("error", err))
+			return nil, err
+		}
+	}
+	if len(needPush) > 0 {
+		HandleTokenPush(req.ChainName, needPush)
+	}
+	return struct{}{}, nil
+}
+
+func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {
+	if asset.TokenAddress == address || asset.TokenAddress == "" {
+		platInfo, ok := PlatInfoMap[chainName]
+		if !ok {
+			return *new(types.TokenInfo), errors.New("no such chain")
+		}
+		return types.TokenInfo{
+			Address:  "",
+			Decimals: int64(platInfo.Decimal),
+			Symbol:   platInfo.NativeCurrency,
+		}, nil
+		// extract from config
+	}
+	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
+
 }
