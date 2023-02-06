@@ -535,11 +535,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 	gmxSwapFlag := false
 	gmxFromAddress := ""
 	gmxAmount := big.NewInt(0)
+	// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
 			continue
 		}
-
 		topic0 := log_.Topics[0].String()
 		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC && topic0 != TRANSFERSINGLE_TOPIC &&
 			topic0 != TRANSFERBATCH_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
@@ -638,6 +638,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 		} else if topic0 == TRANSFER_TOPIC {
 			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 			//uniswap v3 代币换主币 function 销毁 主币 再发送主币。
 			if toAddress == "0x0000000000000000000000000000000000000000" && common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" {
 				fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
@@ -745,7 +746,20 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				amount = new(big.Int).SetBytes(log_.Data[:32])
 			}
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
-			tokenAddress = ""
+			tokenAddress = common.HexToAddress(log_.Topics[2].String()).String()
+
+			if h.chainName == "Optimism" {
+				token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				sy := strings.ToUpper(token.Symbol)
+				if strings.Contains(sy, "ETH") {
+					tokenAddress = ""
+				}else {
+					continue
+				}
+			}
 		} else if topic0 == OPTIMISM_NONE {
 			fromAddress = tokenAddress
 			if len(log_.Data) >= 64 {
