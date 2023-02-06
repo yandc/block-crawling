@@ -395,6 +395,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "3cbf4f8a" { //ETH链 X2Y2: ERC721 Delegate
+				transactionType = biz.CONTRACT
+				if len(data) >= 68 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
