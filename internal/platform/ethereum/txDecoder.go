@@ -814,8 +814,22 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				amount = new(big.Int).SetBytes(log_.Data[:32])
 			}
 			tokenAddress = ""
+		} else if topic0 == ARBITRUM_GMX_SWAP_V2 {
+			fromAddress = tokenAddress
+			if len(log_.Data) >= 160 {
+				toAddress = common.BytesToAddress(log_.Data[:32]).String()
+				amount = new(big.Int).SetBytes(log_.Data[128:160])
+				tokenAddress = common.BytesToAddress(log_.Data[64:96]).String()
+				token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+					token.Symbol = token.Symbol[1:]
+				}
+				token.Amount = amount.String()
+			}
 		}
-
 		//不展示event log中的授权记录
 		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
 			continue
