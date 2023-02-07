@@ -401,6 +401,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "89d56c84" { //ETH链 Element: Marketplace
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
