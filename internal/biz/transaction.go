@@ -1977,6 +1977,21 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 
 // JsonRPC
 func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
+	chainType := chain2Type[req.ChainName]
+	switch chainType {
+	case EVM:
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+		for _, item := range req.Assets {
+			item.TokenAddress = types2.HexToAddress(item.TokenAddress).Hex()
+		}
+	case APTOS:
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
+	}
+
 	assets, err := data.UserAssetRepoClient.List(ctx, &data.AssetRequest{
 		ChainName: req.ChainName,
 		Address:   req.Address,

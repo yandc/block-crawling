@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -817,10 +818,21 @@ func DeleteAsset() {
 						tokenAddress = types2.HexToAddress(userAsset.TokenAddress).Hex()
 					}
 					if address != userAsset.Address || tokenAddress != userAsset.TokenAddress {
+						log.Info("DELETING USER ASSET", zap.String("chain", userAsset.ChainName), zap.String("address", userAsset.Address), zap.String("tokenAddress", userAsset.TokenAddress))
+						userAssetList = append(userAssetList, userAsset.Id)
+					}
+				case biz.APTOS:
+					address := userAsset.Address
+					if userAsset.Address != "" {
+						address = utils.AddressRemove0(address)
+					}
+					if address != userAsset.Address {
+						log.Info("DELETING USER ASSET", zap.String("chain", userAsset.ChainName), zap.String("address", userAsset.Address), zap.String("tokenAddress", userAsset.TokenAddress))
 						userAssetList = append(userAssetList, userAsset.Id)
 					}
 				}
 			} else {
+				log.Info("DELETING USER ASSET", zap.String("chain", userAsset.ChainName), zap.String("address", userAsset.Address), zap.String("tokenAddress", userAsset.TokenAddress))
 				userAssetList = append(userAssetList, userAsset.Id)
 			}
 		}
