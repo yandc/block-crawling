@@ -22,6 +22,7 @@ type TransactionRequest struct {
 	TransactionHashLike      string
 	Nonce                    int64
 	DappDataEmpty            bool
+	ClientDataNotEmpty       bool
 	OrderBy                  string
 }
 

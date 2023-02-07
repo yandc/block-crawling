@@ -148,7 +148,7 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           clause.Column{Table: "excluded", Name: "amount"},
-			"status":           clause.Column{Table: "excluded", Name: "status"},
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
 			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
@@ -390,6 +390,9 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	}
 	if req.DappDataEmpty {
 		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
 	}
 
 	db = db.Order(req.OrderBy)

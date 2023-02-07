@@ -16,30 +16,30 @@ import (
 )
 
 type DotTransactionRecord struct {
-	Id                   int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	BlockHash            string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
-	BlockNumber          int             `json:"blockNumber" form:"blockNumber"`
-	Nonce                int64           `json:"nonce" form:"nonce"`
-	TransactionHash      string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	FromAddress          string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(80);index"`
-	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(80);index"`
-	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
-	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
-	Amount               decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
-	Status               string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
-	TxTime               int64           `json:"txTime" form:"txTime"`
-	ContractAddress      string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(80);index"`
-	ParseData            string          `json:"parseData" form:"parseData"`
-	Type                 string          `json:"type" form:"type" gorm:"type:character varying(2)"`
-	Data                 string          `json:"data" form:"data"`
-	EventLog             string          `json:"eventLog" form:"eventLog"`
-	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
-	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
-	DappData             string          `json:"dappData" form:"dappData"`
-	ClientData           string          `json:"clientData" form:"clientData"`
-	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
-	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
+	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	BlockHash       string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
+	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
+	Nonce           int64           `json:"nonce" form:"nonce"`
+	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(80);index"`
+	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(80);index"`
+	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
+	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
+	Amount          decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
+	Status          string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
+	TxTime          int64           `json:"txTime" form:"txTime"`
+	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(80);index"`
+	ParseData       string          `json:"parseData" form:"parseData"`
+	Type            string          `json:"type" form:"type" gorm:"type:character varying(2)"`
+	Data            string          `json:"data" form:"data"`
+	EventLog        string          `json:"eventLog" form:"eventLog"`
+	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	DappData        string          `json:"dappData" form:"dappData"`
+	ClientData      string          `json:"clientData" form:"clientData"`
+	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
+	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 type DotTransactionRecordRepo interface {
@@ -66,7 +66,6 @@ type DotTransactionRecordRepo interface {
 	FindFromAddress(context.Context, string) ([]string, error)
 	FindLastNonceByAddress(context.Context, string, string) (int64, error)
 	UpdateStatus(context.Context, string, []*DotTransactionRecord) (int64, error)
-
 }
 
 type DotTransactionRecordRepoImpl struct {
@@ -137,24 +136,24 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"block_hash":               clause.Column{Table: "excluded", Name: "block_hash"},
-			"block_number":             clause.Column{Table: "excluded", Name: "block_number"},
-			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
-			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":                   clause.Column{Table: "excluded", Name: "amount"},
-			"status":                   clause.Column{Table: "excluded", Name: "status"},
-			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
-			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},
-			"parse_data":               clause.Column{Table: "excluded", Name: "parse_data"},
-			"type":                     clause.Column{Table: "excluded", Name: "type"},
-			"data":                     clause.Column{Table: "excluded", Name: "data"},
-			"event_log":                clause.Column{Table: "excluded", Name: "event_log"},
-			"log_address":              clause.Column{Table: "excluded", Name: "log_address"},
-			"transaction_type":         clause.Column{Table: "excluded", Name: "transaction_type"},
-			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":               gorm.Expr("excluded.updated_at"),
+			"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
+			"nonce":            clause.Column{Table: "excluded", Name: "nonce"},
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
+			"amount":           clause.Column{Table: "excluded", Name: "amount"},
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
+			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
+			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
+			"type":             clause.Column{Table: "excluded", Name: "type"},
+			"data":             clause.Column{Table: "excluded", Name: "data"},
+			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
+			"log_address":      clause.Column{Table: "excluded", Name: "log_address"},
+			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecord)
 	err := ret.Error
@@ -509,24 +508,24 @@ func (r *DotTransactionRecordRepoImpl) FindFromAddress(ctx context.Context, tabl
 	return addresses, nil
 }
 
-func (r *DotTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Context, tableName string,fromAddress string) (int64, error){
+func (r *DotTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Context, tableName string, fromAddress string) (int64, error) {
 	var nonce int64
-	ret := r.gormDB.Select("NONCE").Table(tableName).Where("from_address = ? and (status = 'success' or status = 'fail')",fromAddress).Order("NONCE DESC").Limit(1).Find(&nonce)
+	ret := r.gormDB.Select("NONCE").Table(tableName).Where("from_address = ? and (status = 'success' or status = 'fail')", fromAddress).Order("NONCE DESC").Limit(1).Find(&nonce)
 	err := ret.Error
 	if err != nil {
 		log.Errore("findAddress "+tableName+" failed", err)
 		return 0, err
 	}
-	return nonce,nil
+	return nonce, nil
 }
 func (r *DotTransactionRecordRepoImpl) UpdateStatus(ctx context.Context, tableName string, dotTransactionRecord []*DotTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"status":                   clause.Column{Table: "excluded", Name: "status"},
-			"updated_at":               gorm.Expr("excluded.updated_at"),
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"status":           clause.Column{Table: "excluded", Name: "status"},
+			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecord)
 	err := ret.Error

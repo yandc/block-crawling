@@ -139,7 +139,7 @@ func (r *SolTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           gorm.Expr("case when excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
-			"status":           clause.Column{Table: "excluded", Name: "status"},
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
 			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},

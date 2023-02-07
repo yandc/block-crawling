@@ -36,9 +36,7 @@ type CsprTransactionRecord struct {
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
-
 type CsprTransactionRecordRepo interface {
-
 	Save(context.Context, string, *CsprTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CsprTransactionRecord) (int64, error)
@@ -57,10 +55,6 @@ type CsprTransactionRecordRepo interface {
 	FindByTxhash(context.Context, string, string) (*CsprTransactionRecord, error)
 }
 
-
-
-
-
 type CsprTransactionRecordRepoImpl struct {
 	gormDB *gorm.DB
 }
@@ -73,7 +67,6 @@ func NewCsprTransactionRecordRepo(gormDB *gorm.DB) CsprTransactionRecordRepo {
 	}
 	return CsprTransactionRecordRepoClient
 }
-
 
 func (r *CsprTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, CsprTransactionRecord *CsprTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Create(CsprTransactionRecord)
@@ -140,7 +133,7 @@ func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.C
 			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           clause.Column{Table: "excluded", Name: "amount"},
-			"status":           clause.Column{Table: "excluded", Name: "status"},
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
 			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
@@ -222,7 +215,6 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	var csprTransactionRecordList []*CsprTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
-
 
 	if req.FromUid != "" {
 		db = db.Where("from_uid = ?", req.FromUid)
