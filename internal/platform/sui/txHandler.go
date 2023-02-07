@@ -385,7 +385,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			var fromAddressExist, toAddressExist bool
 
 			fromAddress = block.Certificate.Data.Sender
-			toAddress = tx.Call.Package.ObjectId
+			toAddress = tx.Call.Package
 
 			if fromAddress != "" {
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
