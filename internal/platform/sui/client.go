@@ -322,11 +322,7 @@ type Transaction struct {
 		} `json:"objectRef"`
 	} `json:"TransferObject,omitempty"`
 	Call *struct {
-		Package struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"package"`
+		Package       string        `json:"package"`
 		Module        string        `json:"module"`
 		Function      string        `json:"function"`
 		TypeArguments []string      `json:"typeArguments"`
