@@ -1675,7 +1675,7 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 		}
 	case APTOS:
 		if req.Address != "" {
-			req.Address = utils.AddressAdd0(req.Address)
+			req.Address = utils.AddressRemove0(req.Address)
 		}
 	}
 
