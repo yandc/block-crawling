@@ -1953,8 +1953,8 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-		for _, item := range req.Assets {
-			item.TokenAddress = types2.HexToAddress(item.TokenAddress).Hex()
+		for i := range req.Assets {
+			req.Assets[i].TokenAddress = types2.HexToAddress(req.Assets[i].TokenAddress).Hex()
 		}
 	case APTOS:
 		if req.Address != "" {
