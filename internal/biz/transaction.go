@@ -21,33 +21,8 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
-
-var grpcPlatformInfos []*GrpcPlatformInfo
-var chain2Type = make(map[string]string)
-
-type GrpcPlatformInfo struct {
-	Chain       string
-	GetPriceKey string
-	Handler     string
-	Type        string
-}
-
-func Init(handler string, getPriceKey string, chainName string, chainType string) []*GrpcPlatformInfo {
-	gpi := &GrpcPlatformInfo{
-		Handler:     handler,
-		Chain:       chainName,
-		GetPriceKey: getPriceKey,
-		Type:        chainType,
-	}
-	grpcPlatformInfos = append(grpcPlatformInfos, gpi)
-
-	chain2Type[chainName] = chainType
-	return grpcPlatformInfos
-
-}
 
 type TransactionUsecase struct {
 	gormDB *gorm.DB
@@ -74,9 +49,7 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 	dapps, err := data.DappApproveRecordRepoClient.GetAmountList(ctx, req)
 	if err != nil {
 		log.Error("查询授权dapp列表报错！", zap.Any("param", req), zap.Any("error", err))
-		return &pb.OpenAmoutResp{
-			Ok: false,
-		}, err
+		return nil, err
 	}
 	//返回空列表
 	if dapps == nil {
@@ -85,67 +58,64 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 		return &pb.OpenAmoutResp{
 			Ok:   true,
 			Data: oai,
-		}, err
+		}, nil
 	} else {
-		var keys []string
-		var reqKey string
-		dapMap := make(map[*data.DappApproveRecord]string)
-
-		for _, dapp := range dapps {
-			if len(dapp.Amount) >= 40 {
+		var chainNameTokenAddressMap = make(map[string][]string)
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, record := range dapps {
+			if record == nil || len(record.Amount) >= 40 {
 				continue
 			}
-			for _, g := range grpcPlatformInfos {
-				if g.Chain == dapp.ChainName {
-					keys = append(keys, g.Handler+"_"+dapp.Token)
-					dapMap[dapp] = g.Handler + "_" + dapp.Token
-					continue
-				}
+
+			tokenAddressMap, ok := tokenAddressMapMap[record.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[record.ChainName] = tokenAddressMap
 			}
-			reqKey = strings.ReplaceAll(utils.ListToString(keys), "\"", "")
+			tokenAddressMap[record.Token] = ""
 		}
-		conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key, _ := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
 		if err != nil {
-			log.Fatale("did not token price connect", err)
+			return nil, err
 		}
-		defer conn.Close()
-		tokenList := v1.NewTokenlistClient(conn)
-		priceResp, err2 := tokenList.GetPrice(ctx, &v1.PriceReq{
-			CoinAddresses: reqKey,
-			Currency:      req.Currency,
-		})
-		if err2 != nil {
-			log.Error("调用tokenPrice报错!", zap.Any("error", err2), zap.Any("请求key", reqKey))
-			return &pb.OpenAmoutResp{
-				Ok: true,
-			}, err2
-		}
-		result := make(map[string]map[string]string)
-		err1 := json.Unmarshal(priceResp.Data, &result)
-		if err1 != nil {
-			log.Error("调用币价报错!", zap.Any("error", err1), zap.Any("priceResp.Data", result))
-			return &pb.OpenAmoutResp{
-				Ok: true,
-			}, err1
-		}
-		for key, value := range result {
-			amount := value[req.Currency]
-			a, _ := decimal.NewFromString(amount)
-			for da, resultKey := range dapMap {
-				if key == resultKey {
-					bal := utils.StringDecimals(da.Amount, int(da.Decimals))
-					balance, _ := decimal.NewFromString(bal)
-					amountTotal = amountTotal.Add(a.Mul(balance))
-				}
+
+		for _, record := range dapps {
+			if record == nil || len(record.Amount) >= 40 {
+				continue
 			}
+
+			chainName := record.ChainName
+			tokenAddress := record.Token
+			var price string
+			tokenAddressPriceMap := resultMap[chainName]
+			if tokenAddress == "" {
+				price = tokenAddressPriceMap[chainName]
+			} else {
+				price = tokenAddressPriceMap[tokenAddress]
+			}
+			prices, _ := decimal.NewFromString(price)
+			balance := utils.StringDecimals(record.Amount, int(record.Decimals))
+			balances, _ := decimal.NewFromString(balance)
+			cnyAmount := prices.Mul(balances)
+			amountTotal = amountTotal.Add(cnyAmount)
 		}
+
 		return &pb.OpenAmoutResp{
 			Ok: true,
 			Data: &pb.OpenAmountInfo{
 				RiskExposureAmount: amountTotal.String(),
 				DappCount:          int64(len(dapps)),
 			},
-		}, err
+		}, nil
 	}
 }
 
@@ -174,14 +144,14 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			Ok:   true,
 			Data: dappAll,
 		}, err
-
 	}
+
 	for _, da := range dapps {
 		//查询
 		dappInfo := ""
 		parseData := ""
 		transcationType := ""
-		chainType := chain2Type[da.ChainName]
+		chainType := ChainNameType[da.ChainName]
 		switch chainType {
 		case EVM:
 			evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
@@ -275,7 +245,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	var result int64
 	var err error
 	var a, fa decimal.Decimal
-	chainType := chain2Type[pbb.ChainName]
+	chainType := ChainNameType[pbb.ChainName]
 
 	p1 := decimal.NewFromInt(100000000)
 
@@ -303,7 +273,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	paseJson := make(map[string]string)
 	if pbb.FeeData != "" {
 		if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
-			log.Info("feedata数据解析失败！")
+			log.Warn("feedata数据解析失败", zap.Any("feeData", pbb.FeeData), zap.Any("error", jsonErr))
 		}
 	}
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
@@ -726,7 +696,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	var list []*pb.TransactionRecord
 	var err error
 
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case POLKADOT:
 		var recordList []*data.DotTransactionRecord
@@ -884,7 +854,7 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 	var amount string
 	var err error
 
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case BTC:
 		amount, err = data.BtcTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
@@ -942,7 +912,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		var trs []*pb.TransactionRecord
 		for _, value := range dapps {
 			tokenAddress := value.Token
-			chainType := chain2Type[value.ChainName]
+			chainType := ChainNameType[value.ChainName]
 			feeData := make(map[string]string)
 			switch chainType {
 			case BTC:
@@ -1123,7 +1093,7 @@ func findNonce(start int, req *pb.NonceReq) (*pb.NonceResp, error) {
 }
 
 func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -1241,7 +1211,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 }
 
 func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -1409,7 +1379,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 }
 
 func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetRequest) (*pb.ListBalanceResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -1552,7 +1522,7 @@ func (s *TransactionUsecase) ListHasBalanceUidDimension(ctx context.Context, req
 }
 
 func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -1618,7 +1588,7 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 }
 
 func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -1694,7 +1664,7 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 }
 
 func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAssetRequest) (*pb.NftBalanceResponse, error) {
-	chainType := chain2Type[req.ChainName]
+	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
 		if req.Address != "" {

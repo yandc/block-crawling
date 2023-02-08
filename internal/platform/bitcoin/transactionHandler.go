@@ -5,10 +5,8 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/bitcoin/btc"
-	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
@@ -95,7 +93,7 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 	//p1 := decimal.NewFromInt(100000000)
 
 	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL{
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
 		var flag string
@@ -418,109 +416,22 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.BtcT
 		}
 	}()
 
-	tm := time.Now()
-	nowTime := tm.Unix()
-	var decimals int32 = 8
-	var dt = utils.GetDayTime(&tm)
-	//资金流向: 1:充值, 2:提现, 3:内部转账
-
-	//资金类型: 1:小单提现, 2:次中单提现, 3:中单提现, 4:大单提现, 5:超大单提现
-	//小单：金额<1K
-	//次中单：1K=<金额<1W
-	//中单：1W=<金额<10W
-	//大单：10W=<金额<100W
-	//超大单：100W=<金额
-
-	price, err := biz.GetTokenPrice(nil, chainName, biz.CNY, "")
-	for i := 0; i < 3 && err != nil; i++ {
-		time.Sleep(time.Duration(i*1) * time.Second)
-		price, err = biz.GetTokenPrice(nil, chainName, biz.CNY, "")
-	}
-	if err != nil {
-		// 调用nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币价格失败", chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Errore(chainName+"交易记录统计，从nodeProxy中获取代币价格失败", err)
-		return
+	var decimals int32
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		decimals = platInfo.Decimal
 	}
 
-	var transactionStatisticMap = make(map[string]*data.TransactionStatistic)
-	var transactionStatisticList []*data.TransactionStatistic
+	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		var fundDirection int16
-		var fundType int16
-		var amount = record.Amount
-		var cnyAmount decimal.Decimal
-		var usdAmount decimal.Decimal
-
-		if record.FromUid == "" && record.ToUid == "" {
-			continue
-		} else if record.FromUid == "" {
-			fundDirection = 1
-		} else if record.ToUid == "" {
-			fundDirection = 2
-		} else {
-			fundDirection = 3
+		var userAssetStatistic = biz.UserAssetStatistic{
+			ChainName:    chainName,
+			FromUid:      record.FromUid,
+			ToUid:        record.ToUid,
+			Amount:       record.Amount,
+			TokenAddress: "",
+			Decimals:     decimals,
 		}
-
-		prices, _ := decimal.NewFromString(price)
-		balance := utils.StringDecimals(amount.String(), int(decimals))
-		balances, _ := decimal.NewFromString(balance)
-		cnyAmount = prices.Mul(balances)
-		if cnyAmount.LessThan(decimal.NewFromInt(1000)) {
-			fundType = 1
-		} else if cnyAmount.LessThan(decimal.NewFromInt(10000)) {
-			fundType = 2
-		} else if cnyAmount.LessThan(decimal.NewFromInt(100000)) {
-			fundType = 3
-		} else if cnyAmount.LessThan(decimal.NewFromInt(100000)) {
-			fundType = 4
-		} else {
-			fundType = 5
-		}
-
-		key := chainName + strconv.Itoa(int(fundDirection)) + strconv.Itoa(int(fundType))
-		if statistic, ok := transactionStatisticMap[key]; ok {
-			statistic.TransactionQuantity += 1
-			statistic.Amount = statistic.Amount.Add(amount)
-			statistic.CnyAmount = statistic.CnyAmount.Add(cnyAmount)
-			statistic.UsdAmount = statistic.UsdAmount.Add(usdAmount)
-		} else {
-			var transactionStatistic = &data.TransactionStatistic{
-				ChainName:           chainName,
-				TokenAddress:        "",
-				FundDirection:       fundDirection,
-				FundType:            fundType,
-				TransactionQuantity: 1,
-				Amount:              amount,
-				CnyAmount:           cnyAmount,
-				UsdAmount:           usdAmount,
-				Dt:                  dt,
-				CreatedAt:           nowTime,
-				UpdatedAt:           nowTime,
-			}
-
-			transactionStatisticMap[key] = transactionStatistic
-		}
+		userAssetStatisticList = append(userAssetStatisticList, userAssetStatistic)
 	}
-
-	if len(transactionStatisticMap) == 0 {
-		return
-	}
-	for _, transactionStatistic := range transactionStatisticMap {
-		transactionStatisticList = append(transactionStatisticList, transactionStatistic)
-	}
-	_, err = data.TransactionStatisticRepoClient.PageIncrementBatchSaveOrUpdate(nil, transactionStatisticList, biz.PAGE_SIZE)
-	for i := 0; i < 3 && err != nil; i++ {
-		time.Sleep(time.Duration(i*1) * time.Second)
-		_, err = data.TransactionStatisticRepoClient.PageIncrementBatchSaveOrUpdate(nil, transactionStatisticList, biz.PAGE_SIZE)
-	}
-	if err != nil {
-		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
-	}
+	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
 }

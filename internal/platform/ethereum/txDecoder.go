@@ -72,7 +72,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
-	log.Info(
+	/*log.Info(
 		"GOT NEW TX THAT MATCHED OUR USER",
 		meta.WrapFields(
 			zap.String("chainName", h.chainName),
@@ -81,7 +81,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			zap.String("txHash", tx.Hash),
 			zap.Bool("handlePendingTx", !h.newTxs),
 		)...,
-	)
+	)*/
 
 	receipt, err := client.GetTransactionReceipt(context.Background(), transaction.Hash())
 	if err != nil {

@@ -1,26 +1,5 @@
 package model
 
-type TransactionRecords struct {
-	BlockHash         string `json:"block_hash"`
-	BlockNumber       string `json:"block_number"`
-	TransactionHash   string `json:"transaction_hash"`
-	Status            string `json:"status"`
-	TxTime            string `json:"tx_time"`
-	Chain             string `json:"chain"`
-	ChainName         string `json:"chain_name"`
-	TransactionType   string `json:"transaction_type"`
-	From              string `json:"from"`
-	To                string `json:"to"`
-	Data              string `json:"data"`
-	Amount            string `json:"amount"`
-	ContractAddress   string `json:"contract_address"`
-	TransactionSource string `json:"transaction_source"`
-	ParseData         string `json:"parse_data"`
-	FeeAmount         string `json:"fee_amount"`
-	FeeData           string `json:"fee_data"`
-	EventLog          string `json:"event_log"`
-}
-
 type BTCTX struct {
 	Result struct {
 		Txid     string `json:"txid"`
@@ -77,7 +56,6 @@ type UTXOBlockHash struct {
 	Error  interface{} `json:"error"`
 	Id     string      `json:"id"`
 }
-
 
 type MemoryPoolTX struct {
 	Result []string    `json:"result"`
