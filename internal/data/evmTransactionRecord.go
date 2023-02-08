@@ -470,7 +470,7 @@ func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
-	if req.Nonce > 0 {
+	if req.Nonce >= 0 {
 		db = db.Where("nonce = ?", req.Nonce)
 	}
 	if req.DappDataEmpty {
@@ -570,7 +570,7 @@ func (r *EvmTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
-	if req.Nonce > 0 {
+	if req.Nonce >= 0 {
 		db = db.Where("nonce = ?", req.Nonce)
 	}
 	if req.DappDataEmpty {
