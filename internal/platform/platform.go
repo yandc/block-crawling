@@ -22,7 +22,6 @@ import (
 )
 
 var Platforms []subhandle.Platform
-var grpcPlatformInfos []biz.GrpcPlatformInfo
 
 type PlatformContainer []subhandle.Platform
 
@@ -70,7 +69,6 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 		}
 
 		chainNameType[value.Chain] = value.Type
-		biz.Init(value.Handler, value.TokenPrice, value.Chain, value.Type)
 	}
 	biz.PlatInfos = PlatInfos
 	biz.ChainNameType = chainNameType

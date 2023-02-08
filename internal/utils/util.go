@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"block-crawling/internal/model"
 	"block-crawling/internal/types"
 	"bytes"
 	"crypto/sha256"
@@ -69,47 +68,6 @@ func clean(newNum string) string {
 		newNum = "0" + newNum
 	}
 	return newNum
-}
-
-func NewTxResponse(blockHash, blockNumber, txHash, status, exTime, from, to, amount, nonce, gasUsed, gasPrice, gasLimit,
-	sequenceNumber, baseFeePerGas string, token types.TokenInfo) types.TransactionResponse {
-	return types.TransactionResponse{
-		BlockHash:               blockHash,
-		BlockNumber:             blockNumber,
-		TransactionHash:         txHash,
-		Status:                  status,
-		ExpirationTimestampSecs: exTime,
-		From:                    from,
-		To:                      to,
-		Amount:                  amount,
-		Nonce:                   nonce,
-		GasUsed:                 gasUsed,
-		GasPrice:                gasPrice,
-		GasLimit:                gasLimit,
-		SequenceNumber:          sequenceNumber,
-		BaseFeePerGas:           baseFeePerGas,
-		Token:                   token,
-	}
-}
-
-func CreateTxRecords(blockHash, blockNumber, txHash, status, exTime, from, to, amount, chain, chainName, txType, data,
-	contractAddress, parseData, txSource, feeData, feeAmount, eventLog string) model.TransactionRecords {
-	return model.TransactionRecords{
-		BlockHash: blockHash, BlockNumber: blockNumber, TransactionHash: txHash, Status: status, TxTime: exTime,
-		Chain: chain, TransactionType: txType, From: from, To: to, Data: data, Amount: amount, ChainName: chainName,
-		ContractAddress: contractAddress, ParseData: parseData, TransactionSource: txSource, FeeAmount: feeAmount,
-		FeeData: feeData, EventLog: eventLog,
-	}
-
-}
-
-func GetSessions(addressInfo map[string]struct{}, addressList []string) bool {
-	for _, address := range addressList {
-		if _, ok := addressInfo[address]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func RemoveDuplicate(arr []string) []string {

@@ -36,7 +36,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return nil
 	}
 
-	log.Info(
+	/*log.Info(
 		"GOT NEW TX THAT MATCHED OUR USER",
 		meta.WrapFields(
 			zap.String("chainName", h.chainName),
@@ -45,7 +45,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			zap.String("txHash", tx.Hash),
 			zap.Bool("handlePendingTx", !h.newTxs),
 		)...,
-	)
+	)*/
+
 	rawTx := tx.Raw.(*rawTxWrapper)
 	transactionHash := rawTx.TxID
 	client := c.(*Client)

@@ -23,6 +23,21 @@ var NftInfoMap = make(map[string]*v1.GetNftReply_NftInfoResp)
 var nftLock = common.NewSyncronized(0)
 var nftMutex = new(sync.Mutex)
 
+func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
+	price, err := GetTokenPrice(ctx, chainName, currency, tokenAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		price, err = GetTokenPrice(ctx, chainName, currency, tokenAddress)
+	}
+	if err != nil {
+		// 调用nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币价格失败，currency:%s，tokenAddress:%s", chainName, currency, tokenAddress)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return price, err
+}
+
 func GetTokenPrice(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
 	if strings.HasSuffix(chainName, "TEST") {
 		return "", nil
@@ -67,14 +82,13 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 	if err != nil {
 		return "", err
 	}
+	var price string
 	if value, ok := result[getPriceKey]; ok {
-		price := value[currency]
-		return price, nil
+		price = value[currency]
 	} else if value, ok = result[reqKey]; ok {
-		price := value[currency]
-		return price, nil
+		price = value[currency]
 	}
-	return "", nil
+	return price, nil
 }
 
 func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
@@ -405,6 +419,21 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 		NftInfoMap[key] = tokenInfo
 		mutex.Unlock()
 		return tokenInfo, nil
+	}
+	return tokenInfo, nil
+}
+
+func GetRawNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
+	tokenInfo, err := GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		tokenInfo, err = GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+	}
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT全量信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return tokenInfo, nil
 }
