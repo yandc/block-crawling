@@ -453,22 +453,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.BtcTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), btcTransactionRecord)
 		if result > 0 {
-			//修改 未花费
-			tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
-			if err != nil {
-				log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
-			}
-
-			cellInputs := tx.Inputs
-			for _, ci := range cellInputs {
-				th := ci.PrevHash
-				index := ci.OutputIndex
-				//更新 状态为pending
-				ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(ctx, pbb.Uid, pbb.ChainName, pbb.FromAddress, index, th)
-				if err != nil || ret == 0 {
-					log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
-				}
-			}
+			go UpdateUtxo(pbb)
 		}
 	case TVM:
 		trxRecord := &data.TrxTransactionRecord{
@@ -688,6 +673,26 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		Code:   uint64(200),
 		Mes:    "",
 	}, err
+}
+
+func UpdateUtxo(pbb *pb.TransactionReq)  {
+	//修改 未花费
+	time.Sleep(time.Duration(1) * time.Minute)
+	tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
+	if err != nil {
+		log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
+	}
+	log.Info(pbb.ChainName,zap.Any("更新UTXO状态为pending 4",tx))
+	cellInputs := tx.Inputs
+	for _, ci := range cellInputs {
+		th := ci.PrevHash
+		index := ci.OutputIndex
+		//更新 状态为pending
+		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(nil, pbb.Uid, pbb.ChainName, pbb.FromAddress, index, th)
+		if err != nil || ret == 0 {
+			log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
+		}
+	}
 }
 
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {

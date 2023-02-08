@@ -129,23 +129,24 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 				continue
 			}
 			log.Info(from, zap.Any("删除utxo条数", ret))
-			if list.Total == 0 {
-				continue
-			}
-			for _, d := range list.Data {
-				var utxoUnspentRecord = &data.UtxoUnspentRecord{
-					Uid:       fromUid,
-					Hash:      d.Mined.TxId,
-					N:         d.Mined.Index,
-					ChainName: chainName,
-					Address:   from,
-					Script:    d.Mined.Meta.Script,
-					Unspent:   1, //1 未花费 2 已花费 联合索引
-					Amount:    strconv.Itoa(d.Value),
-					TxTime:    int64(d.Mined.Date),
-					UpdatedAt: time.Now().Unix(),
+			if list.Total > 0 {
+				for _, d := range list.Data {
+					var utxoUnspentRecord = &data.UtxoUnspentRecord{
+						Uid:       fromUid,
+						Hash:      d.Mined.TxId,
+						N:         d.Mined.Index,
+						ChainName: chainName,
+						Address:   from,
+						Script:    d.Mined.Meta.Script,
+						Unspent:   1, //1 未花费 2 已花费 联合索引
+						Amount:    strconv.Itoa(d.Value),
+						TxTime:    int64(d.Mined.Date),
+						UpdatedAt: time.Now().Unix(),
+					}
+					log.Info(from, zap.Any("插入utxo对象", utxoUnspentRecord))
+					r, error := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+					log.Info(from, zap.Any("插入utxo对象结果", r), zap.Any("error", error))
 				}
-				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
 			}
 		}
 
@@ -157,23 +158,22 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 				list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, to)
 			}
 			data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, toUid, chainName, to)
-			if list.Total == 0 {
-				continue
-			}
-			for _, d := range list.Data {
-				var utxoUnspentRecord = &data.UtxoUnspentRecord{
-					Uid:       toUid,
-					Hash:      d.Mined.TxId,
-					N:         d.Mined.Index,
-					ChainName: chainName,
-					Address:   to,
-					Script:    d.Mined.Meta.Script,
-					Unspent:   1, //1 未花费 2 已花费 联合索引
-					Amount:    strconv.Itoa(d.Value),
-					TxTime:    int64(d.Mined.Date),
-					UpdatedAt: time.Now().Unix(),
+			if list.Total >= 0 {
+				for _, d := range list.Data {
+					var utxoUnspentRecord = &data.UtxoUnspentRecord{
+						Uid:       toUid,
+						Hash:      d.Mined.TxId,
+						N:         d.Mined.Index,
+						ChainName: chainName,
+						Address:   to,
+						Script:    d.Mined.Meta.Script,
+						Unspent:   1, //1 未花费 2 已花费 联合索引
+						Amount:    strconv.Itoa(d.Value),
+						TxTime:    int64(d.Mined.Date),
+						UpdatedAt: time.Now().Unix(),
+					}
+					data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
 				}
-				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
 			}
 		}
 
