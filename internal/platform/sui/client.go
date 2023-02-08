@@ -352,9 +352,9 @@ type Event struct {
 		Sender            string `json:"sender"`
 		Type              string `json:"type"`
 		Fields            struct {
-			Creator  string `json:"creator"`
-			Name     string `json:"name"`
-			ObjectId string `json:"object_id"`
+			Creator  string      `json:"creator"`
+			Name     interface{} `json:"name"`
+			ObjectId string      `json:"object_id"`
 
 			PoolId    string      `json:"pool_id"`
 			InAmount  interface{} `json:"in_amount"`
