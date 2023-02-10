@@ -403,7 +403,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, utils.AddressAdd0(fromAddress))
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 			if err != nil {
 				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -411,7 +411,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, utils.AddressAdd0(toAddress))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
 			if err != nil {
 				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return

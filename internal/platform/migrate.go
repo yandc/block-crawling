@@ -415,8 +415,8 @@ func DeleteRecordData() {
 	for chainName, chainType := range biz.ChainNameType {
 		if !strings.HasSuffix(chainName, "TEST") && chainType == "EVM" {
 			log.Info("清除非平台用户的交易记录数据中", zap.Any("chainName", chainName))
-			talbeName := biz.GetTableName(chainName)
-			contractRecordList, err := getTxRecords(dbSource, talbeName, "contract", limit)
+			tableName := biz.GetTableName(chainName)
+			contractRecordList, err := getTxRecords(dbSource, tableName, "contract", limit)
 			if err != nil {
 				log.Error("清除非平台用户的交易记录数据, migrate page query contract txRecord failed", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
@@ -424,9 +424,9 @@ func DeleteRecordData() {
 			if len(contractRecordList) == 0 {
 				continue
 			}
-			eventLogRecordList, err := getTxRecords(dbSource, talbeName, "eventLog", limit)
+			eventLogRecordList, err := getTxRecords(dbSource, tableName, "eventLog", limit)
 			if err != nil {
-				log.Error("清除非平台用户的交易记录数据, migrate page query eventLog txRecord failed", zap.Any("talbeName", talbeName), zap.Any("error", err))
+				log.Error("清除非平台用户的交易记录数据, migrate page query eventLog txRecord failed", zap.Any("tableName", tableName), zap.Any("error", err))
 				return
 			}
 
@@ -453,9 +453,9 @@ func DeleteRecordData() {
 				transactionRequest := &data.TransactionRequest{
 					TransactionHashLike: record.TransactionHash,
 				}
-				count, err := data.EvmTransactionRecordRepoClient.Delete(nil, talbeName, transactionRequest)
+				count, err := data.EvmTransactionRecordRepoClient.Delete(nil, tableName, transactionRequest)
 				if err != nil {
-					log.Error("清除非平台用户的交易记录数据, delete txRecord failed", zap.Any("talbeName", talbeName), zap.Any("affected count", count), zap.Any("error", err))
+					log.Error("清除非平台用户的交易记录数据, delete txRecord failed", zap.Any("tableName", tableName), zap.Any("affected count", count), zap.Any("error", err))
 					return
 				}
 				if i%50 == 0 {
@@ -468,7 +468,7 @@ func DeleteRecordData() {
 	log.Info("清除非平台用户的交易记录数据结束", zap.Any("query contract size", total))
 }
 
-func getTxRecords(dbSource *gorm.DB, talbeName, transactionType string, limit int) ([]*data.EvmTransactionRecord, error) {
+func getTxRecords(dbSource *gorm.DB, tableName, transactionType string, limit int) ([]*data.EvmTransactionRecord, error) {
 	var txRecords []*data.EvmTransactionRecord
 	var txRecordList []*data.EvmTransactionRecord
 	id := 0
@@ -476,9 +476,9 @@ func getTxRecords(dbSource *gorm.DB, talbeName, transactionType string, limit in
 	for total == limit {
 		var sqlStr string
 		if transactionType == "contract" {
-			sqlStr = getSqlContract(talbeName, id, limit)
+			sqlStr = getSqlContract(tableName, id, limit)
 		} else if transactionType == "eventLog" {
-			sqlStr = getSqlEventLog(talbeName, id, limit)
+			sqlStr = getSqlEventLog(tableName, id, limit)
 		} else {
 			return nil, nil
 		}
@@ -504,15 +504,15 @@ func getTxRecords(dbSource *gorm.DB, talbeName, transactionType string, limit in
 	return txRecords, nil
 }
 
-func getSqlContract(talbeName string, id, limit int) string {
-	s := "SELECT id, transaction_hash, parse_data, event_log from " + talbeName +
+func getSqlContract(tableName string, id, limit int) string {
+	s := "SELECT id, transaction_hash, parse_data, event_log from " + tableName +
 		" where from_uid = '' and to_uid = '' and transaction_type = 'contract' " +
 		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
 	return s
 }
 
-func getSqlEventLog(talbeName string, id, limit int) string {
-	s := "SELECT id, transaction_hash, parse_data, event_log from " + talbeName +
+func getSqlEventLog(tableName string, id, limit int) string {
+	s := "SELECT id, transaction_hash, parse_data, event_log from " + tableName +
 		" where (from_uid != '' or to_uid != '') and transaction_type = 'eventLog' " +
 		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
 	return s
@@ -4503,13 +4503,11 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 		log.Errore("source DB error", err)
 	}
 
-	tableName := biz.GetTableName(chainName)
-
 	tokenParamMap := make(map[string]*TokenParam)
-	var txRecords []*data.EvmTransactionRecord
+	var txRecords []*TxRecord
 	for _, tokenParam := range tokenParams {
 		tokenParamMap[tokenParam.TokenAddress] = tokenParam
-		txRecordList, err := getTxRecord(dbSource, tableName, tokenParam, biz.PAGE_SIZE)
+		txRecordList, err := getTxRecord(dbSource, chainName, tokenParam, biz.PAGE_SIZE)
 		if err != nil {
 			log.Errore("migrate page query txRecord failed", err)
 			return
@@ -4563,10 +4561,10 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 		}
 	}
 
-	count, err := data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecords, biz.PAGE_SIZE)
+	count, err := pageBatchUpdateSelectiveById(chainName, txRecords, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecords, biz.PAGE_SIZE)
+		count, err = pageBatchUpdateSelectiveById(chainName, txRecords, biz.PAGE_SIZE)
 	}
 	if err != nil {
 		log.Error("更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
@@ -4574,14 +4572,21 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 	log.Info("处理交易记录TokenInfo结束", zap.Any("query size", len(txRecords)), zap.Any("affected count", count))
 }
 
-func getTxRecord(dbSource *gorm.DB, talbeName string, tokenParam *TokenParam, limit int) ([]*data.EvmTransactionRecord, error) {
-	var txRecords []*data.EvmTransactionRecord
-	var txRecordList []*data.EvmTransactionRecord
+func getTxRecord(dbSource *gorm.DB, chainName string, tokenParam *TokenParam, limit int) ([]*TxRecord, error) {
+	tableName := biz.GetTableName(chainName)
+	chainType := biz.ChainNameType[chainName]
+	var sqlStr string
+
+	var txRecords []*TxRecord
+	var txRecordList []*TxRecord
 	id := 0
 	total := limit
 	for total == limit {
-		sqlStr := getSql(talbeName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
-
+		if chainType == biz.BTC || chainType == biz.TVM || chainType == biz.CASPER {
+			sqlStr = getSqlNoEventLog(tableName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
+		} else {
+			sqlStr = getSql(tableName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
+		}
 		ret := dbSource.Raw(sqlStr).Find(&txRecordList)
 		err := ret.Error
 		for i := 0; i < 3 && err != nil; i++ {
@@ -4603,12 +4608,62 @@ func getTxRecord(dbSource *gorm.DB, talbeName string, tokenParam *TokenParam, li
 	return txRecords, nil
 }
 
-func getSql(talbeName string, tokenAdress string, decimals int, symbol string, id, limit int) string {
-	s := "SELECT id, parse_data, event_log from " + talbeName +
+func getSql(tableName string, tokenAdress string, decimals int, symbol string, id, limit int) string {
+	s := "SELECT id, parse_data, event_log from " + tableName +
 		" where ((parse_data like '%" + tokenAdress + "%' and parse_data like '%\"decimals\":" + strconv.Itoa(decimals) + ",\"symbol\":\"" + symbol + "\"%') " +
 		"or (event_log like '%" + tokenAdress + "%' and event_log like '%\"decimals\":" + strconv.Itoa(decimals) + ",\"symbol\":\"" + symbol + "\"%')) " +
 		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
 	return s
+}
+
+func getSqlNoEventLog(tableName string, tokenAdress string, decimals int, symbol string, id, limit int) string {
+	s := "SELECT id, parse_data from " + tableName +
+		" where ((parse_data like '%" + tokenAdress + "%' and parse_data like '%\"decimals\":" + strconv.Itoa(decimals) + ",\"symbol\":\"" + symbol + "\"%')) " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
+}
+
+func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageSize int) (int64, error) {
+	tableName := biz.GetTableName(chainName)
+	chainType := biz.ChainNameType[chainName]
+
+	var count int64 = 0
+	var err error
+	switch chainType {
+	case biz.EVM:
+		var txRecordList []*data.EvmTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.EvmTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.TVM:
+		var txRecordList []*data.TrxTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.TrxTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.TrxTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.SOLANA:
+		var txRecordList []*data.SolTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.SolTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	}
+	return count, err
 }
 
 func UpdateAsset() {

@@ -45,6 +45,8 @@ type SolTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*SolTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveById(context.Context, string, []*SolTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*SolTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *SolTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*SolTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*SolTransactionRecord, error)
@@ -159,6 +161,70 @@ func (r *SolTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *SolTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, solTransactionRecords []*SolTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			/*"slot_number":      clause.Column{Table: "excluded", Name: "slot_number"},
+			"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"from_address":     clause.Column{Table: "excluded", Name: "from_address"},*/
+			"to_address": gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			/*"from_uid":         clause.Column{Table: "excluded", Name: "from_uid"},
+			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
+			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
+			"amount":           gorm.Expr("case when excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
+			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},*/
+			"parse_data": gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"data":       gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log":  gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			//"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&solTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective solTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *SolTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*SolTransactionRecord, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(txRecords)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subTxRecords := txRecords[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveById(ctx, tableName, subTxRecords)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
 }
 
 func (r *SolTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, solTransactionRecord *SolTransactionRecord) (int64, error) {
