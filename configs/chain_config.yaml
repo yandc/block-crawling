@@ -522,18 +522,37 @@ platform:
     netType: main
     proxyCacheTime: 15
     rpcURL:
-      - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c/
-      - https://sparkling-alien-spring.solana-mainnet.discover.quiknode.pro/78c69f217ad5f25bae7f6aa753f4985d826a0767/
-      - https://weathered-omniscient-shard.solana-mainnet.discover.quiknode.pro/da0ac540b7559edcb003d470af1c8c60d4dc0723/
-      - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678/
-      - https://node.onekey.so/sol
-      - https://solana-mainnet.gateway.pokt.network/v1/lb/258bda9f3bb341d0eb211105
-      - https://solana-mainnet.gateway.pokt.network/v1/lb/9455d100ac9dbe2cbd786fc2
-      - https://solana-mainnet.gateway.pokt.network/v1/lb/9c7e3e56e3afc89dcbd3e9e9
-      - https://solana-api.projectserum.com
-      - https://ssc-dao.genesysgo.net
-      - https://api.mainnet-beta.solana.com
-      - https://solana-mainnet.phantom.tech/
+      # - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c/
+      # - https://sparkling-alien-spring.solana-mainnet.discover.quiknode.pro/78c69f217ad5f25bae7f6aa753f4985d826a0767/
+      # - https://weathered-omniscient-shard.solana-mainnet.discover.quiknode.pro/da0ac540b7559edcb003d470af1c8c60d4dc0723/
+      # - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678/
+      # - https://node.onekey.so/sol
+      # - https://solana-mainnet.gateway.pokt.network/v1/lb/258bda9f3bb341d0eb211105
+      # - https://solana-mainnet.gateway.pokt.network/v1/lb/9455d100ac9dbe2cbd786fc2
+      # - https://solana-mainnet.gateway.pokt.network/v1/lb/9c7e3e56e3afc89dcbd3e9e9
+      # - https://solana-api.projectserum.com
+      # - https://ssc-dao.genesysgo.net
+      # - https://api.mainnet-beta.solana.com
+      # - https://solana-mainnet.phantom.tech/
+
+      # Solana 并发使用多个节点进行爬块，所以速度取决于两个重要指标：
+      #
+      # 1. 最慢的那个节点；
+      # 2. 失败率高的节点会导致重试增大爬块延迟。
+      #
+      # 所以增加了一个日志统计 Solana 的节点情况：平均爬块时间和失败率，通过这两项指标来判断保留哪些节点进行爬块。
+      # 通过如下命令过滤日志：
+      #
+      #  grep ELAPSED block-crawling.log | awk -F 'ELAPSED' '{print $2}' | jq
+      - https://solana-mainnet.g.alchemy.com/v2/zwdPLualIPh1yVKFbt6OpnpsQopepcRb
+      - https://solana-mainnet.g.alchemy.com/v2/FQBld9Uubkd1L5_WPHui2MqWPXJYpgya
+      - https://solana-mainnet.g.alchemy.com/v2/-1wBeefkfUAjTscReF3nQrg00wI-RiiK
+      - https://solana-mainnet.g.alchemy.com/v2/GOhXEbIr5Iii23fV526C2MjtbJTNhkX7
+      - https://solana-mainnet.g.alchemy.com/v2/INl67QCRKwpHt00VO1j7w9fnEbM732hB
+      - https://solana-mainnet.g.alchemy.com/v2/m-BC2u0tM8N4sNJcX3KTk-bzDoBuwysR
+      - https://solana-mainnet.g.alchemy.com/v2/M-V1zqwmGHvKolkBYzuOtg4wGWuzQNAH
+      - https://solana-mainnet.g.alchemy.com/v2/wyuFXpGqrGkBFAuyWH8vlUUk_eUhXAFI
+      - https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7
     symbol: Solana
     type: SOL
     safelyConcurrentBlockDelta: 50

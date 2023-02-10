@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type SessionInfo struct {
 	Session   string
@@ -46,6 +49,7 @@ const (
 
 type RecordRPCURLInfo struct {
 	buckets []RecordRPCURLBucket
+	lock    *sync.RWMutex
 }
 
 type RecordRPCURLBucket struct {
@@ -58,10 +62,13 @@ type RecordRPCURLBucket struct {
 func NewRecordRPCURLInfo() *RecordRPCURLInfo {
 	return &RecordRPCURLInfo{
 		buckets: make([]RecordRPCURLBucket, nRecordRPCURLInfoBuckets),
+		lock:    &sync.RWMutex{},
 	}
 }
 
 func (r *RecordRPCURLInfo) Incr(success bool) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	bucket := r.getBucket(time.Now().Unix())
 	r.buckets[bucket].Incr(success)
 }
@@ -69,6 +76,8 @@ func (r *RecordRPCURLInfo) Incr(success bool) {
 func (r *RecordRPCURLInfo) FailRate() int {
 	nowSecs := time.Now().Unix()
 	var sum, success int64
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 	for i := 0; i < 30; i++ {
 		idx := r.getBucket(nowSecs)
 		bucket := r.buckets[idx]

@@ -84,11 +84,6 @@ func (p *Platform) Coin() coins.Coin {
 }
 
 func (p *Platform) GetTransactions() {
-	// Solana node is slow that can't meet our requirements to index block.
-	// So only keep the logics to handle pending tx.
-	// Added at 2023-01-10
-	return
-
 	log.Info("GetTransactions starting, chainName:"+p.ChainName, zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()))
 	if p.conf.GetRoundRobinConcurrent() {
 		p.spider.EnableRoundRobin()
