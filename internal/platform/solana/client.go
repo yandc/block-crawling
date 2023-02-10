@@ -28,6 +28,7 @@ type Client struct {
 	Url        string
 	ChainName  string
 	retryAfter time.Time
+	stat       common.Stater
 }
 
 func NewClient(nodeUrl string, chainName string) *Client {
@@ -37,6 +38,7 @@ func NewClient(nodeUrl string, chainName string) *Client {
 		NodeDefaultIn: &common.NodeDefaultIn{
 			ChainName: chainName,
 		},
+		stat: common.NewStat(),
 	}
 }
 
@@ -163,6 +165,20 @@ func (c *Client) GetSlotNumber() (int, error) {
 }
 
 func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
+	defer func() {
+		snap := c.stat.Peek()
+		if snap.Total%10 == 0 {
+			log.Info(
+				"RETRIEVE BLOCK ELAPSED",
+				zap.String("nodeUrl", c.Url),
+				zap.String("avg", snap.Mean.String()),
+				zap.String("max", snap.Max.String()),
+				zap.String("min", snap.Min.String()),
+				zap.Uint64("total", snap.Total),
+				zap.Float64("successRate", float64(snap.Success)/float64(snap.Total)),
+			)
+		}
+	}()
 	start := time.Now()
 
 	block, err := c.GetBlockByNumber(int(height))
@@ -180,9 +196,10 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 			zap.String("elapsed", time.Now().Sub(start).String()),
 			zap.Error(err),
 		)
+		c.stat.Put(time.Since(start), false)
 		return nil, err
 	}
-
+	c.stat.Put(time.Since(start), true)
 	if block == nil {
 		return nil, errors.New("request slot " + strconv.Itoa(int(height)) + " result is null")
 	}
@@ -223,7 +240,7 @@ func (c *Client) GetBlockByNumber(number int) (*Block, error) {
 	method := "getBlock"
 	params := []interface{}{number, map[string]interface{}{"encoding": "jsonParsed", "transactionDetails": "full", "maxSupportedTransactionVersion": 0, "rewards": false}}
 	result := &Block{}
-	timeoutMS := 10_000 * time.Millisecond
+	timeoutMS := 20_000 * time.Millisecond
 	err := c.call(JSONID, method, result, params, &timeoutMS)
 	return result, err
 }
