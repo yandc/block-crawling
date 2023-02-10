@@ -172,11 +172,10 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"event_log":                clause.Column{Table: "excluded", Name: "event_log"},
 			"log_address":              clause.Column{Table: "excluded", Name: "log_address"},
 			"transaction_type":         clause.Column{Table: "excluded", Name: "transaction_type"},
-			//"operate_type":             gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type else " + tableName + ".operate_type end"),
-			"operate_type": gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
-			"dapp_data":    gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":  gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":   gorm.Expr("excluded.updated_at"),
+			"operate_type":             gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
+			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecords)
 	err := ret.Error
@@ -204,7 +203,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":                   clause.Column{Table: "excluded", Name: "amount"},
-			"status":                   clause.Column{Table: "excluded", Name: "status"},
+			"status":                   gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
 			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},*/
 			"parse_data": gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
@@ -219,6 +218,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
 			"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"operate_type":     gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
