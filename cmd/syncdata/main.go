@@ -67,10 +67,10 @@ func main() {
 	//platform.BtcReset()
 	//platform.HandleAsset()
 	//platform.HandleAssetByEventLog()
-	platform.DeleteAsset()
+	//platform.DeleteAsset()
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
-	//platform.HandleTokenInfo()
+	platform.HandleTokenInfo()
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
 }
