@@ -27,7 +27,7 @@ type UserNftAsset struct {
 	CollectionName   string `json:"collectionName" form:"collectionName" gorm:"type:character varying(72)"`
 	Symbol           string `json:"symbol" form:"symbol" gorm:"type:character varying(72);index"`
 	Name             string `json:"name" form:"name" gorm:"type:character varying(72)"`
-	ItemName         string `json:"itemName" form:"itemName" gorm:"type:character varying(72)"`
+	ItemName         string `json:"itemName" form:"itemName" gorm:"type:character varying(128)"`
 	ItemUri          string `json:"itemUri" form:"itemUri" gorm:"type:character varying(256)"`
 	ItemOriginalUri  string `json:"itemOriginalUri" form:"itemOriginalUri" gorm:"type:character varying(256)"`
 	ItemAnimationUri string `json:"itemAnimationUri" form:"itemAnimationUri" gorm:"type:character varying(256)"`
