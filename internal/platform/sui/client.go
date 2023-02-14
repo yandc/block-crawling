@@ -415,7 +415,7 @@ func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
 	method := "sui_getTransaction"
 	var out TransactionInfo
 	params := []interface{}{hash}
-	timeoutMS := 5_000 * time.Millisecond
+	timeoutMS := 10_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	return out, err
 }

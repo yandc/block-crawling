@@ -4,6 +4,8 @@ import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
+	"errors"
+	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/common"
@@ -87,7 +89,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	return common.Retry(err)
 }
 
-func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
+func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err.Error() == pcommon.NotFound.Error() {
 		return true
 	}
@@ -95,17 +97,28 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		return true
 	}
 
+	errStr := err.Error()
+	errList := strings.Split(errStr, "\n")
+	errStrLen := len(errStr)
+	errListLen := len(errList)
+	if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && errStrLen > 1048576 {
+		incrHeight = true
+	}
+	if errStrLen > 10240 {
+		nerrStr := errList[0] + errStr[0:10240] + errList[errListLen-1]
+		err = errors.New(nerrStr)
+	}
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
 		fields,
 		zap.String("chainName", h.chainName),
 		zap.Error(err),
 	)
-	if len(optHeights) > 0 {
+	if len(heights) > 0 {
 		fields = append(
 			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
+			zap.Uint64("curHeight", heights[0].CurHeight),
+			zap.Uint64("chainHeight", heights[0].ChainHeight),
 		)
 	}
 
@@ -113,5 +126,5 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		"ERROR OCCURRED WHILE HANDLING BLOCK",
 		fields...,
 	)
-	return false
+	return
 }
