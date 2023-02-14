@@ -72,6 +72,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 		"ArbitrumNova_0xEe01c0CD76354C383B8c7B4e65EA88D00B06f36f_18cbafe5","ArbitrumNova_0x639A647fbe20b6c8ac19E48E2de44ea792c62c5C_0175b1c4"},
 	"SmartBCH_MethodId":   {"SmartBCH_0x639A647fbe20b6c8ac19E48E2de44ea792c62c5C_825bb13c"},
 	"ETC_MethodId":   {"ETC_0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818_0175b1c4"},
+	"ETH_MethodId":   {"ETH_0xBa8Da9dcF11B50B03fd5284f164Ef5cdEF910705_0175b1c4"},
 
 
 }
@@ -99,7 +100,9 @@ var BridgeWhiteTopicList = map[string][]string{
 		"Arbitrum_0xabbc5f99639c9b6bcb58544ddf04efa6802f4064_0xcd3829a3813dc3cdd188fd3d01dcf3268c16be2fdd2dd21d0665418816e46062"},
 	"Klaytn_Topic":  {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
-	"ETH_Topic": {"ETH_0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840_0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d48007b0526749c3d466"},
+	"ETH_Topic": {
+		"ETH_0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840_0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d48007b0526749c3d466",
+		"ETH_0xba8da9dcf11b50b03fd5284f164ef5cdef910705_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"ArbitrumNova_Topic":   {"ArbitrumNova_0x28e0f3ebab59a998c4f1019358388b5e2ca92cfa_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
 		"ArbitrumNova_0x1b02da8cb0d097eb8d57a175b88c7d8b47997506_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
 	    "ArbitrumNova_0xee01c0cd76354c383b8c7b4e65ea88d00b06f36f_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",

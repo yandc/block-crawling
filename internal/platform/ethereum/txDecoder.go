@@ -756,9 +756,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				sy := strings.ToUpper(token.Symbol)
 				if strings.Contains(sy, "ETH") {
 					tokenAddress = ""
-				}else {
+				} else {
 					continue
 				}
+			} else {
+				tokenAddress = ""
 			}
 		} else if topic0 == OPTIMISM_NONE {
 			fromAddress = tokenAddress
