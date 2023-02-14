@@ -675,14 +675,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}, err
 }
 
-func UpdateUtxo(pbb *pb.TransactionReq)  {
+func UpdateUtxo(pbb *pb.TransactionReq) {
 	//修改 未花费
 	time.Sleep(time.Duration(1) * time.Minute)
 	tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
 	if err != nil {
 		log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
 	}
-	log.Info(pbb.ChainName,zap.Any("更新UTXO状态为pending 4",tx))
+	log.Info(pbb.ChainName, zap.Any("更新UTXO状态为pending 4", tx))
 	cellInputs := tx.Inputs
 	for _, ci := range cellInputs {
 		th := ci.PrevHash
@@ -1979,9 +1979,15 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		assetsGroupByToken[item.TokenAddress] = item
 	}
 
+	uniqAssets := make(map[string]UserAsset)
+	for _, asset := range req.Assets {
+		key := fmt.Sprintf("%s%s%s", req.ChainName, req.Address, asset.TokenAddress)
+		uniqAssets[key] = asset
+	}
+
 	needUpdateAssets := make([]*data.UserAsset, 0, len(assets))
 	needPush := make([]UserTokenPush, 0, len(assets))
-	for _, newItem := range req.Assets {
+	for _, newItem := range uniqAssets {
 		tokenAddress := newItem.TokenAddress
 		if tokenAddress == req.Address {
 			tokenAddress = ""
