@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type Platform interface {
@@ -29,6 +30,8 @@ type CommPlatform struct {
 	Lock      sync.RWMutex
 
 	HeightAlarmThr int
+
+	heightAlarmSeq uint64
 }
 
 func (p *CommPlatform) SetRedisHeight() {
@@ -58,19 +61,31 @@ func (p *CommPlatform) MonitorHeight() {
 	oldHeight, _ := strconv.Atoi(redisHeight)
 	height, _ := strconv.Atoi(nodeRedisHeight)
 
+	if strings.Contains(p.ChainName, "TEST") {
+		if p.HeightAlarmThr <= 0 {
+			// Ignore for TEST chain when its threshold set to 0.
+			return
+		}
+
+		// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
+		seq := atomic.AddUint64(&p.heightAlarmSeq, 1)
+		if seq < 60 {
+			return
+		}
+		atomic.StoreUint64(&p.heightAlarmSeq, 0)
+	}
+
 	thr := 30
+
 	if p.HeightAlarmThr > 0 {
 		thr = p.HeightAlarmThr
 	}
 
 	ret := height - oldHeight
 	if ret > thr {
-		if !strings.Contains(p.ChainName, "TEST") {
-			alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		}
-
+		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 
 }

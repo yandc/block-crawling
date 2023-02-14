@@ -149,9 +149,6 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 var monitorHeightSeq uint64
 
 func (p *Platform) MonitorHeight() {
-	// Disabled at 2023-01-10
-	return
-
 	// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
 	seq := atomic.AddUint64(&monitorHeightSeq, 1)
 	if seq == 60 {
