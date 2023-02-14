@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -109,6 +110,17 @@ func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight 
 		return true
 	}
 
+	errStr := err.Error()
+	errList := strings.Split(errStr, "\n")
+	errStrLen := len(errStr)
+	errListLen := len(errList)
+	/*if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && errStrLen > 1048576 {
+		incrHeight = true
+	}*/
+	if errStrLen > 10240 {
+		nerrStr := errList[0] + errStr[0:10240] + errList[errListLen-1]
+		err = errors.New(nerrStr)
+	}
 	if !strings.HasSuffix(h.ChainName, "TEST") {
 		log.Error(
 			"ERROR OCCURRED WHILE HANDLING BLOCK",
@@ -116,5 +128,5 @@ func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight 
 			zap.Error(err),
 		)
 	}
-	return false
+	return
 }
