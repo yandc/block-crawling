@@ -1116,7 +1116,6 @@ platformTest:
     type: TVM
     safelyConcurrentBlockDelta: 60
     maxConcurrency: 5
-    monitorHeightAlarmThr: 150
   SolanaTEST:
     blockExplorerAddrUrl: https://solscan.io/account/
     blockExplorerTxUrl: https://solscan.io/tx/
@@ -1138,7 +1137,6 @@ platformTest:
     type: SOL
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
-    monitorHeightAlarmThr: 300
   NervosTEST:
     blockExplorerAddrUrl: https://pudge.explorer.nervos.org/address/
     blockExplorerTxUrl: https://pudge.explorer.nervos.org/transaction/
@@ -1160,7 +1158,6 @@ platformTest:
     type: CKB
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 1
-    monitorHeightAlarmThr: 300
   CasperTEST:
     blockExplorerAddrUrl: https://testnet.cspr.live/account/
     blockExplorerTxUrl: https://testnet.cspr.live/deploy/
@@ -1182,7 +1179,6 @@ platformTest:
     type: CSPR
     safelyConcurrentBlockDelta: 5
     maxConcurrency: 1
-    monitorHeightAlarmThr: 30
   CosmosTEST:
     blockExplorerAddrUrl: https://explorer.theta-testnet.polypore.xyz/accounts
     blockExplorerTxUrl: https://explorer.theta-testnet.polypore.xyz/transactions
@@ -1204,7 +1200,6 @@ platformTest:
     type: COSMOS
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
-    monitorHeightAlarmThr: 100
   zkSyncTEST:
     blockExplorerAddrUrl: https://goerli.explorer.zksync.io/address
     blockExplorerTxUrl: https://goerli.explorer.zksync.io/tx
@@ -1228,7 +1223,6 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
-    monitorHeightAlarmThr: 100
   ScrollL1TEST:
     blockExplorerAddrUrl: https://l1scan.scroll.io/address
     blockExplorerTxUrl: https://l1scan.scroll.io/tx
@@ -1252,7 +1246,6 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
-    monitorHeightAlarmThr: 100
   ScrollL2TEST:
     blockExplorerAddrUrl: https://l2scan.scroll.io/address
     blockExplorerTxUrl: https://l2scan.scroll.io/tx
@@ -1276,4 +1269,3 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
-    monitorHeightAlarmThr: 100
