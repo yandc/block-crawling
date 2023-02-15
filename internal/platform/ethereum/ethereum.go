@@ -73,6 +73,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 	"SmartBCH_MethodId":   {"SmartBCH_0x639A647fbe20b6c8ac19E48E2de44ea792c62c5C_825bb13c"},
 	"ETC_MethodId":   {"ETC_0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818_0175b1c4"},
 	"ETH_MethodId":   {"ETH_0xBa8Da9dcF11B50B03fd5284f164Ef5cdEF910705_0175b1c4"},
+	"BSC_MethodId":   {"BSC_0x1eD5685F345b2fa564Ea4a670dE1Fde39e484751_d9caed12"},
 
 
 }
