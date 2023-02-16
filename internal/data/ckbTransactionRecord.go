@@ -414,7 +414,7 @@ func (r *CkbTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *CkbTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*CkbTransactionRecord, error) {
 	var ckbTransactionRecord *CkbTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(ckbTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&ckbTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query ckbTransactionRecord by txHash failed", err)

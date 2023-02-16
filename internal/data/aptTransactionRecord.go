@@ -453,7 +453,7 @@ func (r *AptTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *AptTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*AptTransactionRecord, error) {
 	var aptTransactionRecord *AptTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(aptTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&aptTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query aptTransactionRecord by txHash failed", err)

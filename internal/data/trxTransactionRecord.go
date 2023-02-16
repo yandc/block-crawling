@@ -428,22 +428,6 @@ func (r *TrxTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context,
 	}
 }
 
-func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*TrxTransactionRecord, error) {
-	var trxTransactionRecord *TrxTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(trxTransactionRecord)
-	err := ret.Error
-	if err != nil {
-		log.Errore("query  trxTransactionRecord by txHash failed", err)
-		return nil, err
-	} else {
-		if ret.RowsAffected == 0 {
-			return nil, nil
-		} else {
-			return trxTransactionRecord, nil
-		}
-	}
-}
-
 func (r *TrxTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName string, req *pb.AmountRequest, status string) (string, error) {
 	var amount string
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -506,4 +490,20 @@ func (r *TrxTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 		return "", err
 	}
 	return amount, nil
+}
+
+func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*TrxTransactionRecord, error) {
+	var trxTransactionRecord *TrxTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&trxTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query  trxTransactionRecord by txHash failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return trxTransactionRecord, nil
+		}
+	}
 }

@@ -496,7 +496,7 @@ func (r *SolTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *SolTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*SolTransactionRecord, error) {
 	var solTransactionRecord *SolTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(solTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&solTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query solTransactionRecord by txHash failed", err)

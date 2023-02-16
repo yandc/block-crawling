@@ -410,7 +410,7 @@ func (r *CsprTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName
 
 func (r *CsprTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*CsprTransactionRecord, error) {
 	var csprTransactionRecord *CsprTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(csprTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&csprTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query CsprTransactionRecord by txHash failed", err)

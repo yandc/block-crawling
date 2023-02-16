@@ -439,7 +439,7 @@ func (r *SuiTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *SuiTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*SuiTransactionRecord, error) {
 	var suiTransactionRecord *SuiTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(suiTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&suiTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query suiTransactionRecord by txHash failed", err)
