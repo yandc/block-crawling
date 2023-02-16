@@ -463,7 +463,7 @@ func (r *BtcTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *BtcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*BtcTransactionRecord, error) {
 	var btcTransactionRecord *BtcTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(btcTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&btcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query btcTransactionRecord by txHash failed", err)

@@ -93,14 +93,14 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 		return err
 	}
 
-	if !strings.HasSuffix(h.ChainName, "TEST") {
+	/*if !strings.HasSuffix(h.ChainName, "TEST") {
 		log.Error(
 			"error occurred then retry",
 			zap.String("chainName", h.ChainName),
 			zap.String("nodeUrl", client.URL()),
 			zap.Error(err),
 		)
-	}
+	}*/
 	pcommon.NotifyForkedError(h.ChainName, err)
 	return common.Retry(err)
 }

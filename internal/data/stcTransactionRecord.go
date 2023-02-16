@@ -524,7 +524,7 @@ func (r *StcTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 
 func (r *StcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*StcTransactionRecord, error) {
 	var stcTransactionRecord *StcTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(stcTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&stcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query stcTransactionRecord by txHash failed", err)
