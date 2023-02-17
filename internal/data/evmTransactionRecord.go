@@ -33,12 +33,12 @@ type EvmTransactionRecord struct {
 	ContractAddress      string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
 	ParseData            string          `json:"parseData" form:"parseData"`
 	Type                 string          `json:"type" form:"type" gorm:"type:character varying(2)"`
-	GasLimit             string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
-	GasUsed              string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
-	GasPrice             string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(20)"`
-	BaseFee              string          `json:"baseFee" form:"baseFee" gorm:"type:character varying(20)"`
-	MaxFeePerGas         string          `json:"maxFeePerGas" form:"maxFeePerGas" gorm:"type:character varying(20)"`
-	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(20)"`
+	GasLimit             string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(32)"`
+	GasUsed              string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(32)"`
+	GasPrice             string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(32)"`
+	BaseFee              string          `json:"baseFee" form:"baseFee" gorm:"type:character varying(32)"`
+	MaxFeePerGas         string          `json:"maxFeePerGas" form:"maxFeePerGas" gorm:"type:character varying(32)"`
+	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(32)"`
 	Data                 string          `json:"data" form:"data"`
 	EventLog             string          `json:"eventLog" form:"eventLog"`
 	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
