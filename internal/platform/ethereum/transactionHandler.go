@@ -88,19 +88,19 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 			OrderBy:            "id asc",
 		}
 		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
-		l := len(list)
-		if l == 0 {
-			continue
-		}
 		first := list[0]
+		var newList []*data.EvmTransactionRecord
 		for i, transactionRecord := range list {
 			if i > 0 {
 				if (transactionRecord.Amount.String() != "0" || transactionRecord.DappData != "") && transactionRecord.TransactionType != first.TransactionType {
-					l--
+					continue
 				}
 			}
+			newList = append(newList, transactionRecord)
 		}
-		if l > 1 {
+		list = newList
+
+		if len(list) > 1 {
 			for i, transactionRecord := range list {
 				if record.Id != transactionRecord.Id {
 					transactionRecord.Status = biz.DROPPED_REPLACED
