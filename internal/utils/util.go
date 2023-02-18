@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -213,4 +214,17 @@ func HexStringToInt(hetStr string) (*big.Int, error) {
 	}
 	intValue := new(big.Int).SetBytes(byteValue)
 	return intValue, nil
+}
+
+func SubError(err error) error {
+	if err == nil {
+		return err
+	}
+	errStr := err.Error()
+	errList := strings.Split(errStr, "\n")
+	if len(errStr) > 10240 {
+		nerrStr := errList[0] + errStr[0:10240] + errList[len(errList)-1]
+		err = errors.New(nerrStr)
+	}
+	return err
 }

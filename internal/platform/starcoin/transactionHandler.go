@@ -70,9 +70,6 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 		if record.TransactionType == biz.EVENTLOG {
 			continue
 		}
-		if record.DappData != "" {
-			continue
-		}
 
 		transactionRecordRequest := &data.TransactionRequest{
 			FromAddress:        record.FromAddress,
@@ -82,7 +79,19 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 			OrderBy:            "id asc",
 		}
 		list, _ := data.StcTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
-		if len(list) > 1 {
+		l := len(list)
+		if l == 0 {
+			continue
+		}
+		first := list[0]
+		for i, transactionRecord := range list {
+			if i > 0 {
+				if (transactionRecord.Amount.String() != "0" || transactionRecord.DappData != "") && transactionRecord.TransactionType != first.TransactionType {
+					l--
+				}
+			}
+		}
+		if l > 1 {
 			for i, transactionRecord := range list {
 				if record.Id != transactionRecord.Id {
 					transactionRecord.Status = biz.DROPPED_REPLACED

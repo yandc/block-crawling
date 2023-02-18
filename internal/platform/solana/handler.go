@@ -5,8 +5,8 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/utils"
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -105,27 +105,30 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	return common.Retry(err)
 }
 
-func (h *handler) OnError(err error, optHeight ...chain.HeightInfo) (incrHeight bool) {
+func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err == pcommon.NotFound {
 		return true
 	}
 
-	errStr := err.Error()
-	errList := strings.Split(errStr, "\n")
-	errStrLen := len(errStr)
-	errListLen := len(errList)
-	/*if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && errStrLen > 1048576 {
-		incrHeight = true
-	}*/
-	if errStrLen > 10240 {
-		nerrStr := errList[0] + errStr[0:10240] + errList[errListLen-1]
-		err = errors.New(nerrStr)
+	nerr := utils.SubError(err)
+	fields := make([]zap.Field, 0, 4)
+	fields = append(
+		fields,
+		zap.String("chainName", h.ChainName),
+		zap.Error(nerr),
+	)
+	if len(optHeights) > 0 {
+		fields = append(
+			fields,
+			zap.Uint64("curHeight", optHeights[0].CurHeight),
+			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
+		)
 	}
+
 	if !strings.HasSuffix(h.ChainName, "TEST") {
 		log.Error(
 			"ERROR OCCURRED WHILE HANDLING BLOCK",
-			zap.String("chainName", h.ChainName),
-			zap.Error(err),
+			fields...,
 		)
 	}
 	return
