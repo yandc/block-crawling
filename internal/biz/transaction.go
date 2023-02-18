@@ -393,6 +393,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		if pbb.FromAddress != "" {
 			pbb.FromAddress = types2.HexToAddress(pbb.FromAddress).Hex()
+			pendingNonceKey = ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
 		}
 		if strings.HasPrefix(pbb.ToAddress, "0x") {
 			pbb.ToAddress = types2.HexToAddress(pbb.ToAddress).Hex()
@@ -1054,6 +1055,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 }
 
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
+	chainType := ChainNameType[req.ChainName]
+	if req.Address != "" && chainType == EVM{
+		req.Address = types2.HexToAddress(req.Address).Hex()
+	}
 	doneNonceKey := ADDRESS_DONE_NONCE + req.ChainName + ":" + req.Address
 	nonce, err := data.RedisClient.Get(doneNonceKey).Result()
 	if err == redis.Nil {
