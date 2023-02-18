@@ -88,6 +88,9 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 			OrderBy:            "id asc",
 		}
 		list, _ := data.EvmTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
+		if len(list) == 0 {
+			continue
+		}
 		first := list[0]
 		var newList []*data.EvmTransactionRecord
 		for i, transactionRecord := range list {

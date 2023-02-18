@@ -79,6 +79,9 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 			OrderBy:            "id asc",
 		}
 		list, _ := data.StcTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
+		if len(list) == 0 {
+			continue
+		}
 		first := list[0]
 		var newList []*data.StcTransactionRecord
 		for i, transactionRecord := range list {
