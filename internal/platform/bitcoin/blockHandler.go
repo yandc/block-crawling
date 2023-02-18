@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/utils"
 	"fmt"
 	"strings"
 	"time"
@@ -112,11 +113,12 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
+	nerr := utils.SubError(err)
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
 		fields,
 		zap.String("chainName", h.chainName),
-		zap.Error(err),
+		zap.Error(nerr),
 	)
 	if len(optHeights) > 0 {
 		fields = append(
@@ -125,6 +127,7 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
 		)
 	}
+
 	if strings.Contains(fmt.Sprintf("%s", err), "504") {
 		log.Warn(
 			"IGNORE CURRENT BLOCK AS ALL NODES HAVE BEEN TRIED AND STILL GOT 504",

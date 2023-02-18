@@ -2,6 +2,7 @@ package aptos
 
 import (
 	"block-crawling/internal/log"
+	"block-crawling/internal/utils"
 	"strings"
 	"time"
 
@@ -83,11 +84,12 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
+	nerr := utils.SubError(err)
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
 		fields,
 		zap.String("chainName", h.chainName),
-		zap.Error(err),
+		zap.Error(nerr),
 	)
 	if len(optHeights) > 0 {
 		fields = append(

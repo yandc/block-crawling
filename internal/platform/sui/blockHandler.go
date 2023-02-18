@@ -4,7 +4,7 @@ import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
-	"errors"
+	"block-crawling/internal/utils"
 	"strings"
 	"time"
 
@@ -99,20 +99,17 @@ func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bo
 
 	errStr := err.Error()
 	errList := strings.Split(errStr, "\n")
-	errStrLen := len(errStr)
 	errListLen := len(errList)
-	if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && errStrLen > 1048576 {
+	if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && len(errStr) > 1048576 {
 		incrHeight = true
 	}
-	if errStrLen > 10240 {
-		nerrStr := errList[0] + errStr[0:10240] + errList[errListLen-1]
-		err = errors.New(nerrStr)
-	}
+
+	nerr := utils.SubError(err)
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
 		fields,
 		zap.String("chainName", h.chainName),
-		zap.Error(err),
+		zap.Error(nerr),
 	)
 	if len(heights) > 0 {
 		fields = append(
