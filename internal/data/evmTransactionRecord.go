@@ -152,7 +152,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
 			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
 			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},
-			"to_address":               gorm.Expr("case when " + tableName + ".to_address != '' then " + tableName + ".to_address else excluded.to_address end"),
+			"to_address":               gorm.Expr("case when '" + tableName + "' = 'ronin_transaction_record' and " + tableName + ".to_address like 'ronin:%' and excluded.to_address != '' then 'ronin:' || substring (excluded.to_address, 3) else excluded.to_address end"),
 			"from_uid":                 clause.Column{Table: "excluded", Name: "from_uid"},
 			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
