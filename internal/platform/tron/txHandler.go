@@ -175,8 +175,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if contractType == "TriggerSmartContract" {
 		txRepecitInfo, _ := client.GetTransactionByHash(transactionHash)
 		if len(txRepecitInfo.RawData.Contract) > 0 {
-			amount = decimal.NewFromBigInt(txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue, 0)
-
+			if txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue != nil {
+				amount = decimal.NewFromBigInt(txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue, 0)
+			}
 		}
 	}
 
