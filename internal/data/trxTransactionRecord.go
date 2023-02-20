@@ -29,6 +29,7 @@ type TrxTransactionRecord struct {
 	TxTime          int64           `json:"txTime" form:"txTime"`
 	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
 	ParseData       string          `json:"parseData" form:"parseData"`
+	EventLog        string          `json:"eventLog" form:"eventLog"`
 	FeeLimit        string          `json:"feeLimit" form:"feeLimit" gorm:"type:character varying(30)"`
 	NetUsage        string          `json:"netUsage" form:"netUsage" gorm:"type:character varying(30)"`
 	EnergyUsage     string          `json:"energyUsage" form:"energyUsage" gorm:"type:character varying(20)"`
@@ -148,6 +149,7 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"net_usage":        clause.Column{Table: "excluded", Name: "net_usage"},
 			"energy_usage":     clause.Column{Table: "excluded", Name: "energy_usage"},
 			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
+			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),

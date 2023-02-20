@@ -6,14 +6,20 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 )
+
+const TRANSFER_TOPIC = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+const WITHDRAWAL_TOPIC = "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"
 
 type txHandler struct {
 	chainName   string
@@ -33,32 +39,32 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 	if !(meta.User.MatchFrom || meta.User.MatchTo) {
-		return nil
+		tornWhiteMethods := tx.ToAddress
+		flag := true
+		for _, element := range TronBridgeWhiteAddressList {
+			if tornWhiteMethods == element {
+				flag = false
+				break
+			}
+		}
+		//未命中白名 则丢弃该交易
+		if flag {
+			return nil
+		}
 	}
-
-	/*log.Info(
-		"GOT NEW TX THAT MATCHED OUR USER",
-		meta.WrapFields(
-			zap.String("chainName", h.chainName),
-			zap.Uint64("height", tx.BlockNumber),
-			zap.String("nodeUrl", c.URL()),
-			zap.String("txHash", tx.Hash),
-			zap.Bool("handlePendingTx", !h.newTxs),
-		)...,
-	)*/
 
 	rawTx := tx.Raw.(*rawTxWrapper)
 	transactionHash := rawTx.TxID
 	client := c.(*Client)
-	status := "pending"
+	status := biz.PENDING
 	if len(rawTx.Ret) > 0 {
 		if rawTx.Ret[0].ContractRet == "SUCCESS" {
-			status = "success"
+			status = biz.SUCCESS
 		} else {
-			status = "fail"
+			status = biz.FAIL
 		}
 	} else {
-		status = "success"
+		status = biz.SUCCESS
 	}
 	var tokenInfo types.TokenInfo
 	txInfo, err := client.GetTransactionInfoByHash(transactionHash)
@@ -66,7 +72,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 
-	if tx.TxType == "transfer" {
+	if tx.TxType == biz.TRANSFER || tx.TxType == biz.APPROVE {
 		tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, rawTx.contractAddress)
 		if err != nil {
 			log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -74,6 +80,80 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		tokenInfo.Amount = rawTx.tokenAmount
 		tokenInfo.Address = rawTx.contractAddress
 	}
+
+	platformUserEventlog := false
+	//获取eventlog
+	var eventLogs []types.EventLog
+	if tx.TxType != biz.NATIVE {
+		for _, log_ := range txInfo.Log {
+			if len(log_.Topics) > 1 && (log_.Topics[0] == TRANSFER_TOPIC ||
+				log_.Topics[0] == WITHDRAWAL_TOPIC) {
+				contranctAddress := log_.Address
+				tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contranctAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				amount := big.NewInt(0)
+				banInt, b := new(big.Int).SetString(log_.Data, 16)
+				if b {
+					amount = banInt
+				}
+				tokenInfo.Amount = amount.String()
+
+				if log_.Topics[0] == TRANSFER_TOPIC {
+					eventLogInfo := types.EventLog{
+						From:   utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64]),
+						To:     utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[2][24:64]),
+						Amount: amount,
+						Token:  tokenInfo,
+					}
+					eventLogs = append(eventLogs, eventLogInfo)
+				}
+
+				if log_.Topics[0] == WITHDRAWAL_TOPIC {
+					if strings.HasPrefix(tokenInfo.Symbol, "W") || strings.HasPrefix(tokenInfo.Symbol, "w") {
+						tokenInfo.Symbol = tokenInfo.Symbol[1:]
+					}
+					eventLogInfo := types.EventLog{
+						From:   utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64]),
+						To:     tx.FromAddress,
+						Amount: amount,
+						Token:  tokenInfo,
+					}
+					eventLogs = append(eventLogs, eventLogInfo)
+
+				}
+			}
+		}
+		if len(eventLogs) > 0 {
+			for _, eventLog := range eventLogs {
+				var fromAddressExist, toAddressExist bool
+				fromAddress := eventLog.From
+				toAddress := eventLog.To
+				if fromAddress != "" {
+					fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+						return err
+					}
+				}
+
+				if toAddress != "" {
+					toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+						return err
+					}
+				}
+				if fromAddressExist || toAddressExist {
+					platformUserEventlog = true
+					break
+				}
+			}
+		}
+
+	}
+
 	feeData := map[string]interface{}{
 		"net_usage": txInfo.Receipt.NetUsage,
 	}
@@ -90,6 +170,23 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if txInfo.Receipt.NetFee > 0 && feeAmount == 0 {
 		feeAmount = txInfo.Receipt.NetFee
 	}
+	contractType := rawTx.RawData.Contract[0].Type
+	amount, _ := decimal.NewFromString(tx.Value)
+	if contractType == "TriggerSmartContract" {
+		txRepecitInfo, _ := client.GetTransactionByHash(transactionHash)
+		if len(txRepecitInfo.RawData.Contract) > 0 {
+			amount = decimal.NewFromBigInt(txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue, 0)
+
+		}
+	}
+
+	if platformUserEventlog && meta.TransactionType != biz.CONTRACT {
+		meta.TransactionType = biz.CONTRACT
+	}
+	if tx.TxType == biz.CONTRACT {
+		tokenInfo = types.TokenInfo{}
+	}
+
 	tronMap := map[string]interface{}{
 		"tvm":   map[string]string{},
 		"token": tokenInfo,
@@ -99,7 +196,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if rawTx.RawData.Timestamp == 0 {
 		exTime = block.Time / 1000
 	}
-	amount, _ := decimal.NewFromString(tx.Value)
+
+	var eventLog string
+	if eventLogs != nil {
+		eventLogJson, _ := json.Marshal(eventLogs)
+		eventLog = string(eventLogJson)
+	}
 	rawBlock := block.Raw.(*types.BlockResponse)
 	trxRecord := &data.TrxTransactionRecord{
 		BlockHash:       block.Hash,
@@ -113,6 +215,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		Amount:          amount,
 		Status:          status,
 		TxTime:          exTime,
+		EventLog:        eventLog,
 		ContractAddress: rawTx.contractAddress,
 		ParseData:       string(parseData),
 		NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
@@ -124,7 +227,54 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		CreatedAt:       h.now,
 		UpdatedAt:       h.now,
 	}
-	h.txRecords = append(h.txRecords, trxRecord)
+
+	if meta.User.MatchFrom || meta.User.MatchTo || platformUserEventlog {
+		h.txRecords = append(h.txRecords, trxRecord)
+	}
+	if platformUserEventlog && meta.TransactionType == biz.CONTRACT {
+		for index, eventLog := range eventLogs {
+			eventMap := map[string]interface{}{
+				"token": eventLog.Token,
+			}
+			eventParseData, _ := json.Marshal(eventMap)
+			//b, _ := json.Marshal(eventLog)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+			txType := biz.EVENTLOG
+			contractAddress := eventLog.Token.Address
+			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
+			var eventFromUid, eventToUid string
+
+			userMeta, err := common.MatchUser(eventLog.From, eventLog.To, h.chainName)
+			if err == nil {
+				eventFromUid = userMeta.FromUid
+				eventToUid = userMeta.ToUid
+			}
+			trxLogRecord := &data.TrxTransactionRecord{
+				BlockHash:       block.Hash,
+				BlockNumber:     rawBlock.BlockHeader.RawData.Number,
+				TransactionHash: txHash,
+				FromAddress:     eventLog.From,
+				ToAddress:       eventLog.To,
+				FromUid:         eventFromUid,
+				ToUid:           eventToUid,
+				FeeAmount:       decimal.NewFromInt(int64(feeAmount)),
+				Amount:          amountValue,
+				Status:          status,
+				TxTime:          exTime,
+				ContractAddress: contractAddress,
+				ParseData:       string(eventParseData),
+				NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
+				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
+				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+				TransactionType: txType,
+				DappData:        "",
+				ClientData:      "",
+				CreatedAt:       h.now,
+				UpdatedAt:       h.now,
+			}
+			h.txRecords = append(h.txRecords, trxLogRecord)
+		}
+	}
 	return nil
 }
 

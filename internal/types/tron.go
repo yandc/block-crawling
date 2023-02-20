@@ -1,7 +1,16 @@
 package types
 
+import "math/big"
+
 type TronBalance struct {
 	Balance int64       `json:"balance"`
+	Error   interface{} `json:"error"`
+}
+
+type TronAccountInfo struct {
+	Address string      `json:"address"`
+	Balance int         `json:"balance"`
+	Type    string      `json:"type"`
 	Error   interface{} `json:"error"`
 }
 
@@ -127,4 +136,31 @@ type TronTokenBalanceReq struct {
 	FunctionSelector string `json:"function_selector"`
 	Parameter        string `json:"parameter"`
 	Visible          bool   `json:"visible"`
+}
+type TronContractInfo struct {
+	Ret []struct {
+		ContractRet string `json:"contractRet"`
+	} `json:"ret"`
+	Signature []string `json:"signature"`
+	TxID      string   `json:"txID"`
+	RawData   struct {
+		Contract []struct {
+			Parameter struct {
+				Value struct {
+					Data            string  `json:"data"`
+					OwnerAddress    string  `json:"owner_address"`
+					ContractAddress string  `json:"contract_address"`
+					CallValue       *big.Int `json:"call_value"`
+				} `json:"value"`
+				TypeUrl string `json:"type_url"`
+			} `json:"parameter"`
+			Type string `json:"type"`
+		} `json:"contract"`
+		RefBlockBytes string `json:"ref_block_bytes"`
+		RefBlockHash  string `json:"ref_block_hash"`
+		Expiration    int64  `json:"expiration"`
+		FeeLimit      int    `json:"fee_limit"`
+		Timestamp     int64  `json:"timestamp"`
+	} `json:"raw_data"`
+	RawDataHex string `json:"raw_data_hex"`
 }

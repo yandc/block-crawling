@@ -33,6 +33,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 		handleUserAsset(chainName, client, txRecords)
 	}()
 	go handleUserStatistic(chainName, client, txRecords)
+	go biz.TronDappApproveFilter(chainName,txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
