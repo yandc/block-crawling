@@ -22,6 +22,11 @@ import (
 const ADDRESS_PREFIX = "41"
 const TRC10TYPE = "TransferAssetContract"
 
+var TronBridgeWhiteAddressList = []string{
+	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",
+}
+
+
 type Platform struct {
 	subhandle.CommPlatform
 	client    Client

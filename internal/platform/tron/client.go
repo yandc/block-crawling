@@ -1,6 +1,7 @@
 package tron
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
@@ -9,9 +10,9 @@ import (
 	"errors"
 	"math/big"
 	"net/http"
+	"strconv"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 )
@@ -67,14 +68,14 @@ func (c *Client) GetBlock(height uint64) (block *chain.Block, err error) {
 	}
 	txs := make([]*chain.Transaction, 0, len(rawBlock.Transactions))
 	for _, tx := range rawBlock.Transactions {
-		meta := parseTxMeta(&tx)
+		meta := c.parseTxMeta(&tx)
 		txs = append(txs, &chain.Transaction{
 			Hash:        tx.TxID,
 			BlockNumber: blockNumber,
 			TxType:      chain.TxType(meta.txType),
 			FromAddress: meta.fromAddr,
 			ToAddress:   meta.toAddr,
-			Value:       decimal.NewFromInt(int64(meta.amount)).String(),
+			Value:       meta.amount,
 			Raw: &rawTxWrapper{
 				BlockTx:         tx,
 				tokenAmount:     meta.tokenAmount,
@@ -102,34 +103,55 @@ type rawTxWrapper struct {
 
 type txMeta struct {
 	txType          string
-	amount          int
+	amount          string
 	fromAddr        string
 	toAddr          string
 	tokenAmount     string
 	contractAddress string
 }
 
-func parseTxMeta(tx *types.BlockTx) *txMeta {
-	txType := "native"
+func (c *Client) parseTxMeta(tx *types.BlockTx) *txMeta {
+	txType := biz.NATIVE
 	value := tx.RawData.Contract[0].Parameter.Value
 	fromAddress := value.OwnerAddress
 	var toAddress, contractAddress string
 	tokenAmount := "0"
-	var amount int
-	if value.ContractAddress != "" && len(value.Data) >= 136 {
-		methodId := value.Data[:8]
-		if methodId == "a9059cbb" {
-			txType = "transfer"
-			contractAddress = value.ContractAddress
-			toAddress = utils.TronHexToBase58(ADDRESS_PREFIX + value.Data[32:72])
+	amount := "0"
+	if value.ContractAddress != "" {
+		contractAddress = value.ContractAddress
+		if len(value.Data) >= 136 {
+			methodId := value.Data[:8]
 			banInt, b := new(big.Int).SetString(value.Data[72:], 16)
-			if b {
-				tokenAmount = banInt.String()
+			if methodId == "a9059cbb" {
+				txType = biz.TRANSFER
+				toAddress = utils.TronHexToBase58(ADDRESS_PREFIX + value.Data[32:72])
+				if b {
+					tokenAmount = banInt.String()
+				}
 			}
+			if methodId == "095ea7b3" {
+				toAddress = utils.TronHexToBase58(ADDRESS_PREFIX + value.Data[32:72])
+				txType = biz.APPROVE
+				if b {
+					tokenAmount = banInt.String()
+					amount = banInt.String()
+				}
+			}
+			if methodId == "23b872dd" {
+				toAddress = contractAddress
+				if b {
+					amount = strconv.Itoa(value.Amount)
+				}
+			}
+		}
+		if txType == biz.NATIVE {
+			txType = biz.CONTRACT
+			toAddress = contractAddress
+			amount = strconv.Itoa(value.Amount)
 		}
 	} else {
 		toAddress = value.ToAddress
-		amount = value.Amount
+		amount = strconv.Itoa(value.Amount)
 	}
 	return &txMeta{
 		txType:          txType,
@@ -205,6 +227,36 @@ func (c *Client) GetBalance(address string) (string, error) {
 
 	balance := utils.BigIntString(new(big.Int).SetInt64(out.Balance), 6)
 	return balance, nil
+}
+
+func (c *Client) GetAccountInfo(address string) (bool, error) {
+
+	url := c.url + "/wallet/getaccount"
+	reqBody := types.BalanceReq{
+		Address: address,
+		Visible: true,
+	}
+	out := &types.TronAccountInfo{}
+	timeoutMS := 10_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
+	if err != nil {
+		return false, err
+	}
+	if out.Error != nil {
+		if e, ok := out.Error.(string); ok {
+			return false, errors.New(e)
+		} else {
+			e, err := utils.JsonEncode(out.Error)
+			if err != nil {
+				return false, err
+			} else {
+				return false, errors.New(e)
+			}
+		}
+	}
+
+	return out.Type == "Contract", err
+
 }
 
 func (c *Client) GetTokenBalance(ownerAddress string, contractAddress string, decimal int) (string, error) {
@@ -324,5 +376,19 @@ func (c *Client) GetTransactionInfoByHash(txHash string) (*types.TronTxInfoRespo
 		}
 	}
 
+	return out, err
+}
+func (c *Client) GetTransactionByHash(txHash string) (*types.TronContractInfo, error) {
+	url := c.url + "/wallet/gettransactionbyid"
+	out := &types.TronContractInfo{}
+	reqBody := types.TronTxReq{
+		Value:   txHash,
+		Visible: true,
+	}
+	timeoutMS := 5_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, reqBody, out, &timeoutMS)
+	if err != nil {
+		return nil, err
+	}
 	return out, err
 }

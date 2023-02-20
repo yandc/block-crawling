@@ -37,10 +37,11 @@ func NewTransactionUsecase(grom *gorm.DB, lark *Lark, bundle *data.Bundle) *Tran
 }
 
 func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenAmountReq) (*pb.OpenAmoutResp, error) {
-	if req.Address != "" {
+	ct := ChainNameType[req.ChainName]
+	if req.Address != "" && ct == EVM {
 		req.Address = types2.HexToAddress(req.Address).Hex()
 	}
-	if req.ContractAddress != "" {
+	if req.ContractAddress != "" && ct == EVM{
 		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
 	var oai = &pb.OpenAmountInfo{}
@@ -120,14 +121,15 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 }
 
 func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
-	if len(req.Addresses) > 0 {
+	ct := ChainNameType[req.ChainName]
+	if len(req.Addresses) > 0 && ct == EVM {
 		var addresses []string
 		for _, addr := range req.Addresses {
 			addresses = append(addresses, types2.HexToAddress(addr).Hex())
 		}
 		req.Addresses = addresses
 	}
-	if req.ContractAddress != "" {
+	if req.ContractAddress != "" && ct == EVM {
 		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
 	var dappAll []*pb.DappInfo
@@ -889,10 +891,13 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	if req.Limit == 0 {
 		req.Limit = 20
 	}
-	if req.ContractAddress != "" {
+
+	ct := ChainNameType[req.ChainName]
+
+	if req.ContractAddress != "" && ct == EVM {
 		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
-	if req.FromAddress != "" {
+	if req.FromAddress != "" && ct == EVM {
 		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 	}
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
@@ -989,6 +994,20 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					r.FeeData = feeDataStr
 					r.Cursor = value.TxTime
 					r.Amount = value.Amount
+					if tvm.TransactionType != APPROVE {
+						//r.ParseData =
+						var tokenInfoMap = make(map[string] types.TokenInfo)
+						tokenInfo := types.TokenInfo{
+							Address        :value.Token,
+							Amount         :value.Amount,
+							Decimals       : value.Decimals,
+							Symbol : value.Symbol,
+						}
+						tokenInfoMap["token"] = tokenInfo
+						parseDate, _ := json.Marshal(tokenInfoMap)
+						r.ParseData = string(parseDate)
+					}
+
 					trs = append(trs, r)
 				}
 			case APTOS:

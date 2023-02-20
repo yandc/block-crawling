@@ -5,8 +5,10 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strconv"
@@ -87,6 +89,29 @@ func main() {
 	//testDapp()
 
 	//getDappListPageList()
+
+	yyx := "095ea7b300000000000000000000000043e6777d20e73ccaea86922c20664072d667e3dc0000000000000000000000000000000000000000000000000000000038cda040"
+	toAddress := utils.TronHexToBase58("41" + yyx[32:72])
+	fmt.Println(toAddress)
+
+
+	dongdongdong := "a614f803b6fd780986a42c78ec9c7f77e6ded13c"
+	ddddd := utils.TronHexToBase58("41" + dongdongdong)
+	fmt.Println(ddddd)
+
+	var TokenInfoMap = make(map[string] types.TokenInfo)
+	ddongq := types.TokenInfo{
+		Address        :"TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
+		Amount         :"10000",
+		Decimals       : 6,
+		Symbol : "USDC",
+	}
+
+	TokenInfoMap["token"] = ddongq
+
+	eventLogJson, _ := json.Marshal(TokenInfoMap)
+
+	fmt.Println(string(eventLogJson))
 
 
 }
