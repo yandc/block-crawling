@@ -579,6 +579,19 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					}
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
+				} else if len(log_.Topics) == 1 {
+					//https://cn.etherscan.com/tx/0x2c355d0b5419ca267344ed6e19ceb8fc20d102f6e67c312b38e047f1031998ee
+					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					}
+					token.TokenType = biz.ERC721
+					amount, _ = new(big.Int).SetString("1", 0)
+					if len(log_.Data) >= 96 {
+						tokenId = new(big.Int).SetBytes(log_.Data[64:96]).String()
+						toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[32:64])).String()
+						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+					}
 				} else {
 					token, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, tokenAddress)
 					if err != nil {
@@ -637,7 +650,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Amount = amount.String()
 			}
 		} else if topic0 == TRANSFER_TOPIC {
-			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			if len(log_.Topics) >= 2 {
+				toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			}
 			// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 			//uniswap v3 代币换主币 function 销毁 主币 再发送主币。
 			if toAddress == "0x0000000000000000000000000000000000000000" && common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" {
