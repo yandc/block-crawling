@@ -84,17 +84,25 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 		}
 		first := list[0]
 		var newList []*data.StcTransactionRecord
+		var chainRecord bool
 		for i, transactionRecord := range list {
 			if i > 0 {
-				if (transactionRecord.Amount.String() != "0" || transactionRecord.DappData != "") && transactionRecord.TransactionType != first.TransactionType {
+				if (transactionRecord.Amount.String() != "0" && (transactionRecord.TransactionType != first.TransactionType || transactionRecord.Amount.String() != first.Amount.String())) ||
+					(transactionRecord.DappData != "" && transactionRecord.TransactionType != first.TransactionType) {
+					continue
+				} else if transactionRecord.Amount.String() != "0" && transactionRecord.TransactionType == first.TransactionType && transactionRecord.Amount.String() == first.Amount.String() &&
+					transactionRecord.CreatedAt-first.CreatedAt > 21610 {
 					continue
 				}
 			}
 			newList = append(newList, transactionRecord)
+			if transactionRecord.Status == biz.SUCCESS || transactionRecord.Status == biz.FAIL {
+				chainRecord = true
+			}
 		}
 		list = newList
 
-		if len(list) > 1 {
+		if chainRecord && len(list) > 1 {
 			for i, transactionRecord := range list {
 				if record.Id != transactionRecord.Id {
 					transactionRecord.Status = biz.DROPPED_REPLACED

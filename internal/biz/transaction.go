@@ -37,12 +37,14 @@ func NewTransactionUsecase(grom *gorm.DB, lark *Lark, bundle *data.Bundle) *Tran
 }
 
 func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenAmountReq) (*pb.OpenAmoutResp, error) {
-	ct := ChainNameType[req.ChainName]
-	if req.Address != "" && ct == EVM {
-		req.Address = types2.HexToAddress(req.Address).Hex()
-	}
-	if req.ContractAddress != "" && ct == EVM{
-		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
+	chainType := ChainNameType[req.ChainName]
+	if chainType == EVM {
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+		if req.ContractAddress != "" {
+			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
+		}
 	}
 	var oai = &pb.OpenAmountInfo{}
 	amountTotal := decimal.Zero
@@ -121,16 +123,12 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 }
 
 func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
-	ct := ChainNameType[req.ChainName]
-	if len(req.Addresses) > 0 && ct == EVM {
-		var addresses []string
-		for _, addr := range req.Addresses {
-			addresses = append(addresses, types2.HexToAddress(addr).Hex())
+	chainType := ChainNameType[req.ChainName]
+	if chainType == EVM {
+		req.Addresses = utils.HexToAddress(req.Addresses)
+		if req.ContractAddress != "" {
+			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 		}
-		req.Addresses = addresses
-	}
-	if req.ContractAddress != "" && ct == EVM {
-		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 	}
 	var dappAll []*pb.DappInfo
 	dapps, err := data.DappApproveRecordRepoClient.ListByCondition(ctx, req)
@@ -892,13 +890,14 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		req.Limit = 20
 	}
 
-	ct := ChainNameType[req.ChainName]
-
-	if req.ContractAddress != "" && ct == EVM {
-		req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
-	}
-	if req.FromAddress != "" && ct == EVM {
-		req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
+	chainType := ChainNameType[req.ChainName]
+	if chainType == EVM {
+		if req.ContractAddress != "" {
+			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
+		}
+		if req.FromAddress != "" {
+			req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
+		}
 	}
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
 	if err != nil {
@@ -996,12 +995,12 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					r.Amount = value.Amount
 					if tvm.TransactionType != APPROVE {
 						//r.ParseData =
-						var tokenInfoMap = make(map[string] types.TokenInfo)
+						var tokenInfoMap = make(map[string]types.TokenInfo)
 						tokenInfo := types.TokenInfo{
-							Address        :value.Token,
-							Amount         :value.Amount,
-							Decimals       : value.Decimals,
-							Symbol : value.Symbol,
+							Address:  value.Token,
+							Amount:   value.Amount,
+							Decimals: value.Decimals,
+							Symbol:   value.Symbol,
 						}
 						tokenInfoMap["token"] = tokenInfo
 						parseDate, _ := json.Marshal(tokenInfoMap)
@@ -1075,7 +1074,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
 	chainType := ChainNameType[req.ChainName]
-	if req.Address != "" && chainType == EVM{
+	if req.Address != "" && chainType == EVM {
 		req.Address = types2.HexToAddress(req.Address).Hex()
 	}
 	doneNonceKey := ADDRESS_DONE_NONCE + req.ChainName + ":" + req.Address
@@ -2029,6 +2028,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			}
 			tokenInfo, err := s.getTokenInfo(ctx, req.ChainName, req.Address, &newItem)
 			if err != nil {
+				log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
 				return nil, err
 			}
 
