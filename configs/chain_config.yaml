@@ -730,8 +730,8 @@ platform:
     netType: main
     proxyCacheTime: 0
     rpcURL:
+      - https://lcd-osmosis.blockapsis.com
       - https://osmosis-mainnet-rpc.allthatnode.com:1317
-      - https://lcd-osmosis.cosmostation.io
       - https://lcd.osmosis.zone
     symbol: Osmosis
     type: COSMOS
