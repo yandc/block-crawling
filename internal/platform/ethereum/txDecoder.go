@@ -696,16 +696,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				toAddress = meta.ToAddress
 			}
 		} else if topic0 == DEPOSIT_TOPIC {
-			//兑换时判断 交易金额不能为 0
-			//判断 value是否为0 不为 0 则增加记录
-			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
-			if meta.Value != "0" {
-				fromAddress = meta.FromAddress
-				if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-					token.Symbol = token.Symbol[1:]
+			if len(log_.Topics) >= 2 {
+				//兑换时判断 交易金额不能为 0
+				//判断 value是否为0 不为 0 则增加记录
+				toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				if meta.Value != "0" {
+					fromAddress = meta.FromAddress
+					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+						token.Symbol = token.Symbol[1:]
+					}
+				} else {
+					fromAddress = meta.ToAddress
 				}
-			} else {
-				fromAddress = meta.ToAddress
 			}
 		} else if topic0 == BRIDGE_TRANSFERNATIVE {
 			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
