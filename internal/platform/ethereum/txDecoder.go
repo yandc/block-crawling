@@ -330,7 +330,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		},
 		"token": tokenInfo,
 	}
-	parseData, _ := json.Marshal(evmMap)
+	parseData, _ := utils.JsonEncode(evmMap)
 	gasUsedInt, _ := utils.HexStringToInt(receipt.GasUsed)
 	gasUsed := gasUsedInt.String()
 	gasPriceInt := transaction.GasPrice()
@@ -354,8 +354,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	amountValue, _ := decimal.NewFromString(amount)
 	var eventLog string
 	if eventLogs != nil {
-		eventLogJson, _ := json.Marshal(eventLogs)
-		eventLog = string(eventLogJson)
+		eventLog, _ = utils.JsonEncode(eventLogs)
 	}
 
 	var logAddress datatypes.JSON
@@ -407,7 +406,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		Status:               status,
 		TxTime:               h.block.Time,
 		ContractAddress:      contractAddress,
-		ParseData:            string(parseData),
+		ParseData:            parseData,
 		Type:                 fmt.Sprintf("%v", transaction.Type()),
 		GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
 		GasUsed:              gasUsed,
@@ -442,8 +441,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				},
 				"token": eventLog.Token,
 			}
-			eventParseData, _ := json.Marshal(eventMap)
-			//b, _ := json.Marshal(eventLog)
+			eventParseData, _ := utils.JsonEncode(eventMap)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
@@ -469,7 +467,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				Status:               status,
 				TxTime:               h.block.Time,
 				ContractAddress:      contractAddress,
-				ParseData:            string(eventParseData),
+				ParseData:            eventParseData,
 				Type:                 fmt.Sprintf("%v", transaction.Type()),
 				GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
 				GasUsed:              gasUsed,

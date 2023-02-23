@@ -4555,9 +4555,8 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 					eventLog.Token.Symbol = tokenParam.NewSymbol
 				}
 			}
-			eventLogJson, _ := json.Marshal(eventLogs)
-			eventLogStr = string(eventLogJson)
-			txRecord.EventLog = eventLogStr
+			eventLogJson, _ := utils.JsonEncode(eventLogs)
+			txRecord.EventLog = eventLogJson
 		}
 	}
 

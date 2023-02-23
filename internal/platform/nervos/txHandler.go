@@ -6,7 +6,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	tokenTypes "block-crawling/internal/types"
-	"encoding/json"
+	"block-crawling/internal/utils"
 	"fmt"
 	"time"
 
@@ -104,7 +104,7 @@ func (h *txHandler) onTx(
 			tokenInfo.Amount = rawTx.amounts[i]
 			tokenInfo.Address = contractAddr
 		}
-		parseData, _ := json.Marshal(map[string]interface{}{
+		parseData, _ := utils.JsonEncode(map[string]interface{}{
 			"cell":  rawTx.outputCells[i],
 			"token": tokenInfo,
 		})
@@ -122,7 +122,7 @@ func (h *txHandler) onTx(
 			Status:          status,
 			TxTime:          txTime,
 			ContractAddress: rawTx.contractAddresses[i],
-			ParseData:       string(parseData),
+			ParseData:       parseData,
 			ConfirmCount:    int32(h.chainHeight) - int32(h.curHeight),
 			EventLog:        "",
 			TransactionType: txType,

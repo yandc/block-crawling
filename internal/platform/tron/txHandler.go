@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -192,7 +191,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		"tvm":   map[string]string{},
 		"token": tokenInfo,
 	}
-	parseData, _ := json.Marshal(tronMap)
+	parseData, _ := utils.JsonEncode(tronMap)
 	exTime := rawTx.RawData.Timestamp / 1000
 	if rawTx.RawData.Timestamp == 0 {
 		exTime = block.Time / 1000
@@ -200,8 +199,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	var eventLog string
 	if eventLogs != nil {
-		eventLogJson, _ := json.Marshal(eventLogs)
-		eventLog = string(eventLogJson)
+		eventLog, _ = utils.JsonEncode(eventLogs)
 	}
 	rawBlock := block.Raw.(*types.BlockResponse)
 	trxRecord := &data.TrxTransactionRecord{
@@ -218,7 +216,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		TxTime:          exTime,
 		EventLog:        eventLog,
 		ContractAddress: rawTx.contractAddress,
-		ParseData:       string(parseData),
+		ParseData:       parseData,
 		NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
 		FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
 		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
@@ -237,8 +235,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			eventMap := map[string]interface{}{
 				"token": eventLog.Token,
 			}
-			eventParseData, _ := json.Marshal(eventMap)
-			//b, _ := json.Marshal(eventLog)
+			eventParseData, _ := utils.JsonEncode(eventMap)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
@@ -263,7 +260,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				Status:          status,
 				TxTime:          exTime,
 				ContractAddress: contractAddress,
-				ParseData:       string(eventParseData),
+				ParseData:       eventParseData,
 				NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
 				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
 				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),

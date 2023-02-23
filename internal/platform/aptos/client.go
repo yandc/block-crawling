@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -314,11 +313,11 @@ func (c *Client) Erc1155BalanceByName(address string, creatorAddress string, col
 		return "", err
 	}
 	if out.Errors != nil {
-		errorsStr, err := json.Marshal(out.Errors)
+		errorsStr, err := utils.JsonEncode(out.Errors)
 		if err != nil {
 			return "", err
 		}
-		return "", errors.New(string(errorsStr))
+		return "", errors.New(errorsStr)
 	}
 
 	currentTokenOwnerships := out.Data.CurrentTokenOwnerships
@@ -351,11 +350,11 @@ func (c *Client) Erc1155BalanceByTokenId(address string, tokenId string, propert
 		return "", err
 	}
 	if out.Errors != nil {
-		errorsStr, err := json.Marshal(out.Errors)
+		errorsStr, err := utils.JsonEncode(out.Errors)
 		if err != nil {
 			return "", err
 		}
-		return "", errors.New(string(errorsStr))
+		return "", errors.New(errorsStr)
 	}
 
 	currentTokenOwnerships := out.Data.CurrentTokenOwnerships

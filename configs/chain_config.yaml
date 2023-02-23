@@ -320,6 +320,7 @@ platform:
     netType: main
     rpcURL:
     - https://public-node-api.klaytnapi.com/v1/cypress
+    - https://klaytn.blockpi.network/v1/rpc/public
     - https://klaytn01.fandom.finance/
     - https://klaytn02.fandom.finance/
     - https://klaytn03.fandom.finance/
