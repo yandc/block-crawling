@@ -1003,8 +1003,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 							Symbol:   value.Symbol,
 						}
 						tokenInfoMap["token"] = tokenInfo
-						parseDate, _ := json.Marshal(tokenInfoMap)
-						r.ParseData = string(parseDate)
+						parseDate, _ := utils.JsonEncode(tokenInfoMap)
+						r.ParseData = parseDate
 					}
 
 					trs = append(trs, r)
@@ -1955,10 +1955,10 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	}
 
 	respone := ss[0].Interface()
-	ret, _ := json.Marshal(respone)
+	ret, _ := utils.JsonEncode(respone)
 	return &pb.JsonResponse{
 		Ok:       true,
-		Response: string(ret),
+		Response: ret,
 	}, nil
 }
 
