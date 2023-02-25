@@ -4,6 +4,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/common"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,11 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+)
+
+const (
+	ID      = 1
+	JSONRPC = "2.0"
 )
 
 var TokenInfoMap = make(map[string]types.TokenInfo)
@@ -92,9 +98,9 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 }
 
 func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
-	var coinNames string
+	var coinNames []string
 	var coinNameMap = make(map[string]string)
-	var coinAddresses string
+	var coinAddresses []string
 	var getPriceKeyMap = make(map[string][]string)
 	var handlerMap = make(map[string]string)
 	var resultMap = make(map[string]map[string]string)
@@ -116,19 +122,12 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 
 			for _, tokenAddress := range tokenAddressList {
 				if tokenAddress == "" {
-					if coinNames == "" {
-						coinNames = getPriceKey
-						coinNameMap[getPriceKey] = ""
-					} else if _, ok := coinNameMap[getPriceKey]; !ok {
-						coinNames = coinNames + "," + getPriceKey
+					if _, ok := coinNameMap[getPriceKey]; !ok {
+						coinNames = append(coinNames, getPriceKey)
 						coinNameMap[getPriceKey] = ""
 					}
 				} else {
-					if coinAddresses == "" {
-						coinAddresses = handler + "_" + tokenAddress
-					} else {
-						coinAddresses = coinAddresses + "," + handler + "_" + tokenAddress
-					}
+					coinAddresses = append(coinAddresses, handler+"_"+tokenAddress)
 				}
 			}
 		}
@@ -139,24 +138,37 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 		return resultMap, err
 	}
 	defer conn.Close()
-	client := v1.NewTokenlistClient(conn)
+	client := v1.NewCommRPCClient(conn)
 
 	if ctx == nil {
 		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 		ctx = context
 		defer cancel()
 	}
-	priceResp, err := client.GetPrice(ctx, &v1.PriceReq{
-		Currency:      currency,
-		CoinNames:     coinNames,
-		CoinAddresses: coinAddresses,
+
+	var paramMap = make(map[string]interface{})
+	paramMap["currency"] = currency
+	paramMap["coin_name"] = coinNames
+	paramMap["coin_address"] = coinAddresses
+	params, err := utils.JsonEncode(paramMap)
+	if err != nil {
+		return resultMap, err
+	}
+	response, err := client.ExecNodeProxyRPC(ctx, &v1.ExecNodeProxyRPCRequest{
+		Id:      ID,
+		Jsonrpc: JSONRPC,
+		Method:  "GetPriceV2",
+		Params:  params,
 	})
 	if err != nil {
 		return resultMap, err
 	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
+	}
 
 	result := make(map[string]map[string]string)
-	err = json.Unmarshal(priceResp.Data, &result)
+	err = json.Unmarshal([]byte(response.Result), &result)
 	if err != nil {
 		return resultMap, err
 	}
