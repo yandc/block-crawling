@@ -739,6 +739,7 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
+    enableProxy: true
   Polkadot:
     blockExplorerUrl: https://polkadot.subscan.io/
     blockExplorerTxUrl: https://polkadot.subscan.io/extrinsic/

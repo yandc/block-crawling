@@ -32,7 +32,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 
 	nodes := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
-		c := NewClient(chainName, url)
+		c := NewClient(chainName, url, value.GetEnableProxy())
 		nodes = append(nodes, &c)
 	}
 	spider := chain.NewBlockSpider(newStateStore(chainName), nodes...)

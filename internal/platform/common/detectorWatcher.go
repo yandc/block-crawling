@@ -144,8 +144,64 @@ func (d *DetectorZapWatcher) formatTxWithSentEmail(txs []*chain.Transaction) []s
 
 // NodeRecoverIn common recover to embed into Node implementation.
 type NodeDefaultIn struct {
-	ChainName  string
+	ChainName       string
+	RoundRobinProxy bool
+
+	proxyIndex int32
 	retryAfter time.Time
+}
+
+func (p *NodeDefaultIn) ProxyTransport(transport *http.Transport) *http.Transport {
+	if !p.RoundRobinProxy {
+		return transport
+	}
+
+	length := int32(len(biz.HTTPProxies))
+	// No proxy is configured.
+	if length == 0 {
+		return transport
+	}
+
+	monoIdx := atomic.AddInt32(&p.proxyIndex, 1)
+	proxyIndex := (monoIdx - 1) % length
+
+	// Reset monotonous index to 0 when it's exceed the length.
+	if monoIdx >= length {
+		atomic.StoreInt32(&p.proxyIndex, 0)
+	}
+
+	var tp *http.Transport
+	if transport == nil {
+		tp = &http.Transport{
+			Proxy: http.ProxyURL(biz.HTTPProxies[proxyIndex]),
+		}
+	} else {
+		tp = &http.Transport{
+			Proxy:                  http.ProxyURL(biz.HTTPProxies[proxyIndex]),
+			ProxyConnectHeader:     transport.ProxyConnectHeader,
+			GetProxyConnectHeader:  transport.GetProxyConnectHeader,
+			DialContext:            transport.DialContext,
+			Dial:                   transport.Dial,
+			DialTLSContext:         transport.DialTLSContext,
+			DialTLS:                transport.DialTLS,
+			TLSClientConfig:        transport.TLSClientConfig,
+			TLSHandshakeTimeout:    transport.TLSHandshakeTimeout,
+			DisableKeepAlives:      transport.DisableKeepAlives,
+			DisableCompression:     transport.DisableCompression,
+			MaxIdleConns:           transport.MaxIdleConns,
+			MaxIdleConnsPerHost:    transport.MaxIdleConnsPerHost,
+			MaxConnsPerHost:        transport.MaxConnsPerHost,
+			IdleConnTimeout:        transport.IdleConnTimeout,
+			ResponseHeaderTimeout:  transport.ResponseHeaderTimeout,
+			ExpectContinueTimeout:  transport.ExpectContinueTimeout,
+			TLSNextProto:           transport.TLSNextProto,
+			MaxResponseHeaderBytes: transport.MaxResponseHeaderBytes,
+			WriteBufferSize:        transport.WriteBufferSize,
+			ReadBufferSize:         transport.ReadBufferSize,
+			ForceAttemptHTTP2:      transport.ForceAttemptHTTP2,
+		}
+	}
+	return tp
 }
 
 // Recover handle panic.
