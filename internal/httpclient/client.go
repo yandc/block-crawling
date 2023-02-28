@@ -47,8 +47,8 @@ func PostResponse(url string, reqBody, out interface{}, timeout *time.Duration) 
 	return
 }
 
-func GetStatusCode(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (statusCode int, err error) {
-	statusCode, err = HttpGet(url, urlParams, out, timeout, nil)
+func GetStatusCode(url string, urlParams map[string]string, out interface{}, timeout *time.Duration, transport *http.Transport) (statusCode int, err error) {
+	statusCode, err = HttpGet(url, urlParams, out, timeout, transport)
 	return
 }
 

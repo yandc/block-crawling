@@ -26,11 +26,12 @@ type Client struct {
 	url string
 }
 
-func NewClient(chainName, nodeUrl string) Client {
+func NewClient(chainName, nodeUrl string, enableProxy bool) Client {
 	return Client{
 		url: nodeUrl,
 		NodeDefaultIn: &common.NodeDefaultIn{
-			ChainName: chainName,
+			ChainName:       chainName,
+			RoundRobinProxy: enableProxy,
 		},
 	}
 }
@@ -81,14 +82,10 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 		hash := hex.EncodeToString(sha256sum[:])
 		hash = strings.ToUpper(hash)
 
-		transaction, err := c.GetTxByHash(hash)
-		if err != nil {
-			return nil, err
-		}
-		transaction.BlockNumber = height
-		transactionInfo := transaction.Raw.(TransactionInfo)
-		block.Block.Data.Transactions = append(block.Block.Data.Transactions, &transactionInfo)
-		txs = append(txs, transaction)
+		txs = append(txs, &chain.Transaction{
+			Hash:        hash,
+			BlockNumber: height,
+		})
 	}
 
 	return &chain.Block{
@@ -244,8 +241,7 @@ type BlockerInfo struct {
 			ProposerAddress    string `json:"proposer_address"`
 		} `json:"header"`
 		Data struct {
-			Txs          []string `json:"txs"`
-			Transactions []*TransactionInfo
+			Txs []string `json:"txs"`
 		} `json:"data"`
 		Evidence struct {
 			Evidence []interface{} `json:"evidence"`
@@ -453,7 +449,7 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
 	timeoutMS := 5_000 * time.Millisecond
-	statusCode, err := httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS)
+	statusCode, err := httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS, c.ProxyTransport(nil))
 	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)

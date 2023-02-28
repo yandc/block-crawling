@@ -39,7 +39,19 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	curHeight := chainBlock.Number
 	height := h.chainHeight
 
-	tx := chainTx.Raw.(TransactionInfo)
+	var tx TransactionInfo
+
+	if chainTx.Raw != nil {
+		tx = chainTx.Raw.(TransactionInfo)
+	} else {
+		client := c.(*Client)
+		var err error
+		tx, err = client.GetTransactionByHash(chainTx.Hash)
+		if err != nil {
+			return err
+		}
+	}
+
 	code := tx.TxResponse.Code
 	transactionHash := chainTx.Hash
 	var status string
