@@ -39,7 +39,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 	spider.Watch(common.NewDectorZapWatcher(chainName))
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
-		client:    NewClient(chainName, nodeURL[0]),
+		client:    NewClient(chainName, nodeURL[0], value.GetEnableProxy()),
 		conf:      value,
 		spider:    spider,
 		CommPlatform: subhandle.CommPlatform{
