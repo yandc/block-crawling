@@ -734,6 +734,9 @@ platform:
       - https://lcd-osmosis.blockapsis.com
       - https://osmosis-mainnet-rpc.allthatnode.com:1317
       - https://lcd.osmosis.zone
+      - https://osmosis-lcd.quickapi.com
+      - https://node.onekey.so/osmosis
+      - https://lcd-osmosis.keplr.app/
     symbol: Osmosis
     type: COSMOS
     safelyConcurrentBlockDelta: 20
