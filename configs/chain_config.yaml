@@ -810,6 +810,29 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 160
+  Conflux:
+    blockExplorerAddrUrl: https://evm.confluxscan.net/address/
+    blockExplorerTxUrl: https://evm.confluxscan.net/tx/
+    blockExplorerUrl: https://evm.confluxscan.net/
+    chain: Conflux
+    chainId: 1030
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Conflux
+    getPriceKey: conflux-token
+    handler: conflux
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Conflux.png
+    nativeCurrency: CFX
+    netType: main
+    rpcURL:
+      - https://evm.confluxrpc.com
+      - https://evm.confluxrpc.org
+    symbol: Conflux
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 160
 
 platformTest:
   AptosTEST:
