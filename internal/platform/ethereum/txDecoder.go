@@ -694,6 +694,32 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				toAddress = meta.ToAddress
 			}
 		} else if topic0 == DEPOSIT_TOPIC {
+			if h.chainName == "Ronin" && len(log_.Topics) == 1 {
+				//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
+				//兑换时判断 交易金额不能为 0
+				//判断 value是否为0 不为 0 则增加记录
+				if len(log_.Data) >= 32 {
+					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+				}
+				token, err = biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, tokenAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				if len(log_.Data) >= 64 {
+					amount = new(big.Int).SetBytes(log_.Data[32:64])
+				}
+				token.Amount = amount.String()
+				token.TokenType = biz.ERC20
+				if meta.Value != "0" {
+					fromAddress = meta.FromAddress
+					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+						token.Symbol = token.Symbol[1:]
+					}
+				} else {
+					fromAddress = meta.ToAddress
+				}
+			}
+
 			if len(log_.Topics) >= 2 {
 				//兑换时判断 交易金额不能为 0
 				//判断 value是否为0 不为 0 则增加记录
