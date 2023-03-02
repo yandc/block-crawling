@@ -77,6 +77,8 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
+	var mainDecimals int32
+	var mainSymbol string
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
@@ -86,69 +88,72 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 		if tokenAddress == SUI_CODE {
 			tokenAddress = ""
 		}
-		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
-		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("transactionVersion", record.TransactionVersion), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
-			continue
-		}
 
-		fromUserAssetKey := chainName + record.FromAddress + tokenAddress
-		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
-				time.Sleep(time.Duration(i*5) * time.Second)
+		if record.TransactionType != biz.CONTRACT {
+			decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+			if err != nil {
+				// 更新用户资产出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"解析parseData失败", zap.Any("transactionVersion", record.TransactionVersion), zap.Any("txHash", record.TransactionHash),
+					zap.Any("parseData", record.ParseData), zap.Any("error", err))
+				continue
+			}
+
+			fromUserAssetKey := chainName + record.FromAddress + tokenAddress
+			if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
 				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
+				for i := 0; i < 10 && err != nil; i++ {
+					time.Sleep(time.Duration(i*5) * time.Second)
+					fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
+				}
+				if err != nil {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					return
+				}
+				if fromUserAsset != nil {
+					userAssetMap[fromUserAssetKey] = fromUserAsset
+				}
 			}
-			if err != nil {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-				return
-			}
-			if fromUserAsset != nil {
-				userAssetMap[fromUserAssetKey] = fromUserAsset
-			}
-		}
 
-		toUserAssetKey := chainName + record.ToAddress + tokenAddress
-		if toUserAsset, ok := userAssetMap[toUserAssetKey]; !ok {
-			toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
-				time.Sleep(time.Duration(i*5) * time.Second)
+			toUserAssetKey := chainName + record.ToAddress + tokenAddress
+			if toUserAsset, ok := userAssetMap[toUserAssetKey]; !ok {
 				toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-			}
-			if err != nil {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-				return
-			}
-			if toUserAsset != nil {
-				userAssetMap[toUserAssetKey] = toUserAsset
+				for i := 0; i < 10 && err != nil; i++ {
+					time.Sleep(time.Duration(i*5) * time.Second)
+					toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
+				}
+				if err != nil {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					return
+				}
+				if toUserAsset != nil {
+					userAssetMap[toUserAssetKey] = toUserAsset
+				}
 			}
 		}
 
-		fromUserAssetKey = chainName + record.FromAddress
-		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
+		fromUserAssetKey := chainName + record.FromAddress
+		if _, ok := userAssetMap[fromUserAssetKey]; !ok {
 			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
-				decimals = platInfo.Decimal
-				symbol = platInfo.NativeCurrency
+				mainDecimals = platInfo.Decimal
+				mainSymbol = platInfo.NativeCurrency
 			} else {
 				continue
 			}
-			fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
+			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
 			for i := 0; i < 10 && err != nil; i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
-				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", decimals, symbol, now)
+				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
 			}
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
