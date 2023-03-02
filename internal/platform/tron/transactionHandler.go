@@ -88,7 +88,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 		var tokenAddress = record.ContractAddress
 
-		if record.TransactionType != biz.APPROVE {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.APPROVE {
 			decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警

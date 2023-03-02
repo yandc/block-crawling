@@ -216,7 +216,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.APPROVE && record.TransactionType != biz.APPROVENFT {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.APPROVE && record.TransactionType != biz.APPROVENFT {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警

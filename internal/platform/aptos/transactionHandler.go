@@ -267,8 +267,8 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.REGISTERTOKEN &&
-			record.TransactionType != biz.DIRECTTRANSFERNFTSWITCH {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.REGISTERTOKEN &&
+			record.TransactionType != biz.DIRECTTRANSFERNFTSWITCH && record.TransactionType != biz.APPROVENFT {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
