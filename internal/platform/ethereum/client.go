@@ -413,6 +413,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[420:452])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "9a1fc3a7" { //ETH链 Blur.io: Marketplace
+				transactionType = biz.CONTRACT
+				if len(data) >= 324 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[292:324])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
