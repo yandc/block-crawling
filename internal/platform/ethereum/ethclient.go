@@ -732,6 +732,7 @@ type Receipt struct {
 	TxHash          string `json:"transactionHash" gencodec:"required"`
 	ContractAddress string `json:"contractAddress,omitempty"`
 	GasUsed         string `json:"gasUsed" gencodec:"required"`
+	L1Fee           string `json:"l1Fee,omitempty"` //Optimism totalFee=(Gas Price * Gas) + (l1GasUsed * l1GasPrice * l1FeeScalar)=(Gas Price * Gas) + l1Fee
 
 	// Inclusion information: These fields provide information about the inclusion of the
 	// transaction corresponding to this receipt.
