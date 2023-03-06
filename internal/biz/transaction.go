@@ -1930,9 +1930,9 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	if len(req.Params) > 0 {
 		u := mv.Type.NumIn()
 		paseJson := reflect.New(mv.Type.In(u - 1).Elem())
-		reqKey := strings.ReplaceAll(utils.ListToString(req.Params), "\\", "")
+		//reqKey := strings.ReplaceAll(utils.ListToString(req.Params), "\\", "")
 
-		jsonErr := json.Unmarshal([]byte(reqKey), paseJson.Interface())
+		jsonErr := json.Unmarshal([]byte(req.Params), paseJson.Interface())
 		if jsonErr == nil {
 			args = append(args, reflect.ValueOf(paseJson.Interface()))
 		} else {
@@ -2095,5 +2095,29 @@ func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, addres
 		// extract from config
 	}
 	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
+
+}
+
+func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *BroadcastRequest) (*BroadcastResponse, error) {
+	var userSendRawHistory =  &data.UserSendRawHistory{}
+	userSendRawHistory.UserName = req.UserName
+	userSendRawHistory.Address = req.Address
+	userSendRawHistory.ChainName = req.ChainName
+	userSendRawHistory.SessionId = req.SessionId
+	userSendRawHistory.TxInput = req.TxInput
+	userSendRawHistory.CreatedAt = time.Now().Unix()
+	userSendRawHistory.ErrMsg = req.ErrMsg
+
+	result, err := data.UserSendRawHistoryRepoInst.Save(ctx, userSendRawHistory)
+	if err != nil {
+		return &BroadcastResponse{
+			Ok:      false,
+			Message: err.Error(),
+		}, err
+	}
+
+	return &BroadcastResponse{
+		Ok: result == 1,
+	}, nil
 
 }
