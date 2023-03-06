@@ -4,7 +4,6 @@ import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
-	"block-crawling/internal/utils"
 	"strings"
 	"time"
 
@@ -43,7 +42,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		newTxs:      true,
 		now:         time.Now().Unix(),
 	}
-	/*log.Info(
+	/*log.InfoS(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.chainName),
 		zap.Uint64("chainHeight", chainHeight),
@@ -103,25 +102,6 @@ func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bo
 	if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && len(errStr) > 1048576 {
 		incrHeight = true
 	}
-
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.chainName),
-		zap.Error(nerr),
-	)
-	if len(heights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", heights[0].CurHeight),
-			zap.Uint64("chainHeight", heights[0].ChainHeight),
-		)
-	}
-
-	log.Warn(
-		"ERROR OCCURRED WHILE HANDLING BLOCK",
-		fields...,
-	)
+	pcommon.LogBlockError(h.chainName, err, heights...)
 	return
 }

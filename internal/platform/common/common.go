@@ -3,10 +3,13 @@ package common
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
+	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 // NotFound is returned by API methods if the requested item does not exist.
@@ -180,4 +183,30 @@ func recordToTxResult(record interface{}) *txResult {
 
 func failedOnChain(status string) bool {
 	return status == biz.FAIL || status == biz.DROPPED || status == biz.DROPPED_REPLACED
+}
+
+func LogBlockError(chainName string, err error, optHeights ...chain.HeightInfo) {
+	nerr := utils.SubError(err)
+	fields := make([]zap.Field, 0, 4)
+	fields = append(
+		fields,
+		zap.String("chainName", chainName),
+		zap.Error(nerr),
+	)
+	if len(optHeights) > 0 {
+		fields = append(
+			fields,
+			zap.Uint64("curHeight", optHeights[0].CurHeight),
+			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
+		)
+	}
+
+	showMsg := log.Error
+	if errors.Is(err, chain.ErrSlowBlockHandling) {
+		showMsg = log.ErrorS
+	}
+	showMsg(
+		"ERROR OCCURRED WHILE HANDLING BLOCK",
+		fields...,
+	)
 }

@@ -7,6 +7,7 @@ import (
 	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -147,14 +148,21 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 				fields...,
 			)
 		} else {
-			log.Error(
-				"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-				fields...,
-			)
+			if errors.Is(err, chain.ErrSlowBlockHandling) {
+				log.ErrorS(
+					"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
+					fields...,
+				)
+			} else {
+				log.Error(
+					"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
+					fields...,
+				)
+			}
 		}
 		return false
 	}
-	log.Info(
+	log.InfoS(
 		"IGNORE CURRENT BLOCK AS AN UNRESOLVABLE ERROR OCCURRED",
 		fields...,
 	)
