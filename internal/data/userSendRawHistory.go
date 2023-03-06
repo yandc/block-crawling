@@ -19,8 +19,8 @@ type UserSendRawHistory struct {
 	SessionId string `json:"sessionId" form:"sessionId" gorm:"type:character varying(96)"`
 	UserName  string `json:"userName" form:"userName" gorm:"type:character varying(128)"`
 	Address   string `json:"address" form:"address" gorm:"type:character varying(550)"`
-	TxInput   string `json:"txInput" form:"txInput" gorm:"type:character varying(1024)"`
-	ErrMsg    string `json:"errMsg" form:"errMsg" gorm:"type:character varying(1024)"`
+	TxInput   string `json:"txInput" form:"txInput"`
+	ErrMsg    string `json:"errMsg" form:"errMsg"`
 	ChainName string `json:"chainName"  form:"chainName" gorm:"type:character varying(16)"`
 	CreatedAt int64  `json:"createdAt" form:"createdAt" gorm:"type:bigint"`
 }
