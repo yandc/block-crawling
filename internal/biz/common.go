@@ -117,6 +117,20 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type BroadcastRequest struct {
+	SessionId string `json:"sessionId"`
+	Address   string `json:"address"`
+	UserName  string `json:"userName"`
+	TxInput   string `json:"txInput"`
+	ChainName string `json:"chainName"`
+	ErrMsg    string `json:"errMsg"`
+}
+
+type BroadcastResponse struct {
+	Ok      bool   `json:"ok,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type DataDictionary struct {
 	Ok                     bool     `json:"ok,omitempty"`
 	ServiceTransactionType []string `json:"serviceTransactionType,omitempty"`

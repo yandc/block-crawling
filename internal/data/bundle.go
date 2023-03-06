@@ -25,6 +25,7 @@ type Bundle struct {
 	UserAsset  UserAssetRepo
 	DAPP       DappApproveRecordRepo
 	Redis      *redis.Client
+	History    UserSendRawHistoryRepo
 }
 
 // NewDataBundle Bundle repositories to let them initialize.
@@ -49,6 +50,8 @@ func NewBundle(
 	userAsset UserAssetRepo,
 	dapp DappApproveRecordRepo,
 	redisClient *redis.Client,
+	history UserSendRawHistoryRepo,
+
 ) *Bundle {
 	return &Bundle{
 		ATM:        atm,
@@ -71,5 +74,6 @@ func NewBundle(
 		UserAsset:  userAsset,
 		DAPP:       dapp,
 		Redis:      redisClient,
+		History:    history,
 	}
 }
