@@ -45,7 +45,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		txHashIndexMap: make(map[string]int),
 		now:            time.Now().Unix(),
 	}
-	log.Info(
+	log.InfoS(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.chainName),
 		zap.Uint64("chainHeight", chainHeight),
@@ -136,10 +136,7 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		return true
 	}
 
-	log.Warn(
-		"ERROR OCCURRED WHILE HANDLING BLOCK",
-		fields...,
-	)
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return false
 
 }

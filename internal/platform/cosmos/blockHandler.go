@@ -4,10 +4,10 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	"block-crawling/internal/utils"
 	"fmt"
-	"strings"
 	"time"
+
+	pcommon "block-crawling/internal/platform/common"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"gitlab.bixin.com/mili/node-driver/common"
@@ -106,26 +106,6 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.chainName),
-		zap.Error(nerr),
-	)
-	if len(optHeights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
-		)
-	}
-
-	if !strings.HasSuffix(h.chainName, "TEST") {
-		log.Error(
-			"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-			fields...,
-		)
-	}
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return false
 }

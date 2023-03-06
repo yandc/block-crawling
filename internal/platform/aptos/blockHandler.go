@@ -2,8 +2,7 @@ package aptos
 
 import (
 	"block-crawling/internal/log"
-	"block-crawling/internal/utils"
-	"strings"
+	pcommon "block-crawling/internal/platform/common"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -41,7 +40,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		txHashIndexMap: make(map[string]int),
 		now:            time.Now().Unix(),
 	}
-	/*log.Info(
+	/*log.InfoS(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.chainName),
 		zap.Uint64("chainHeight", chainHeight),
@@ -84,26 +83,6 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.chainName),
-		zap.Error(nerr),
-	)
-	if len(optHeights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
-		)
-	}
-
-	if !strings.HasSuffix(h.chainName, "TEST") {
-		log.Error(
-			"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-			fields...,
-		)
-	}
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return false
 }

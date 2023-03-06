@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
-	"block-crawling/internal/utils"
 	"context"
 	"strings"
 	"time"
@@ -42,7 +41,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		newTxs:    true,
 		now:       time.Now(),
 	}
-	log.Info(
+	log.InfoS(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.ChainName),
 		zap.Uint64("height", block.Number),
@@ -93,14 +92,14 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 		return err
 	}
 
-	/*if !strings.HasSuffix(h.ChainName, "TEST") {
-		log.Error(
+	if !strings.HasSuffix(h.ChainName, "TEST") {
+		log.ErrorS(
 			"error occurred then retry",
 			zap.String("chainName", h.ChainName),
 			zap.String("nodeUrl", client.URL()),
 			zap.Error(err),
 		)
-	}*/
+	}
 	pcommon.NotifyForkedError(h.ChainName, err)
 	return common.Retry(err)
 }
@@ -110,26 +109,6 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		return true
 	}
 
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.ChainName),
-		zap.Error(nerr),
-	)
-	if len(optHeights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
-		)
-	}
-
-	if !strings.HasSuffix(h.ChainName, "TEST") {
-		log.Error(
-			"ERROR OCCURRED WHILE HANDLING BLOCK",
-			fields...,
-		)
-	}
+	pcommon.LogBlockError(h.ChainName, err, optHeights...)
 	return
 }

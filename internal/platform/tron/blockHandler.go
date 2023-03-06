@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
-	"block-crawling/internal/utils"
 	"fmt"
 	"time"
 
@@ -43,7 +42,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		newTxs:      true,
 		now:         time.Now().Unix(),
 	}
-	log.Debug(
+	log.DebugS(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.chainName),
 		zap.Uint64("chainHeight", chainHeight),
@@ -113,26 +112,7 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 		// tx is still pending during seal pending tx.
 		return true
 	}
-
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.chainName),
-		zap.Error(nerr),
-	)
-	if len(optHeights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
-		)
-	}
-
-	log.Warn(
-		"ERROR OCCURRED WHILE HANDLING BLOCK",
-		fields...,
-	)
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return false
 
 }
