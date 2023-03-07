@@ -11,13 +11,16 @@ import (
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
+	ecommon "github.com/ethereum/go-ethereum/common"
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -4566,7 +4569,7 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 		count, err = pageBatchUpdateSelectiveById(chainName, txRecords, biz.PAGE_SIZE)
 	}
 	if err != nil {
-		log.Error("更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
+		log.Error("处理交易记录TokenInfo，更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
 	}
 	log.Info("处理交易记录TokenInfo结束", zap.Any("query size", len(txRecords)), zap.Any("affected count", count))
 }
@@ -5219,6 +5222,7 @@ func GetBalance(chainName string, uid string, address string, tokenAddress strin
 	}
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
+		log.Info("补数据更新用户资产创建Client异常", zap.Any("chainName", len(chainName)), zap.Any("uid", uid), zap.Any("address", address), zap.Any("error", err))
 		c, err := ethereum.NewClient(url, chainName)
 		if err != nil {
 			panic(err)
@@ -5487,4 +5491,116 @@ func doHandleBtcUserAsset(chainName string, client bitcoin.Client, uid string, a
 		UpdatedAt: nowTime,
 	}
 	return userAsset, nil
+}
+
+func HandleOptimismRecordFee() {
+	log.Info("修复Optimism链交易记录中的手续费开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+
+	var evmTxRecordList []*data.EvmTransactionRecord
+
+	sqlStr := "select id, transaction_hash, gas_used, gas_price from optimism_transaction_record where created_at < 1677923000;"
+
+	ret := dbSource.Raw(sqlStr).Find(&evmTxRecordList)
+	err = ret.Error
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		ret = dbSource.Raw(sqlStr).Find(&evmTxRecordList)
+		err = ret.Error
+	}
+	if err != nil {
+		log.Errore("migrate page query userAsset failed", err)
+		return
+	}
+	log.Info("修复Optimism链交易记录中的手续费前置处理开始", zap.Any("query size", len(evmTxRecordList)))
+
+	var evmTxRecordMap = make(map[string][]*data.EvmTransactionRecord)
+	for _, evmTxRecord := range evmTxRecordList {
+		txHash := evmTxRecord.TransactionHash
+		txHash = strings.Split(txHash, "#")[0]
+
+		evmTxRecords, ok := evmTxRecordMap[txHash]
+		if !ok {
+			evmTxRecords = make([]*data.EvmTransactionRecord, 0)
+		}
+		evmTxRecords = append(evmTxRecords, evmTxRecord)
+		evmTxRecordMap[txHash] = evmTxRecords
+	}
+
+	var i int
+	//var evmTxRecords []*data.EvmTransactionRecord
+	for txHash, evmTransactionRecordList := range evmTxRecordMap {
+		if i%10 == 0 {
+			log.Info("修复Optimism链交易记录中的手续费中", zap.Any("index", i), zap.Any("size", len(evmTxRecordList)))
+		}
+		i++
+		l1Fee, err := GetRecordL1Fee("Optimism", txHash)
+		if err != nil {
+			log.Error("修复Optimism链交易记录中的手续费，从链上票据中获取f1Fee失败", zap.Any("txHash", txHash), zap.Any("error", err))
+			return
+		}
+		l1FeeInt, err := utils.HexStringToInt(l1Fee)
+		if err != nil {
+			continue
+		}
+		l1FeeDecimal := decimal.NewFromBigInt(l1FeeInt, 0)
+		for _, evmTxRecord := range evmTransactionRecordList {
+			gasUsedInt, _ := new(big.Int).SetString(evmTxRecord.GasUsed, 0)
+			gasPriceInt, _ := new(big.Int).SetString(evmTxRecord.GasPrice, 0)
+			gasFee := new(big.Int).Mul(gasUsedInt, gasPriceInt)
+			feeAmount := decimal.NewFromBigInt(gasFee, 0)
+			feeAmount = feeAmount.Add(l1FeeDecimal)
+			evmTxRecord.FeeAmount = feeAmount
+			//evmTxRecords = append(evmTxRecords, evmTxRecord)
+		}
+	}
+
+	count, err := data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, "optimism_transaction_record", evmTxRecordList, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, "optimism_transaction_record", evmTxRecordList, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("修复Optimism链交易记录中的手续费，更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(evmTxRecordList)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("修复Optimism链交易记录中的手续费结束", zap.Any("query size", len(evmTxRecordList)), zap.Any("affected count", count))
+}
+
+func GetRecordL1Fee(chainName string, txHash string) (string, error) {
+	var transactionReceipt *ethereum.Receipt
+	var err error
+
+	var nodeURL []string
+	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		nodeURL = platInfo.RpcURL
+	} else {
+		return "", errors.New("chain " + chainName + " is not support")
+	}
+	clients := make([]chain.Clienter, 0, len(nodeURL))
+	for _, url := range nodeURL {
+		c, err := ethereum.NewClient(url, chainName)
+		if err != nil {
+			log.Info("修复Optimism链交易记录中的手续费创建Client异常", zap.Any("chainName", len(chainName)), zap.Any("txHash", txHash), zap.Any("error", err))
+			panic(err)
+		}
+		clients = append(clients, c)
+	}
+	spider := chain.NewBlockSpider(ethereum.NewStateStore(chainName), clients...)
+	err = spider.WithRetry(func(client chain.Clienter) error {
+		c, _ := client.(*ethereum.Client)
+		transactionReceipt, err = c.GetTransactionReceipt(context.Background(), ecommon.HexToHash(txHash))
+		if err != nil {
+			return common.Retry(err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+	return transactionReceipt.L1Fee, nil
 }
