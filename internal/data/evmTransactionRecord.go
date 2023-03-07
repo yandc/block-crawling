@@ -200,9 +200,9 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},*/
 			"to_address": gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
 			/*"from_uid":                 clause.Column{Table: "excluded", Name: "from_uid"},
-			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
-			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":                   clause.Column{Table: "excluded", Name: "amount"},
+			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},*/
+			"fee_amount": gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			/*"amount":                   clause.Column{Table: "excluded", Name: "amount"},
 			"status":                   gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
 			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},*/
