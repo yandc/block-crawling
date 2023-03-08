@@ -22,7 +22,6 @@ type PolkadotBlockInfo struct {
 	Author                    string          `json:"author"`
 	XcmMeta                   []interface{}   `json:"xcmMeta"`
 	RelayBN                   int             `json:"relayBN"`
-	RelayStateRoot            string          `json:"relayStateRoot"`
 	AuthorAddress             string          `json:"authorAddress"`
 	SpecVersion               int             `json:"specVersion"`
 	NumXCMTransfersIn         int             `json:"numXCMTransfersIn"`
