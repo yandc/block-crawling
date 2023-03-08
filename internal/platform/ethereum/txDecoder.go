@@ -184,7 +184,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					}
 					tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 					}
 					tokenInfo.TokenType = biz.ERC721
 					amount = "1"
@@ -231,7 +231,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 				tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
 				if err != nil {
-					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 				}
 				tokenInfo.TokenType = tokenType
 				tokenInfo.Amount = amount
@@ -279,7 +279,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		}
 	}
 
-	var platformUserCount int
+	platformUserCount := len(eventLogs)
+	/*var platformUserCount int
 	if len(eventLogs) > 0 {
 		for _, eventLog := range eventLogs {
 			var err error
@@ -305,7 +306,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				platformUserCount++
 			}
 		}
-	}
+	}*/
 
 	isPlatformUser := false
 	if platformUserCount > 0 {
@@ -563,6 +564,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 		var token types.TokenInfo
 		var err error
+		ctx := context.Background()
 		tokenAddress := log_.Address.String()
 		amount := big.NewInt(0)
 		var fromAddress string
@@ -574,21 +576,20 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//判断合约 转账， 提现， 兑换。
 		if topic0 == TRANSFER_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
 			if tokenAddress != "" {
-				ctx := context.Background()
 				if len(log_.Topics) == 4 {
 					tokenId = log_.Topics[3].Big().String()
-					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-					}
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+					}*/
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 				} else if len(log_.Topics) == 1 {
 					//https://cn.etherscan.com/tx/0x2c355d0b5419ca267344ed6e19ceb8fc20d102f6e67c312b38e047f1031998ee
-					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-					}
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+					}*/
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 					if len(log_.Data) >= 96 {
@@ -618,13 +619,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				continue
 			}
 			if tokenAddress != "" {
-				ctx := context.Background()
 				if len(log_.Topics) == 4 {
 					tokenId = log_.Topics[3].Big().String()
-					token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-					}
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+					}*/
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 				} else {
@@ -644,7 +644,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				continue
 			}
 			if tokenAddress != "" {
-				ctx := context.Background()
 				tokenId = log_.Topics[2].Big().String()
 				token, err = biz.GetCollectionInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress)
 				if err != nil {
@@ -666,25 +665,23 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				tokenAddress = ""
 			}
 		} else if topic0 == TRANSFERSINGLE_TOPIC {
-			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
-			token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+			/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-			}
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+			}*/
 			token.TokenType = biz.ERC1155
 			token.Amount = amount.String()
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
 		} else if topic0 == TRANSFERBATCH_TOPIC {
-			ctx := context.Background()
 			tokenId = new(big.Int).SetBytes(log_.Data[96:128]).String()
 			amount = new(big.Int).SetBytes(log_.Data[128:160])
-			token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+			/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-			}
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+			}*/
 			token.TokenType = biz.ERC1155
 			token.Amount = amount.String()
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
@@ -754,7 +751,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			tokenAddress = ""
 		} else if topic0 == FANTOM_SWAPED_V1 {
-
 			if h.chainName == "ArbitrumNova" && log_.Topics[1].String() == log_.Topics[2].String() {
 				fromAddress = common.HexToAddress(receipt.To).String()
 				toAddress = common.HexToAddress(receipt.From).String()
@@ -883,6 +879,38 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
 			continue
 		}
+
+		var fromAddressExist, toAddressExist bool
+		if fromAddress != "" {
+			fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+				continue
+			}
+		}
+
+		if toAddress != "" {
+			toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+				continue
+			}
+		}
+		if !fromAddressExist && !toAddressExist {
+			continue
+		}
+
+		if token.TokenType == biz.ERC721 || token.TokenType == biz.ERC1155 {
+			tokenType := token.TokenType
+			tokenAmount := token.Amount
+			token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+			}
+			token.TokenType = tokenType
+			token.Amount = tokenAmount
+		}
+
 		if tokenAddress != "" {
 			token.Address = tokenAddress
 		}

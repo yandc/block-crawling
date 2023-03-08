@@ -343,7 +343,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if contractAddress != APT_CODE && contractAddress != "" {
 			tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, itemName)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
@@ -656,7 +656,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				if tokenType != "" {
 					tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, itemName)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
 					}
 				} else {
 					tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
