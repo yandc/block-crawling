@@ -356,7 +356,7 @@ type Event struct {
 			Name     interface{} `json:"name"`
 			ObjectId string      `json:"object_id"`
 
-			PoolId    string      `json:"pool_id"`
+			PoolId    interface{} `json:"pool_id"`
 			InAmount  interface{} `json:"in_amount"`
 			OutAmount interface{} `json:"out_amount"`
 			XToY      bool        `json:"x_to_y"`

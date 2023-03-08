@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Danny-Dasilva/CycleTLS/cycletls"
+	"github.com/RomainMichau/cloudscraper_go/cloudscraper"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -130,6 +132,40 @@ func HttpPost(url string, reqBody, out interface{}, timeout *time.Duration, tran
 		header = resp.Header
 	}
 	err = handleResponse(resp, err, out)
+	return
+}
+
+func GetUseCloudscraper(url string, out interface{}, timeout *time.Duration) (err error) {
+	var timeoutInt int
+	if timeout != nil {
+		timeoutInt = int(timeout.Seconds())
+	}
+	client, err := cloudscraper.Init(false, false)
+	if err != nil {
+		return
+	}
+	options := cycletls.Options{
+		Headers: map[string]string{"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
+			"Accept":       "application/json",
+			"Content-Type": "application/json"},
+
+		//Proxy:           "http://127.0.0.1:7890",
+		Timeout:         timeoutInt,
+		DisableRedirect: true,
+	}
+	resp, err := client.Do(url, options, "GET")
+	statusCode := resp.Status
+	body := resp.Body
+	if err != nil {
+		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+		err = errors.New(status + "\n" + body + "\n" + fmt.Sprintf("%s", err))
+		return
+	}
+	err = json.Unmarshal([]byte(body), out)
+	if err != nil {
+		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
+		err = errors.New(status + "\n" + body + "\n" + fmt.Sprintf("%s", err))
+	}
 	return
 }
 
