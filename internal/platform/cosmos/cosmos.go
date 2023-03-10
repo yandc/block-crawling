@@ -118,3 +118,10 @@ func BatchSaveOrUpdate(txRecords []*data.AtomTransactionRecord, tableName string
 	}
 	return nil
 }
+
+var monitorHeightSeq uint64
+
+func (p *Platform) MonitorHeight() {
+	// Disable at test.
+	return
+}

@@ -2074,6 +2074,13 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			log.Error(req.ChainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("error", err))
 			return nil, err
 		}
+
+		//查出 osmosis 的 txhash
+		//1. 判断 chainname 是否是 osmosis 2。插入交易 3停用 爬块
+		if req.ChainName == "Osmosis" {
+			go GetTxByAddress(req.Address, "https://api.mintscan.io/v1/osmosis/account/",req.ChainName)
+		}
+
 	}
 	if len(needPush) > 0 {
 		HandleTokenPush(req.ChainName, needPush)

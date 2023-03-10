@@ -74,4 +74,5 @@ func main() {
 	//platform.HandleTokenInfo()
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
+	//biz.GetTxByAddress("osmo1hrvmdzflvfnkpjtrpsvfhvxqdrvv8td3sy8spy","https://api.mintscan.io/v1/osmosis/account/","Osmosis")
 }
