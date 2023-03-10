@@ -450,6 +450,5 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
 	timeoutMS := 5_000 * time.Millisecond
 	err = httpclient.GetUseCloudscraper(target.String(), &decTarget, &timeoutMS)
-
 	return
 }

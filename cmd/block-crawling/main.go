@@ -5,6 +5,7 @@ import (
 	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/subhandle"
 	"flag"
 	"os"
@@ -114,6 +115,11 @@ func start() {
 			p := platforms[i]
 			if p == nil {
 				continue
+			}
+			if cosmos, ok := p.(*cosmos.Platform); ok{
+				if cosmos.ChainName == "Osmosis" {
+					continue
+				}
 			}
 			go p.GetTransactions()
 		}
