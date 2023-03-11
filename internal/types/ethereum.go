@@ -45,6 +45,12 @@ type EventLog struct {
 	Token  TokenInfo `json:"token"`
 }
 
+type EventLogUid struct {
+	EventLog
+	FromUid string `json:"-"`
+	ToUid   string `json:"-"`
+}
+
 type ETHToken struct {
 	Address  string `json:"address"`
 	Decimals int64  `json:"decimals"`
