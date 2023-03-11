@@ -78,10 +78,13 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
-
 		tokenId := tokenInfo.TokenId
 		//tokenId := "06349a78dbb538cdcef68557e17a67a0017df3454c0d802654241e88e0336c6c"
 		tokenAddress := tokenInfo.Address
+		if tokenId == "" || tokenAddress == "" {
+			log.Info(chainName+"不添加NFT交易履历,", zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
+			continue
+		}
 		log.Info(chainName+"添加NFT交易履历", zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
 		_, ok := tokenIdMap[tokenId]
 		if ok {
