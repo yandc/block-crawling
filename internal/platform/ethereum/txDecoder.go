@@ -140,7 +140,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	var feeAmount decimal.Decimal
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
-	var eventLogs []types.EventLog
+	var eventLogs []types.EventLogUid
 	var contractAddress, tokenId string
 	if meta.TransactionType != biz.NATIVE {
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
@@ -160,6 +160,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			return err
 		}
 		if len(codeAt) > 0 {
+			ctx := context.Background()
 			contractAddress = toAddress
 			var getTokenType bool
 			var tokenType string
@@ -168,7 +169,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				meta.TransactionType = biz.CONTRACT
 				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
-				ctx := context.Background()
 				if status == biz.FAIL && tokenId == "" {
 					tokenType, tokenTypeErr = GetTokenType(client, h.chainName, contractAddress, codeAt)
 					getTokenType = true
@@ -207,7 +207,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					}
 				}
 			} else if meta.TransactionType == biz.SETAPPROVALFORALL {
-				ctx := context.Background()
 				meta.TransactionType = biz.APPROVENFT
 				tokenInfo, err = biz.GetCollectionInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress)
 				if err != nil {
@@ -215,9 +214,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				}
 				tokenInfo.Amount = amount
 			} else if meta.TransactionType == biz.SAFETRANSFERFROM {
-				ctx := context.Background()
 				meta.TransactionType = biz.TRANSFERNFT
-				var tokenType string
 				if !strings.Contains(meta.Value, ",") {
 					tokenType = biz.ERC721
 					tokenId = meta.Value
@@ -365,7 +362,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 
 	var logAddress datatypes.JSON
-	if len(eventLogs) > 0 && meta.TransactionType == biz.CONTRACT {
+	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
 		logFromAddressMap := make(map[string]string)
 		logAddressMap := make(map[string]string)
 		var oneLogFromAddress []string
@@ -453,13 +450,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
-			var eventFromUid, eventToUid string
 
-			userMeta, err := pCommon.MatchUser(eventLog.From, eventLog.To, h.chainName)
-			if err == nil {
-				eventFromUid = userMeta.FromUid
-				eventToUid = userMeta.ToUid
-			}
 			evmlogTransactionRecord := &data.EvmTransactionRecord{
 				BlockHash:            h.blockHash,
 				BlockNumber:          bn,
@@ -467,8 +458,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				TransactionHash:      txHash,
 				FromAddress:          eventLog.From,
 				ToAddress:            eventLog.To,
-				FromUid:              eventFromUid,
-				ToUid:                eventToUid,
+				FromUid:              eventLog.FromUid,
+				ToUid:                eventLog.ToUid,
 				FeeAmount:            feeAmount,
 				Amount:               amountValue,
 				Status:               status,
@@ -533,8 +524,8 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []types.EventLog, tokenId string) {
-	var eventLogs []*types.EventLog
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []types.EventLogUid, eventLogTokenId string) {
+	var eventLogs []*types.EventLogUid
 	arbitrumAmount := big.NewInt(0)
 	transactionHash := transaction.Hash().String()
 	gmxSwapFlag := false
@@ -566,12 +557,13 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		var err error
 		ctx := context.Background()
 		tokenAddress := log_.Address.String()
+		var tokenId string
 		amount := big.NewInt(0)
-		var fromAddress string
+		var fromAddress, toAddress, fromUid, toUid string
+		var fromAddressExist, toAddressExist bool
 		if len(log_.Topics) >= 2 {
 			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 		}
-		var toAddress string
 
 		//判断合约 转账， 提现， 兑换。
 		if topic0 == TRANSFER_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
@@ -880,9 +872,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		}
 
-		var fromAddressExist, toAddressExist bool
 		if fromAddress != "" {
-			fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
 				continue
@@ -890,7 +881,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		if toAddress != "" {
-			toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
 				continue
@@ -915,14 +906,19 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			token.Address = tokenAddress
 		}
 		if tokenId != "" {
+			eventLogTokenId = tokenId
 			token.TokenId = tokenId
 		}
 
-		eventLogInfo := &types.EventLog{
-			From:   fromAddress,
-			To:     toAddress,
-			Amount: amount,
-			Token:  token,
+		eventLogInfo := &types.EventLogUid{
+			EventLog: types.EventLog{
+				From:   fromAddress,
+				To:     toAddress,
+				Amount: amount,
+				Token:  token,
+			},
+			FromUid: fromUid,
+			ToUid:   toUid,
 		}
 
 		var isContinue bool
