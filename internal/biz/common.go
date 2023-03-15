@@ -147,6 +147,7 @@ type UserAssetUpdateRequest struct {
 type UserAsset struct {
 	TokenAddress string `json:"tokenAddress"`
 	Balance      string `json:"balance"`
+	Decimals     int    `json:"decimals"`
 }
 
 // alarmOptions 报警相关的一些可自定义参数
