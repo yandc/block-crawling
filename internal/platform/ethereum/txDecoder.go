@@ -531,6 +531,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 	gmxSwapFlag := false
 	gmxFromAddress := ""
 	gmxAmount := big.NewInt(0)
+	xDaiDapp := false
 	// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
@@ -866,7 +867,63 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 				token.Amount = amount.String()
 			}
+		} else if topic0 == MATIC_BRIDGE {
+			fromAddress = tokenAddress
+			if len(log_.Topics) >= 4 {
+				toAddress = common.HexToAddress(log_.Topics[3].String()).String()
+			}
+			if len(log_.Data) >= 160 {
+				amount = new(big.Int).SetBytes(log_.Data[:32])
+			}
+			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+			}
+			if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+				token.Symbol = token.Symbol[1:]
+			}
+			token.Amount = amount.String()
+
 		}
+
+		if xDaiDapp {
+			break
+		}
+		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过  log获取
+		if transaction.To().String() == "0x0460352b91D7CF42B0E1C1c30f06B602D9ef2238" && hex.EncodeToString(transaction.Data()[:4]) == "3d12a85a" {
+			fromAddress = transaction.To().String()
+			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+
+			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
+
+			tokenAddress = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"
+			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+			}
+			if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
+				token.Symbol = token.Symbol[2:]
+			}
+			token.Amount = amount.String()
+			xDaiDapp = true
+
+		}
+		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
+		if transaction.To().String() == "0x83f6244Bd87662118d96D9a6D44f09dffF14b30E" && hex.EncodeToString(transaction.Data()[:4]) == "3d12a85a" {
+			fromAddress = transaction.To().String()
+			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
+			token = types.TokenInfo{}
+			xDaiDapp = true
+
+		}
+
+
+
 		//不展示event log中的授权记录
 		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
 			continue
