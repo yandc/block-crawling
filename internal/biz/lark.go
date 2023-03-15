@@ -196,7 +196,11 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	//
 	//	//atStrList = strings.Join(tmpList, " ")
 	//}
-	if lark.conf.GetLarkAtList() != "" {
+	if len(alarmOpts.alarmAtUids) > 0 {
+		for _, v := range alarmOpts.alarmAtUids {
+			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+		}
+	} else if lark.conf.GetLarkAtList() != "" {
 		atList := strings.Split(lark.conf.GetLarkAtList(), ",")
 		for _, v := range atList {
 			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
