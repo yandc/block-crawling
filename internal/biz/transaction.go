@@ -2080,7 +2080,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		//查出 osmosis 的 txhash
 		//1. 判断 chainname 是否是 osmosis 2。插入交易 3停用 爬块
 		if req.ChainName == "Osmosis" {
-			go GetTxByAddress(req.Address, "https://api.mintscan.io/v1/osmosis/account/",req.ChainName)
+			go GetTxByAddress(req.Address, "https://api.mintscan.io/v1/osmosis/account/", req.ChainName)
 		}
 
 	}
@@ -2143,6 +2143,9 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	userSendRawHistory.TxInput = req.TxInput
 	userSendRawHistory.CreatedAt = time.Now().Unix()
 	userSendRawHistory.ErrMsg = req.ErrMsg
+	if req.ErrMsg != "" {
+		NotifyBroadcastTxFailed(ctx, req.SessionId, req.ErrMsg)
+	}
 
 	result, err := data.UserSendRawHistoryRepoInst.Save(ctx, userSendRawHistory)
 	if err != nil {

@@ -5,9 +5,10 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
-	"gorm.io/gorm"
 	"strconv"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 
 type UserSendRawHistory struct {
 	Id        int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	SessionId string `json:"sessionId" form:"sessionId" gorm:"type:character varying(96)"`
+	SessionId string `json:"sessionId" form:"sessionId" gorm:"type:character varying(96);index"`
 	UserName  string `json:"userName" form:"userName" gorm:"type:character varying(128)"`
 	Address   string `json:"address" form:"address" gorm:"type:character varying(550)"`
 	TxInput   string `json:"txInput" form:"txInput"`
@@ -33,6 +34,7 @@ var UserSendRawHistoryRepoInst UserSendRawHistoryRepo
 
 type UserSendRawHistoryRepo interface {
 	Save(context.Context, *UserSendRawHistory) (int64, error)
+	GetLatestOneBySessionId(ctx context.Context, sessionID string) (*UserSendRawHistory, error)
 }
 
 type userSendRawHistoryRepoImpl struct {
@@ -62,4 +64,13 @@ func (r *userSendRawHistoryRepoImpl) Save(ctx context.Context, userSendRawHistor
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *userSendRawHistoryRepoImpl) GetLatestOneBySessionId(ctx context.Context, sessionID string) (*UserSendRawHistory, error) {
+	var result *UserSendRawHistory
+	ret := r.gormDB.WithContext(ctx).Where("session_id=? AND address != ''", sessionID).Last(&result)
+	if ret.Error != nil {
+		return nil, ret.Error
+	}
+	return result, nil
 }

@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -156,6 +157,7 @@ type alarmOptions struct {
 	alarmLevel    int
 	alarmCycle    bool
 	alarmInterval int
+	alarmAtUids   []string
 }
 
 var DefaultAlarmOptions = alarmOptions{
@@ -205,6 +207,12 @@ func WithAlarmCycle(alarmCycle bool) AlarmOption {
 func WithAlarmInterval(alarmInterval int) AlarmOption {
 	return newfuncAlarmOption(func(e *alarmOptions) {
 		e.alarmInterval = alarmInterval
+	})
+}
+
+func WithAlarmAtList(uids ...string) AlarmOption {
+	return newfuncAlarmOption(func(e *alarmOptions) {
+		e.alarmAtUids = append(e.alarmAtUids, uids...)
 	})
 }
 
@@ -350,4 +358,39 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 		return nil, err
 	}
 	return tokenInfo, nil
+}
+
+func NotifyBroadcastTxFailed(ctx context.Context, sessionID string, errMsg string) {
+	info, err := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, sessionID)
+	var msg string
+	if err != nil {
+		log.Error(
+			"SEND ALARM OF BROADCATING TX FAILED",
+			zap.String("sessionId", sessionID),
+			zap.String("errMsg", errMsg),
+			zap.Error(err),
+		)
+		msg = fmt.Sprintf(
+			"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
+			sessionID,
+			"Unknown",
+			"Unknown",
+			errMsg,
+		)
+	} else {
+		msg = fmt.Sprintf(
+			"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
+			info.ChainName,
+			sessionID,
+			info.Address,
+			info.UserName,
+			errMsg,
+			info.TxInput,
+		)
+	}
+	alarmOpts := WithMsgLevel("FATAL")
+	LarkClient.NotifyLark(
+		msg, nil, nil, alarmOpts,
+		WithAlarmAtList("a964d8f6"), // TODO(wanghui): Add to configuration.
+	)
 }
