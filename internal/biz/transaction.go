@@ -2031,6 +2031,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 				log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
 				return nil, err
 			}
+			s.attemptFixZeroDecimals(ctx, req, &newItem, &tokenInfo)
 
 			needUpdateAssets = append(needUpdateAssets, &data.UserAsset{
 				ChainName:    req.ChainName,
@@ -2053,6 +2054,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			})
 			continue
 		}
+		s.attemptFixZeroDecimals(ctx, req, &newItem, nil)
 		// update
 		if oldItem.Balance != newItem.Balance {
 			// XXX: only update balance here.
@@ -2088,6 +2090,33 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	return struct{}{}, nil
 }
 
+func (s *TransactionUsecase) attemptFixZeroDecimals(ctx context.Context, req *UserAssetUpdateRequest, asset *UserAsset, tokenInfo *types.TokenInfo) {
+	if asset.Decimals != 0 || strings.Contains(asset.Balance, ".") || asset.Balance == "0" {
+		return
+	}
+	// Decimals is zero which may be incorrect.
+	if tokenInfo == nil {
+		token, err := s.getTokenInfo(ctx, req.ChainName, req.Address, asset)
+		if err != nil {
+			log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", asset.TokenAddress), zap.Any("error", err))
+			return
+		}
+		tokenInfo = &token
+	}
+	if tokenInfo.Decimals != 0 {
+		newBalance := utils.StringDecimals(asset.Balance, int(tokenInfo.Decimals))
+		log.Info(
+			"INCORRECT ZERO DECIMALS",
+			zap.String("beforeBalance", asset.Balance),
+			zap.String("afterBalance", newBalance),
+			zap.String("address", req.Address),
+			zap.String("tokenAddress", asset.TokenAddress),
+			zap.Int64("decimals", tokenInfo.Decimals),
+		)
+		asset.Balance = newBalance
+	}
+}
+
 func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {
 	if asset.TokenAddress == address || asset.TokenAddress == "" {
 		platInfo, ok := PlatInfoMap[chainName]
@@ -2106,7 +2135,7 @@ func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, addres
 }
 
 func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *BroadcastRequest) (*BroadcastResponse, error) {
-	var userSendRawHistory =  &data.UserSendRawHistory{}
+	var userSendRawHistory = &data.UserSendRawHistory{}
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
 	userSendRawHistory.ChainName = req.ChainName
