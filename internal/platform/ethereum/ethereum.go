@@ -56,7 +56,7 @@ const ETH_BRIDGECALLTRIGGERED = "0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d
 const ARBITRUM_GMX_SWAP_V2 = "0xcd3829a3813dc3cdd188fd3d01dcf3268c16be2fdd2dd21d0665418816e46062"
 const MATIC_BRIDGE = "0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4"
 
-//dapp 白名单 chainName + contractAddress + methodId
+// dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
 	//dapp: https://stargate.finance/ 代币，主币 兑换
 	"Optimism_MethodId": {"Optimism_0x81E792e5a9003CC1C8BF5569A00f34b65d75b017_252f7b01", "Optimism_0x81E792e5a9003CC1C8BF5569A00f34b65d75b017_0508941e",
@@ -86,7 +86,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 		"xDai_0x75Df5AF045d91108662D8080fD1FEFAd6aA0bb59_e7a2c01f"},
 }
 
-//dapp 白名单 chainName + contractAddress + topic
+// dapp 白名单 chainName + contractAddress + topic
 var BridgeWhiteTopicList = map[string][]string{
 	//swap：对应 function topic0
 	"Optimism_Topic": {"Optimism_0x81e792e5a9003cc1c8bf5569a00f34b65d75b017_0xb4a87134099d10c48345145381989042ab07dc53e6e62a6511fca55438562e26",
@@ -163,6 +163,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		spider.AddStandby(standby...)
 	}
 	spider.Watch(common.NewDectorZapWatcher(chainName))
+	spider.SetHandlingTxsConcurrency(int(c.GetHandlingTxConcurrency()))
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],

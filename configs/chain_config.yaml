@@ -824,12 +824,13 @@ platform:
     rpcURL:
       - https://evm.confluxrpc.com
       - https://evm.confluxrpc.org
+      - https://conflux-espace-public.unifra.io
     symbol: Conflux
     type: EVM
     safelyConcurrentBlockDelta: 100
-    maxConcurrency: 5
+    maxConcurrency: 9
     monitorHeightAlarmThr: 160
-
+    handlingTxConcurrency: 2
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
