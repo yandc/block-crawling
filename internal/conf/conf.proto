@@ -127,4 +127,7 @@ message PlatInfo {
 
   // 是否启动代理，启用后将依次使用代理池中的代理进行访问节点。
   optional bool enableProxy = 16;
+
+  // 处理交易的并发，实际会开启的 Goroutine 最大可能达到 maxConcurrency * handlingTxConcurrency。
+  optional int32 handlingTxConcurrency = 17;
 }
