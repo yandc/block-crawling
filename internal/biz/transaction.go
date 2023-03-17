@@ -794,18 +794,17 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			err = utils.CopyProperties(recordList, &list)
 		}
 	}
-
 	if err == nil {
 		result.Total = total
 		result.List = list
 		if len(list) > 0 {
+			now := time.Now().Unix()
 			for _, record := range list {
 				if record == nil {
 					continue
 				}
 
 				record.ChainName = req.ChainName
-
 				if strings.Contains(req.OrderBy, "id ") {
 					record.Cursor = record.Id
 				} else if strings.Contains(req.OrderBy, "block_number ") {
@@ -831,6 +830,41 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					feeData["base_fee"] = record.BaseFee
 					feeData["max_fee_per_gas"] = record.MaxFeePerGas
 					feeData["max_priority_fee_per_gas"] = record.MaxPriorityFeePerGas
+
+					//ParseData 字段
+					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
+					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
+					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
+
+					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 {
+						evm := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+							ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
+							if err == nil {
+								if ret == nil {
+									//请填补空缺nonce交易 "nonceMsg":"2"
+									evm["pendingMsg"] = NONCE_BREAK
+								} else {
+									if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED || ret.Status == DROPPED {
+										// "gasfeeMsg" :"1"
+										evm["pendingMsg"] = GAS_FEE_LOW
+									}
+									if ret.Status == PENDING {
+										//"nonceMsg":"1"
+										evm["pendingMsg"] = NONCE_QUEUE
+									}
+									if ret.Status == "" {
+										//请填补空缺nonce交易 "nonceMsg":"2"
+										evm["pendingMsg"] = NONCE_BREAK
+									}
+								}
+
+								parseDataStr, _ := utils.JsonEncode(evm)
+								record.ParseData = parseDataStr
+							}
+						}
+					}
+
 				case TVM:
 					feeData["fee_limit"] = record.FeeLimit
 					feeData["net_usage"] = record.NetUsage
