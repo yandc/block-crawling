@@ -549,7 +549,7 @@ func (h *txHandler) Save(c chain.Clienter) (err error) {
 		e := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if e != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库库中失败", h.chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))

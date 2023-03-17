@@ -107,27 +107,28 @@ message PlatInfo {
   string symbol = 7;
   string type = 8;
   repeated string rpcURL = 9;
-  string tokenPrice = 10;
+  repeated string httpURL = 10;
+  string tokenPrice = 11;
 
   // 可以安全的进行并发爬块的高度差（即不用考虑分叉的高度），即：
   // 「链上高度 - 当前高度」大于此值才开始并发爬块。
-  optional int32 safelyConcurrentBlockDelta = 11;
+  optional int32 safelyConcurrentBlockDelta = 12;
 
   // 爬块最大并发
-  optional int32 maxConcurrency = 12;
+  optional int32 maxConcurrency = 13;
 
   // 块高差报警阈值，爬块高度和链上高度的差大于此值进行报警。
-  optional int32 monitorHeightAlarmThr = 13;
+  optional int32 monitorHeightAlarmThr = 14;
 
   // 多个节点轮询并发，否则每次只使用一个节点进行并发。
-  optional bool roundRobinConcurrent = 14;
+  optional bool roundRobinConcurrent = 15;
 
   // 备用节点，用于特定错误重试。
-  repeated string standbyRPCURL = 15;
+  repeated string standbyRPCURL = 16;
 
   // 是否启动代理，启用后将依次使用代理池中的代理进行访问节点。
-  optional bool enableProxy = 16;
+  optional bool enableProxy = 17;
 
   // 处理交易的并发，实际会开启的 Goroutine 最大可能达到 maxConcurrency * handlingTxConcurrency。
-  optional int32 handlingTxConcurrency = 17;
+  optional int32 handlingTxConcurrency = 18;
 }
