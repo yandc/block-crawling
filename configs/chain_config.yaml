@@ -733,6 +733,8 @@ platform:
       - https://osmosis-lcd.quickapi.com
       - https://node.onekey.so/osmosis
       - https://lcd-osmosis.keplr.app/
+    httpURL:
+      - https://api.mintscan.io/v1/osmosis/account/
     symbol: Osmosis
     type: COSMOS
     safelyConcurrentBlockDelta: 20

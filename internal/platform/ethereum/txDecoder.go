@@ -497,11 +497,10 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			log.Error("插入数据到数据库库中失败", zap.Any("current", h.block.Number), zap.Any("chain", h.chainName))
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库库中失败", h.chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Info("插入数据库报错：", zap.Any(h.chainName, err))
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {

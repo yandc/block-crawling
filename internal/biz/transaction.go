@@ -2077,12 +2077,10 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			return nil, err
 		}
 
-		//查出 osmosis 的 txhash
-		//1. 判断 chainname 是否是 osmosis 2。插入交易 3停用 爬块
-		if req.ChainName == "Osmosis" {
-			go GetTxByAddress(req.Address, "https://api.mintscan.io/v1/osmosis/account/", req.ChainName)
+		platInfo := PlatInfoMap[req.ChainName]
+		if platInfo != nil {
+			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL)
 		}
-
 	}
 	if len(needPush) > 0 {
 		HandleTokenPush(req.ChainName, needPush)
