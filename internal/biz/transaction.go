@@ -845,15 +845,15 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 									//请填补空缺nonce交易 "nonceMsg":"2"
 									evm["pendingMsg"] = NONCE_BREAK
 								} else {
-									if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED || ret.Status == DROPPED {
+									if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
 										// "gasfeeMsg" :"1"
 										evm["pendingMsg"] = GAS_FEE_LOW
 									}
-									if ret.Status == PENDING {
+									if ret.Status == PENDING || ret.Status == NO_STATUS{
 										//"nonceMsg":"1"
 										evm["pendingMsg"] = NONCE_QUEUE
 									}
-									if ret.Status == "" {
+									if ret.Status == DROPPED {
 										//请填补空缺nonce交易 "nonceMsg":"2"
 										evm["pendingMsg"] = NONCE_BREAK
 									}
