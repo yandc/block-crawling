@@ -319,6 +319,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByNonceAndAddress(ctx context.Context
 	if nonce >= 0 {
 		db = db.Where("nonce = ?", nonce)
 	}
+	db.Order("id DESC ")
 	ret := db.Find(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
