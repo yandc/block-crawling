@@ -307,7 +307,7 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 
 func GetNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
 	tokenInfo, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
-	for i := 0; i < 3 && err != nil; i++ {
+	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	}
@@ -346,7 +346,7 @@ func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress stri
 
 func GetCollectionInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
 	tokenInfo, err := GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
-	for i := 0; i < 3 && err != nil; i++ {
+	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
 	}
@@ -398,46 +398,19 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 		return tokenInfo, nil
 	}
 
-	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	tokenInfo, err := GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
-	client := v1.NewNftClient(conn)
-
-	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
-		ctx = context
-		defer cancel()
-	}
-	response, err := client.GetNftInfo(ctx, &v1.GetNftInfoRequest{
-		Chain: chainName,
-		NftInfo: []*v1.GetNftInfoRequest_NftInfo{{
-			TokenAddress: tokenAddress,
-			TokenId:      tokenId,
-		}},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !response.Ok {
-		return nil, errors.New(response.ErrMsg)
-	}
-
-	data := response.Data
-	if len(data) > 0 {
-		tokenInfo = data[0]
-		mutex.Lock()
-		NftInfoMap[key] = tokenInfo
-		mutex.Unlock()
-		return tokenInfo, nil
-	}
+	mutex.Lock()
+	NftInfoMap[key] = tokenInfo
+	mutex.Unlock()
 	return tokenInfo, nil
 }
 
 func GetRawNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (*v1.GetNftReply_NftInfoResp, error) {
 	tokenInfo, err := GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
-	for i := 0; i < 3 && err != nil; i++ {
+	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	}
