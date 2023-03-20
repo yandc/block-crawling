@@ -75,6 +75,7 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 		}
 		alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", d.chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
+		alarmOpts = biz.WithAlarmChainName(d.chainName)
 		biz.LarkClient.NotifyLark(alarmMsg, nil, d.urls, alarmOpts)
 	}
 }
@@ -114,6 +115,7 @@ func (d *DetectorZapWatcher) OnSentTxFailed(txType chain.TxType, numOfContinuous
 			strings.Join(txHashs, "\n"),
 		)
 		alarmOpts := biz.WithMsgLevel("FATAL")
+		alarmOpts = biz.WithAlarmChannel("txinput")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 }
@@ -217,6 +219,7 @@ func (p *NodeDefaultIn) Recover(r interface{}) (err error) {
 	// 程序出错 接入lark报警
 	alarmMsg := fmt.Sprintf("请注意：%s链爬块失败, error：%s", p.ChainName, fmt.Sprintf("%s", r))
 	alarmOpts := biz.WithMsgLevel("FATAL")
+	alarmOpts = biz.WithAlarmChainName(p.ChainName)
 	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	return
 }

@@ -89,6 +89,41 @@ lark:
 #  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
   larkAtList: "9674c624"
+  larkUids:
+    yanding: 9674c624
+    dechen: a964d8f6
+    wanghui: 1dd9747c
+    dongdong: 9816g34e
+    qingliang: bfe7128f
+
+  larkSubscriptions:
+    APTOS:
+      uids: [ dongdong ]
+    COSMOS:
+      uids: [ dongdong ]
+    CKB:
+      uids: [ wanghui ]
+    CSPR:
+      uids: [ dongdong ]
+    EVM:
+      uids: [ yanding ]
+    POLKADOT:
+      uids: [ yanding ]
+    SOL:
+      uids: [ wanghui ]
+    STC:
+      uids: [ dongdong ]
+    SUI:
+      uids: [ dongdong ]
+    TVM:
+      uids: [ yanding ]
+    BTC:
+      uids: [ yanding ]
+    node-proxy:
+      uids: [ qingliang ]
+    txinput:
+      uids: [ dechen ]
+
   lockNum: 64
 
 logger:

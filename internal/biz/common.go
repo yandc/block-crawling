@@ -156,11 +156,13 @@ type UserAsset struct {
 
 // alarmOptions 报警相关的一些可自定义参数
 type alarmOptions struct {
+	channel       string
 	level         string
 	alarmLevel    int
 	alarmCycle    bool
 	alarmInterval int
 	alarmAtUids   []string
+	chainName     string // to reflect chainType as channel
 }
 
 var DefaultAlarmOptions = alarmOptions{
@@ -168,6 +170,19 @@ var DefaultAlarmOptions = alarmOptions{
 	alarmLevel:    DEFAULT_ALARM_LEVEL,
 	alarmCycle:    DEFAULT_ALARM_CYCLE,
 	alarmInterval: DEFAULT_ALARM_INTERVAL,
+}
+
+func (o *alarmOptions) getChannel() string {
+	if o.channel != "" {
+		return o.channel
+	}
+	if o.chainName != "" {
+		if c, ok := PlatInfoMap[o.chainName]; ok {
+			return c.Type
+		}
+	}
+
+	return o.channel
 }
 
 // AlarmOption 报警自定义参数接口
@@ -219,6 +234,18 @@ func WithAlarmAtList(uids ...string) AlarmOption {
 	})
 }
 
+func WithAlarmChannel(channel string) AlarmOption {
+	return newfuncAlarmOption(func(e *alarmOptions) {
+		e.channel = channel
+	})
+}
+
+func WithAlarmChainName(chainName string) AlarmOption {
+	return newfuncAlarmOption(func(e *alarmOptions) {
+		e.chainName = chainName
+	})
+}
+
 func GetAlarmTimestamp(key string) (int64, error) {
 	val, err := data.RedisClient.Get(key).Result()
 	if err != nil {
@@ -239,6 +266,7 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 		// redis出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败，address:%s", chainName, address)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChainName(chainName)
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return enable, uid, err
@@ -392,8 +420,6 @@ func NotifyBroadcastTxFailed(ctx context.Context, sessionID string, errMsg strin
 		)
 	}
 	alarmOpts := WithMsgLevel("FATAL")
-	LarkClient.NotifyLark(
-		msg, nil, nil, alarmOpts,
-		WithAlarmAtList("a964d8f6"), // TODO(wanghui): Add to configuration.
-	)
+	alarmOpts = WithAlarmChannel("txinput")
+	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 }

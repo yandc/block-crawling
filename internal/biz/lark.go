@@ -196,19 +196,7 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	//
 	//	//atStrList = strings.Join(tmpList, " ")
 	//}
-	if len(alarmOpts.alarmAtUids) > 0 {
-		for _, v := range alarmOpts.alarmAtUids {
-			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
-		}
-	} else if lark.conf.GetLarkAtList() != "" {
-		atList := strings.Split(lark.conf.GetLarkAtList(), ",")
-		for _, v := range atList {
-			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
-		}
-	} else {
-		c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
-	}
-	//c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
+	c = append(c, lark.handleAtList(alarmOpts)...)
 	c = append(c, Content{Tag: "text", Text: msg + "\n"})
 
 	if len(usableRPC) > 0 {
@@ -292,6 +280,42 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	if response.StatusCode == 200 {
 		internalData.RedisClient.Set(key, time.Now().Unix(), 60*60*time.Second)
 	}
+}
+
+func (lark *Lark) handleAtList(alarmOpts alarmOptions) []Content {
+	c := make([]Content, 0, 6)
+	channel := alarmOpts.getChannel()
+	if channel != "" {
+		subscriptions := lark.conf.GetLarkSubscriptions()
+		if users, ok := subscriptions[channel]; ok {
+			for _, user := range users.Uids {
+				if v, ok := lark.conf.LarkUids[user]; ok {
+					c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+				} else {
+					log.Warn("UNKOWN LARK USER", zap.String("user", user))
+				}
+			}
+		} else {
+			log.Warn("UNKNOWN LARK CHANNEL", zap.String("channel", channel))
+		}
+		return c
+	}
+
+	if len(alarmOpts.alarmAtUids) > 0 {
+		for _, v := range alarmOpts.alarmAtUids {
+			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+		}
+		return c
+	}
+	if lark.conf.GetLarkAtList() != "" {
+		atList := strings.Split(lark.conf.GetLarkAtList(), ",")
+		for _, v := range atList {
+			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+		}
+	} else {
+		c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
+	}
+	return c
 }
 
 func GenSign(secret string, timestamp int64) (string, error) {

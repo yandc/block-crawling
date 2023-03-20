@@ -22,6 +22,7 @@ func NotifyForkedDelete(chainName string, blockNumber uint64, nRows int64) {
 	}
 	alarmMsg := fmt.Sprintf("请注意：%s 链产出分叉，回滚到块高 %d，删除 %d 条数据", chainName, blockNumber, nRows)
 	alarmOpts := biz.WithMsgLevel("FATAL")
+	alarmOpts = biz.WithAlarmChainName(chainName)
 	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 }
 
@@ -31,6 +32,7 @@ func NotifyForkedError(chainName string, err error) bool {
 	}
 
 	alarmOpts := biz.WithMsgLevel("FATAL")
+	alarmOpts = biz.WithAlarmChainName(chainName)
 	var alarmMsg string
 	if err == chain.ErrForkedZeroBlockNumber {
 		alarmMsg = fmt.Sprintf("请注意： %s 链产生分叉，但是获取块高为 0", chainName)

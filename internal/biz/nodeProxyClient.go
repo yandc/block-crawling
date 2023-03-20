@@ -39,6 +39,7 @@ func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency str
 		// 调用nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币价格失败，currency:%s，tokenAddress:%s", chainName, currency, tokenAddress)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return price, err
@@ -223,6 +224,7 @@ func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress 
 		// nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return tokenInfo, err
@@ -315,6 +317,7 @@ func GetNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAd
 		// nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return tokenInfo, err
@@ -354,6 +357,7 @@ func GetCollectionInfoDirectlyRetryAlert(ctx context.Context, chainName string, 
 		// nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT集合信息失败，tokenAddress:%s", chainName, tokenAddress)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return tokenInfo, err
@@ -445,6 +449,7 @@ func GetRawNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, toke
 		// nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT全量信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 	return tokenInfo, nil
