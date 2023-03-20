@@ -80,6 +80,8 @@ message Lark {
   string larkSecret = 3;
   uint64 lockNum = 4;
   string larkAtList = 5;
+  map<string, string> larkUids = 6;
+  map<string, LarkSubscription> larkSubscriptions = 7;
 }
 
 message Logger {
@@ -131,4 +133,9 @@ message PlatInfo {
 
   // 处理交易的并发，实际会开启的 Goroutine 最大可能达到 maxConcurrency * handlingTxConcurrency。
   optional int32 handlingTxConcurrency = 18;
+}
+
+
+message LarkSubscription {
+  repeated string uids = 1;
 }

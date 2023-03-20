@@ -50,6 +50,7 @@ func (p *CommPlatform) MonitorHeight() {
 			// 程序出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链处理pending状态失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
 			alarmOpts := biz.WithMsgLevel("FATAL")
+			alarmOpts = biz.WithAlarmChainName(p.ChainName)
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			return
 		}
@@ -85,6 +86,7 @@ func (p *CommPlatform) MonitorHeight() {
 	if ret > thr {
 		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
 		alarmOpts := biz.WithMsgLevel("FATAL")
+		alarmOpts = biz.WithAlarmChainName(p.ChainName)
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
 
