@@ -29,19 +29,38 @@ type StateStore struct {
 	chainName      string
 	dbBlockHashs   map[uint64]string
 	dbHeightLoader DBHeightLoader
+
+	maxAllowedGapFromDB uint64
 }
 
 // NewStateStore create state store.
 func NewStateStore(chainName string, dbHeightLoader DBHeightLoader) *StateStore {
+	maxAllowedGapFromDB := 2_000
+
+	if c, ok := biz.PlatInfoMap[chainName]; ok {
+		if c.GetMaxAllowedHeightGap() > 0 {
+			maxAllowedGapFromDB = int(c.GetMaxAllowedHeightGap())
+		}
+	}
 	return &StateStore{
 		chainName:      chainName,
 		dbBlockHashs:   make(map[uint64]string),
 		dbHeightLoader: dbHeightLoader,
+
+		maxAllowedGapFromDB: uint64(maxAllowedGapFromDB),
 	}
+}
+
+// SetMaxAllowedGapFromDB set the maximum allowed gap between height of node and
+// height loaded from db, when height is loading from db not redis.
+// When the gap is exceed, then the height of node will be returned.
+func (store *StateStore) SetMaxAllowedGapFromDB(gap uint64) {
+	store.maxAllowedGapFromDB = gap
 }
 
 func (store *StateStore) LoadHeight() (uint64, error) {
 	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + store.chainName).Result()
+
 	if redisHeight != "" {
 		curHeight, err := strconv.Atoi(redisHeight)
 		if err != nil {
@@ -54,7 +73,27 @@ func (store *StateStore) LoadHeight() (uint64, error) {
 		)
 		return uint64(curHeight), nil
 	}
-	return store.loadHeightFromDB()
+	heightFromDB, err := store.loadHeightFromDB()
+	if err != nil {
+		return heightFromDB, err
+	}
+	if store.maxAllowedGapFromDB > 0 {
+		nodeHeight, err := store.loadNodeHeight()
+		if err != nil {
+			return 0, err
+		}
+		if nodeHeight-heightFromDB > store.maxAllowedGapFromDB {
+			log.Info(
+				"GAP BETWEEN NODE HEIGHT AND DB HEIGHT IS EXCEED, NODE HEIGHT IS RETURNED",
+				zap.Uint64("heightFromDB", heightFromDB),
+				zap.Uint64("nodeHeight", nodeHeight),
+				zap.Uint64("gap", nodeHeight-heightFromDB),
+				zap.Uint64("maxAllowedGapFromDB", store.maxAllowedGapFromDB),
+			)
+			return nodeHeight, nil
+		}
+	}
+	return heightFromDB, nil
 }
 
 func (store *StateStore) loadHeightFromDB() (uint64, error) {
@@ -94,6 +133,18 @@ func (store *StateStore) StoreHeight(height uint64) error {
 
 func (store *StateStore) StoreNodeHeight(height uint64) error {
 	return data.RedisClient.Set(biz.BLOCK_NODE_HEIGHT_KEY+store.chainName, height, 0).Err()
+}
+
+func (store *StateStore) loadNodeHeight() (uint64, error) {
+	r, err := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + store.chainName).Result()
+	if err != nil {
+		return 0, err
+	}
+	height, err := strconv.Atoi(r)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(height), nil
 }
 
 func (store *StateStore) LoadBlockHash(height uint64) (string, error) {
