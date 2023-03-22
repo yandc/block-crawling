@@ -47,15 +47,13 @@ func main() {
 	//txTime := 1664883095000 /1000
 	//t := time.Unix(int64(txTime),0).Format("2006-01-02 15:04:05")
 
-	s :="2022-03-05T01:38:32" // opensea
+	s := "2022-03-05T01:38:32" // opensea
 	ss := "2022-11-29T23:26:22.720Z"
 
-
-	ft,_ := time.Parse("2006-01-02T15:04:05",s)
-	fmt.Println(ft.Unix()*1000)
-	ft1,_ := time.Parse("2006-01-02T15:04:05.000Z",ss)
-	fmt.Println(ft1.Unix()*1000)
-
+	ft, _ := time.Parse("2006-01-02T15:04:05", s)
+	fmt.Println(ft.Unix() * 1000)
+	ft1, _ := time.Parse("2006-01-02T15:04:05.000Z", ss)
+	fmt.Println(ft1.Unix() * 1000)
 
 	doneNonce := make(map[string]int)
 
@@ -64,19 +62,19 @@ func main() {
 	doneNonce["key2"] = 12
 	doneNonce["key3"] = 13
 
-	for k,v := range doneNonce {
+	for k, v := range doneNonce {
 		fmt.Println(k)
 		fmt.Println(v)
 	}
 
-	x , _ := utils.HexStringToInt("0xcd3096")
+	x, _ := utils.HexStringToInt("0xcd3096")
 	fmt.Println(x)
-	l:= "Error: Block not found: 13481229"
-	yy := strings.Contains(l,"Block not found")
+	l := "Error: Block not found: 13481229"
+	yy := strings.Contains(l, "Block not found")
 	fmt.Println(yy)
 
 	sy := "00000000000000000000000000000000000000000000000000e0fc3d0e3ac218"
-	y,_ := strconv.ParseUint(sy, 16, 0)
+	y, _ := strconv.ParseUint(sy, 16, 0)
 	//y := strings.Replace(s,"T"," ",1)
 	fmt.Println(y)
 	//s1 :="2022-03-05 01:38:32"
@@ -94,17 +92,16 @@ func main() {
 	toAddress := utils.TronHexToBase58("41" + yyx[32:72])
 	fmt.Println(toAddress)
 
-
 	dongdongdong := "a614f803b6fd780986a42c78ec9c7f77e6ded13c"
 	ddddd := utils.TronHexToBase58("41" + dongdongdong)
 	fmt.Println(ddddd)
 
-	var TokenInfoMap = make(map[string] types.TokenInfo)
+	var TokenInfoMap = make(map[string]types.TokenInfo)
 	ddongq := types.TokenInfo{
-		Address        :"TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
-		Amount         :"10000",
-		Decimals       : 6,
-		Symbol : "USDC",
+		Address:  "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
+		Amount:   "10000",
+		Decimals: 6,
+		Symbol:   "USDC",
 	}
 
 	TokenInfoMap["token"] = ddongq
@@ -112,7 +109,14 @@ func main() {
 	eventLogJson, _ := json.Marshal(TokenInfoMap)
 
 	fmt.Println(string(eventLogJson))
+	fmt.Println("================")
+	k := "done:zkSyncTEST:0xbB5117144fA27417DAa43C50513967bDba4145DA"
+	rets := strings.Split(k, ":")
 
+	fmt.Println(rets[0])
+	fmt.Println(rets[1])
+	fmt.Println(rets[2])
+	fmt.Println(len(rets) >= 3)
 
 }
 
@@ -146,8 +150,7 @@ func Hex2Dec(v []string) []int64 {
 	return data
 }
 
-
-func getDappListPageList()  {
+func getDappListPageList() {
 	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
 	if err != nil {
 		fmt.Println("error:", err)
@@ -156,13 +159,12 @@ func getDappListPageList()  {
 	p := pb.NewTransactionClient(conn)
 
 	req := new(pb.DappPageListReq)
-	req.ChainName="ETH"
+	req.ChainName = "ETH"
 
 	p.GetDappListPageList(context.Background(), req)
 }
 
-
-func testDappPrice(){
+func testDappPrice() {
 
 	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
 	if err != nil {
@@ -183,7 +185,7 @@ func testDappPrice(){
 
 }
 
-func testDapp()  {
+func testDapp() {
 
 	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
 	if err != nil {
@@ -193,7 +195,7 @@ func testDapp()  {
 	p := pb.NewTransactionClient(conn)
 	req := new(pb.DappListReq)
 	req.Uid = "3"
-	ads := []string{0:"0x2B23e3B6671CDa35202339FA12599E7267B7Ed7f",1:"0x1C6808A5051A27D01D676DC66Bb234e81732141a"}
+	ads := []string{0: "0x2B23e3B6671CDa35202339FA12599E7267B7Ed7f", 1: "0x1C6808A5051A27D01D676DC66Bb234e81732141a"}
 	req.Addresses = ads
 	//req.ContractAddress = "1"
 	req.IsCancel = true
@@ -206,33 +208,29 @@ func testDapp()  {
 
 }
 
-
-
-func testInsertDappRecord()  {
+func testInsertDappRecord() {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
 				log.Errore("GetTransactions error, chainName:{}", e)
 			} else {
-				log.Errore("GetTransactions panic, chainName:{}",e)
+				log.Errore("GetTransactions panic, chainName:{}", e)
 			}
-
 
 			return
 		}
 	}()
-	ret , err :=data.DappApproveRecordRepoClient.SaveOrUpdate(nil,&data.DappApproveRecord{
+	ret, err := data.DappApproveRecordRepoClient.SaveOrUpdate(nil, &data.DappApproveRecord{
 
-		Uid      : "4488377Uid",
-		LastTxhash : "sdjfkdjtxhash",
-		Decimals   : 18,
-		ChainName  : "ETC",
-		Address    : "yonghudizhi",
-		Token      :"代币地址",
-		ToAddress  :"dappdizhi",
-		Amount     : "2",
-		Symbol     :"EtC",
-
+		Uid:        "4488377Uid",
+		LastTxhash: "sdjfkdjtxhash",
+		Decimals:   18,
+		ChainName:  "ETC",
+		Address:    "yonghudizhi",
+		Token:      "代币地址",
+		ToAddress:  "dappdizhi",
+		Amount:     "2",
+		Symbol:     "EtC",
 	})
 
 	if err != nil {
@@ -241,7 +239,6 @@ func testInsertDappRecord()  {
 	fmt.Println("result:", ret)
 
 }
-
 
 func testGetBalance() {
 	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
@@ -263,17 +260,13 @@ func testGetBalance() {
 	req.TxTime = 0
 	req.ChainName = "BTCTEST"
 	req.TransactionType = "native"
-	req.FromAddress ="mhtPsoPhNHVLUuDgdYt26dVyGMYmypgbWx"
+	req.FromAddress = "mhtPsoPhNHVLUuDgdYt26dVyGMYmypgbWx"
 	req.ToAddress = "n2xbzJ88pv2MBG8X4L9MT3EV6aMbLzKVqR"
 	req.Amount = "0.0001"
-	req.ClientData ="{\"sendTime\":1657869735643}"
-
-
-
+	req.ClientData = "{\"sendTime\":1657869735643}"
 
 	//15888 | 781323461749462297f85cbf5fa03813 | 2022-06-14 12:07:56.504716+00 | 2022-06-14 12:07:56.504736+00 |            |              | 0xc1fab01ab0e54a6f4d780de4d9e41308e1a95f93203d1e74bd0664ab5d2fe64d | pending |          0 |         | Oasis      | native           |                    | 0xFf0dE40a64848f84F4A113bdff5cABfAd1CED1fb | 0x65B29150f3b110A708BfbF7A4c6735080b453a69 |      | 500000000000000000 |            | {"gas_price":"100000000000","gas_limit":"21000"} |                  | {"evm":{"nonce":"0","type":0}} |           |           | {"sendTime":1655208475824} |
 	req1 := new(pb.TransactionReq)
-
 
 	req1.Uid = "6e078f0f37b94869a44998d067fb5129"
 	req1.CreatedAt = 1660615627
@@ -283,17 +276,15 @@ func testGetBalance() {
 	req1.TransactionHash = "0xc1fab01ab0e54a6f4d780de4d9e41308e1a95f93003d1e74bd0664ab5d2fe64d"
 	req1.Status = biz.NO_STATUS
 	req1.TxTime = 0
-	req1.ChainName = "ETH"//不支持的链
+	req1.ChainName = "ETH" //不支持的链
 	req1.TransactionType = "native"
-	req1.FromAddress ="0xFf0dE40a64848f84F4A113bdff5cABfAd1CED1fb"
+	req1.FromAddress = "0xFf0dE40a64848f84F4A113bdff5cABfAd1CED1fb"
 	req1.ToAddress = "0x65B29150f3b110A708BfbF7A4c6735080b453a69"
 	req1.Amount = "500000000000000000"
 	req1.GasLimit = "21000"
 	req1.GasPrice = "100000000000"
-	req1.ParseData ="{\"evm\":{\"nonce\":\"0\",\"type\":0}}"
-	req1.ClientData ="{\"sendTime\":1657869735643}"
-
-
+	req1.ParseData = "{\"evm\":{\"nonce\":\"0\",\"type\":0}}"
+	req1.ClientData = "{\"sendTime\":1657869735643}"
 
 	resp, err := p.CreateRecordFromWallet(context.Background(), req1)
 	if err != nil {
@@ -301,10 +292,4 @@ func testGetBalance() {
 	}
 	fmt.Println("result:", resp)
 
-
-
-
-
 }
-
-

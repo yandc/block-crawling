@@ -6,8 +6,10 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
+	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +41,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 		handleUserAsset(chainName, client, txRecords)
 	}()
 	go handleUserStatistic(chainName, client, txRecords)
-	go handleUserNonce(chainName, txRecords)
+	go handleUserNonce(chainName, client, txRecords)
 	go HandleRecordStatus(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
 	go handleUserNftAsset(chainName, client, txRecords)
@@ -139,7 +141,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 	}
 }
 
-func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
+func handleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
 	doneNonceTotal := make(map[string]int)
 	for _, record := range txRecords {
@@ -176,6 +178,16 @@ func handleUserNonce(chainName string, txRecords []*data.EvmTransactionRecord) {
 				data.RedisClient.Set(k, strconv.Itoa(v), 0)
 			} else {
 				log.Info(k, zap.Any("无需修改nonce,交易记录的nonce值", v), zap.Any("本地记录nonce", nonce))
+				ctx := context.Background()
+				rets := strings.Split(k, ":")
+				if len(rets) >= 3 {
+					nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
+					doneN := int(nonce) - 1
+					if nonceErr == nil {
+						data.RedisClient.Set(k, strconv.Itoa(doneN), 0)
+					}
+				}
+
 			}
 		}
 	}
