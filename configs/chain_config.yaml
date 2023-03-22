@@ -577,6 +577,8 @@ platform:
       - https://fullnode.mainnet.aptoslabs.com/v1
       - https://aptos-mainnet.pontem.network/v1
       - https://fullnode.mainnet.martianwallet.xyz/v1
+    httpURL:
+      - https://indexer.mainnet.aptoslabs.com/v1/graphql
     symbol: Aptos
     type: APTOS
     safelyConcurrentBlockDelta: 50
