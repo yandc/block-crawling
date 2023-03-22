@@ -149,6 +149,24 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	}, nil
 }
 
+func (c *Client) GetTxByVersion(txVersion int) (*chain.Transaction, error) {
+	rawTx, err := c.GetTransactionByVersion(txVersion)
+	if err != nil {
+		return nil, err
+	}
+	nonce, _ := strconv.Atoi(rawTx.SequenceNumber)
+	return &chain.Transaction{
+		Hash:        rawTx.Hash,
+		Nonce:       uint64(nonce),
+		TxType:      "",
+		FromAddress: "",
+		ToAddress:   "",
+		Value:       "",
+		Raw:         rawTx,
+		Record:      nil,
+	}, nil
+}
+
 func (c *Client) GetAddressIsActive(address string) []interface{} {
 	var result []interface{}
 	resourceInfo := c.GetResourceByAddress(address)

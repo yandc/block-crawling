@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -830,6 +831,15 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 	client := c.(*Client)
 	transactionInfo := tx.Raw.(TransactionInfo)
 	record := tx.Record.(*data.AptTransactionRecord)
+	if !transactionInfo.Success && record.TransactionHash == "" && record.TransactionVersion > 0 {
+		tx, err = client.GetTxByVersion(record.TransactionVersion)
+		if err != nil {
+			log.Error(h.chainName+"扫块，从链上获取区块信息失败", zap.Any("transactionVersion", record.TransactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
+			return err
+		}
+		tx.Record = record
+		transactionInfo = tx.Raw.(TransactionInfo)
+	}
 
 	transactionVersion, _ := strconv.Atoi(transactionInfo.Version)
 	if transactionInfo.ErrorCode == "transaction_not_found" {
@@ -856,6 +866,13 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 	tx.BlockNumber = block.Number
 
 	err = h.OnNewTx(c, block, tx)
+	if err == nil && record.TransactionHash == "" && record.TransactionVersion > 0 {
+		_, err = data.AptTransactionRecordRepoClient.DeleteByID(nil, biz.GetTableName(h.chainName), record.Id)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			_, err = data.AptTransactionRecordRepoClient.DeleteByID(nil, biz.GetTableName(h.chainName), record.Id)
+		}
+	}
 
 	return err
 }
