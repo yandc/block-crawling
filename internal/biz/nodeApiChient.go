@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
-	"block-crawling/internal/types"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
@@ -14,7 +13,7 @@ import (
 	"time"
 )
 
-var pageSize = 60
+var pageSize = 50
 var timeout = 10_000 * time.Millisecond
 
 func GetTxByAddress(chainName string, address string, urls []string) (err error) {
@@ -35,8 +34,10 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	}()
 
 	switch chainName {
+	case "Cosmos":
+		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Osmosis":
-		err = OsmosisGetTxByAddress(chainName, address, urls)
+		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
 	case "Aptos":
@@ -46,13 +47,87 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	return
 }
 
-func OsmosisGetTxByAddress(chainName string, address string, urls []string) (err error) {
+type CosmosBrowserInfo struct {
+	Header struct {
+		Id        int       `json:"id"`
+		ChainId   string    `json:"chain_id"`
+		BlockId   int       `json:"block_id"`
+		Timestamp time.Time `json:"timestamp"`
+	} `json:"header"`
+	Data struct {
+		Height    string `json:"height"`
+		Txhash    string `json:"txhash"`
+		Codespace string `json:"codespace"`
+		Code      int    `json:"code"`
+		Data      string `json:"data"`
+		RawLog    string `json:"raw_log"`
+		Logs      []struct {
+			MsgIndex int    `json:"msg_index"`
+			Log      string `json:"log"`
+			Events   []struct {
+				Type       string `json:"type"`
+				Attributes []struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+				} `json:"attributes"`
+			} `json:"events"`
+		} `json:"logs"`
+		Info      string `json:"info"`
+		GasWanted string `json:"gas_wanted"`
+		GasUsed   string `json:"gas_used"`
+		Tx        struct {
+			Type string `json:"@type"`
+			Body struct {
+				Messages                    []interface{} `json:"messages"`
+				Memo                        string        `json:"memo"`
+				TimeoutHeight               string        `json:"timeout_height"`
+				ExtensionOptions            []interface{} `json:"extension_options"`
+				NonCriticalExtensionOptions []interface{} `json:"non_critical_extension_options"`
+			} `json:"body"`
+			AuthInfo struct {
+				SignerInfos []struct {
+					PublicKey struct {
+						Type string `json:"@type"`
+						Key  string `json:"key"`
+					} `json:"public_key"`
+					ModeInfo struct {
+						Single struct {
+							Mode string `json:"mode"`
+						} `json:"single"`
+					} `json:"mode_info"`
+					Sequence string `json:"sequence"`
+				} `json:"signer_infos"`
+				Fee struct {
+					Amount []struct {
+						Denom  string `json:"denom"`
+						Amount string `json:"amount"`
+					} `json:"amount"`
+					GasLimit string `json:"gas_limit"`
+					Payer    string `json:"payer"`
+					Granter  string `json:"granter"`
+				} `json:"fee"`
+			} `json:"auth_info"`
+			Signatures []string `json:"signatures"`
+		} `json:"tx"`
+		Timestamp time.Time `json:"timestamp"`
+		Events    []struct {
+			Type       string `json:"type"`
+			Attributes []struct {
+				Key   string `json:"key"`
+				Value string `json:"value"`
+				Index bool   `json:"index"`
+			} `json:"attributes"`
+		} `json:"events"`
+	} `json:"data"`
+}
+
+func CosmosGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("OsmosisGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+				log.Errore("CosmosGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
 			} else {
-				log.Errore("OsmosisGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("CosmosGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -81,15 +156,17 @@ func OsmosisGetTxByAddress(chainName string, address string, urls []string) (err
 		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
+	var dbLastRecordBlockNumber int
 	var dbLastRecordHash string
 	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var chainRecords []types.OsmsiomBrowserInfo
+	var chainRecords []CosmosBrowserInfo
 chainFlag:
 	for {
-		var out []types.OsmsiomBrowserInfo
+		var out []CosmosBrowserInfo
 		reqUrl := url + "limit=" + strconv.Itoa(pageSize) + "&from=" + strconv.Itoa(starIndex)
 
 		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
@@ -101,17 +178,26 @@ chainFlag:
 			break
 		}
 
-		if len(out) == 0 {
+		dataLen := len(out)
+		if dataLen == 0 {
 			break
 		}
 		for _, browserInfo := range out {
 			txHash := browserInfo.Data.Txhash
-			if txHash == dbLastRecordHash {
+			txHeight, err := strconv.Atoi(browserInfo.Data.Height)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常", chainName)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Data.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
 		}
-		starIndex += pageSize
+		starIndex = out[dataLen-1].Header.Id
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
@@ -196,8 +282,10 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
+	var dbLastRecordSlotNumber int
 	var dbLastRecordHash string
 	if len(dbLastRecords) > 0 {
+		dbLastRecordSlotNumber = dbLastRecords[0].SlotNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
@@ -222,7 +310,8 @@ chainFlag:
 		}
 		for _, browserInfo := range out.Data {
 			txHash := browserInfo.TxHash
-			if txHash == dbLastRecordHash {
+			txSlot := browserInfo.Slot
+			if txSlot < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
@@ -347,7 +436,7 @@ chainFlag:
 		}
 		for _, browserInfo := range out.Data.MoveResources {
 			txVersion := browserInfo.TransactionVersion
-			if txVersion == dbLastRecordVersion {
+			if txVersion <= dbLastRecordVersion {
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
