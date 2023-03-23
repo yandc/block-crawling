@@ -658,6 +658,8 @@ platform:
       - https://us-atom-restapi.binancechain.io
       - https://lcd-cosmoshub.keplr.app
       - https://rest.cosmos.directory/cosmoshub
+    httpURL:
+      - https://api.mintscan.io/v1/cosmos/account/
     symbol: Cosmos
     type: COSMOS
     safelyConcurrentBlockDelta: 20
