@@ -37,11 +37,13 @@ platform:
     rpcURL:
       - https://arb1.arbitrum.io/rpc
       - https://rpc.ankr.com/arbitrum
+      - https://arbitrum-one.public.blastapi.io
+      - https://arbitrum.blockpi.network/v1/rpc/public
       - https://arbitrum-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: Arbitrum
     type: EVM
     safelyConcurrentBlockDelta: 100
-    maxConcurrency: 5
+    maxConcurrency: 8
     monitorHeightAlarmThr: 160
 
   DOGE:
