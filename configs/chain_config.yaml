@@ -477,6 +477,8 @@ platform:
     netType: main
     rpcURL:
     - https://main-seed.starcoin.org
+    httpURL:
+      - https://api.stcscan.io/v2
     symbol: STC
     type: STC
     safelyConcurrentBlockDelta: 100
