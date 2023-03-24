@@ -42,6 +42,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = SolanaGetTxByAddress(chainName, address, urls)
 	case "Aptos":
 		err = AptosGetTxByAddress(chainName, address, urls)
+	case "STC":
+		err = StarcoinGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -295,7 +297,7 @@ chainFlag:
 		var out SolanaBrowserResponse
 		reqUrl := url + "&before=" + beforeTxHash
 
-		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -461,6 +463,154 @@ chainFlag:
 
 	if len(aptTransactionRecordList) > 0 {
 		_, err = data.AptTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), aptTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+type StarcoinBrowserResponse struct {
+	Contents []StarcoinBrowserInfo `json:"contents"`
+	Total    int                   `json:"total"`
+}
+
+type StarcoinBrowserInfo struct {
+	Id                     string `json:"_id"`
+	BlockHash              string `json:"block_hash"`
+	BlockNumber            string `json:"block_number"`
+	EventRootHash          string `json:"event_root_hash"`
+	GasUsed                string `json:"gas_used"`
+	StateRootHash          string `json:"state_root_hash"`
+	Status                 string `json:"status"`
+	Timestamp              int64  `json:"timestamp"`
+	TransactionGlobalIndex int    `json:"transaction_global_index"`
+	TransactionHash        string `json:"transaction_hash"`
+	TransactionIndex       int    `json:"transaction_index"`
+	TransactionType        string `json:"transaction_type"`
+	UserTransaction        struct {
+		Authenticator struct {
+			Ed25519 struct {
+				PublicKey string `json:"public_key"`
+				Signature string `json:"signature"`
+			} `json:"Ed25519"`
+		} `json:"authenticator"`
+		RawTxn struct {
+			ChainId                 int    `json:"chain_id"`
+			ExpirationTimestampSecs string `json:"expiration_timestamp_secs"`
+			GasTokenCode            string `json:"gas_token_code"`
+			GasUnitPrice            string `json:"gas_unit_price"`
+			MaxGasAmount            string `json:"max_gas_amount"`
+			Payload                 string `json:"payload"`
+			Sender                  string `json:"sender"`
+			SequenceNumber          string `json:"sequence_number"`
+			TransactionHash         string `json:"transaction_hash"`
+		} `json:"raw_txn"`
+		TransactionHash string `json:"transaction_hash"`
+	} `json:"user_transaction"`
+}
+
+func StarcoinGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("StarcoinGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("StarcoinGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var pageNum = 1
+	url := urls[0]
+	url = url + "/transaction/address/main/" + address + "/page/"
+
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "block_number desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.StcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordBlockNumber int
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
+		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
+	}
+
+	var chainRecords []StarcoinBrowserInfo
+chainFlag:
+	for {
+		var out StarcoinBrowserResponse
+		reqUrl := url + strconv.Itoa(pageNum)
+
+		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out.Contents)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Contents {
+			txHash := browserInfo.TransactionHash
+			txHeight, err := strconv.Atoi(browserInfo.BlockNumber)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常", chainName)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		pageNum++
+	}
+
+	var stcTransactionRecordList []*data.StcTransactionRecord
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.TransactionHash
+		atomRecord := &data.StcTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		stcTransactionRecordList = append(stcTransactionRecordList, atomRecord)
+	}
+
+	if len(stcTransactionRecordList) > 0 {
+		_, err = data.StcTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), stcTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
