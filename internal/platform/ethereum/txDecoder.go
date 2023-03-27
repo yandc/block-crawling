@@ -768,7 +768,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(log_.Data) > 160 {
 				amount = new(big.Int).SetBytes(log_.Data[128:160])
 			}
-			tokenAddress = ""
+			tokenAddress = common.HexToAddress(hex.EncodeToString(log_.Data[96:128])).String()
+			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+			if err != nil {
+				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+			}
+			sy := strings.ToUpper(token.Symbol)
+			if strings.Contains(sy, "ETH") {
+				tokenAddress = ""
+			}
+
 		} else if topic0 == OPTIMISM_WITHDRAWETH {
 			//无 转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()
