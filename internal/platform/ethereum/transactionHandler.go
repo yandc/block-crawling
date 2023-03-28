@@ -164,30 +164,17 @@ func handleUserNonce(chainName string, client Client, txRecords []*data.EvmTrans
 		}
 	}
 	//1   2条 2 3  取出 3 -2 == 1
-	for k, v := range doneNonce {
-		total := doneNonceTotal[k]
-		if v == 0 {
-			_, err := data.RedisClient.Get(k).Result()
-			if fmt.Sprintf("%s", err) == biz.REDIS_NIL_KEY {
-				data.RedisClient.Set(k, strconv.Itoa(v), 0)
-			}
-		} else {
-			nonceStr, _ := data.RedisClient.Get(k).Result()
-			nonce, _ := strconv.Atoi(nonceStr)
-			if v > nonce && v-total == nonce {
-				data.RedisClient.Set(k, strconv.Itoa(v), 0)
-			} else {
-				log.Info(k, zap.Any("无需修改nonce,交易记录的nonce值", v), zap.Any("本地记录nonce", nonce))
-				ctx := context.Background()
-				rets := strings.Split(k, ":")
-				if len(rets) >= 3 {
-					nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
-					doneN := int(nonce) - 1
-					if nonceErr == nil {
-						data.RedisClient.Set(k, strconv.Itoa(doneN), 0)
-					}
+	for k, _ := range doneNonce {
+		//判断 链上nonce
+		ctx := context.Background()
+		rets := strings.Split(k, ":")
+		if len(rets) >= 3 {
+			nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
+			if nonce > 0 {
+				doneN := int(nonce) - 1
+				if nonceErr == nil {
+					data.RedisClient.Set(k, strconv.Itoa(doneN), 0)
 				}
-
 			}
 		}
 	}
