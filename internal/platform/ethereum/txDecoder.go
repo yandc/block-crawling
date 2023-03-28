@@ -900,7 +900,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Symbol = token.Symbol[1:]
 			}
 			token.Amount = amount.String()
-
 		}
 
 		if xDaiDapp {
@@ -925,8 +924,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			token.Amount = amount.String()
 			xDaiDapp = true
-
 		}
+
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
 		if transaction.To().String() == "0x83f6244Bd87662118d96D9a6D44f09dffF14b30E" && hex.EncodeToString(transaction.Data()[:4]) == "3d12a85a" {
 			fromAddress = transaction.To().String()
@@ -936,13 +935,13 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
 			token = types.TokenInfo{}
 			xDaiDapp = true
-
 		}
-
-
 
 		//不展示event log中的授权记录
 		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
+			continue
+		}
+		if strings.HasPrefix(h.chainName, "zkSync") && (fromAddress == ZKSYNC_ADDRESS || toAddress == ZKSYNC_ADDRESS) {
 			continue
 		}
 

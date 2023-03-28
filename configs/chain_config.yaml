@@ -843,6 +843,31 @@ platform:
     maxConcurrency: 9
     monitorHeightAlarmThr: 160
     handlingTxConcurrency: 2
+  zkSync:
+    blockExplorerAddrUrl: https://explorer.zksync.io/address
+    blockExplorerTxUrl: https://explorer.zksync.io/tx
+    blockExplorerUrl: https://explorer.zksync.io
+    categoryName: EVM
+    chain: zkSync
+    chainId: 324
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: zkSync
+    getPriceKey: ethereum
+    handler: zksync
+    icon: https://obstatic.243096.com/mili/images/currency/chain/zkSync.jpeg
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://mainnet.era.zksync.io
+    symbol: zkSync
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 160
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
