@@ -25,6 +25,10 @@ import (
 // Arbitrum dapp 跨链时，提取交易，跟普通转账参数一致 20230119
 const ArbitrumDepositTxType = 100
 
+// zkSync 跨链转主币ETH时，跟普通转账参数一致
+//https://explorer.zksync.io/tx/0xe2e6a3fc27f5d793b50d4eb80f016fffdb7662278e0c43ab119126206c7876a2
+const zkSyncTxType = 255
+
 type rpcBlock struct {
 	Hash common.Hash `json:"hash"`
 	// Transactions []rpcTransaction `json:"transactions"`
@@ -297,9 +301,9 @@ func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *
 		return nil, false, err
 	} else if json == nil {
 		return nil, false, ethereum.NotFound
-	} else if _, r, _ := json.RawSignatureValues(); r == nil {
+	} /* else if _, r, _ := json.RawSignatureValues(); r == nil {
 		return nil, false, fmt.Errorf("server returned transaction without signature")
-	}
+	}*/
 	return json, json.BlockNumber == nil, nil
 }
 
@@ -511,7 +515,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType, ArbitrumDepositTxType:
+	case types.LegacyTxType, ArbitrumDepositTxType, zkSyncTxType:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {
