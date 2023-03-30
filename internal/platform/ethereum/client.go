@@ -431,6 +431,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 						i += 32
 					}
 				}
+			} else if methodId == "00000000" { //Arbitrum链 Seaport 1.4
+				transactionType = biz.CONTRACT
+				if len(data) >= 164 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
