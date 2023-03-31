@@ -85,7 +85,6 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 
 		transactionRecordRequest := &data.TransactionRequest{
 			FromAddress:        record.FromAddress,
-			ToAddress:          record.ToAddress,
 			Nonce:              record.Nonce,
 			ClientDataNotEmpty: true,
 			OrderBy:            "id asc",
