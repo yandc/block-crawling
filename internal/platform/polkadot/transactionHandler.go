@@ -4,13 +4,13 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.DotTransactionRecord) {
@@ -232,40 +232,20 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
-	balances := result.([]types.PolkadotAccountInfo)
+	balance := result.(string)
 
-	if len(balances) == 0 {
-		var userAsset = &data.UserAsset{
-			ChainName:    chainName,
-			Uid:          uid,
-			Address:      address,
-			TokenAddress: tokenAddress,
-			Balance:      "0",
-			Decimals:     decimals,
-			Symbol:       symbol,
-			CreatedAt:    nowTime,
-			UpdatedAt:    nowTime,
-		}
-		return userAsset, nil
+	var userAsset = &data.UserAsset{
+		ChainName:    chainName,
+		Uid:          uid,
+		Address:      address,
+		TokenAddress: tokenAddress,
+		Balance:      balance,
+		Decimals:     decimals,
+		Symbol:       symbol,
+		CreatedAt:    nowTime,
+		UpdatedAt:    nowTime,
 	}
-
-	for _, balance := range balances {
-		if balance.AssetInfo.Symbol == "DOT" {
-			var userAsset = &data.UserAsset{
-				ChainName:    chainName,
-				Uid:          uid,
-				Address:      address,
-				TokenAddress: tokenAddress,
-				Balance:      strconv.FormatFloat(balance.State.Free, 'f', 10, 64),
-				Decimals:     int32(balance.AssetInfo.Decimals),
-				Symbol:       balance.AssetInfo.Symbol,
-				CreatedAt:    nowTime,
-				UpdatedAt:    nowTime,
-			}
-			return userAsset, nil
-		}
-	}
-	return nil, nil
+	return userAsset, nil
 }
 
 func handleUserStatistic(chainName string, client Client, txRecords []*data.DotTransactionRecord) {

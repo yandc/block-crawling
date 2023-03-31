@@ -10,11 +10,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -178,7 +179,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	return tx, err
 }
 
-func (c *Client) GetBalance(address string) ([]types2.PolkadotAccountInfo, error) {
+func (c *Client) GetBalances(address string) ([]types2.PolkadotAccountInfo, error) {
 	key, baseURL := parseKeyFromNodeURL(c.Url)
 	url := baseURL + "account/" + address
 	var accountInfo []types2.PolkadotAccountInfo
@@ -193,4 +194,20 @@ func (c *Client) GetBalance(address string) ([]types2.PolkadotAccountInfo, error
 
 	return accountInfo, nil
 
+}
+
+func (c *Client) GetBalance(address string) (string, error) {
+	balances, err := c.GetBalances(address)
+	if err != nil {
+		return "0", err
+	}
+	if len(balances) == 0 {
+		return "0", nil
+	}
+	for _, balance := range balances {
+		if balance.AssetInfo.Symbol == "DOT" {
+			return strconv.FormatFloat(balance.State.Free, 'f', 10, 64), nil
+		}
+	}
+	return "0", nil
 }
