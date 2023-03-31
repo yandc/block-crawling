@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"time"
 )
@@ -321,17 +322,18 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil, nil
 	}
 
-	var balance string
-	var err error
-	if transactionType == biz.NATIVE || tokenAddress == "" {
-		balance, err = client.GetBalance(address)
-	} else if tokenAddress != "" {
-		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
-	}
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		if transactionType == biz.NATIVE || tokenAddress == "" {
+			return client.GetBalance(address)
+		} else {
+			return client.GetTokenBalance(address, tokenAddress, int(decimals))
+		}
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
+	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
 		ChainName:    chainName,
@@ -450,4 +452,12 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.SolTrans
 		}
 	}
 	biz.HandleTokenPush(chainName, userAssetList)
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

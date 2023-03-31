@@ -8,7 +8,6 @@ import (
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
-	"block-crawling/internal/subhandle"
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
@@ -26,9 +25,8 @@ var TronBridgeWhiteAddressList = []string{
 	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",
 }
 
-
 type Platform struct {
-	subhandle.CommPlatform
+	biz.CommPlatform
 	client    Client
 	CoinIndex uint
 
@@ -59,7 +57,7 @@ func Init(handler string, value *conf.PlatInfo, nodeUrl []string, height int) *P
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		client:    NewClient(nodeUrl[0], chainName),
-		CommPlatform: subhandle.CommPlatform{
+		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
@@ -136,6 +134,10 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
 	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
+}
+
+func (p *Platform) GetBlockSpider() *chain.BlockSpider {
+	return p.spider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.TrxTransactionRecord, table string) error {

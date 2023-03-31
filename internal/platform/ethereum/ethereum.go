@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
-	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
 	"strings"
@@ -125,7 +124,7 @@ var BridgeWhiteTopicList = map[string][]string{
 }
 
 type Platform struct {
-	subhandle.CommPlatform
+	biz.CommPlatform
 	NodeURL   string
 	CoinIndex uint
 	UrlList   []string
@@ -172,7 +171,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		NodeURL:   nodeURL[0],
-		CommPlatform: subhandle.CommPlatform{
+		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
@@ -232,6 +231,10 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
 	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
+}
+
+func (p *Platform) GetBlockSpider() *chain.BlockSpider {
+	return p.spider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string) error {

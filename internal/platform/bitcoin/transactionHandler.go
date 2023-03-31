@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/platform/bitcoin/btc"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
@@ -380,11 +381,14 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 		return nil, nil
 	}
 
-	balance, err := client.GetBalance(address)
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		return client.GetBalance(address)
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("error", err))
 		return nil, err
 	}
+	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
 		ChainName: chainName,
@@ -434,4 +438,12 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.BtcT
 		userAssetStatisticList = append(userAssetStatisticList, userAssetStatistic)
 	}
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

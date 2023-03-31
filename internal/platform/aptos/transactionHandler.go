@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -92,8 +93,11 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 		} else {
 			tokenIdMap[tokenId] = tokenId
 		}
-		tar, err1 := client.GetEventTransfer(tokenId, 0, 100, chainName)
-		if err1 != nil {
+		result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+			return client.GetEventTransfer(tokenId, 0, 100, chainName)
+		})
+		tar := result.(TokenActivitiesResponse)
+		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链获取 ["+tokenId+"] 失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
@@ -118,11 +122,10 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				} else {
 					userTXMap[e.TransactionVersion] = e.TransactionVersion
 				}
-				tx, err := client.GetTransactionByVersion(e.TransactionVersion)
-				for i := 0; i < 10 && err != nil; i++ {
-					time.Sleep(time.Duration(i*5) * time.Second)
-					tx, err = client.GetTransactionByVersion(e.TransactionVersion)
-				}
+				result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+					return client.GetTransactionByVersion(e.TransactionVersion)
+				})
+				tx := result.(TransactionInfo)
 				if err != nil {
 					// nodeProxy出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链根据txVersion获取交易数据失败，transactionVersion:%v", chainName, e.TransactionVersion)
@@ -463,17 +466,18 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil, nil
 	}
 
-	var balance string
-	var err error
-	if transactionType == biz.NATIVE || tokenAddress == APT_CODE || tokenAddress == "" {
-		balance, err = client.GetBalance(address)
-	} else if tokenAddress != APT_CODE && tokenAddress != "" {
-		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
-	}
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		if transactionType == biz.NATIVE || tokenAddress == APT_CODE || tokenAddress == "" {
+			return client.GetBalance(address)
+		} else {
+			return client.GetTokenBalance(address, tokenAddress, int(decimals))
+		}
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
+	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
 		ChainName:    chainName,
@@ -755,13 +759,14 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 			return nil, err
 		}
 		for tokenId, nftInfo := range tokenIdMap {
-			var err error
-			var balance string
-			balance, err = client.Erc1155BalanceByTokenId(address, tokenId, propertyVersion)
+			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+				return client.Erc1155BalanceByTokenId(address, tokenId, propertyVersion)
+			})
 			if err != nil {
 				log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
 				return nil, err
 			}
+			balance := result.(string)
 
 			payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
 				"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
@@ -789,4 +794,12 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 		}
 	}
 	return userAssets, nil
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

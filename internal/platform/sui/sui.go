@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
-	"block-crawling/internal/subhandle"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,7 +16,7 @@ import (
 )
 
 type Platform struct {
-	subhandle.CommPlatform
+	biz.CommPlatform
 	client    Client
 	CoinIndex uint
 	spider    *chain.BlockSpider
@@ -44,7 +43,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		client:    NewClient(nodeURL[0], chainName),
 		conf:      value,
 		spider:    spider,
-		CommPlatform: subhandle.CommPlatform{
+		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
@@ -87,6 +86,10 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
 	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
+}
+
+func (p *Platform) GetBlockSpider() *chain.BlockSpider {
+	return p.spider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string) error {

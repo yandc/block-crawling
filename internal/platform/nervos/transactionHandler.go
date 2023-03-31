@@ -3,6 +3,7 @@ package nervos
 import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
+	"gitlab.bixin.com/mili/node-driver/chain"
 
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -271,11 +272,14 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 	for _, record := range txRecords {
 		ret := strings.Split(record.TransactionHash, "#")[0]
 
-		tx, err := client.GetUTXOByHash(ret)
+		result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+			return client.GetUTXOByHash(ret)
+		})
 		if err != nil {
 			log.Error(chainName+"调用GetCellByHash失败！", zap.Any("error", err))
 			continue
 		}
+		tx := result.(*types.TransactionWithStatus)
 
 		if record.Status == "success" {
 			log.Info("zydghg", zap.Any(record.TransactionHash, tx))
@@ -425,12 +429,10 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 	go handleUserAsset(chainName, userAssets, tempList)
 }
 
-// 地址a,地址b,地址c
-
-// a -- 8
-//b --3
-
-//c --1 0 update biao set balance = 0 where address =address,
-
-//一个钱包地址 多个token token2 token3
-//0
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
+}

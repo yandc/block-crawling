@@ -773,7 +773,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(eventLogs) > 0 {
 				nativeFlag := false
 				for _, eventLog := range eventLogs {
-					if eventLog.From == fromAddress && eventLog.To == "0x0000000000000000000000000000000000000000" && eventLog.Token.Address == tokenAddress && eventLog.Amount == amount {
+					if eventLog != nil && eventLog.From == fromAddress && eventLog.To == "0x0000000000000000000000000000000000000000" && eventLog.Token.Address == tokenAddress && eventLog.Amount.Cmp(amount) == 0 {
 						nativeFlag = true
 						break
 					}
@@ -786,7 +786,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 				token.Symbol = token.Symbol[1:]
 			}
-
 		} else if topic0 == OPTIMISM_WITHDRAWETH {
 			//无 转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()

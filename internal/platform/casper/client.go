@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 	"math/big"
@@ -97,19 +98,21 @@ func (c *Client) GetAccountInfoByAddress(address string) (string, error) {
 	return result.Account.MainPurse, nil
 }
 
-func (c *Client) GetBalance(address string) (big.Int, error) {
-	balance := big.Int{}
+func (c *Client) GetBalance(address string) (string, error) {
 	block, err := c.GetLatestBlock()
 	if err != nil {
-		balance.SetString("0", 10)
-		return balance, err
+		return "0", err
 	}
 	accountResult, err := c.GetAccountInfoByAddress(address)
 	if err != nil {
-		balance.SetString("0", 10)
-		return balance, err
+		return "0", err
 	}
-	return c.GetAccountBalance(block.Header.StateRootHash, accountResult)
+	amount, err := c.GetAccountBalance(block.Header.StateRootHash, accountResult)
+	if err != nil {
+		return "0", err
+	}
+	balance := utils.BigIntString(&amount, 9)
+	return balance, err
 }
 
 func (c *Client) GetAccountBalance(stateRootHash, balanceUref string) (big.Int, error) {
