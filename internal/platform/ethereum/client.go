@@ -438,6 +438,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "8171e632" { //Polygon链 NFT Contract
+				transactionType = biz.CONTRACT
+				if len(data) >= 100 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
