@@ -20,6 +20,7 @@ import (
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -849,7 +850,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 										// "gasfeeMsg" :"1"
 										evm["pendingMsg"] = GAS_FEE_LOW
 									}
-									if ret.Status == PENDING || ret.Status == NO_STATUS{
+									if ret.Status == PENDING || ret.Status == NO_STATUS {
 										//"nonceMsg":"1"
 										evm["pendingMsg"] = NONCE_QUEUE
 									}
@@ -2089,10 +2090,27 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			continue
 		}
 		s.attemptFixZeroDecimals(ctx, req, &newItem, nil)
+
+		newBalance := newItem.Balance
+		if oldItem.Balance != "0" && newBalance == "0" && tokenAddress == "" {
+			// Double check zero balance.
+			balance, err := s.getBalance(ctx, req.ChainName, req.Address)
+			if err != nil {
+				continue
+			}
+			newBalance = balance
+			log.Info(
+				"FIX ZERO BALANCE",
+				zap.String("chainName", req.ChainName),
+				zap.String("address", req.Address),
+				zap.String("balance", newBalance),
+			)
+		}
+
 		// update
-		if oldItem.Balance != newItem.Balance {
+		if oldItem.Balance != newBalance {
 			// XXX: only update balance here.
-			oldItem.Balance = newItem.Balance
+			oldItem.Balance = newBalance
 			needUpdateAssets = append(needUpdateAssets, oldItem)
 		}
 	}
@@ -2147,6 +2165,28 @@ func (s *TransactionUsecase) attemptFixZeroDecimals(ctx context.Context, req *Us
 		)
 		asset.Balance = newBalance
 	}
+}
+
+func (s *TransactionUsecase) getBalance(ctx context.Context, chainName, address string) (string, error) {
+	result, err := ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		if c, ok := client.(RPCNodeBalancer); ok {
+			return c.GetBalance(address)
+		}
+		return 0, errors.New("not supported")
+	})
+
+	if err != nil {
+		// We don't know, returns false is safer.
+		log.Info(
+			"CHECK ZERO BALANCE FAILED",
+			zap.String("chainName", chainName),
+			zap.String("address", address),
+			zap.Error(err),
+		)
+		return "", err
+	}
+	return result.(string), nil
+
 }
 
 func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {

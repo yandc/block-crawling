@@ -10,11 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	ncommon "gitlab.bixin.com/mili/node-driver/common"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	ncommon "gitlab.bixin.com/mili/node-driver/common"
 
 	"github.com/go-redis/redis"
 
@@ -469,4 +470,8 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 	})
 
 	return result, err
+}
+
+type RPCNodeBalancer interface {
+	GetBalance(address string) (string, error)
 }
