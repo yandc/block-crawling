@@ -1,12 +1,12 @@
-package subhandle
+package biz
 
 import (
-	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,10 +18,9 @@ type Platform interface {
 	GetTransactions()
 	SetRedisHeight()
 	GetTransactionResultByTxhash()
+	GetBlockSpider() *chain.BlockSpider
 	MonitorHeight()
 }
-
-type Platforms map[string]map[string]Platform
 
 type CommPlatform struct {
 	Height    int
@@ -49,15 +48,15 @@ func (p *CommPlatform) MonitorHeight() {
 
 			// 程序出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链处理pending状态失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			alarmOpts = biz.WithAlarmChainName(p.ChainName)
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			alarmOpts := WithMsgLevel("FATAL")
+			alarmOpts = WithAlarmChainName(p.ChainName)
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			return
 		}
 	}()
 	//节点 块高
-	nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + p.ChainName).Result()
-	redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + p.ChainName).Result()
+	nodeRedisHeight, _ := data.RedisClient.Get(BLOCK_NODE_HEIGHT_KEY + p.ChainName).Result()
+	redisHeight, _ := data.RedisClient.Get(BLOCK_HEIGHT_KEY + p.ChainName).Result()
 
 	oldHeight, _ := strconv.Atoi(redisHeight)
 	height, _ := strconv.Atoi(nodeRedisHeight)
@@ -85,11 +84,10 @@ func (p *CommPlatform) MonitorHeight() {
 	ret := height - oldHeight
 	if ret > thr {
 		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		alarmOpts = biz.WithAlarmChainName(p.ChainName)
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChainName(p.ChainName)
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 	}
-
 }
 
 func (p *CommPlatform) GetHeight() int {

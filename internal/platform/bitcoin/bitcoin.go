@@ -10,7 +10,6 @@ import (
 	"block-crawling/internal/platform/common"
 	ncommon "gitlab.bixin.com/mili/node-driver/common"
 
-	"block-crawling/internal/subhandle"
 	in "block-crawling/internal/types"
 	"errors"
 	"fmt"
@@ -23,7 +22,7 @@ import (
 )
 
 type Platform struct {
-	subhandle.CommPlatform
+	biz.CommPlatform
 	client    Client
 	CoinIndex uint
 	conf      *conf.PlatInfo
@@ -55,7 +54,7 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		client:    NewClient(nodeURL[0], chainName),
 		spider:    spider,
 		conf:      value,
-		CommPlatform: subhandle.CommPlatform{
+		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
@@ -333,6 +332,10 @@ func (p *Platform) GetTransactionResultByTxhash() {
 
 	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
 	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
+}
+
+func (p *Platform) GetBlockSpider() *chain.BlockSpider {
+	return p.spider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord, table string) error {

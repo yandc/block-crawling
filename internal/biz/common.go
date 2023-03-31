@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
+	ncommon "gitlab.bixin.com/mili/node-driver/common"
 	"strconv"
 	"strings"
 	"time"
@@ -69,10 +71,10 @@ const (
 )
 
 const (
-	CANCEL   = "cancel"   //中心化操作 --- value CANCEL --success
-	SPEED_UP = "speed_up" //success
+	CANCEL      = "cancel"   //中心化操作 --- value CANCEL --success
+	SPEED_UP    = "speed_up" //success
 	GAS_FEE_LOW = "gasFeeLow"
-	NONCE_QUEUE ="nonceQueue"
+	NONCE_QUEUE = "nonceQueue"
 	NONCE_BREAK = "nonceBreak"
 )
 
@@ -422,4 +424,49 @@ func NotifyBroadcastTxFailed(ctx context.Context, sessionID string, errMsg strin
 	alarmOpts := WithMsgLevel("FATAL")
 	alarmOpts = WithAlarmChannel("txinput")
 	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
+}
+
+func ExecuteRetry(chainName string, fc func(client chain.Clienter) (interface{}, error)) (interface{}, error) {
+	var result interface{}
+	var err error
+
+	spider := PlatformMap[chainName].GetBlockSpider()
+	err = spider.WithRetry(func(client chain.Clienter) error {
+		result, err = fc(client)
+		if err != nil {
+			return ncommon.Retry(err)
+		}
+		return nil
+	})
+	return result, err
+}
+
+func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(url string) (chain.Clienter, error), fc func(client chain.Clienter) (interface{}, error)) (interface{}, error) {
+	var result interface{}
+	var err error
+
+	var nodeURL []string
+	if platInfo, ok := PlatInfoMap[chainName]; ok {
+		nodeURL = platInfo.RpcURL
+	} else {
+		return nil, errors.New("chain " + chainName + " is not support")
+	}
+	clients := make([]chain.Clienter, 0, len(nodeURL))
+	for _, url := range nodeURL {
+		c, err := cfc(url)
+		if err != nil {
+			log.Warn("调用ExecuteRetry方法，创建Client异常", zap.Any("chainName", len(chainName)), zap.Any("error", err))
+		}
+		clients = append(clients, c)
+	}
+	spider := chain.NewBlockSpider(chainStateStore, clients...)
+	err = spider.WithRetry(func(client chain.Clienter) error {
+		result, err = fc(client)
+		if err != nil {
+			return ncommon.Retry(err)
+		}
+		return nil
+	})
+
+	return result, err
 }

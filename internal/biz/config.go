@@ -11,6 +11,7 @@ import (
 var PlatInfos []*conf.PlatInfo
 var PlatInfoMap map[string]*conf.PlatInfo
 var ChainNameType map[string]string
+var PlatformMap = make(map[string]Platform)
 var HTTPProxies []*url.URL
 
 var AppConfig *conf.App

@@ -4,9 +4,9 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"time"
 )
@@ -153,20 +153,21 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil, nil
 	}
 
-	balance, err := client.GetBalance(address)
-	ba := utils.BigIntString(&balance, 9)
-
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		return client.GetBalance(address)
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
+	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
 		ChainName:    chainName,
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
-		Balance:      ba,
+		Balance:      balance,
 		Decimals:     decimals,
 		Symbol:       symbol,
 		CreatedAt:    nowTime,
@@ -217,4 +218,12 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.Cspr
 		userAssetStatisticList = append(userAssetStatisticList, userAssetStatistic)
 	}
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

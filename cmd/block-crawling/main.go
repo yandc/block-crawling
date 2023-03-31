@@ -1,12 +1,12 @@
 package main
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/cosmos"
-	"block-crawling/internal/subhandle"
 	"flag"
 	"os"
 	"time"
@@ -116,7 +116,7 @@ func start() {
 			if p == nil {
 				continue
 			}
-			if cosmos, ok := p.(*cosmos.Platform); ok{
+			if cosmos, ok := p.(*cosmos.Platform); ok {
 				if cosmos.ChainName == "Osmosis" {
 					continue
 				}
@@ -134,7 +134,7 @@ func start() {
 			if p == nil {
 				continue
 			}
-			go func(p subhandle.Platform) {
+			go func(p biz.Platform) {
 				log.Info("start main", zap.Any("platform", p))
 				// get result
 				go p.GetTransactionResultByTxhash()
@@ -163,7 +163,7 @@ func start() {
 			if p == nil {
 				continue
 			}
-			go func(p subhandle.Platform) {
+			go func(p biz.Platform) {
 				if btc, ok := p.(*bitcoin.Platform); ok {
 					log.Info("start inner main", zap.Any("platform", btc))
 					signal := make(chan bool)

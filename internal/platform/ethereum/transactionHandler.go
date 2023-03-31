@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
 	"strings"
 	"time"
@@ -169,10 +170,13 @@ func handleUserNonce(chainName string, client Client, txRecords []*data.EvmTrans
 		ctx := context.Background()
 		rets := strings.Split(k, ":")
 		if len(rets) >= 3 {
-			nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
+			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+				return client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
+			})
+			nonce := result.(uint64)
 			if nonce > 0 {
 				doneN := int(nonce) - 1
-				if nonceErr == nil {
+				if err == nil {
 					data.RedisClient.Set(k, strconv.Itoa(doneN), 0)
 				}
 			}
@@ -360,11 +364,14 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 		return nil, nil
 	}
 
-	balance, err := client.GetBalance(address)
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		return client.GetBalance(address)
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
+	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
 		ChainName:    chainName,
@@ -383,17 +390,20 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
 	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
 	var userAssets []*data.UserAsset
-	var balanceList map[string]interface{}
-	var err error
-	if chainName == "Ronin" {
-		balanceList, err = client.NewBatchTokenBalance(address, tokenDecimalsMap)
-	} else {
-		balanceList, err = client.BatchTokenBalance(address, tokenDecimalsMap)
-	}
+
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		if chainName == "Ronin" {
+			return client.NewBatchTokenBalance(address, tokenDecimalsMap)
+		} else {
+			return client.BatchTokenBalance(address, tokenDecimalsMap)
+		}
+	})
 	if err != nil {
 		log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
 		return nil, err
 	}
+	balanceList := result.(map[string]interface{})
+
 	for tokenAddress, balancei := range balanceList {
 		balance := fmt.Sprintf("%v", balancei)
 		decimals := int32(tokenDecimalsMap[tokenAddress])
@@ -783,17 +793,20 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 	var userAssets []*data.UserNftAsset
 	for tokenAddress, tokenIdMap := range tokenAddressIdMap {
 		for tokenId, nftInfo := range tokenIdMap {
-			var err error
-			var balance string
-			if nftInfo.TokenType == biz.ERC721 {
-				balance, err = client.Erc721Balance(address, tokenAddress, tokenId)
-			} else if nftInfo.TokenType == biz.ERC1155 {
-				balance, err = client.Erc1155Balance(address, tokenAddress, tokenId)
-			}
+			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+				if nftInfo.TokenType == biz.ERC721 {
+					return client.Erc721Balance(address, tokenAddress, tokenId)
+				} else if nftInfo.TokenType == biz.ERC1155 {
+					return client.Erc1155Balance(address, tokenAddress, tokenId)
+				} else {
+					return "0", errors.New("chain " + chainName + ", tokenType " + nftInfo.TokenType + " is not support")
+				}
+			})
 			if err != nil {
 				log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
 				return nil, err
 			}
+			balance := result.(string)
 
 			payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
 				"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
@@ -821,4 +834,12 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 		}
 	}
 	return userAssets, nil
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

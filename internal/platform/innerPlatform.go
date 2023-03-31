@@ -15,13 +15,12 @@ import (
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
-	"block-crawling/internal/subhandle"
 	"strconv"
 )
 
-var InnerPlatforms []subhandle.Platform
+var InnerPlatforms []biz.Platform
 
-type InnerPlatformContainer []subhandle.Platform
+type InnerPlatformContainer []biz.Platform
 
 func NewInnerNodeList(bc *conf.Bootstrap, bundle *data.Bundle) InnerPlatformContainer {
 	c := bc.InnerNodeList
@@ -37,7 +36,7 @@ func NewInnerNodeList(bc *conf.Bootstrap, bundle *data.Bundle) InnerPlatformCont
 	return InnerPlatforms
 }
 
-func GetInnerPlatform(value *conf.PlatInfo) subhandle.Platform {
+func GetInnerPlatform(value *conf.PlatInfo) biz.Platform {
 	typ, chainName, nodeURL := value.Type, value.Chain, value.RpcURL[0]
 	height := -1
 	redisHeight, _ := data.RedisClient.Get(data.CHAINNAME + chainName).Result()

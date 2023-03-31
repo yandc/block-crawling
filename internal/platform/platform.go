@@ -16,14 +16,13 @@ import (
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
-	"block-crawling/internal/subhandle"
 	"strconv"
 	"strings"
 )
 
-var Platforms []subhandle.Platform
+var Platforms []biz.Platform
 
-type PlatformContainer []subhandle.Platform
+type PlatformContainer []biz.Platform
 
 func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf) PlatformContainer {
 	c := bc.Platform
@@ -56,6 +55,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 
 	var PlatInfos []*conf.PlatInfo
 	var chainNameType = make(map[string]string)
+	var platformMap = make(map[string]biz.Platform)
 	for _, value := range c {
 		PlatInfos = append(PlatInfos, value)
 
@@ -69,10 +69,12 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 		}
 
 		chainNameType[value.Chain] = value.Type
+		platformMap[value.Chain] = platform
 	}
 	biz.PlatInfos = PlatInfos
 	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
+	biz.PlatformMap = platformMap
 	DynamicCreateTable(PlatInfos)
 	return Platforms
 }
@@ -108,7 +110,7 @@ func DynamicCreateTable(platInfos []*conf.PlatInfo) {
 	}
 }
 
-func GetPlatform(value *conf.PlatInfo) subhandle.Platform {
+func GetPlatform(value *conf.PlatInfo) biz.Platform {
 	typ := value.Type        // EVM
 	chainName := value.Chain // ETH
 	nodeURL := value.RpcURL
