@@ -109,6 +109,7 @@ func main() {
 	eventLogJson, _ := json.Marshal(TokenInfoMap)
 
 	fmt.Println(string(eventLogJson))
+
 	fmt.Println("================")
 	k := "done:zkSyncTEST:0xbB5117144fA27417DAa43C50513967bDba4145DA"
 	rets := strings.Split(k, ":")

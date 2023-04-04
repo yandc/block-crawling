@@ -70,6 +70,7 @@ type EvmTransactionRecordRepo interface {
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
 	FindLast(context.Context, string) (*EvmTransactionRecord, error)
+	FindLastBlockNumberByAddress(context.Context, string, string) (*EvmTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*EvmTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
@@ -330,7 +331,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByNonceAndAddress(ctx context.Context
 	if len(evmTransactionRecords) > 0 {
 		return evmTransactionRecords[0], nil
 
-	}else {
+	} else {
 		return nil, err
 	}
 }
@@ -630,6 +631,27 @@ func (r *EvmTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName s
 			return evmTransactionRecord, nil
 		}
 	}
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindLastBlockNumberByAddress(ctx context.Context, tableName string, address string) (*EvmTransactionRecord, error) {
+	var evmTransactionRecord *EvmTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName)
+	if address != "" {
+		db = db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Where("BLOCK_NUMBER IS NOT NULL").Order("BLOCK_NUMBER DESC").Limit(1).Find(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query last "+tableName+" failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return evmTransactionRecord, nil
+		}
+	}
+
 }
 
 func (r *EvmTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context, tableName string, blockNumber int) (*EvmTransactionRecord, error) {

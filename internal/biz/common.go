@@ -40,6 +40,8 @@ const (
 	TABLE_POSTFIX             = "_transaction_record"
 	ADDRESS_DONE_NONCE        = "done:"    // + chainanme:address value-->nonce
 	ADDRESS_PENDING_NONCE     = "pending:" // + chainname:address:nonce --->过期时间六个小时
+	API_SUCCEESS              = "1"
+	API_FAIL                  = "0"
 )
 
 const (
@@ -474,4 +476,5 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 
 type RPCNodeBalancer interface {
 	GetBalance(address string) (string, error)
+	GetAccountHashByAddress(address string) (string, error)
 }
