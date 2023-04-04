@@ -171,13 +171,18 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	}
 	contractType := rawTx.RawData.Contract[0].Type
 	amount, _ := decimal.NewFromString(tx.Value)
-	if contractType == "TriggerSmartContract" {
+	if contractType == biz.TRON_DAPP {
 		txRepecitInfo, _ := client.GetTransactionByHash(transactionHash)
 		if txRepecitInfo != nil &&len(txRepecitInfo.RawData.Contract) > 0 {
 			if txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue != nil {
 				amount = decimal.NewFromBigInt(txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue, 0)
 			}
 		}
+	}
+
+	// Transfer TRC10 token
+	if contractType == biz.TRON_TRANSFER_TRC10 {
+		return nil
 	}
 
 	if platformUserEventlog && meta.TransactionType != biz.CONTRACT {
