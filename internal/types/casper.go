@@ -161,7 +161,8 @@ type AccountInfoResult struct {
 	Account AccountInfo `json:"account,omitempty"`
 }
 type AccountInfo struct {
-	MainPurse string `json:"main_purse,omitempty"`
+	MainPurse   string `json:"main_purse,omitempty"`
+	AccountHash string `json:"account_hash,omitempty"`
 }
 
 type JsonCLValue struct {

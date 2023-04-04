@@ -98,6 +98,21 @@ func (c *Client) GetAccountInfoByAddress(address string) (string, error) {
 	return result.Account.MainPurse, nil
 }
 
+func (c *Client) GetAccountHashByAddress(address string) (string, error) {
+	method := "state_get_account_info"
+	params := map[string]string{
+		"public_key": address,
+	}
+	var result types.AccountInfoResult
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
+	if err != nil {
+		return "", err
+	}
+	return result.Account.AccountHash, nil
+}
+
+
 func (c *Client) GetBalance(address string) (string, error) {
 	block, err := c.GetLatestBlock()
 	if err != nil {

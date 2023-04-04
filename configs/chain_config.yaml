@@ -45,6 +45,10 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 8
     monitorHeightAlarmThr: 160
+    httpURL:
+      - https://api.arbiscan.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
+      - https://api.arbiscan.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
+      - https://api.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
 
   DOGE:
     blockExplorerAddrUrl: https://dogechain.info/address/
@@ -132,6 +136,11 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 146
+    httpURL:
+      - https://api.snowtrace.io/api?apikey=QRAZZJP1QFIQUMPN8TXU162B166BEREWUU
+      - https://api.snowtrace.io/api?apikey=C5N8FXF2X252M275GQSDN74B7AR4N7N98S
+      - https://api.snowtrace.io/api?apikey=UKZZREZFV7YEG3VX8FG43MHPSGPWSQIP7P
+
   BSC:
     blockExplorerAddrUrl: https://bscscan.com/address/
     blockExplorerTxUrl: https://bscscan.com/tx/
@@ -174,6 +183,11 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
+    httpURL:
+      - https://api.bscscan.com/api?apikey=M2B5MS3K5SIDTMKF8223KNMA8PUXHVHX2H
+      - https://api.bscscan.com/api?apikey=CJYU5PP16VPPF58Y1NMTRQXNKGWRI9DRMX
+      - https://api.bscscan.com/api?apikey=1KWNQMJXH4FH9ZM9YSGRKAN738SUD8QPWC
+
   BTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/btc/address/
     blockExplorerTxUrl: https://live.blockcypher.com/btc/tx/
@@ -227,6 +241,12 @@ platform:
     type: EVM
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
+    httpURL:
+      - https://api.cronoscan.com/api?apikey=J5NCXH2I6C1GX9PMK85RSB8MC1671ARVF4
+      - https://api.cronoscan.com/api?apikey=EIZXXGRMCG3S2V9IFA7KE3BDJVBIM2R6BY
+      - https://api.cronoscan.com/api?apikey=J5GTVHGS39IP6YPNAUZS5HU39Z6X62HCC7
+
+
   ETH:
     blockExplorerAddrUrl: https://etherscan.io/address/
     blockExplorerTxUrl: https://etherscan.io/tx/
@@ -257,6 +277,11 @@ platform:
     safelyConcurrentBlockDelta: 30
     maxConcurrency: 5
     monitorHeightAlarmThr: 30
+    httpURL:
+      - https://api.etherscan.io/api?apikey=Y9GJFQXF71JQJZUHU3M7KE22WXAZ46R8KI
+      - https://api.etherscan.io/api?apikey=729J74WFP9NCE81V8MYM6SZ7QAUWCIHFSW
+      - https://api.etherscan.io/api?apikey=N9FS92RQJ71KM5BQ5NUTVVA83Y8WD2PJTR
+
   Fantom:
     blockExplorerAddrUrl: https://ftmscan.com/address/
     blockExplorerTxUrl: https://ftmscan.com/tx/
@@ -282,6 +307,10 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 300
+    httpURL:
+      - https://api.ftmscan.com/api?apikey=212PIV4M35X29WZ1GP8DZK6DWUPMTHK3JT
+      - https://api.ftmscan.com/api?apikey=G4PDXWZHQYD79FHQFK1YAWXBI37CQ8CAMF
+      - https://api.ftmscan.com/api?apikey=H855FC1EP44A6HCUXWKV6ZXMEI2S2EN1KS
   HECO:
     blockExplorerAddrUrl: https://hecoinfo.com/address/
     blockExplorerTxUrl: https://hecoinfo.com/tx/
@@ -306,6 +335,8 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 130
+    httpURL:
+      - https://api.hecoinfo.com/api
   Klaytn:
     blockExplorerAddrUrl: https://scope.klaytn.com/address/
     blockExplorerTxUrl: https://scope.klaytn.com/tx/
@@ -329,6 +360,9 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 300
+    httpURL:
+      - https://api-cypress-v3.scope.klaytn.com/v2/accounts/
+#      - https://api-cypress-v3.scope.klaytn.com/v2/accounts/0xB157a7209aAA96B6fCBB71d20154aBAAb76802Ed/txs?page=1&limit=1
   OEC:
     blockExplorerAddrUrl: https://www.oklink.com/okexchain/address/
     blockExplorerTxUrl: https://www.oklink.com/okexchain/tx/
@@ -379,6 +413,10 @@ platform:
     safelyConcurrentBlockDelta: 30
     maxConcurrency: 5
     monitorHeightAlarmThr: 420
+    httpURL:
+      - https://api-optimistic.etherscan.io/api?apikey=4HIMSNVHT2TIMXGUGNKNCF8ZWEVHGBCKFN
+      - https://api-optimistic.etherscan.io/api?apikey=EEU6H52APVF1V1I5EXXSGZ6UA49IUDJUJ8
+      - https://api-optimistic.etherscan.io/api?apikey=G42UK7JU96DZ2IVCSASYTGX8IHY1ZVKIEU
   ETC:
     blockExplorerAddrUrl: https://blockscout.com/etc/mainnet/address/
     blockExplorerTxUrl: https://blockscout.com/etc/mainnet/tx/
@@ -404,6 +442,9 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
+    httpURL:
+      #      - https://blockscout.com/etc/mainnet/api?module=account&action=txlist&address=0x8B167bee2A5135b23c52550098EF39A47a0E3DE9
+      - https://blockscout.com/etc/mainnet/api
   xDai:
     blockExplorerAddrUrl: https://blockscout.com/xdai/mainnet/address/
     blockExplorerTxUrl: https://blockscout.com/xdai/mainnet/tx/
@@ -432,6 +473,9 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
+    httpURL:
+      #      - https://blockscout.com/xdai/mainnet/api?module=account&action=txlist&address= 0x339d413CCEfD986b1B3647A9cfa9CBbE70A30749
+      - https://blockscout.com/xdai/mainnet/api
   Polygon:
     blockExplorerAddrUrl: https://polygonscan.com/address/
     blockExplorerTxUrl: https://polygonscan.com/tx/
@@ -461,6 +505,10 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+    httpURL:
+      - https://api.polygonscan.com/api?apikey=KBHGFA5IQV64WHSM5II1GNGSHRTDWSU1CU
+      - https://api.polygonscan.com/api?apikey=HTA7JASC87XUC23EYF155WBHQTGDGGDXHI
+      - https://api.polygonscan.com/api?apikey=TFKP229HJCGN544SN1JXVY43Y8JW14ZJ6K
   STC:
     blockExplorerAddrUrl: https://stcscan.io/main/address/
     blockExplorerTxUrl: https://stcscan.io/main/transactions/detail/
@@ -640,6 +688,8 @@ platform:
     safelyConcurrentBlockDelta: 5
     maxConcurrency: 1
     monitorHeightAlarmThr: 30
+    httpURL:
+      - https://event-store-api-clarity-mainnet.make.services/accounts/
 
   Cosmos:
     blockExplorerAddrUrl: https://www.mintscan.io/cosmos/account
@@ -693,6 +743,7 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+
   Harmony:
     blockExplorerAddrUrl: https://explorer.harmony.one/address/
     blockExplorerTxUrl: https://explorer.harmony.one/tx/
@@ -720,6 +771,8 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+    httpURL:
+
 
   Osmosis:
     blockExplorerUrl: https://www.mintscan.io/osmosis
@@ -796,6 +849,9 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 180
+    httpURL:
+      - https://explorerv3-api.roninchain.com/txs/
+#      - https://explorerv3-api.roninchain.com/txs/0xb7B4D65CB5a0c44cCB9019ca74745686188173Db?from=0&size=100
   ArbitrumNova:
     blockExplorerAddrUrl: https://nova.arbiscan.io/address/
     blockExplorerTxUrl: https://nova.arbiscan.io/tx/
@@ -818,6 +874,13 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 160
+    httpURL:
+#      - https://api.snowtrace.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
+#      - https://api.snowtrace.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
+#      - https://api.snowtrace.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
+      - https://api.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
+      - https://api.arbiscan.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
+      - https://api.arbiscan.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
   Conflux:
     blockExplorerAddrUrl: https://evm.confluxscan.net/address/
     blockExplorerTxUrl: https://evm.confluxscan.net/tx/
@@ -843,6 +906,8 @@ platform:
     maxConcurrency: 9
     monitorHeightAlarmThr: 160
     handlingTxConcurrency: 2
+    httpURL:
+      - https://evmapi.confluxscan.net/api
   zkSync:
     blockExplorerAddrUrl: https://explorer.zksync.io/address
     blockExplorerTxUrl: https://explorer.zksync.io/tx
@@ -867,6 +932,10 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     monitorHeightAlarmThr: 160
+    httpURL:
+      - https://zksync2-mainnet-explorer.zksync.io/transactions
+#      - https://zksync2-mainnet-explorer.zksync.io/transactions?limit=50&direction=older&accountAddress=0xb7B4D65CB5a0c44cCB9019ca74745686188173Db
+
 
 platformTest:
   AptosTEST:
