@@ -65,6 +65,11 @@ const (
 )
 
 const (
+	TRON_TRANSFER_TRC10 = "TransferAssetContract"
+	TRON_DAPP           = "TriggerSmartContract"
+)
+
+const (
 	SUCCESS          = "success"
 	FAIL             = "fail"
 	PENDING          = "pending"          //-- 中间状态
