@@ -56,6 +56,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = AptosGetTxByAddress(chainName, address, urls)
 	case "STC":
 		err = StarcoinGetTxByAddress(chainName, address, urls)
+	case "DOGE":
+		err = DogeGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -1222,6 +1224,113 @@ func CasperTransferAndextendedDeploys(url string, address string, chainName stri
 		}
 	}
 	return chainRecords
+
+}
+
+func DogeGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("DogeGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("DogeGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	pageNum := 1
+	url := urls[0]
+	// https://dogechain.info/api/v1/address/transactions/D5Mn3Xkmre74v6Z1xG6cpzHyTv1EATY5Ee/1
+	url = url + address + "/"
+
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "tx_time desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordHash string
+	var txTime int64
+	if len(dbLastRecords) > 0 {
+		dbLastRecordHash = dbLastRecords[0].TransactionHash
+		txTime = dbLastRecords[0].TxTime
+
+	}
+
+	var chainRecords []DogeApiRecord
+chainFlag:
+	for {
+		var out DogeApiModel
+		reqUrl := url + strconv.Itoa(pageNum)
+		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		if strconv.Itoa(out.Success) == API_SUCCEESS {
+			if len(out.Transactions) == 0 {
+				break
+			}
+			for _, browserInfo := range out.Transactions {
+				txHash := browserInfo.Hash
+				tt := int64(browserInfo.Time)
+				if tt < txTime || txHash == dbLastRecordHash {
+					break chainFlag
+				}
+				chainRecords = append(chainRecords, browserInfo)
+			}
+			pageNum++
+		} else {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询失败, error：%s", chainName, out.Error)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			break
+		}
+	}
+	var btcTransactionRecordList []*data.BtcTransactionRecord
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Hash
+		btcRecord := &data.BtcTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
+	}
+	if len(btcTransactionRecordList) > 0 {
+		_, err = data.BtcTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), btcTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
 
 }
 

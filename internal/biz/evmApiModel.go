@@ -179,3 +179,16 @@ type CasperApiRecord struct {
 	Rate                  float64   `json:"rate"`
 	CurrentCurrencyAmount float64   `json:"current_currency_amount"`
 }
+
+type DogeApiModel struct {
+	Transactions []DogeApiRecord `json:"transactions"`
+	Success      int             `json:"success"`
+	Error        string          `json:"error"`
+}
+type DogeApiRecord struct {
+	Hash  string `json:"hash"`
+	Value string `json:"value"`
+	Time  int    `json:"time"`
+	Block int    `json:"block"`
+	Price string `json:"price"`
+}

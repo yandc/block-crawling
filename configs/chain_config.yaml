@@ -79,6 +79,8 @@ platform:
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
     monitorHeightAlarmThr: 12
+    httpURL:
+      - https://dogechain.info/api/v1/address/transactions/
 
   LTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/ltc/address/
