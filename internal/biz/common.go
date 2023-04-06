@@ -481,5 +481,7 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 
 type RPCNodeBalancer interface {
 	GetBalance(address string) (string, error)
+}
+type RPCAccountHash interface {
 	GetAccountHashByAddress(address string) (string, error)
 }

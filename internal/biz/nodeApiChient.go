@@ -42,7 +42,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
-	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "xDai", "Conflux":
+	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux":
 		err = EvmNormalAndInternalGetTxByAddress(chainName, address, urls)
 	case "zkSync":
 		err = ZkSyncGetTxByAddress(chainName, address, urls)
@@ -1147,7 +1147,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 	}
 
 	result, err := ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
-		if c, ok := client.(RPCNodeBalancer); ok {
+		if c, ok := client.(RPCAccountHash); ok {
 			return c.GetAccountHashByAddress(address)
 		}
 		return "", errors.New("not supported")
@@ -1224,3 +1224,4 @@ func CasperTransferAndextendedDeploys(url string, address string, chainName stri
 	return chainRecords
 
 }
+
