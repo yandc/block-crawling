@@ -679,16 +679,20 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
 		} else if topic0 == WITHDRAWAL_TOPIC {
+			//https://etherscan.io/tx/0xe510a2d99d95a6974e5f95a3a745b2ffe873bf6645b764658d978856ac180cd2
+			//https://polygonscan.com/tx/0x72ce3718c81bae2c888d0403d33d2f9e5c533c601c90aaaa4158a8439c6f7630
 			//提现，判断 用户无需话费value 判断value是否为0
 			if meta.Value == "0" {
 				toAddress = meta.FromAddress
-				if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 					token.Symbol = token.Symbol[1:]
-				}
+				}*/
+				tokenAddress = ""
 			} else {
 				toAddress = meta.ToAddress
 			}
 		} else if topic0 == DEPOSIT_TOPIC {
+			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
 			if h.chainName == "Ronin" && len(log_.Topics) == 1 {
 				//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
 				//兑换时判断 交易金额不能为 0
@@ -707,9 +711,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.TokenType = biz.ERC20
 				if meta.Value != "0" {
 					fromAddress = meta.FromAddress
-					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+					/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 						token.Symbol = token.Symbol[1:]
-					}
+					}*/
+					tokenAddress = ""
 				} else {
 					fromAddress = meta.ToAddress
 				}
@@ -721,14 +726,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 				if meta.Value != "0" {
 					fromAddress = meta.FromAddress
-					if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+					/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 						token.Symbol = token.Symbol[1:]
-					}
+					}*/
+					tokenAddress = ""
 				} else {
 					fromAddress = meta.ToAddress
 				}
 			}
 		} else if topic0 == BRIDGE_TRANSFERNATIVE {
+			//https://optimistic.etherscan.io/tx/0xc94501aeaf350dc5a5e4ecddc5f2d5dba090255a7057d60f16d9f115655f46cf
 			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data)
 			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
@@ -761,6 +768,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			tokenAddress = ""
 		} else if topic0 == ARBITRUM_TRANSFERNATIVE {
+			//https://arbiscan.io/tx/0xc03bc0de5428c81bddb027358154fc2355225bf8492125bc95cf6699cef87c3f 主币
+			//https://arbiscan.io/tx/0xa459004e8f9ea67cb1174d3f8d0e2b42450bae69b6feb9644b1c654eac66e598 代币
 			fromAddress = common.HexToAddress(receipt.To).String()
 			if len(log_.Data) > 96 {
 				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[64:96])).String()
@@ -782,16 +791,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					continue
 				}
 			}
-
-			if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+			/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 				token.Symbol = token.Symbol[1:]
-			}
+			}*/
+			tokenAddress = ""
 		} else if topic0 == OPTIMISM_WITHDRAWETH {
 			//无 转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()
 			amount = new(big.Int).SetBytes(log_.Data)
-			tokenAddress = ""
 			toAddress = common.BytesToAddress(transaction.Data()[4:36]).String()
+			tokenAddress = ""
 		} else if topic0 == OPTIMISM_FANTOM_LOGANYSWAPIN {
 			fromAddress = tokenAddress
 			if len(log_.Data) >= 32 {
@@ -830,8 +839,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		} else if topic0 == ARBITRUM_UNLOCKEVENT {
 			fromAddress = tokenAddress
 			toAddress = common.BytesToAddress(log_.Data[32:64]).String()
-			tokenAddress = ""
 			amount = arbitrumAmount
+			tokenAddress = ""
 		} else if topic0 == KLAYTN_EXCHANGEPOS && tokenAddress == "0xC6a2Ad8cC6e4A7E08FC37cC5954be07d499E7654" {
 			fromAddress = tokenAddress
 			toAddress = common.HexToAddress(receipt.From).String()
@@ -878,10 +887,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				if err != nil {
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
-				if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 					token.Symbol = token.Symbol[1:]
-				}
+				}*/
 				token.Amount = amount.String()
+				tokenAddress = ""
 			}
 		} else if topic0 == MATIC_BRIDGE {
 			fromAddress = tokenAddress
@@ -895,10 +905,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
-			if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+			/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 				token.Symbol = token.Symbol[1:]
-			}
+			}*/
 			token.Amount = amount.String()
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
@@ -918,11 +929,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
-			if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
+			/*if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
 				token.Symbol = token.Symbol[2:]
-			}
+			}*/
 			token.Amount = amount.String()
 			xDaiDapp = true
+			tokenAddress = ""
 		}
 
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
@@ -932,8 +944,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
-			token = types.TokenInfo{}
 			xDaiDapp = true
+			tokenAddress = ""
 		}
 
 		//不展示event log中的授权记录
@@ -976,6 +988,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 		if tokenAddress != "" {
 			token.Address = tokenAddress
+		} else {
+			token = types.TokenInfo{}
 		}
 		if tokenId != "" {
 			eventLogTokenId = tokenId

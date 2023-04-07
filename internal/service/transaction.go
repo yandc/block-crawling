@@ -6,7 +6,10 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform"
+	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -92,6 +95,32 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
 				if req.OsVersion < 2023011001 && record.OperateType != "" {
 					record.TransactionType = record.OperateType
+				}
+
+				if req.OsVersion < 2023040601 {
+					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+						continue
+					}
+					if platInfo, ok := biz.PlatInfoMap[req.ChainName]; ok {
+						mainDecimals := platInfo.Decimal
+						mainSymbol := platInfo.NativeCurrency
+						eventLogStr := record.EventLog
+						var eventLogs []*types.EventLogUid
+						err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+						if err != nil {
+							continue
+						}
+						for _, eventLog := range eventLogs {
+							if eventLog.Token.Address == "" {
+								eventLog.Token.Address = "0x0000000000000000000000000000000000000000"
+								eventLog.Token.Amount = eventLog.Amount.String()
+								eventLog.Token.Decimals = int64(mainDecimals)
+								eventLog.Token.Symbol = mainSymbol
+							}
+						}
+						eventLogStr, _ = utils.JsonEncode(eventLogs)
+						record.EventLog = eventLogStr
+					}
 				}
 			}
 		}
