@@ -192,3 +192,139 @@ type DogeApiRecord struct {
 	Block int    `json:"block"`
 	Price string `json:"price"`
 }
+type PolkadotApiModel struct {
+	Code        int    `json:"code"`
+	Message     string `json:"message"`
+	GeneratedAt int    `json:"generated_at"`
+	Data        struct {
+		Count     int                 `json:"count"`
+		Transfers []PolkadotApiRecord `json:"transfers"`
+	} `json:"data"`
+}
+
+type PolkadotApiRecord struct {
+	From               string `json:"from"`
+	To                 string `json:"to"`
+	ExtrinsicIndex     string `json:"extrinsic_index"`
+	Success            bool   `json:"success"`
+	Hash               string `json:"hash"`
+	BlockNum           int    `json:"block_num"`
+	BlockTimestamp     int    `json:"block_timestamp"`
+	Module             string `json:"module"`
+	Amount             string `json:"amount"`
+	AmountV2           string `json:"amount_v2"`
+	UsdAmount          string `json:"usd_amount"`
+	Fee                string `json:"fee"`
+	Nonce              int    `json:"nonce"`
+	AssetSymbol        string `json:"asset_symbol"`
+	AssetType          string `json:"asset_type"`
+	FromAccountDisplay struct {
+		Address string `json:"address"`
+		Merkle  struct {
+			TagType    string `json:"tag_type"`
+			TagSubtype string `json:"tag_subtype"`
+			TagName    string `json:"tag_name"`
+		} `json:"merkle,omitempty"`
+	} `json:"from_account_display"`
+	ToAccountDisplay struct {
+		Address string `json:"address"`
+	} `json:"to_account_display"`
+	EventIdx int `json:"event_idx"`
+}
+type PolkadotApiReq struct {
+	Address   string `json:"address"`
+	Direction string `json:"direction"`
+	Page      int    `json:"page"`
+	Row       int    `json:"row"`
+}
+
+type BTCApiModel struct {
+	Txid  string `json:"txid"`
+	Block struct {
+		Height   int `json:"height"`
+		Position int `json:"position"`
+	} `json:"block"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+type TornApiModel struct {
+	Total      int             `json:"total"`
+	RangeTotal int             `json:"rangeTotal"`
+	Data       []TornApiRecord `json:"data"`
+	Message    string          `json:"message"`
+}
+
+type TornApiRecord struct {
+	Block         int      `json:"block"`
+	Hash          string   `json:"hash"`
+	Timestamp     int64    `json:"timestamp"`
+	OwnerAddress  string   `json:"ownerAddress"`
+	ToAddressList []string `json:"toAddressList"`
+	ToAddress     string   `json:"toAddress"`
+	ContractType  int      `json:"contractType"`
+	Confirmed     bool     `json:"confirmed"`
+	Revert        bool     `json:"revert"`
+	ContractData  struct {
+		Amount          int    `json:"amount,omitempty"`
+		OwnerAddress    string `json:"owner_address"`
+		ToAddress       string `json:"to_address,omitempty"`
+		Data            string `json:"data,omitempty"`
+		ContractAddress string `json:"contract_address,omitempty"`
+		AssetName       string `json:"asset_name,omitempty"`
+		TokenInfo       struct {
+			TokenId      string `json:"tokenId"`
+			TokenAbbr    string `json:"tokenAbbr"`
+			TokenName    string `json:"tokenName"`
+			TokenDecimal int    `json:"tokenDecimal"`
+			TokenCanShow int    `json:"tokenCanShow"`
+			TokenType    string `json:"tokenType"`
+			TokenLogo    string `json:"tokenLogo"`
+			TokenLevel   string `json:"tokenLevel"`
+			Vip          bool   `json:"vip"`
+		} `json:"tokenInfo,omitempty"`
+	} `json:"contractData"`
+	SmartCalls  string `json:"SmartCalls"`
+	Events      string `json:"Events"`
+	Id          string `json:"id"`
+	Data        string `json:"data"`
+	Fee         string `json:"fee"`
+	ContractRet string `json:"contractRet"`
+	Result      string `json:"result"`
+	Amount      string `json:"amount"`
+	Cost        struct {
+		NetFee             int `json:"net_fee"`
+		EnergyPenaltyTotal int `json:"energy_penalty_total,omitempty"`
+		EnergyUsage        int `json:"energy_usage"`
+		Fee                int `json:"fee"`
+		EnergyFee          int `json:"energy_fee"`
+		EnergyUsageTotal   int `json:"energy_usage_total"`
+		OriginEnergyUsage  int `json:"origin_energy_usage"`
+		NetUsage           int `json:"net_usage"`
+	} `json:"cost"`
+	TokenInfo struct {
+		TokenId      string `json:"tokenId"`
+		TokenAbbr    string `json:"tokenAbbr"`
+		TokenName    string `json:"tokenName"`
+		TokenDecimal int    `json:"tokenDecimal"`
+		TokenCanShow int    `json:"tokenCanShow"`
+		TokenType    string `json:"tokenType"`
+		TokenLogo    string `json:"tokenLogo"`
+		TokenLevel   string `json:"tokenLevel"`
+		Vip          bool   `json:"vip"`
+	} `json:"tokenInfo"`
+	TokenType       string `json:"tokenType"`
+	OwnerAddressTag string `json:"ownerAddressTag,omitempty"`
+	TriggerInfo     struct {
+		Method    string `json:"method"`
+		Data      string `json:"data"`
+		Parameter struct {
+			From  string `json:"_from,omitempty"`
+			Value string `json:"_value,omitempty"`
+			To    string `json:"_to,omitempty"`
+		} `json:"parameter"`
+		MethodId        string `json:"methodId"`
+		MethodName      string `json:"methodName"`
+		ContractAddress string `json:"contract_address"`
+		CallValue       int    `json:"call_value"`
+	} `json:"trigger_info,omitempty"`
+}
