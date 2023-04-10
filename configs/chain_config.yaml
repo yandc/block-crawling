@@ -220,6 +220,9 @@ platform:
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
     monitorHeightAlarmThr: 12
+    httpURL:
+#      - https://api.blockchain.info/haskoin-store/btc/address/bc1qqfjl06tqpvquxcp4anjtd24rpqhn59zrelj2vf/transactions?limit=100&offset=0
+      - https://api.blockchain.info/haskoin-store/btc/address/
 
   Cronos:
     blockExplorerAddrUrl: https://cronoscan.com/address/
@@ -557,6 +560,12 @@ platform:
     safelyConcurrentBlockDelta: 60
     maxConcurrency: 5
     monitorHeightAlarmThr: 150
+    httpURL:
+#      - https://apilist.tronscanapi.com/api/transaction?sort=-timestamp&count=true&limit=50&start=0&address=TSiZHxqMsbsDL5o63Czaf9DT71CEuxqv5R
+      - https://apilist.tronscanapi.com/api/
+#      - https://apilist.tronscanapi.com/api/internal-transaction?limit=20&start=0&address=TSiZHxqMsbsDL5o63Czaf9DT71CEuxqv5R
+
+
   Solana:
     blockExplorerAddrUrl: https://solscan.io/account/
     blockExplorerTxUrl: https://solscan.io/tx/
@@ -830,6 +839,8 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
+    httpURL:
+      - https://Bearer:2c8c9471365c28eb0eef2aadefacc9da@polkadot.api.subscan.io/api/scan/transfers
 
   Ronin:
     blockExplorerAddrUrl: https://explorer.roninchain.com/address/
