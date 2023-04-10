@@ -58,6 +58,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = StarcoinGetTxByAddress(chainName, address, urls)
 	case "DOGE":
 		err = DogeGetTxByAddress(chainName, address, urls)
+	case "Nervos":
+		err = NervosGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -1331,6 +1333,155 @@ chainFlag:
 	}
 
 	return
-
 }
 
+type NervosBrowserResponse struct {
+	Data []NervosBrowserInfo `json:"data"`
+	Meta struct {
+		Total    int `json:"total"`
+		PageSize int `json:"page_size"`
+	} `json:"meta"`
+}
+
+type NervosBrowserInfo struct {
+	Id         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		IsCellbase          bool   `json:"is_cellbase"`
+		TransactionHash     string `json:"transaction_hash"`
+		BlockNumber         string `json:"block_number"`
+		BlockTimestamp      string `json:"block_timestamp"`
+		DisplayInputsCount  int    `json:"display_inputs_count"`
+		DisplayOutputsCount int    `json:"display_outputs_count"`
+		DisplayInputs       []struct {
+			Id              string `json:"id"`
+			FromCellbase    bool   `json:"from_cellbase"`
+			Capacity        string `json:"capacity"`
+			AddressHash     string `json:"address_hash"`
+			GeneratedTxHash string `json:"generated_tx_hash"`
+			CellIndex       string `json:"cell_index"`
+			CellType        string `json:"cell_type"`
+			Since           struct {
+				Raw             string `json:"raw"`
+				MedianTimestamp string `json:"median_timestamp"`
+			} `json:"since"`
+		} `json:"display_inputs"`
+		DisplayOutputs []struct {
+			Id             string `json:"id"`
+			Capacity       string `json:"capacity"`
+			AddressHash    string `json:"address_hash"`
+			Status         string `json:"status"`
+			ConsumedTxHash string `json:"consumed_tx_hash"`
+			CellType       string `json:"cell_type"`
+		} `json:"display_outputs"`
+		Income string `json:"income"`
+	} `json:"attributes"`
+}
+
+func NervosGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("StarcoinGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("StarcoinGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var pageNum = 1
+	url := urls[0]
+	url = url + "/address_transactions/" + address + "?page_size=" + strconv.Itoa(pageSize) + "&page="
+
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "block_number desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.CkbTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordBlockNumber int
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
+		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
+	}
+
+	var chainRecords []NervosBrowserInfo
+chainFlag:
+	for {
+		var out NervosBrowserResponse
+		reqUrl := url + strconv.Itoa(pageNum)
+
+		err = httpclient.GetResponseApiJson(reqUrl, nil, &out, &timeout)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out.Data)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Data {
+			txHash := browserInfo.Attributes.TransactionHash
+			txHeight, err := strconv.Atoi(browserInfo.Attributes.BlockNumber)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常", chainName)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Attributes.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		pageNum++
+	}
+
+	var ckbTransactionRecordList []*data.CkbTransactionRecord
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Attributes.TransactionHash
+		atomRecord := &data.CkbTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		ckbTransactionRecordList = append(ckbTransactionRecordList, atomRecord)
+	}
+
+	if len(ckbTransactionRecordList) > 0 {
+		_, err = data.CkbTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), ckbTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}

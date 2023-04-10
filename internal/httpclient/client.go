@@ -44,6 +44,15 @@ func GetResponse(url string, urlParams map[string]string, out interface{}, timeo
 	return err
 }
 
+func GetResponseApiJson(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (err error) {
+	headerParams := map[string]string{
+		"Accept":       "application/vnd.api+json",
+		"Content-Type": "application/vnd.api+json",
+	}
+	err = HttpRequest(url, http.MethodGet, headerParams, urlParams, nil, out, timeout, globalTransport)
+	return err
+}
+
 func PostResponse(url string, reqBody, out interface{}, timeout *time.Duration) (err error) {
 	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, timeout, nil)
 	return

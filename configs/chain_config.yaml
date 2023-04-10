@@ -657,6 +657,8 @@ platform:
     rpcURL:
       - https://rpc.ankr.com/nervos_ckb
       - https://mainnet.ckb.dev/
+    httpURL:
+      - https://mainnet-api.explorer.nervos.org/api/v1
     symbol: Nervos
     type: CKB
     safelyConcurrentBlockDelta: 50
