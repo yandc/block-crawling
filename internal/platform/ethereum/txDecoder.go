@@ -719,6 +719,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					fromAddress = meta.ToAddress
 				}
 			}
+			if strings.HasPrefix(h.chainName, "zkSync") {
+				continue
+			}
+
 
 			if len(log_.Topics) >= 2 {
 				//兑换时判断 交易金额不能为 0
