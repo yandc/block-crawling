@@ -82,7 +82,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 		if len(list) == 0 {
 			continue
 		}
-		first := list[0]
+		/*first := list[0]
 		var newList []*data.StcTransactionRecord
 		var chainRecord bool
 		for i, transactionRecord := range list {
@@ -100,10 +100,12 @@ func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord
 				chainRecord = true
 			}
 		}
-		list = newList
+		list = newList*/
 
-		if chainRecord && len(list) > 1 {
+		if len(list) > 1 {
 			for i, transactionRecord := range list {
+				//2023 0411 不需要判断 被 加速或取消的状态
+				//if record.Id != transactionRecord.Id && (transactionRecord.Status != biz.SUCCESS || transactionRecord.Status != biz.FAIL || transactionRecord.Status != biz.DROPPED_REPLACED) {
 				if record.Id != transactionRecord.Id {
 					transactionRecord.Status = biz.DROPPED_REPLACED
 				}
