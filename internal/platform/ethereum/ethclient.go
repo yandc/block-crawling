@@ -28,6 +28,7 @@ const ArbitrumDepositTxType = 100
 // zkSync 跨链转主币ETH时，跟普通转账参数一致
 //https://explorer.zksync.io/tx/0xe2e6a3fc27f5d793b50d4eb80f016fffdb7662278e0c43ab119126206c7876a2
 const zkSyncTxType = 255
+const zkSyncTxType113 = 113
 
 type rpcBlock struct {
 	Hash common.Hash `json:"hash"`
@@ -515,7 +516,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType, ArbitrumDepositTxType, zkSyncTxType:
+	case types.LegacyTxType, ArbitrumDepositTxType, zkSyncTxType, zkSyncTxType113:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {

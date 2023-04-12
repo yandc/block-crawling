@@ -135,6 +135,9 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		txMap := make(map[string]string)
 		for _, record := range result {
 			txHash := record.Hash
+			if txHash == ""{
+				continue
+			}
 			bn, _ := strconv.Atoi(record.BlockNumber)
 			evmRecord := &data.EvmTransactionRecord{
 				TransactionHash: txHash,
