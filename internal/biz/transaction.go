@@ -1606,6 +1606,9 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	}
 
 	if err == nil && len(recordList) > 0 {
+		result.Total = total
+		result.List = list
+
 		var nftAddressMap = make(map[string][]string)
 		for _, record := range recordList {
 			tokenIdList, ok := nftAddressMap[record.TokenAddress]
@@ -1618,15 +1621,14 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 
 		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
 		if err != nil {
-			return result, err
+			log.Error(req.ChainName+"链查询用户NFT资产集合，从nodeProxy中获取NFT信息失败", zap.Any("addressList", req.AddressList), zap.Any("error", err))
+			return result, nil
 		}
 		nftAddressInfoMap := make(map[string]*v1.GetNftReply_NftInfoResp)
 		for _, res := range resultMap {
 			nftAddressInfoMap[res.TokenAddress] = res
 		}
 
-		result.Total = total
-		result.List = list
 		if len(list) > 0 {
 			for _, record := range list {
 				if record == nil {
@@ -1672,6 +1674,9 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	}
 
 	if err == nil && len(recordList) > 0 {
+		result.Total = total
+		result.List = list
+
 		var nftAddressMap = make(map[string][]string)
 		for _, record := range recordList {
 			tokenIdList, ok := nftAddressMap[record.TokenAddress]
@@ -1684,7 +1689,8 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 
 		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
 		if err != nil {
-			return result, err
+			log.Error(req.ChainName+"链查询用户NFT资产，从nodeProxy中获取NFT信息失败", zap.Any("addressList", req.AddressList), zap.Any("error", err))
+			return result, nil
 		}
 		nftAddressInfoMap := make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
 		for _, res := range resultMap {
@@ -1696,8 +1702,6 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 			nftIdInfoMap[res.TokenId] = res
 		}
 
-		result.Total = total
-		result.List = list
 		if len(list) > 0 {
 			for _, record := range list {
 				if record == nil {
