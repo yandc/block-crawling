@@ -659,7 +659,11 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 			log.Error(chainName+"更新用户资产，从nodeProxy中获取NFT信息为空", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
 			//continue
-			nftInfo = &v1.GetNftReply_NftInfoResp{}
+			nftInfo = &v1.GetNftReply_NftInfoResp{
+				TokenAddress: tokenAddress,
+				TokenId:      tokenId,
+				TokenType:    tokenType,
+			}
 		}
 
 		if record.FromAddress != "" && record.FromUid != "" {
@@ -674,7 +678,7 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 					TokenUri:         nftInfo.CollectionImageURL,
 					TokenId:          tokenId,
 					Balance:          "0",
-					TokenType:        nftInfo.TokenType,
+					TokenType:        tokenType,
 					CollectionName:   nftInfo.CollectionName,
 					Symbol:           nftInfo.Symbol,
 					Name:             nftInfo.Name,
@@ -716,7 +720,7 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 					TokenUri:         nftInfo.CollectionImageURL,
 					TokenId:          tokenId,
 					Balance:          "1",
-					TokenType:        nftInfo.TokenType,
+					TokenType:        tokenType,
 					CollectionName:   nftInfo.CollectionName,
 					Symbol:           nftInfo.Symbol,
 					Name:             nftInfo.Name,
