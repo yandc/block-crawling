@@ -1100,9 +1100,9 @@ platformTest:
 #    safelyConcurrentBlockDelta: 30
 #    maxConcurrency: 5
   ETHGoerliTEST:
-    blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
-    blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
-    blockExplorerUrl: https://ropsten.etherscan.io/
+    blockExplorerAddrUrl: https://goerli.etherscan.io/address/
+    blockExplorerTxUrl: https://goerli.etherscan.io/tx/
+    blockExplorerUrl: https://goerli.etherscan.io/
     chain: ETHGoerliTEST
     chainId: 3
     coinId: 60
