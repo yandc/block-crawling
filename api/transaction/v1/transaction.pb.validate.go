@@ -1515,6 +1515,10 @@ func (m *DappPageListReq) validate(all bool) error {
 
 	// no validation rules for DappType
 
+	// no validation rules for Platform
+
+	// no validation rules for OsVersion
+
 	if len(errors) > 0 {
 		return DappPageListReqMultiError(errors)
 	}
@@ -2471,6 +2475,10 @@ func (m *DappListReq) validate(all bool) error {
 	// no validation rules for IsCancelStatus
 
 	// no validation rules for DappType
+
+	// no validation rules for Platform
+
+	// no validation rules for OsVersion
 
 	if len(errors) > 0 {
 		return DappListReqMultiError(errors)
