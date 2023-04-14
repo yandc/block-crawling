@@ -50,6 +50,18 @@ type UserNftAssetGroup struct {
 	Total          int64  `json:"total,omitempty"`
 }
 
+type NftAssetRequest struct {
+	ChainName          string
+	Uid                string
+	UidList            []string
+	Address            string
+	AddressList        []string
+	TokenAddressList   []string
+	TokenIdList        []string
+	AmountType         int32
+	CollectionNameLike string
+}
+
 func (userNftAsset UserNftAsset) TableName() string {
 	return "user_nft_asset"
 }
@@ -67,10 +79,12 @@ type UserNftAssetRepo interface {
 	ListByID(context.Context, int64) ([]*UserNftAsset, error)
 	ListAll(context.Context) ([]*UserNftAsset, error)
 	PageList(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, int64, error)
+	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
 	GroupListBalance(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
 	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
+	Delete(context.Context, *NftAssetRequest) (int64, error)
 }
 
 type UserNftAssetRepoImpl struct {
@@ -315,6 +329,48 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListNft
 	return userNftAssetList, total, nil
 }
 
+func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) ([]*UserNftAsset, error) {
+	var userNftAssetList []*UserNftAsset
+	db := r.gormDB.WithContext(ctx).Table("user_nft_asset")
+
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if req.Uid != "" {
+		db = db.Where("uid = ?", req.Uid)
+	}
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.AddressList) > 0 {
+		db = db.Where("address in(?)", req.AddressList)
+	}
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if len(req.TokenIdList) > 0 {
+		db = db.Where("token_id in(?)", req.TokenIdList)
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			db = db.Where("(balance is null or balance = '' or balance = '0')")
+		} else if req.AmountType == 2 {
+			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
+	}
+	if req.CollectionNameLike != "" {
+		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
+	}
+
+	ret := db.Find(&userNftAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query userNftAssets failed", err)
+		return nil, err
+	}
+	return userNftAssetList, nil
+}
+
 func (r *UserNftAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAsset, error) {
 	var userNftAssetList []*UserNftAsset
 
@@ -444,6 +500,48 @@ func (r *UserNftAssetRepoImpl) DeleteByID(ctx context.Context, id int64) (int64,
 
 func (r *UserNftAssetRepoImpl) DeleteByIDs(ctx context.Context, ids []int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Delete(&UserNftAsset{}, ids)
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete userNftAssets failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest) (int64, error) {
+	db := r.gormDB.WithContext(ctx).Table("user_nft_asset")
+
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if req.Uid != "" {
+		db = db.Where("uid = ?", req.Uid)
+	}
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.AddressList) > 0 {
+		db = db.Where("address in(?)", req.AddressList)
+	}
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if len(req.TokenIdList) > 0 {
+		db = db.Where("token_id in(?)", req.TokenIdList)
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			db = db.Where("(balance is null or balance = '' or balance = '0')")
+		} else if req.AmountType == 2 {
+			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
+	}
+	if req.CollectionNameLike != "" {
+		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
+	}
+
+	ret := db.Delete(&UserAsset{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete userNftAssets failed", err)

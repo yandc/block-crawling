@@ -134,6 +134,10 @@ func toggleSignalLog() (enabled, ok bool) {
 	return true, stdAtomic.CompareAndSwapUint32(&enableSignalLog, 0, 1)
 }
 
+func EnableSignalLog() {
+	stdAtomic.StoreUint32(&enableSignalLog, 1)
+}
+
 func isSignalLogEnabled() bool {
 	return stdAtomic.LoadUint32(&enableSignalLog) == 1
 }

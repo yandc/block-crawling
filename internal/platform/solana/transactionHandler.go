@@ -31,10 +31,10 @@ func HandleRecord(chainName string, client Client, txRecords []*data.SolTransact
 	}()
 
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
-	go handleUserStatistic(chainName, client, txRecords)
+	go HandleUserStatistic(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
@@ -55,18 +55,18 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolT
 	}()
 
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
 }
 
-func handleUserAsset(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
+func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserAsset error, chainName:"+chainName, e)
+				log.Errore("HandleUserAsset error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -349,13 +349,13 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	return userAsset, nil
 }
 
-func handleUserStatistic(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
+func HandleUserStatistic(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserStatistic error, chainName:"+chainName, e)
+				log.Errore("HandleUserStatistic error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -399,13 +399,13 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.SolT
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
 }
 
-func handleTokenPush(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
+func HandleTokenPush(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleTokenPush error, chainName:"+chainName, e)
+				log.Errore("HandleTokenPush error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警

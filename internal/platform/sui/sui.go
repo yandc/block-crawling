@@ -5,9 +5,6 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/log"
-	"block-crawling/internal/platform/common"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -17,10 +14,8 @@ import (
 
 type Platform struct {
 	biz.CommPlatform
-	client    Client
 	CoinIndex uint
 	spider    *chain.BlockSpider
-	conf      *conf.PlatInfo
 }
 
 const SUI_CODE = "0x2::sui::SUI"
@@ -30,19 +25,8 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 	chainType := value.Handler
 	chainName := value.Chain
 
-	clients := make([]chain.Clienter, 0, len(nodeURL))
-	for _, url := range nodeURL {
-		client := NewClient(url, chainName)
-		clients = append(clients, &client)
-	}
-	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
-	spider.Watch(common.NewDectorZapWatcher(chainName))
-
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
-		client:    NewClient(nodeURL[0], chainName),
-		conf:      value,
-		spider:    spider,
 		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
@@ -56,40 +40,25 @@ func (p *Platform) Coin() coins.Coin {
 	return coins.Coins[p.CoinIndex]
 }
 
-func (p *Platform) GetTransactions() {
-	log.Info("GetTransactions starting, chainName:" + p.ChainName)
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-
-	p.spider.StartIndexBlock(
-		newHandler(p.ChainName, liveInterval),
-		int(p.conf.GetSafelyConcurrentBlockDelta()),
-		int(p.conf.GetMaxConcurrency()),
-	)
+func (p *Platform) CreateStateStore() chain.StateStore {
+	return newStateStore(p.ChainName)
 }
 
-func (p *Platform) GetTransactionResultByTxhash() {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("GetTransactionsResult error, chainName:"+p.ChainName, e)
-			} else {
-				log.Errore("GetTransactionsResult panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
-			}
+func (p *Platform) CreateClient(url string) chain.Clienter {
+	c := NewClient(url, p.ChainName)
+	return &c
+}
 
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链处理交易结果失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
+func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
+	return newHandler(p.ChainName, liveInterval)
 }
 
 func (p *Platform) GetBlockSpider() *chain.BlockSpider {
 	return p.spider
+}
+
+func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
+	p.spider = blockSpider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string) error {

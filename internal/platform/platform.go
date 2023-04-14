@@ -16,15 +16,20 @@ import (
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
+	in "block-crawling/internal/types"
 	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/nervosnetwork/ckb-sdk-go/types"
+	"gorm.io/gorm"
 )
 
 var Platforms []biz.Platform
 
 type PlatformContainer []biz.Platform
 
-func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf) PlatformContainer {
+func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker) Server {
 	c := bc.Platform
 	confInnerPublicNodeList := bc.InnerPublicNodeList
 	testConfig := bc.PlatformTest
@@ -52,6 +57,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 			c[key] = value
 		}
 	}
+	bs := make(Server)
 
 	var PlatInfos []*conf.PlatInfo
 	var chainNameType = make(map[string]string)
@@ -60,12 +66,20 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 		PlatInfos = append(PlatInfos, value)
 
 		platform := GetPlatform(value)
+		bt := NewBootstrap(platform, value)
+		bs[value.Chain] = bt
 		Platforms = append(Platforms, platform)
 		if p, ok := platform.(*nervos.Platform); ok {
-			biz.GetNervosUTXOTransaction = p.GetUTXOByHash
+			spider := bt.Spider
+			biz.GetNervosUTXOTransaction = func(txHash string) (tx *types.TransactionWithStatus, err error) {
+				return p.GetUTXOByHash(spider, txHash)
+			}
 		}
 		if p, ok := platform.(*bitcoin.Platform); ok {
-			biz.GetUTXOByHash[value.Chain] = p.GetUTXOByHash
+			spider := bt.Spider
+			biz.GetUTXOByHash[value.Chain] = func(txHash string) (tx in.TX, err error) {
+				return p.GetUTXOByHash(spider, txHash)
+			}
 		}
 
 		chainNameType[value.Chain] = value.Type
@@ -75,36 +89,43 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf)
 	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
 	biz.PlatformMap = platformMap
-	DynamicCreateTable(PlatInfos)
-	return Platforms
+	DynamicCreateTable(db, PlatInfos)
+	return bs
 }
 
-func DynamicCreateTable(platInfos []*conf.PlatInfo) {
+var migrated sync.Map
+
+func DynamicCreateTable(gormDb *gorm.DB, platInfos []*conf.PlatInfo) {
 	for _, platInfo := range platInfos {
 		chain := strings.ToLower(platInfo.Chain) + biz.TABLE_POSTFIX
+		_, loaded := migrated.LoadOrStore(chain, true)
+		if loaded {
+			continue
+		}
+
 		switch platInfo.Type {
 		case biz.STC:
-			data.GormlDb.Table(chain).AutoMigrate(&data.StcTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.StcTransactionRecord{})
 		case biz.EVM:
-			data.GormlDb.Table(chain).AutoMigrate(&data.EvmTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.EvmTransactionRecord{})
 		case biz.BTC:
-			data.GormlDb.Table(chain).AutoMigrate(&data.BtcTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.BtcTransactionRecord{})
 		case biz.TVM:
-			data.GormlDb.Table(chain).AutoMigrate(&data.TrxTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.TrxTransactionRecord{})
 		case biz.APTOS:
-			data.GormlDb.Table(chain).AutoMigrate(&data.AptTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.AptTransactionRecord{})
 		case biz.SUI:
-			data.GormlDb.Table(chain).AutoMigrate(&data.SuiTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.SuiTransactionRecord{})
 		case biz.SOLANA:
-			data.GormlDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
 		case biz.NERVOS:
-			data.GormlDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
 		case biz.CASPER:
-			data.GormlDb.Table(chain).AutoMigrate(&data.CsprTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.CsprTransactionRecord{})
 		case biz.COSMOS:
-			data.GormlDb.Table(chain).AutoMigrate(&data.AtomTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.AtomTransactionRecord{})
 		case biz.POLKADOT:
-			data.GormlDb.Table(chain).AutoMigrate(&data.DotTransactionRecord{})
+			gormDb.Table(chain).AutoMigrate(&data.DotTransactionRecord{})
 
 		}
 	}

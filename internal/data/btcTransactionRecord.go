@@ -53,6 +53,7 @@ type BtcTransactionRecordRepo interface {
 	FindOneByBlockNumber(context.Context, string, int) (*BtcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*BtcTransactionRecord, error)
+	DeleteByTxHash(context.Context, string, string) (int64, error)
 }
 
 type BtcTransactionRecordRepoImpl struct {
@@ -352,6 +353,18 @@ func (r *BtcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+
+func (r *BtcTransactionRecordRepoImpl) DeleteByTxHash(ctx context.Context, tableName string, txHash string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Delete(&BtcTransactionRecord{})
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete btcTransactionRecord failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+
 }
 
 func (r *BtcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, tableName string, blockNumber int) (int64, error) {

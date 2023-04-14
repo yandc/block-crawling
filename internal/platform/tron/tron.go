@@ -6,16 +6,12 @@ import (
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
-	"block-crawling/internal/log"
-	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 )
 
 const ADDRESS_PREFIX = "41"
@@ -27,44 +23,22 @@ var TronBridgeWhiteAddressList = []string{
 
 type Platform struct {
 	biz.CommPlatform
-	client    Client
 	CoinIndex uint
-
-	spider *chain.BlockSpider
-	conf   *conf.PlatInfo
+	spider    *chain.BlockSpider
 }
 
 func Init(handler string, value *conf.PlatInfo, nodeUrl []string, height int) *Platform {
 	chainType := value.Handler
 	chainName := value.Chain
 
-	clients := make([]chain.Clienter, 0, len(nodeUrl))
-	for _, url := range nodeUrl {
-		c := NewClient(url, chainName)
-		clients = append(clients, &c)
-	}
-	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
-	if len(value.StandbyRPCURL) > 0 {
-		standby := make([]chain.Clienter, 0, len(value.StandbyRPCURL))
-		for _, url := range value.StandbyRPCURL {
-			c := NewClient(url, chainName)
-			standby = append(standby, &c)
-		}
-		spider.AddStandby(standby...)
-	}
-	spider.Watch(common.NewDectorZapWatcher(chainName))
-
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
-		client:    NewClient(nodeUrl[0], chainName),
 		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
 		},
-		spider: spider,
-		conf:   value,
 	}
 }
 
@@ -72,21 +46,17 @@ func (p *Platform) Coin() coins.Coin {
 	return coins.Coins[p.CoinIndex]
 }
 
-func (p *Platform) GetTransactions() {
-	log.Info(
-		"GetTransactions starting, chainName:"+p.ChainName,
-		zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()),
-	)
+func (p *Platform) CreateStateStore() chain.StateStore {
+	return newStateStore(p.ChainName)
+}
 
-	if p.conf.GetRoundRobinConcurrent() {
-		p.spider.EnableRoundRobin()
-	}
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-	p.spider.StartIndexBlock(
-		newHandler(p.ChainName, liveInterval),
-		int(p.conf.GetSafelyConcurrentBlockDelta()),
-		int(p.conf.GetMaxConcurrency()),
-	)
+func (p *Platform) CreateClient(url string) chain.Clienter {
+	c := NewClient(url, p.ChainName)
+	return &c
+}
+
+func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
+	return newHandler(p.ChainName, liveInterval)
 }
 
 func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
@@ -115,29 +85,12 @@ func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
 	}, nil
 }
 
-func (p *Platform) GetTransactionResultByTxhash() {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("GetTransactionsResult error, chainName:"+p.ChainName, e)
-			} else {
-				log.Errore("GetTransactionsResult panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
-			}
-
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链处理交易结果失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
-}
-
 func (p *Platform) GetBlockSpider() *chain.BlockSpider {
 	return p.spider
+}
+
+func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
+	p.spider = blockSpider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.TrxTransactionRecord, table string) error {

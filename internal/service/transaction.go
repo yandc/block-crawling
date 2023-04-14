@@ -18,7 +18,7 @@ type TransactionService struct {
 	ts *biz.TransactionUsecase
 }
 
-func NewTransactionService(ts *biz.TransactionUsecase, p platform.PlatformContainer, ip platform.InnerPlatformContainer) *TransactionService {
+func NewTransactionService(ts *biz.TransactionUsecase, p platform.Server, ip platform.InnerPlatformContainer) *TransactionService {
 	return &TransactionService{ts: ts}
 }
 

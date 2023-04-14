@@ -52,7 +52,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
-	rawTx := tx.Raw.(*rawTxWrapper)
+	rawTx := tx.Raw.(*RawTxWrapper)
 	transactionHash := rawTx.TxID
 	client := c.(*Client)
 	status := biz.PENDING
@@ -173,7 +173,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	amount, _ := decimal.NewFromString(tx.Value)
 	if contractType == "TriggerSmartContract" {
 		txRepecitInfo, _ := client.GetTransactionByHash(transactionHash)
-		if txRepecitInfo != nil &&len(txRepecitInfo.RawData.Contract) > 0 {
+		if txRepecitInfo != nil && len(txRepecitInfo.RawData.Contract) > 0 {
 			if txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue != nil {
 				amount = decimal.NewFromBigInt(txRepecitInfo.RawData.Contract[0].Parameter.Value.CallValue, 0)
 			}
@@ -320,7 +320,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 		return err
 	}
 	for _, chainTx := range block.Transactions {
-		tx := chainTx.Raw.(*rawTxWrapper)
+		tx := chainTx.Raw.(*RawTxWrapper)
 		if len(tx.RawData.Contract) > 0 {
 			if tx.TxID != record.TransactionHash {
 				continue

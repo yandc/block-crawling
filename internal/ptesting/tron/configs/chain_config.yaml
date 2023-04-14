@@ -1,0 +1,47 @@
+platform:
+  TRX:
+    blockExplorerAddrUrl: https://tronscan.org/#/address/
+    blockExplorerTxUrl: https://tronscan.org/#/transaction/
+    blockExplorerUrl: https://tronscan.org/
+    chain: TRX
+    chainId: 1
+    coinId: 195
+    decimal: 6
+    fullName: Tron
+    getPriceKey: tron
+    handler: tron
+    icon: https://obstatic.243096.com/mili/images/currency/chain/TRON.png
+    nativeCurrency: TRX
+    netType: main
+    rpcURL:
+      - https://api.trongrid.io
+      - https://rpc.ankr.com/http/tron
+      - https://api.tronstack.io
+    symbol: TRX
+    type: TVM
+    safelyConcurrentBlockDelta: 60
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 150
+
+platformTest:
+  TRXTEST:
+    blockExplorerAddrUrl: https://shasta.tronscan.org/#/address/
+    blockExplorerTxUrl: https://shasta.tronscan.org/#/transaction/
+    blockExplorerUrl: https://shasta.tronscan.org/
+    chain: TRXTEST
+    chainId: 1
+    coinId: 195
+    decimal: 6
+    fullName: Tron Test Net
+    getPriceKey: tron
+    handler: tron
+    icon: https://obstatic.243096.com/mili/images/currency/chain/TRON.png
+    nativeCurrency: TRX
+    netType: test
+    rpcURL:
+    - https://api.shasta.trongrid.io
+    symbol: TRX
+    type: TVM
+    safelyConcurrentBlockDelta: 60
+    maxConcurrency: 5
+

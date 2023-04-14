@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-var GormlDb *gorm.DB
-
 type UserGormDB *gorm.DB
 
 // NewGormDB use grom connect to postgres
@@ -48,7 +46,6 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 	}
 
 	log.Info("opened connection to postgres")
-	GormlDb = gormlDb
 	return gormlDb, cleanup, nil
 }
 
@@ -64,8 +61,6 @@ func NewUserGormDB(conf *conf.Data) (UserGormDB, func(), error) {
 	if err != nil {
 		log.Fatale("failed opening connection to postgres of usercenter", err)
 	}
-
-	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{})
 
 	sqlDb, err := gormlDb.DB()
 	if err != nil {

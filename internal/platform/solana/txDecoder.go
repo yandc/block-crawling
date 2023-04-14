@@ -70,7 +70,7 @@ type Instructions struct {
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) (err error) {
 	transactionHash := tx.Hash
 	curSlot := block.Number
-	curHeight := block.Raw.(int)
+	curHeight, _ := block.Raw.(int)
 	transactionInfo := tx.Raw.(*TransactionInfo)
 
 	txTime := block.Time
