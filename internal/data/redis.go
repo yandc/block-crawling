@@ -5,9 +5,11 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
+	"runtime"
+	"time"
+
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
-	"runtime"
 )
 
 var RedisClient *redis.Client
@@ -35,21 +37,21 @@ type MessageHandler interface {
 // Handler 返回值代表消息是否消费成功
 type MessageHandlerFunc func(msg *QueueReceiveMessage) *HandleResult
 
-//发送消息
+// 发送消息
 type QueueSendMessage struct {
 	Topic     string      `json:"topic"`
 	Partition string      `json:"group"`
 	Body      interface{} `json:"body"`
 }
 
-//接收消息
+// 接收消息
 type QueueReceiveMessage struct {
 	Topic     string // 消息的主题
 	Partition string // 消息的分区
 	Body      string // 消息的Body
 }
 
-//消息处理结果
+// 消息处理结果
 type HandleResult struct {
 	State   bool        `json:"state"`
 	Message string      `json:"message"`
@@ -60,7 +62,7 @@ func NewQueueResult(state bool, msg string, data interface{}) *HandleResult {
 	return &HandleResult{State: state, Message: msg, Data: data}
 }
 
-//队列管理器
+// 队列管理器
 type QueueManager struct {
 	client      *redis.Client
 	MaxRetry    int
@@ -68,14 +70,14 @@ type QueueManager struct {
 	Handlers    map[string]interface{}
 }
 
-//队列恢复的信息
+// 队列恢复的信息
 type RecoverData struct {
 	Topic     string
 	Partition string
 	Handler   interface{}
 }
 
-//初始化队列管理器
+// 初始化队列管理器
 func NewQueueManager(client *redis.Client) *QueueManager {
 	redisQueueManager := &QueueManager{}
 	redisQueueManager.client = client
@@ -102,7 +104,7 @@ func (r *QueueManager) GetQueueName(topic string, partition string) string {
 	return name
 }
 
-//注册handler
+// 注册handler
 func (r *QueueManager) RegisterHandler(topic string, partition string, handler interface{}) error {
 	name := r.GetQueueName(topic, partition)
 	if _, ok := r.Handlers[name]; ok {
@@ -114,7 +116,7 @@ func (r *QueueManager) RegisterHandler(topic string, partition string, handler i
 	return nil
 }
 
-//重启队列
+// 重启队列
 func (r *QueueManager) RecoverQueue(recoverData RecoverData) {
 	name := r.GetQueueName(recoverData.Topic, recoverData.Partition)
 	if _, ok := r.Handlers[name]; ok {
@@ -122,7 +124,7 @@ func (r *QueueManager) RecoverQueue(recoverData RecoverData) {
 	}
 }
 
-//生产者执行入队列
+// 生产者执行入队列
 func (r *QueueManager) QueuePublish(payload *QueueSendMessage) error {
 	if len(payload.Topic) <= 0 {
 		return errors.New("TopicId can not be empty")
@@ -132,7 +134,7 @@ func (r *QueueManager) QueuePublish(payload *QueueSendMessage) error {
 	return err
 }
 
-//消费者执行出队列
+// 消费者执行出队列
 func (r *QueueManager) QueueConsume(topic string, partition string) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -181,7 +183,32 @@ func (r *QueueManager) QueueConsume(topic string, partition string) {
 	}
 }
 
-//执行恢复函数
+// 消费者执行出队列
+func (r *QueueManager) QueueGet(topic string, partition string, timeout time.Duration) (string, error) {
+	name := r.GetQueueName(topic, partition)
+	result, err := r.client.BRPop(timeout, name).Result()
+	if err != nil {
+		return "", err
+	}
+	if len(result) > 0 {
+		//topicPartition := result[0]
+		vals := result[1]
+		return vals, nil
+	}
+	return "", nil
+}
+
+// 执行清空队列
+func (r *QueueManager) QueueDel(topic string, partition string) (bool, error) {
+	name := r.GetQueueName(topic, partition)
+	result, err := r.client.Del(name).Result()
+	if err != nil {
+		return false, err
+	}
+	return result > 0, nil
+}
+
+// 执行恢复函数
 func (r *QueueManager) handleRecover(topic string, partition string) {
 	handlerName := r.GetQueueName(topic, partition)
 	handler, ok := r.Handlers[handlerName]
@@ -190,7 +217,7 @@ func (r *QueueManager) handleRecover(topic string, partition string) {
 	}
 }
 
-//执行回调函数
+// 执行回调函数
 func (r *QueueManager) handleCallBack(payload *QueueReceiveMessage) {
 	handlerName := r.GetQueueName(payload.Topic, payload.Partition)
 	handler := r.Handlers[handlerName]

@@ -76,7 +76,7 @@ func (c *Client) GetBlock(height uint64) (block *chain.Block, err error) {
 			FromAddress: meta.fromAddr,
 			ToAddress:   meta.toAddr,
 			Value:       meta.amount,
-			Raw: &rawTxWrapper{
+			Raw: &RawTxWrapper{
 				BlockTx:         tx,
 				tokenAmount:     meta.tokenAmount,
 				contractAddress: meta.contractAddress,
@@ -94,7 +94,7 @@ func (c *Client) GetBlock(height uint64) (block *chain.Block, err error) {
 	}, nil
 }
 
-type rawTxWrapper struct {
+type RawTxWrapper struct {
 	types.BlockTx
 
 	tokenAmount     string

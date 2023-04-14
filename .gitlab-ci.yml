@@ -1,0 +1,79 @@
+image: golang:1.18
+
+stages:
+  - test
+
+variables:
+  POSTGRES_PASSWORD: "haobtc.asd"
+  POSTGRES_USER: "haobtc"
+  POSTGRES_DB: "blockcrawlingtest"
+
+services:
+  - name: postgres:12
+    alias: db
+  - name: redis
+    alias: cache
+
+.go-cache:
+  variables:
+    GOPATH: $CI_PROJECT_DIR/.go
+  before_script:
+    - mkdir -p .go
+    - echo "10.201.25.230  gitlab.bixin.com" >> /etc/hosts
+
+    - mkdir ~/.ssh
+    - echo "HOST *" > ~/.ssh/config
+    - echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+    - |
+      cat <<EOF > ~/.ssh/id_ed25519
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+      QyNTUxOQAAACBpckUkLcSyPjsSDnvTDHPcmyV5WUShuaubUtV5jQaJ2wAAAJjHgTYlx4E2
+      JQAAAAtzc2gtZWQyNTUxOQAAACBpckUkLcSyPjsSDnvTDHPcmyV5WUShuaubUtV5jQaJ2w
+      AAAEDCqUo6ZzktptG0wb42pxVwcm/4Ky9CwiMdhzziCejdqWlyRSQtxLI+OxIOe9MMc9yb
+      JXlZRKG5q5tS1XmNBonbAAAAD3dhbmdodWlAd2FuZ2h1aQECAwQFBg==
+      -----END OPENSSH PRIVATE KEY-----
+      EOF
+    - cat ~/.ssh/id_ed25519
+    - chmod 0600 ~/.ssh/id_ed25519
+
+    - git config --global url."ssh://git@gitlab.bixin.com:8222/".insteadOf "https://gitlab.bixin.com/"
+    - go env -w GOPRIVATE=gitlab.bixin.com
+  cache:
+    when: always
+    key:
+      files:
+        - go.sum
+    paths:
+      - .go/pkg/mod/
+
+auto-test:
+  stage: test
+  extends: .go-cache
+  script:
+    - sed -i -e 's/1de00c8b-8b00-42e8-a4a0-111a465303d9/_/' configs/config.yaml
+    - go install gotest.tools/gotestsum@latest
+    # gomonkey requires: -gcflags=all=-l
+    - ./.go/bin/gotestsum --format=testname $RUN_TEST_PKG -- -gcflags=all=-l
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  tags:
+    - go
+  variables:
+    RUN_TEST_PKG: ./internal/ptesting/...
+
+auto-build:
+  stage: test
+  extends: .go-cache
+  script:
+    - mkdir -p bin/ && go build -o ./bin/ ./...
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  tags:
+    - go

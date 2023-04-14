@@ -3,6 +3,7 @@ package biz
 import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/common"
+	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -49,6 +51,7 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 	if strings.HasSuffix(chainName, "TEST") {
 		return "", nil
 	}
+
 	var getPriceKey string
 	var handler string
 	if platInfo, ok := PlatInfoMap[chainName]; ok {
@@ -222,6 +225,7 @@ func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress 
 	}
 	if err != nil {
 		// nodeProxy出错 接入lark报警
+		log.Info("GET TOKEN INFO FAILED", zap.String("chainName", chainName), zap.String("tokenAddress", tokenAddress))
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
 		alarmOpts := WithMsgLevel("FATAL")
 		alarmOpts = WithAlarmChannel("node-proxy")

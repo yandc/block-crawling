@@ -29,7 +29,7 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
 }
 
-func newApp(*data.Bundle, platform.PlatformContainer, platform.InnerPlatformContainer) *kratos.App {
+func newApp(*data.Bundle, platform.Server, platform.InnerPlatformContainer) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
@@ -57,7 +57,7 @@ func main() {
 	}
 	bizLog.BootstrapLogger(bc.Logger)
 
-	_, cleanup, err := wireApp(bc.Logger, bc.Data, bc.App, &bc)
+	_, cleanup, err := wireApp(bc.Logger, bc.Data, bc.Lark, bc.App, &bc)
 	if err != nil {
 		panic(err)
 	}

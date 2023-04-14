@@ -38,14 +38,14 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	go biz.DappApproveFilter(chainName, txRecords)
 	go biz.NftApproveFilter(chainName, txRecords)
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
-	go handleUserStatistic(chainName, client, txRecords)
-	go handleUserNonce(chainName, client, txRecords)
+	go HandleUserStatistic(chainName, client, txRecords)
+	go HandleUserNonce(chainName, client, txRecords)
 	go HandleRecordStatus(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go handleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -66,12 +66,12 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	}()
 
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
 	go HandleRecordStatus(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go handleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(chainName, client, txRecords)
 }
 
 func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord) {
@@ -143,7 +143,7 @@ func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord
 	}
 }
 
-func handleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
 	doneNonceTotal := make(map[string]int)
 	for _, record := range txRecords {
@@ -185,13 +185,13 @@ func handleUserNonce(chainName string, client Client, txRecords []*data.EvmTrans
 	}
 }
 
-func handleUserAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserAsset error, chainName:"+chainName, e)
+				log.Errore("HandleUserAsset error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -426,13 +426,13 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 	return userAssets, nil
 }
 
-func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleUserStatistic(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserStatistic error, chainName:"+chainName, e)
+				log.Errore("HandleUserStatistic error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -481,13 +481,13 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
 }
 
-func handleTokenPush(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleTokenPush(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleTokenPush error, chainName:"+chainName, e)
+				log.Errore("HandleTokenPush error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -597,13 +597,13 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 	}
 }
 
-func handleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserNftAsset error, chainName:"+chainName, e)
+				log.Errore("HandleUserNftAsset error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserNftAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserNftAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警

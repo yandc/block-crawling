@@ -48,9 +48,18 @@ type TransactionStatisticRepo interface {
 	ListByID(context.Context, int64) ([]*TransactionStatistic, error)
 	ListAll(context.Context) ([]*TransactionStatistic, error)
 	PageList(context.Context, *pb.PageListStatisticRequest) ([]*TransactionStatistic, int64, error)
+	List(context.Context, *StatisticRequest) ([]*TransactionStatistic, error)
 	DeleteByID(context.Context, int64) (int64, error)
+	Delete(context.Context, *StatisticRequest) (int64, error)
 	StatisticFundAmount(context.Context, *pb.StatisticFundRequest) ([]*pb.FundAmountResponse, error)
 	StatisticFundRate(context.Context, *pb.StatisticFundRequest) ([]*pb.FundRateResponse, error)
+}
+
+type StatisticRequest struct {
+	ChainName         string
+	TokenAddress      string
+	TokenAddressList  []string
+	FundDirectionList []int16
 }
 
 type TransactionStatisticRepoImpl struct {
@@ -316,8 +325,60 @@ func (r *TransactionStatisticRepoImpl) PageList(ctx context.Context, req *pb.Pag
 	return transactionStatisticList, total, nil
 }
 
+func (r *TransactionStatisticRepoImpl) List(ctx context.Context, req *StatisticRequest) ([]*TransactionStatistic, error) {
+	var transactionStatisticList []*TransactionStatistic
+	db := r.gormDB.WithContext(ctx).Table("transaction_statistic")
+
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if req.TokenAddress != "" {
+		db = db.Where("token_address = ?", req.TokenAddress)
+	}
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if len(req.FundDirectionList) > 0 {
+		db = db.Where("fund_direction in(?)", req.FundDirectionList)
+	}
+
+	ret := db.Find(&transactionStatisticList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query transactionStatistic failed", err)
+		return nil, err
+	}
+	return transactionStatisticList, nil
+}
+
 func (r *TransactionStatisticRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Delete(&TransactionStatistic{}, id)
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete transactionStatistic failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *TransactionStatisticRepoImpl) Delete(ctx context.Context, req *StatisticRequest) (int64, error) {
+	db := r.gormDB.WithContext(ctx).Table("transaction_statistic")
+
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
+	}
+	if req.TokenAddress != "" {
+		db = db.Where("token_address = ?", req.TokenAddress)
+	}
+	if len(req.TokenAddressList) > 0 {
+		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if len(req.FundDirectionList) > 0 {
+		db = db.Where("fund_direction in(?)", req.FundDirectionList)
+	}
+
+	ret := db.Delete(&UserAsset{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete transactionStatistic failed", err)

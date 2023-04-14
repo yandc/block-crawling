@@ -1,0 +1,540 @@
+platform:
+  ETH:
+    blockExplorerAddrUrl: https://etherscan.io/address/
+    blockExplorerTxUrl: https://etherscan.io/tx/
+    blockExplorerUrl: https://etherscan.io/
+    chain: ETH
+    chainId: 1
+    coinId: 60
+    decimal: 18
+    fullName: Ethereum
+    getPriceKey: ethereum
+    handler: ethereum
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 15
+    proxyKey: gasOracleETH
+    rpcURL:
+    - https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    - https://geth.mytokenpocket.vip
+    - https://rpc.onekey.so/eth
+    - https://eth626892d.jccdex.cn
+    - https://web3.mytokenpocket.vip
+    - https://rpc.flashbots.net
+    - https://web3os.tokenpocket.pro
+    - https://rpc.ankr.com/eth
+    symbol: ETH
+    type: EVM
+    safelyConcurrentBlockDelta: 30
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 30
+
+
+  BSC:
+    blockExplorerAddrUrl: https://bscscan.com/address/
+    blockExplorerTxUrl: https://bscscan.com/tx/
+    blockExplorerUrl: https://bscscan.com/
+    chain: BSC
+    chainId: 56
+    coinId: 60
+    decimal: 18
+    fullName: Binance Smart Chain
+    getPriceKey: binancecoin
+    handler: bsc
+    icon: https://obstatic.243096.com/mili/images/currency/chain/BSC.png
+    nativeCurrency: BNB
+    netType: main
+    proxyCacheTime: 15
+    proxyKey: gasOracleBsc
+    rpcURL:
+      - https://rpc.ankr.com/bsc
+      - https://bsc.mytokenpocket.vip
+      - https://bsc-dataseed4.defibit.io
+      - https://bscrpc.com
+      - https://bsc-dataseed1.defibit.io
+      - https://bsc-mainnet.public.blastapi.io
+      - https://bsc-dataseed2.defibit.io
+      - https://rpc-bsc.bnb48.club
+      - https://bsc-dataseed3.defibit.io
+      - https://binance.ankr.com
+      - https://bsc-dataseed.binance.org
+      - https://bsc-dataseed1.binance.org
+      - https://bsc-dataseed2.binance.org
+      - https://bsc-dataseed3.binance.org
+      - https://bsc-dataseed4.binance.org
+      - https://bsc-dataseed1.ninicoin.io
+      - https://bsc-dataseed2.ninicoin.io
+      - https://bsc-dataseed3.ninicoin.io
+      - https://bsc-dataseed4.ninicoin.io
+
+    symbol: BSC
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
+
+
+platformTest:
+  AptosTEST:
+    blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
+    blockExplorerTxUrl: https://explorer.aptoslabs.com/txn/
+    blockExplorerUrl: https://explorer.aptoslabs.com/
+    chain: AptosTEST
+    chainId: 2
+    coinId: 101011
+    decimal: 8
+    fullName: Aptos Test Net
+    getPriceKey: aptos
+    handler: aptos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Aptos.png
+    nativeCurrency: APT
+    netType: test
+    rpcURL:
+    - https://testnet.aptoslabs.com/v1
+    symbol: Aptos
+    type: APTOS
+  SuiTEST:
+    blockExplorerAddrUrl: https://explorer.sui.io/addresses/
+    blockExplorerTxUrl: https://explorer.sui.io/transactions/
+    blockExplorerUrl: https://explorer.sui.io/
+    chain: SuiTEST
+    chainId: 24
+    coinId: 101012
+    decimal: 9
+    fullName: Sui Test Net
+    getPriceKey: ''
+    handler: sui
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sui.jpg
+    nativeCurrency: Sui
+    netType: test
+    rpcURL:
+    - https://fullnode.devnet.sui.io
+    symbol: SUI
+    type: SUI
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 300
+  AvalancheTEST:
+    blockExplorerAddrUrl: https:/https://testnet.snowtrace.io/address/
+    blockExplorerTxUrl: https://testnet.snowtrace.io/tx/
+    blockExplorerUrl: https://testnet.snowtrace.io/
+    chain: AvalancheTEST
+    chainId: 43113
+    coinId: 60
+    decimal: 18
+    fullName: Avalanche Test Net
+    getPriceKey: avalanche-2
+    handler: avalanche
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Avalanche.png
+    nativeCurrency: AVAX
+    netType: test
+    rpcURL:
+    - https://api.avax-test.network/ext/bc/C/rpc
+    symbol: AVAX
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  BSCTEST:
+    blockExplorerAddrUrl: https://testnet.bscscan.com/address/
+    blockExplorerTxUrl: https://testnet.bscscan.com/tx/
+    blockExplorerUrl: https://testnet.bscscan.com/
+    chain: BSCTEST
+    chainId: 97
+    coinId: 60
+    decimal: 18
+    fullName: Binance Smart Chain Test Net
+    getPriceKey: binancecoin
+    handler: bsc
+    icon: https://obstatic.243096.com/mili/images/currency/chain/BSC.png
+    nativeCurrency: BNB
+    netType: test
+    rpcURL:
+    - https://bsc-testnet.public.blastapi.io
+    - https://bsctestapi.terminet.io/rpc
+    - https://data-seed-prebsc-1-s2.binance.org:8545
+    - https://data-seed-prebsc-1-s1.binance.org:8545
+    - https://data-seed-prebsc-2-s2.binance.org:8545
+    symbol: BSC
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  BTCTEST:
+    blockExplorerAddrUrl: https://live.blockcypher.com/btc-testnet/address/
+    blockExplorerTxUrl: https://live.blockcypher.com/btc-testnet/tx/
+    blockExplorerUrl: https://live.blockcypher.com/btc-testnet/
+    bytes: 226
+    chain: BTCTEST
+    chainId: ''
+    coinId: 10000
+    decimal: 8
+    fullName: Bitcoin Test Net
+    getPriceKey: bitcoin
+    handler: bitcoin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
+    nativeCurrency: BTC
+    netType: test
+    rpcURL:
+    - https://api.blockcypher.com/v1/btc/test3
+    - https://chain.so
+    - https://blockstream.info/testnet
+    symbol: BTC
+    type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
+  CronosTEST:
+    blockExplorerAddrUrl: https://testnet.cronoscan.com/address/
+    blockExplorerTxUrl: https://testnet.cronoscan.com/tx/
+    blockExplorerUrl: https://testnet.cronoscan.com/
+    chain: CronosTEST
+    chainId: 338
+    coinId: 60
+    decimal: 18
+    fullName: Cronos Test Net
+    getPriceKey: crypto-com-chain
+    handler: cronos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cronos.png
+    nativeCurrency: tCRO
+    netType: test
+    rpcURL:
+    - https://evm-t3.cronos.org/
+    symbol: CRO
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+#  ETHTEST:
+#    blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
+#    blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
+#    blockExplorerUrl: https://ropsten.etherscan.io/
+#    chain: ETHTEST
+#    chainId: 3
+#    coinId: 60
+#    decimal: 18
+#    fullName: Ethereum Test Net
+#    getPriceKey: ethereum
+#    handler: ethereum
+#    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
+#    nativeCurrency: ETH
+#    netType: test
+#    rpcURL:
+#    - https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+#    symbol: ETH
+#    type: EVM
+#    safelyConcurrentBlockDelta: 30
+#    maxConcurrency: 5
+  ETHGoerliTEST:
+    blockExplorerAddrUrl: https://ropsten.etherscan.io/address/
+    blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
+    blockExplorerUrl: https://ropsten.etherscan.io/
+    chain: ETHGoerliTEST
+    chainId: 3
+    coinId: 60
+    decimal: 18
+    fullName: Goerli Ethereum Test Net
+    getPriceKey: ethereum
+    handler: ethereum
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
+    nativeCurrency: ETH
+    netType: test
+    rpcURL:
+    - https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    symbol: ETH
+    type: EVM
+    safelyConcurrentBlockDelta: 30
+    maxConcurrency: 5
+  FantomTEST:
+    blockExplorerAddrUrl: https://testnet.ftmscan.com/address/
+    blockExplorerTxUrl: https://testnet.ftmscan.com/tx/
+    blockExplorerUrl: https://testnet.ftmscan.com/
+    chain: FantomTEST
+    chainId: 4002
+    coinId: 60
+    decimal: 18
+    fullName: Fantom Test Net
+    getPriceKey: fantom
+    handler: fantom
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Fantom.png
+    nativeCurrency: FTM
+    netType: test
+    rpcURL:
+    - https://xapi.testnet.fantom.network/lachesis
+    symbol: Fantom
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  HECOTEST:
+    blockExplorerAddrUrl: https://testnet.hecoinfo.com/address/
+    blockExplorerTxUrl: https://testnet.hecoinfo.com/tx/
+    blockExplorerUrl: https://testnet.hecoinfo.com/
+    chain: HECOTEST
+    chainId: 256
+    coinId: 60
+    decimal: 18
+    fullName: Huobi ECO Chain Test Net
+    getPriceKey: huobi-token
+    handler: heco
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Heco.png
+    nativeCurrency: HT
+    netType: test
+    rpcURL:
+    - https://http-testnet.hecochain.com/
+    symbol: HECO
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  KlaytnTEST:
+    blockExplorerAddrUrl: https://baobab.scope.klaytn.com/address/
+    blockExplorerTxUrl: https://baobab.scope.klaytn.com/tx/
+    blockExplorerUrl: https://baobab.scope.klaytn.com/
+    chain: KlaytnTEST
+    chainId: 1001
+    coinId: 60
+    decimal: 18
+    fullName: Klaytn Test Net
+    getPriceKey: klay-token
+    handler: klaytn
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Klaytn.png
+    nativeCurrency: KLAY
+    netType: test
+    rpcURL:
+    - https://public-node-api.klaytnapi.com/v1/baobab
+    - https://baobab01.fandom.finance
+    - https://baobab02.fandom.finance
+    symbol: Klaytn
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  OECTEST:
+    blockExplorerAddrUrl: https://www.oklink.com/zh-cn/oec-test/address/
+    blockExplorerTxUrl: https://www.oklink.com/zh-cn/oec-test/tx/
+    blockExplorerUrl: https://www.oklink.com/zh-cn/oec-test/
+    chain: OECTEST
+    chainId: 65
+    coinId: 60
+    decimal: 18
+    fullName: Okex Chain Test Net
+    getPriceKey: oec-token
+    handler: okex
+    icon: https://obstatic.243096.com/mili/images/currency/chain/OEC.png
+    nativeCurrency: OKT
+    netType: test
+    rpcURL:
+    - https://exchaintestrpc.okex.org
+    symbol: OEC
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  OptimismTEST:
+    blockExplorerAddrUrl: https://kovan-optimistic.etherscan.io/address/
+    blockExplorerTxUrl: https://kovan-optimistic.etherscan.io/tx/
+    blockExplorerUrl: https://kovan-optimistic.etherscan.io/
+    chain: OptimismTEST
+    chainId: 69
+    coinId: 60
+    decimal: 18
+    fullName: Optimism Test Net
+    getPriceKey: ethereum
+    handler: optimism
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Optimism.png
+    nativeCurrency: ETH
+    netType: test
+    rpcURL:
+    - https://kovan.optimism.io
+    - https://optimism-kovan.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    symbol: Optimism
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  PolygonTEST:
+    blockExplorerAddrUrl: https://mumbai.polygonscan.com/address/
+    blockExplorerTxUrl: https://mumbai.polygonscan.com/tx/
+    blockExplorerUrl: https://mumbai.polygonscan.com/
+    chain: PolygonTEST
+    chainId: 80001
+    coinId: 60
+    decimal: 18
+    fullName: Polygon Test Net
+    getPriceKey: matic-network
+    handler: polygon
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Polygon.png
+    nativeCurrency: MATIC
+    netType: test
+    rpcURL:
+    - https://rpc-mumbai.matic.today
+    symbol: Polygon
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 5
+  TRXTEST:
+    blockExplorerAddrUrl: https://shasta.tronscan.org/#/address/
+    blockExplorerTxUrl: https://shasta.tronscan.org/#/transaction/
+    blockExplorerUrl: https://shasta.tronscan.org/
+    chain: TRXTEST
+    chainId: 1
+    coinId: 195
+    decimal: 6
+    fullName: Tron Test Net
+    getPriceKey: tron
+    handler: tron
+    icon: https://obstatic.243096.com/mili/images/currency/chain/TRON.png
+    nativeCurrency: TRX
+    netType: test
+    rpcURL:
+    - https://api.shasta.trongrid.io
+    symbol: TRX
+    type: TVM
+    safelyConcurrentBlockDelta: 60
+    maxConcurrency: 5
+  SolanaTEST:
+    blockExplorerAddrUrl: https://solscan.io/account/
+    blockExplorerTxUrl: https://solscan.io/tx/
+    blockExplorerUrl: https://solscan.io/
+    chain: SolanaTEST
+    chainId: 0
+    coinId: 501
+    decimal: 9
+    fullName: Solana Test Net
+    getPriceKey: solana
+    handler: solana
+    icon: https://obstatic.243096.com/mili/images/currency/chain/SOL.jpeg
+    nativeCurrency: SOL
+    netType: test
+    proxyCacheTime: 15
+    rpcURL:
+      - https://api.testnet.solana.com
+    symbol: Solana
+    type: SOL
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+  NervosTEST:
+    blockExplorerAddrUrl: https://pudge.explorer.nervos.org/address/
+    blockExplorerTxUrl: https://pudge.explorer.nervos.org/transaction/
+    blockExplorerUrl: https://pudge.explorer.nervos.org/
+    chain: NervosTEST
+    chainId: 0
+    coinId: 309
+    decimal: 8
+    fullName: Nervos Test Net
+    getPriceKey: nervos-network
+    handler: nervos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Nervos.jpg
+    nativeCurrency: CKB
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://testnet.ckb.dev/
+    symbol: Nervos
+    type: CKB
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 1
+  CasperTEST:
+    blockExplorerAddrUrl: https://testnet.cspr.live/account/
+    blockExplorerTxUrl: https://testnet.cspr.live/deploy/
+    blockExplorerUrl: https://testnet.cspr.live/
+    chain: CasperTEST
+    chainId: casper-test
+    coinId: 101013
+    decimal: 9
+    fullName: Casper Test Net
+    getPriceKey: casper-network
+    handler: casper
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Casper.jpeg
+    nativeCurrency: CSPR
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://node-clarity-testnet.make.services/rpc
+    symbol: Casper
+    type: CSPR
+    safelyConcurrentBlockDelta: 5
+    maxConcurrency: 1
+  CosmosTEST:
+    blockExplorerAddrUrl: https://explorer.theta-testnet.polypore.xyz/accounts
+    blockExplorerTxUrl: https://explorer.theta-testnet.polypore.xyz/transactions
+    blockExplorerUrl: https://explorer.theta-testnet.polypore.xyz
+    chain: CosmosTEST
+    chainId: cosmoshub-4
+    coinId: 118
+    decimal: 6
+    fullName: Cosmos Test Net
+    getPriceKey: cosmos
+    handler: cosmos
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
+    nativeCurrency: ATOM
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://cosmos-testnet-rpc.allthatnode.com:1317
+    symbol: Cosmos
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 2
+  zkSyncTEST:
+    blockExplorerAddrUrl: https://goerli.explorer.zksync.io/address
+    blockExplorerTxUrl: https://goerli.explorer.zksync.io/tx
+    blockExplorerUrl: https://goerli.explorer.zksync.io
+    categoryName: EVM
+    chain: zkSyncTEST
+    chainId: 280
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: zkSync Test Net
+    getPriceKey: ethereum
+    handler: zksync
+    icon: https://obstatic.243096.com/mili/images/currency/chain/zkSync.jpeg
+    nativeCurrency: ETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://zksync2-testnet.zksync.dev
+    symbol: zkSync
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+  ScrollL1TEST:
+    blockExplorerAddrUrl: https://l1scan.scroll.io/address
+    blockExplorerTxUrl: https://l1scan.scroll.io/tx
+    blockExplorerUrl: https://l1scan.scroll.io
+    categoryName: EVM
+    chain: ScrollL1TEST
+    chainId: 534351
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Scroll L1 Test Net
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
+    nativeCurrency: TSETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://prealpha.scroll.io/l1
+    symbol: Scroll L1
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+  ScrollL2TEST:
+    blockExplorerAddrUrl: https://l2scan.scroll.io/address
+    blockExplorerTxUrl: https://l2scan.scroll.io/tx
+    blockExplorerUrl: https://l2scan.scroll.io
+    categoryName: EVM
+    chain: ScrollL2TEST
+    chainId: 534354
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Scroll L2 Test Net
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
+    nativeCurrency: TSETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://prealpha.scroll.io/l2
+    symbol: Scroll L2
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1

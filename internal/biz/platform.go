@@ -11,15 +11,19 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Platform interface {
 	Coin() coins.Coin
-	GetTransactions()
 	SetRedisHeight()
-	GetTransactionResultByTxhash()
-	GetBlockSpider() *chain.BlockSpider
 	MonitorHeight()
+
+	CreateStateStore() chain.StateStore
+	CreateClient(url string) chain.Clienter
+	CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler
+	GetBlockSpider() *chain.BlockSpider
+	SetBlockSpider(spider *chain.BlockSpider)
 }
 
 type CommPlatform struct {

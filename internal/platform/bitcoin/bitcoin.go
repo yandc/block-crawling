@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/model"
-	"block-crawling/internal/platform/common"
 	ncommon "gitlab.bixin.com/mili/node-driver/common"
 
 	in "block-crawling/internal/types"
@@ -25,7 +24,6 @@ type Platform struct {
 	biz.CommPlatform
 	client    Client
 	CoinIndex uint
-	conf      *conf.PlatInfo
 	spider    *chain.BlockSpider
 }
 
@@ -33,27 +31,9 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 	chainType := value.Handler
 	chainName := value.Chain
 
-	clients := make([]chain.Clienter, 0, len(nodeURL))
-	for _, url := range nodeURL {
-		c := NewClient(url, chainName)
-		clients = append(clients, &c)
-	}
-	spider := chain.NewBlockSpider(newStateStore(chainName), clients...)
-	if len(value.StandbyRPCURL) > 0 {
-		standby := make([]chain.Clienter, 0, len(value.StandbyRPCURL))
-		for _, url := range value.StandbyRPCURL {
-			c := NewClient(url, chainName)
-			standby = append(standby, &c)
-		}
-		spider.AddStandby(standby...)
-	}
-	spider.Watch(common.NewDectorZapWatcher(chainName))
-
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		client:    NewClient(nodeURL[0], chainName),
-		spider:    spider,
-		conf:      value,
 		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
@@ -67,8 +47,21 @@ func (p *Platform) Coin() coins.Coin {
 	return coins.Coins[p.CoinIndex]
 }
 
-func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
-	p.spider.WithRetry(func(client chain.Clienter) error {
+func (p *Platform) CreateStateStore() chain.StateStore {
+	return newStateStore(p.ChainName)
+}
+
+func (p *Platform) CreateClient(url string) chain.Clienter {
+	c := NewClient(url, p.ChainName)
+	return &c
+}
+
+func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
+	return newHandler(p.ChainName, liveInterval)
+}
+
+func (p *Platform) GetUTXOByHash(spider *chain.BlockSpider, txHash string) (tx in.TX, err error) {
+	spider.WithRetry(func(client chain.Clienter) error {
 		tx, err = client.(*Client).GetTransactionByHash(txHash)
 		if err != nil && err.Error() == "The requested resource has not been found" {
 			return chain.RetryStandby(err)
@@ -76,23 +69,6 @@ func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
 		return ncommon.Retry(err)
 	})
 	return
-}
-
-func (p *Platform) GetTransactions() {
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-	log.Info(
-		"GetTransactions starting, chainName:"+p.ChainName,
-		zap.String("liveInterval", liveInterval.String()),
-		zap.Bool("roundRobinConcurrent", p.conf.GetRoundRobinConcurrent()),
-	)
-	if p.conf.GetRoundRobinConcurrent() {
-		p.spider.EnableRoundRobin()
-	}
-	p.spider.StartIndexBlock(
-		newHandler(p.ChainName, liveInterval),
-		int(p.conf.GetSafelyConcurrentBlockDelta()),
-		int(p.conf.GetMaxConcurrency()),
-	)
 }
 
 func (p *Platform) GetPendingTransactionsByInnerNode() {
@@ -313,29 +289,12 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 	return
 }
 
-func (p *Platform) GetTransactionResultByTxhash() {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("GetTransactionsResult error, chainName:"+p.ChainName, e)
-			} else {
-				log.Errore("GetTransactionsResult panic, chainName:"+p.ChainName, errors.New(fmt.Sprintf("%s", err)))
-			}
-
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链处理交易结果失败, error：%s", p.ChainName, fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-
-	liveInterval := time.Duration(p.Coin().LiveInterval) * time.Millisecond
-	p.spider.SealPendingTransactions(newHandler(p.ChainName, liveInterval))
-}
-
 func (p *Platform) GetBlockSpider() *chain.BlockSpider {
 	return p.spider
+}
+
+func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
+	p.spider = blockSpider
 }
 
 func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord, table string) error {

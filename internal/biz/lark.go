@@ -26,16 +26,21 @@ type Lark struct {
 	lock common.Syncronized
 }
 
-var LarkClient *Lark
+type Larker interface {
+	MonitorLark(msg string, opts ...AlarmOption)
+	NotifyLark(msg string, usableRPC, disabledRPC []string, opts ...AlarmOption)
+}
+
+var LarkClient Larker
 
 // NewLark new a lark.
 func NewLark(c *conf.Lark) *Lark {
-	LarkClient = &Lark{
+	 l := &Lark{
 		conf: c,
 		lock: common.NewSyncronized(c.LockNum),
 	}
-
-	return LarkClient
+	LarkClient = l
+	return l
 }
 
 type LarkResponse struct {

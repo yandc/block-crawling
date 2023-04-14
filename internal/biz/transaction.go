@@ -27,10 +27,10 @@ import (
 
 type TransactionUsecase struct {
 	gormDB *gorm.DB
-	lark   *Lark
+	lark   Larker
 }
 
-func NewTransactionUsecase(grom *gorm.DB, lark *Lark, bundle *data.Bundle) *TransactionUsecase {
+func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle) *TransactionUsecase {
 	return &TransactionUsecase{
 		gormDB: grom,
 		lark:   lark,

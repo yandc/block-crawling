@@ -60,6 +60,7 @@ type StcTransactionRecordRepo interface {
 	List(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
+	Delete(context.Context, string, *TransactionRequest) (int64, error)
 	FindLast(context.Context, string) (*StcTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*StcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
@@ -420,6 +421,83 @@ func (r *StcTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete stcTransactionRecord failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName string, req *TransactionRequest) (int64, error) {
+	db := r.gormDB.WithContext(ctx).Table(tableName)
+
+	if req.FromUid != "" {
+		db = db.Where("from_uid = ?", req.FromUid)
+	}
+	if req.ToUid != "" {
+		db = db.Where("to_uid = ?", req.ToUid)
+	}
+	if req.FromAddress != "" {
+		db = db.Where("from_address = ?", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("to_address = ?", req.ToAddress)
+	}
+	if len(req.FromAddressList) > 0 {
+		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
+		db = db.Where("(from_address in(?) or (log_address is not null and log_address->0 ?| array["+fromAddressList+"]))", req.FromAddressList)
+	}
+	if len(req.ToAddressList) > 0 {
+		toAddressList := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
+		db = db.Where("(to_address in(?) or (log_address is not null and log_address->1 ?| array["+toAddressList+"]))", req.ToAddressList)
+	}
+	if req.Uid != "" {
+		db = db.Where("(from_uid = ? or to_uid = ?)", req.Uid, req.Uid)
+	}
+	if req.Address != "" {
+		db = db.Where("(from_address = ? or to_address = ? or (log_address is not null and (log_address->0 ? '"+req.Address+"' or log_address->1 ? '"+req.Address+"')))",
+			req.Address, req.Address)
+	}
+	if req.ContractAddress != "" {
+		db = db.Where("contract_address = ?", req.ContractAddress)
+	}
+	if len(req.ContractAddressList) > 0 {
+		db = db.Where("contract_address in(?)", req.ContractAddressList)
+	}
+	if len(req.StatusList) > 0 {
+		db = db.Where("status in(?)", req.StatusList)
+	}
+	if len(req.StatusNotInList) > 0 {
+		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
+	if len(req.TransactionTypeList) > 0 {
+		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
+	}
+	if req.TransactionHash != "" {
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
+	}
+	if len(req.TransactionHashList) > 0 {
+		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if req.Nonce >= 0 {
+		db = db.Where("nonce = ?", req.Nonce)
+	}
+	if req.DappDataEmpty {
+		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
+	}
+
+	ret := db.Delete(&StcTransactionRecord{})
+	err := ret.Error
+	if err != nil {
+		log.Errore("delete "+tableName+" failed", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected

@@ -37,6 +37,7 @@ type DappApproveRecordRepo interface {
 	GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) ([]*DappApproveRecord, error)
 	GetDappListPageCount(ctx context.Context, req *pb.DappPageListReq) int64
 	GetDappListByToken(ctx context.Context, req *pb.DappPageListReq) ([]*DappApproveRecord, error)
+	FindByLasTxtHash(context.Context, string) (*DappApproveRecord, error)
 }
 
 type DappApproveRecordRepoImpl struct {
@@ -71,7 +72,7 @@ func (r *DappApproveRecordRepoImpl) UpdateAmout(ctx context.Context, dappApprove
 	for _, dar := range dappApproveRecords {
 		var dappApproveRecord *DappApproveRecord
 		r.gormDB.Where(" address = ? and token = ? and to_address = ? ", dar.Address, dar.Token, dar.ToAddress).Find(&dappApproveRecord)
-		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40  || dappApproveRecord.Amount =="0"{
+		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40 || dappApproveRecord.Amount == "0" {
 			continue
 		}
 		//dappApproveRecord.Amount
@@ -138,8 +139,8 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 	if req.Fromuid != "" {
 		tx = tx.Where("uid = ?", req.Fromuid)
 	}
-	if req.DappType != ""{
-		tx = tx.Where("erc_type = ?",req.DappType)
+	if req.DappType != "" {
+		tx = tx.Where("erc_type = ?", req.DappType)
 	}
 
 	if req.DataDirection > 0 {
@@ -147,7 +148,7 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req
 		if req.DataDirection == 1 {
 			dataDirection = "<"
 		}
-		tx = tx.Where("tx_time " + dataDirection+" ?", req.StartIndex).Order("tx_time DESC").Limit(int(req.Limit))
+		tx = tx.Where("tx_time "+dataDirection+" ?", req.StartIndex).Order("tx_time DESC").Limit(int(req.Limit))
 	}
 	if req.DataDirection == 0 {
 		tx = tx.Offset(int(req.Page-1) * int(req.Limit))
@@ -176,8 +177,8 @@ func (r *DappApproveRecordRepoImpl) GetDappListPageCount(ctx context.Context, re
 	if req.Fromuid != "" {
 		tx = tx.Where("uid = ?", req.Fromuid)
 	}
-	if req.DappType != ""{
-		tx = tx.Where("erc_type = ?",req.DappType)
+	if req.DappType != "" {
+		tx = tx.Where("erc_type = ?", req.DappType)
 	}
 	tx.Count(&count)
 	return count
@@ -221,4 +222,14 @@ func (r *DappApproveRecordRepoImpl) GetAmountList(ctx context.Context, req *pb.O
 		return nil, err
 	}
 	return dars, nil
+}
+func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txhash string) (*DappApproveRecord, error) {
+	var dar *DappApproveRecord
+	ret := r.gormDB.Model(&DappApproveRecord{}).Where("last_txhash = ?", txhash).Find(&dar)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query dappRecord failed", err)
+		return nil, err
+	}
+	return dar, nil
 }

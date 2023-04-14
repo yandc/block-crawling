@@ -1,0 +1,115 @@
+platform:
+  BTC:
+    blockExplorerAddrUrl: https://live.blockcypher.com/btc/address/
+    blockExplorerTxUrl: https://live.blockcypher.com/btc/tx/
+    blockExplorerUrl: https://live.blockcypher.com/btc/
+    bytes: 226
+    chain: BTC
+    chainId: ''
+    coinId: 0
+    decimal: 8
+    fullName: Bitcoin
+    getPriceKey: bitcoin
+    handler: bitcoin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
+    nativeCurrency: BTC
+    netType: main
+    proxyCacheTime: 60
+    proxyKey: feeOracleBTC
+    rpcURL:
+      - https://api.blockcypher.com/v1/btc/main
+      - https://Bearer:9VpB0M4Al-RNmiOvFHwOMvNNetBfZY2mDepbbXT2ygBJ2-AG@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/
+    standbyRPCURL:
+      - https://chain.so/
+    symbol: BTC
+    type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 12
+  DOGE:
+    blockExplorerAddrUrl: https://dogechain.info/address/
+    blockExplorerTxUrl: https://dogechain.info/tx/
+    blockExplorerUrl: https://dogechain.info/
+    chain: DOGE
+    chainId: ''
+    coinId: 0
+    decimal: 8
+    fullName: Dogecoin
+    getPriceKey: dogecoin
+    handler: dogecoin
+    nativeCurrency: DOGE
+    netType: main
+    proxyCacheTime: 60
+    rpcURL:
+      - https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+      - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/dogecoin/mainnet/
+    standbyRPCURL:
+      - https://chain.so/
+    symbol: DOGE
+    type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 12
+
+  LTC:
+    blockExplorerAddrUrl: https://live.blockcypher.com/ltc/address/
+    blockExplorerTxUrl: https://live.blockcypher.com/ltc/tx/
+    blockExplorerUrl: https://live.blockcypher.com/ltc/
+    bytes: 226
+    chain: LTC
+    chainId: ''
+    coinId: 2
+    decimal: 8
+    fullName: Litecoin
+    getPriceKey: litecoin
+    handler: litecoin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
+    nativeCurrency: LTC
+    netType: main
+    proxyCacheTime: 60
+    proxyKey: feeOracleLTC
+    rpcURL:
+      - https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+      - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/litecoin/mainnet/
+    standbyRPCURL:
+      - https://chain.so/
+    symbol: LTC
+    type: BTC
+    safelyConcurrentBlockDelta: 6
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 12
+
+platformTest:
+  ScrollL2TEST:
+    blockExplorerAddrUrl: https://l2scan.scroll.io/address
+    blockExplorerTxUrl: https://l2scan.scroll.io/tx
+    blockExplorerUrl: https://l2scan.scroll.io
+    categoryName: EVM
+    chain: ScrollL2TEST
+    chainId: 534354
+    coinId: 60
+    decimal: 18
+    customNonce: true
+    fullName: Scroll L2 Test Net
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
+    nativeCurrency: TSETH
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://prealpha.scroll.io/l2
+    symbol: Scroll L2
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1

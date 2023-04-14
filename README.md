@@ -36,3 +36,17 @@ docker build -t <your-docker-image-name> .
 # run
 docker run --rm -p 8666:8666 -v </path/to/your/configs>:/data/conf <your-docker-image-name>
 ```
+
+## Trigger Auto Test
+
+![Alt](trigger-auto-test.gif)
+
+### Use Docker to Start a PostgresQL Instance
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. [Configure Mirror to Speedup](https://yeasy.gitbook.io/docker_practice/install/mirror#macos)
+3. Run Tests
+
+   ```shell
+   make test
+   ```

@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/Danny-Dasilva/CycleTLS/cycletls v0.0.0-20220620102923-c84d740b4757
 	github.com/RomainMichau/cloudscraper_go v0.4.1
+	github.com/agiledragon/gomonkey/v2 v2.9.0
 	github.com/blockcypher/gobcy v2.0.1+incompatible
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/envoyproxy/protoc-gen-validate v0.6.7
@@ -19,6 +20,7 @@ require (
 	github.com/shopspring/decimal v1.2.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
+	github.com/stretchr/testify v1.8.1
 	gitlab.bixin.com/mili/node-driver v0.0.0-20230314072258-411a6f246458
 	go.uber.org/zap v1.13.0
 	google.golang.org/grpc v1.48.0
@@ -37,6 +39,7 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/drand/kyber v1.1.4 // indirect
@@ -67,7 +70,10 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/novifinancial/serde-reflection/serde-generate/runtime/golang v0.0.0-20210526181959-1694c58d103e // indirect
+	github.com/onsi/ginkgo v1.14.2 // indirect
+	github.com/onsi/gomega v1.10.4 // indirect
 	github.com/phoreproject/bls v0.0.0-20200525203911-a88a5ae26844 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect

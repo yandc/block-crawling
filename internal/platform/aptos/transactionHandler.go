@@ -35,13 +35,13 @@ func HandleRecord(chainName string, client Client, txRecords []*data.AptTransact
 	}()
 
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
-	go handleUserStatistic(chainName, client, txRecords)
-	handleUserNonce(chainName, txRecords)
+	go HandleUserStatistic(chainName, client, txRecords)
+	HandleUserNonce(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go handleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(chainName, client, txRecords)
 }
 
 func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
@@ -199,15 +199,15 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptT
 	}()
 
 	go func() {
-		handleTokenPush(chainName, client, txRecords)
-		handleUserAsset(chainName, client, txRecords)
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(chainName, client, txRecords)
 	}()
-	handleUserNonce(chainName, txRecords)
+	HandleUserNonce(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go handleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(chainName, client, txRecords)
 }
 
-func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
+func HandleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	doneNonce := make(map[string]int)
 	doneNonceTotal := make(map[string]int)
 
@@ -255,13 +255,13 @@ func handleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	}
 }
 
-func handleUserAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+func HandleUserAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserAsset error, chainName:"+chainName, e)
+				log.Errore("HandleUserAsset error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -313,60 +313,58 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 					log.Error(chainName+"解析data失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("transactionVersion", record.TransactionVersion), zap.Any("txHash", record.TransactionHash),
 						zap.Any("data", record.Data), zap.Any("error", err))
-					continue
 				}
 
 				changesStr, ok := changesPayload["changes"]
-				if !ok {
-					continue
-				}
-				changes := changesStr.(map[string]interface{})
-				changeTokenAddress := tokenAddress
-				if changeTokenAddress == "" {
-					changeTokenAddress = APT_CODE
-				}
-				if record.FromAddress != "" && record.FromUid != "" {
-					if changeMapi, ok := changes[record.FromAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						if balancei, ok := changeMap[changeTokenAddress]; ok {
-							balance := balancei.(string)
-							balance = utils.StringDecimals(balance, int(decimals))
-							var userAsset = &data.UserAsset{
-								ChainName:    chainName,
-								Uid:          record.FromUid,
-								Address:      record.FromAddress,
-								TokenAddress: tokenAddress,
-								Balance:      balance,
-								Decimals:     int32(decimals),
-								Symbol:       symbol,
-								CreatedAt:    now,
-								UpdatedAt:    now,
+				if ok {
+					changes := changesStr.(map[string]interface{})
+					changeTokenAddress := tokenAddress
+					if changeTokenAddress == "" {
+						changeTokenAddress = APT_CODE
+					}
+					if record.FromAddress != "" && record.FromUid != "" {
+						if changeMapi, ok := changes[record.FromAddress]; ok {
+							changeMap := changeMapi.(map[string]interface{})
+							if balancei, ok := changeMap[changeTokenAddress]; ok {
+								balance := balancei.(string)
+								balance = utils.StringDecimals(balance, int(decimals))
+								var userAsset = &data.UserAsset{
+									ChainName:    chainName,
+									Uid:          record.FromUid,
+									Address:      record.FromAddress,
+									TokenAddress: tokenAddress,
+									Balance:      balance,
+									Decimals:     int32(decimals),
+									Symbol:       symbol,
+									CreatedAt:    now,
+									UpdatedAt:    now,
+								}
+								userAssetKey := chainName + record.FromAddress + tokenAddress
+								userAssetMap[userAssetKey] = userAsset
 							}
-							userAssetKey := chainName + record.FromAddress + tokenAddress
-							userAssetMap[userAssetKey] = userAsset
 						}
 					}
-				}
 
-				if record.ToAddress != "" && record.ToUid != "" {
-					if changeMapi, ok := changes[record.ToAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						if balancei, ok := changeMap[changeTokenAddress]; ok {
-							balance := balancei.(string)
-							balance = utils.StringDecimals(balance, int(decimals))
-							var userAsset = &data.UserAsset{
-								ChainName:    chainName,
-								Uid:          record.ToUid,
-								Address:      record.ToAddress,
-								TokenAddress: tokenAddress,
-								Balance:      balance,
-								Decimals:     int32(decimals),
-								Symbol:       symbol,
-								CreatedAt:    now,
-								UpdatedAt:    now,
+					if record.ToAddress != "" && record.ToUid != "" {
+						if changeMapi, ok := changes[record.ToAddress]; ok {
+							changeMap := changeMapi.(map[string]interface{})
+							if balancei, ok := changeMap[changeTokenAddress]; ok {
+								balance := balancei.(string)
+								balance = utils.StringDecimals(balance, int(decimals))
+								var userAsset = &data.UserAsset{
+									ChainName:    chainName,
+									Uid:          record.ToUid,
+									Address:      record.ToAddress,
+									TokenAddress: tokenAddress,
+									Balance:      balance,
+									Decimals:     int32(decimals),
+									Symbol:       symbol,
+									CreatedAt:    now,
+									UpdatedAt:    now,
+								}
+								userAssetKey := chainName + record.ToAddress + tokenAddress
+								userAssetMap[userAssetKey] = userAsset
 							}
-							userAssetKey := chainName + record.ToAddress + tokenAddress
-							userAssetMap[userAssetKey] = userAsset
 						}
 					}
 				}
@@ -493,13 +491,13 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	return userAsset, nil
 }
 
-func handleUserStatistic(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+func HandleUserStatistic(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserStatistic error, chainName:"+chainName, e)
+				log.Errore("HandleUserStatistic error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserStatistic panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -549,13 +547,13 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
 }
 
-func handleTokenPush(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+func HandleTokenPush(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleTokenPush error, chainName:"+chainName, e)
+				log.Errore("HandleTokenPush error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleTokenPush panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -611,13 +609,13 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 	biz.HandleTokenPush(chainName, userAssetList)
 }
 
-func handleUserNftAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("handleUserNftAsset error, chainName:"+chainName, e)
+				log.Errore("HandleUserNftAsset error, chainName:"+chainName, e)
 			} else {
-				log.Errore("handleUserNftAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("HandleUserNftAsset panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警

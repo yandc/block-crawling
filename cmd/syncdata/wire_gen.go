@@ -17,7 +17,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(logger *conf.Logger, confData *conf.Data, app *conf.App, bootstrap *conf.Bootstrap) (*kratos.App, func(), error) {
+func wireApp(logger *conf.Logger, confData *conf.Data, lark *conf.Lark, app *conf.App, bootstrap *conf.Bootstrap) (*kratos.App, func(), error) {
 	db, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
 		return nil, nil, err
@@ -50,9 +50,10 @@ func wireApp(logger *conf.Logger, confData *conf.Data, app *conf.App, bootstrap 
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo)
 	appConf := biz.NewConfig(app)
-	platformContainer := platform.NewPlatform(bootstrap, bundle, appConf)
+	bizLark := biz.NewLark(lark)
+	server := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark)
 	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
-	kratosApp := newApp(bundle, platformContainer, innerPlatformContainer)
+	kratosApp := newApp(bundle, server, innerPlatformContainer)
 	return kratosApp, func() {
 		cleanup2()
 		cleanup()

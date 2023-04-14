@@ -83,6 +83,21 @@ protoc:
 run:
 	kratos run
 
+.PHONY: test
+test:
+	-docker stop blockcrawling
+	-docker stop redis
+	docker run \
+		--name blockcrawling \
+		-e POSTGRES_PASSWORD=haobtc.asd \
+		-e POSTGRES_USER=haobtc \
+		-e POSTGRES_DB=blockcrawlingtest \
+		-p 15432:5432 -d --rm postgres:12
+	docker run \
+		--name redis \
+		-p 16379:6379 -d --rm redis
+	env PTESTING_ENV=docker	gotestsum --format=testname ./internal/ptesting/...
+
 # show help
 help:
 	@echo ''

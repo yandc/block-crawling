@@ -3,6 +3,7 @@ package main
 import (
 	"block-crawling/internal/conf"
 	bizLog "block-crawling/internal/log"
+	"block-crawling/internal/platform"
 	"flag"
 	"os"
 
@@ -31,7 +32,7 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
 }
 
-func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server) *kratos.App {
+func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, bs platform.Server) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
