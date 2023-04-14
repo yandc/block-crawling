@@ -103,11 +103,16 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	height, _ := strconv.Atoi(rawTx.TxResponse.Height)
+	if rawTx.Message != "" {
+		if strings.Contains(rawTx.Message, "not found") {
+			return nil, nil
+		}
+		return nil, errors.New(rawTx.Message)
+	}
 	if len(rawTx.Tx.AuthInfo.SignerInfos) == 0 {
 		return nil, errors.New("SignerInfos is empty, txHash " + txHash)
 	}
-
+	height, _ := strconv.Atoi(rawTx.TxResponse.Height)
 	nonce, _ := strconv.Atoi(rawTx.Tx.AuthInfo.SignerInfos[0].Sequence)
 	return &chain.Transaction{
 		BlockNumber: uint64(height),
