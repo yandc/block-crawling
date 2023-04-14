@@ -663,5 +663,28 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 }
 
 func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
+	record := tx.Record.(*data.AtomTransactionRecord)
+
+	log.Info(
+		"PENDING TX COULD NOT FOUND ON THE CHAIN",
+		zap.String("chainName", h.chainName),
+		zap.Uint64("height", tx.BlockNumber),
+		zap.String("nodeUrl", c.URL()),
+		zap.String("txHash", tx.Hash),
+		zap.String("fromUid", record.FromUid),
+		zap.String("toUid", record.ToUid),
+		zap.String("fromAddress", record.FromAddress),
+		zap.String("toAddress", record.ToAddress),
+	)
+
+	nowTime := time.Now().Unix()
+	if record.CreatedAt+300 > nowTime {
+		record.Status = biz.NO_STATUS
+		h.txRecords = append(h.txRecords, record)
+	} else {
+		record.Status = biz.FAIL
+		h.txRecords = append(h.txRecords, record)
+	}
+
 	return nil
 }

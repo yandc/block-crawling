@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"fmt"
+	"strings"
 	"time"
 
 	pcommon "block-crawling/internal/platform/common"
@@ -99,13 +100,27 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil {
-		return err
+	if err == nil || err == pcommon.NotFound {
+   		return err
 	}
+
+	if !strings.HasSuffix(h.chainName, "TEST") {
+		log.ErrorS(
+			"error occurred then retry",
+			zap.String("chainName", h.chainName),
+			zap.String("nodeUrl", client.URL()),
+			zap.Error(err),
+		)
+	}
+	pcommon.NotifyForkedError(h.chainName, err)
 	return common.Retry(err)
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
+	if err == nil || err == pcommon.NotFound {
+		return true
+	}
+
 	pcommon.LogBlockError(h.chainName, err, optHeights...)
-	return false
+	return
 }
