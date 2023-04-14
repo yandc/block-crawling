@@ -723,7 +723,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				continue
 			}
 
-
 			if len(log_.Topics) >= 2 {
 				//兑换时判断 交易金额不能为 0
 				//判断 value是否为0 不为 0 则增加记录
@@ -950,10 +949,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		}
 
-		//不展示event log中的授权记录
-		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
-			continue
-		}
 		if strings.HasPrefix(h.chainName, "zkSync") && (fromAddress == ZKSYNC_ADDRESS || toAddress == ZKSYNC_ADDRESS) {
 			continue
 		}
@@ -977,6 +972,15 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		}
 
+		if tokenId != "" {
+			eventLogTokenId = tokenId
+		}
+
+		//不展示event log中的授权记录
+		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
+			continue
+		}
+
 		if token.TokenType == biz.ERC721 || token.TokenType == biz.ERC1155 {
 			tokenType := token.TokenType
 			tokenAmount := token.Amount
@@ -994,7 +998,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			token = types.TokenInfo{}
 		}
 		if tokenId != "" {
-			eventLogTokenId = tokenId
 			token.TokenId = tokenId
 		}
 
