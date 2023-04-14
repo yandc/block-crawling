@@ -136,6 +136,11 @@ func (s *TransactionService) GetAmount(ctx context.Context, req *pb.AmountReques
 func (s *TransactionService) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
+		if req.OsVersion <= 2023041001 {
+			req.DappType = biz.APPROVE
+		}
+	}
 	result, err := s.ts.GetDappList(subctx, req)
 	return result, err
 }
@@ -157,6 +162,11 @@ func (s *TransactionService) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) (*pb.DappPageListResp, error) {
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
+		if req.OsVersion <= 2023041001 {
+			req.DappType = biz.APPROVE
+		}
+	}
 	result, err := s.ts.GetDappListPageList(subctx, req)
 	return result, err
 }

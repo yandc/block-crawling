@@ -145,6 +145,8 @@ message DappPageListReq{
   int32 dataDirection = 8 [(validate.rules).int32 = {in: [0, 1, 2]}];
   int64 startIndex = 9 [(validate.rules).int64.gte = 0];
   string dappType = 10 ;
+  string platform = 11;
+  int32 osVersion = 12;
 
 }
 
@@ -198,6 +200,8 @@ message DappListReq {
   bool isCancel = 5 ;
   string isCancelStatus = 6 ;
   string dappType = 7 ;
+  string platform = 8;
+  int32 osVersion = 9;
 }
 
 
