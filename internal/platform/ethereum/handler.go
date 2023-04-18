@@ -18,6 +18,8 @@ import (
 )
 
 type handler struct {
+	chain.DefaultTxDroppedIn
+
 	chainName         string
 	liveBlockInterval time.Duration
 	blocksStore       map[uint64]*chain.Block

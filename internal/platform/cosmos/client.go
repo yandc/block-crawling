@@ -105,7 +105,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	}
 	if rawTx.Message != "" {
 		if strings.Contains(rawTx.Message, "not found") {
-			return nil, nil
+			return nil, common.TransactionNotFound // retry on next node
 		}
 		return nil, errors.New(rawTx.Message)
 	}

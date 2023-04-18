@@ -665,25 +665,31 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	record := tx.Record.(*data.AtomTransactionRecord)
 
-	log.Info(
-		"PENDING TX COULD NOT FOUND ON THE CHAIN",
-		zap.String("chainName", h.chainName),
-		zap.Uint64("height", tx.BlockNumber),
-		zap.String("nodeUrl", c.URL()),
-		zap.String("txHash", tx.Hash),
-		zap.String("fromUid", record.FromUid),
-		zap.String("toUid", record.ToUid),
-		zap.String("fromAddress", record.FromAddress),
-		zap.String("toAddress", record.ToAddress),
-	)
-
 	nowTime := time.Now().Unix()
 	if record.CreatedAt+300 > nowTime {
 		record.Status = biz.NO_STATUS
+		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
+		log.Info(
+			"更新 PENDING txhash对象无状态",
+			zap.String("chainName", h.chainName),
+			zap.Any("txHash", record.TransactionHash),
+			zap.String("nodeUrl", c.URL()),
+			zap.Int64("nowTime", nowTime),
+			zap.Int64("createTime", record.CreatedAt),
+		)
 	} else {
 		record.Status = biz.FAIL
+		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
+		log.Info(
+			"更新 PENDING txhash对象为终态:交易被抛弃",
+			zap.String("chainName", h.chainName),
+			zap.Any("txHash", record.TransactionHash),
+			zap.String("nodeUrl", c.URL()),
+			zap.Int64("nowTime", nowTime),
+			zap.Int64("createTime", record.CreatedAt),
+		)
 	}
 
 	return nil
