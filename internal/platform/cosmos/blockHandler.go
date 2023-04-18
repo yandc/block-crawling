@@ -16,6 +16,8 @@ import (
 )
 
 type handler struct {
+	chain.DefaultTxDroppedIn
+
 	chainName         string
 	liveBlockInterval time.Duration
 }
@@ -101,7 +103,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
 	if err == nil || err == pcommon.NotFound {
-   		return err
+		return err
 	}
 
 	if !strings.HasSuffix(h.chainName, "TEST") {
@@ -117,10 +119,18 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || err == pcommon.NotFound {
+	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
 		return true
 	}
 
 	pcommon.LogBlockError(h.chainName, err, optHeights...)
+	return
+}
+
+func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
+	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
+		return true
+	}
+
 	return
 }

@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -97,7 +96,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			)
 			// Returens err to avoid increase block height.
 			return err*/
-			return errors.New("transaction not found") // retry on next node
+			return pCommon.TransactionNotFound // retry on next node
 		}
 		log.Warn(
 			h.chainName+"扫块，从链上获取交易receipt失败",

@@ -14,6 +14,7 @@ import (
 )
 
 type handler struct {
+	chain.DefaultTxDroppedIn
 	chainName         string
 	liveBlockInterval time.Duration
 }
