@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -227,4 +228,36 @@ func SubError(err error) error {
 		err = errors.New(nerrStr)
 	}
 	return err
+}
+
+func GetInt(value interface{}) (int, error) {
+	var result int
+	if intValue, ok := value.(int); ok {
+		result = intValue
+	} else if int32Value, ok := value.(int32); ok {
+		result = int(int32Value)
+	} else if int64Value, ok := value.(int64); ok {
+		result = int(int64Value)
+	} else if float32Value, ok := value.(float32); ok {
+		result = int(float32Value)
+	} else if float64Value, ok := value.(float64); ok {
+		result = int(float64Value)
+	} else {
+		intValue, err := strconv.Atoi(GetString(value))
+		if err != nil {
+			return 0, err
+		}
+		result = intValue
+	}
+	return result, nil
+}
+
+func GetString(value interface{}) string {
+	var result string
+	if stringValue, ok := value.(string); ok {
+		result = stringValue
+	} else {
+		result = fmt.Sprintf("%v", value)
+	}
+	return result
 }

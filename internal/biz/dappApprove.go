@@ -3,11 +3,11 @@ package biz
 import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
-	"strconv"
 	"strings"
 )
 
@@ -52,12 +52,8 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 					if ret != nil {
 						am := ret["amount"].(string)
 						sy := ret["symbol"].(string)
-						if _, ok := ret["decimals"].(float64); ok {
-							decimal := ret["decimals"].(float64)
-							deciamlStr := strconv.FormatFloat(decimal, 'f', 0, 64)
-							ds, _ := strconv.Atoi(deciamlStr)
-							dar.Decimals = int64(ds)
-						}
+						decimals, _ := utils.GetInt(ret["decimals"])
+						dar.Decimals = int64(decimals)
 						//全部授权
 						if am == "1" {
 							//nft 全部授权 无敞口，敞口金额长度大于40位
@@ -121,19 +117,14 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 					if ret != nil {
 						am := ret["amount"].(string)
 						sy := ret["symbol"].(string)
-						if _, ok := ret["decimals"].(float64); ok {
-							decimal := ret["decimals"].(float64)
-							deciamlStr := strconv.FormatFloat(decimal, 'f', 0, 64)
-							ds, _ := strconv.Atoi(deciamlStr)
-							dar.Decimals = int64(ds)
-						}
+						decimals, _ := utils.GetInt(ret["decimals"])
+						dar.Decimals = int64(decimals)
 						dar.Amount = am
 						dar.Original = am
 						dar.Symbol = sy
 						dar.Original = am
 					}
 				}
-
 			}
 			data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
 			continue
@@ -175,7 +166,6 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 	}
 	data.DappApproveRecordRepoClient.UpdateAmout(nil, dars)
 }
-
 
 func TronDappApproveFilter(chainName string, txRecords []*data.TrxTransactionRecord) {
 	defer func() {
@@ -221,19 +211,14 @@ func TronDappApproveFilter(chainName string, txRecords []*data.TrxTransactionRec
 					if ret != nil {
 						am := ret["amount"].(string)
 						sy := ret["symbol"].(string)
-						if _, ok := ret["decimals"].(float64); ok {
-							decimal := ret["decimals"].(float64)
-							deciamlStr := strconv.FormatFloat(decimal, 'f', 0, 64)
-							ds, _ := strconv.Atoi(deciamlStr)
-							dar.Decimals = int64(ds)
-						}
+						decimals, _ := utils.GetInt(ret["decimals"])
+						dar.Decimals = int64(decimals)
 						dar.Amount = am
 						dar.Original = am
 						dar.Symbol = sy
 						dar.Original = am
 					}
 				}
-
 			}
 			data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
 			continue

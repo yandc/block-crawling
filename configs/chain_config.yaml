@@ -971,11 +971,11 @@ platformTest:
     - https://testnet.aptoslabs.com/v1
     symbol: Aptos
     type: APTOS
-  SuiTEST:
+  SUITEST:
     blockExplorerAddrUrl: https://explorer.sui.io/addresses/
     blockExplorerTxUrl: https://explorer.sui.io/transactions/
     blockExplorerUrl: https://explorer.sui.io/
-    chain: SuiTEST
+    chain: SUITEST
     chainId: 24
     coinId: 101012
     decimal: 9
@@ -986,7 +986,11 @@ platformTest:
     nativeCurrency: Sui
     netType: test
     rpcURL:
-    - https://fullnode.devnet.sui.io
+      - https://fullnode.testnet.sui.io
+      - https://wallet-rpc.testnet.sui.io
+      - https://rpc-testnet.suiscan.xyz
+      - https://sui-testnet-endpoint.blockvision.org
+      - https://explorer-rpc.testnet.sui.io
     symbol: SUI
     type: SUI
     safelyConcurrentBlockDelta: 50

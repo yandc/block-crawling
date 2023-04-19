@@ -34,7 +34,7 @@ func loadHeightFromDB(chainName string) (*common.DBBlockRecord, error) {
 		return nil, nil
 	}
 	return &common.DBBlockRecord{
-		BlockNumber: uint64(lastRecord.TransactionVersion),
+		BlockNumber: uint64(lastRecord.BlockNumber),
 		BlockHash:   lastRecord.TransactionHash,
 	}, nil
 }
@@ -52,7 +52,7 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 
 			// The value may be zero if the tx was created from wallet.
 			// More details please check `CreateRecordFromWallet`.
-			BlockNumber: uint64(r.TransactionVersion),
+			BlockNumber: uint64(r.BlockNumber),
 
 			FromAddress: r.FromAddress,
 			ToAddress:   r.ToAddress,

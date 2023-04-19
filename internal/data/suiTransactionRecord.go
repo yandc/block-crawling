@@ -16,29 +16,31 @@ import (
 )
 
 type SuiTransactionRecord struct {
-	Id                 int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	TransactionVersion int             `json:"transactionVersion" form:"transactionVersion"`
-	TransactionHash    string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	FromAddress        string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
-	ToAddress          string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
-	FromUid            string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid              string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
-	FeeAmount          decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
-	Amount             decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
-	Status             string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
-	TxTime             int64           `json:"txTime" form:"txTime"`
-	ContractAddress    string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(1024);index"`
-	ParseData          string          `json:"parseData" form:"parseData"`
-	GasLimit           string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
-	GasUsed            string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
-	Data               string          `json:"data" form:"data"`
-	EventLog           string          `json:"eventLog" form:"eventLog"`
-	LogAddress         datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
-	TransactionType    string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
-	DappData           string          `json:"dappData" form:"dappData"`
-	ClientData         string          `json:"clientData" form:"clientData"`
-	CreatedAt          int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
-	UpdatedAt          int64           `json:"updatedAt" form:"updatedAt"`
+	Id          int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	BlockHash   string `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
+	BlockNumber int    `json:"blockNumber" form:"blockNumber"`
+	//TransactionVersion int             `json:"transactionVersion" form:"transactionVersion"`
+	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
+	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
+	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
+	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
+	Amount          decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
+	Status          string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
+	TxTime          int64           `json:"txTime" form:"txTime"`
+	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(1024);index"`
+	ParseData       string          `json:"parseData" form:"parseData"`
+	GasLimit        string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
+	GasUsed         string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
+	Data            string          `json:"data" form:"data"`
+	EventLog        string          `json:"eventLog" form:"eventLog"`
+	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	DappData        string          `json:"dappData" form:"dappData"`
+	ClientData      string          `json:"clientData" form:"clientData"`
+	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
+	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 // SuiTransactionRecordRepo is a Greater repo.
@@ -131,27 +133,28 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"transaction_version": clause.Column{Table: "excluded", Name: "transaction_version"},
-			"transaction_hash":    clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"from_address":        clause.Column{Table: "excluded", Name: "from_address"},
-			"to_address":          clause.Column{Table: "excluded", Name: "to_address"},
-			"from_uid":            clause.Column{Table: "excluded", Name: "from_uid"},
-			"to_uid":              clause.Column{Table: "excluded", Name: "to_uid"},
-			"fee_amount":          clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":              gorm.Expr("case when excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
-			"status":              gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
-			"tx_time":             clause.Column{Table: "excluded", Name: "tx_time"},
-			"contract_address":    clause.Column{Table: "excluded", Name: "contract_address"},
-			"parse_data":          clause.Column{Table: "excluded", Name: "parse_data"},
-			"gas_limit":           clause.Column{Table: "excluded", Name: "gas_limit"},
-			"gas_used":            clause.Column{Table: "excluded", Name: "gas_used"},
-			"data":                clause.Column{Table: "excluded", Name: "data"},
-			"event_log":           clause.Column{Table: "excluded", Name: "event_log"},
-			"log_address":         clause.Column{Table: "excluded", Name: "log_address"},
-			"transaction_type":    clause.Column{Table: "excluded", Name: "transaction_type"},
-			"dapp_data":           gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":         gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":          gorm.Expr("excluded.updated_at"),
+			"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
+			"amount":           gorm.Expr("case when excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
+			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
+			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
+			"gas_limit":        clause.Column{Table: "excluded", Name: "gas_limit"},
+			"gas_used":         clause.Column{Table: "excluded", Name: "gas_used"},
+			"data":             clause.Column{Table: "excluded", Name: "data"},
+			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
+			"log_address":      clause.Column{Table: "excluded", Name: "log_address"},
+			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&suiTransactionRecords)
 	err := ret.Error
@@ -330,7 +333,7 @@ func (r *SuiTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName
 }
 
 func (r *SuiTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, tableName string, blockNumber int) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_version >= ?", blockNumber).Delete(&SuiTransactionRecord{})
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number >= ?", blockNumber).Delete(&SuiTransactionRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete suiTransactionRecord failed", err)
@@ -343,7 +346,7 @@ func (r *SuiTransactionRecordRepoImpl) DeleteByBlockNumber(ctx context.Context, 
 
 func (r *SuiTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName string) (*SuiTransactionRecord, error) {
 	var suiTransactionRecord *SuiTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_version IS NOT NULL").Order("transaction_version DESC").Limit(1).Find(&suiTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number IS NOT NULL").Order("block_number DESC").Limit(1).Find(&suiTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last suiTransactionRecord failed", err)
@@ -359,7 +362,7 @@ func (r *SuiTransactionRecordRepoImpl) FindLast(ctx context.Context, tableName s
 
 func (r *SuiTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context, tableName string, blockNumber int) (*SuiTransactionRecord, error) {
 	var suiTransactionRecord *SuiTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_version = ?", blockNumber).Limit(1).Find(&suiTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number = ?", blockNumber).Limit(1).Find(&suiTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query one suiTransactionRecord by blockNumber failed", err)
