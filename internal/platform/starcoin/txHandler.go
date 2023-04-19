@@ -52,11 +52,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			toAddress = toAddressStr
 		}
 		argsLen := len(scriptFunction.Args)
-		if value, ok := scriptFunction.Args[argsLen-1].(float64); ok {
-			amount = fmt.Sprintf("%.f", value)
-		} else {
-			amount = fmt.Sprintf("%v", scriptFunction.Args[argsLen-1])
-		}
+		amount = utils.GetString(scriptFunction.Args[argsLen-1])
 		if len(scriptFunction.TyArgs) > 0 {
 			tyArgs := scriptFunction.TyArgs[0]
 			if tyArgs != STC_CODE {

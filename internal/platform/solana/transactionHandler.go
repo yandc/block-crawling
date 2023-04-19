@@ -130,12 +130,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 				if record.FromAddress != "" && record.FromUid != "" {
 					if changeMapi, ok := accountKeyMap[record.FromAddress]; ok {
 						changeMap := changeMapi.(map[string]interface{})
-						var amount string
-						if value, ok := changeMap["amount"].(float64); ok {
-							amount = fmt.Sprintf("%.f", value)
-						} else {
-							amount = fmt.Sprintf("%v", changeMap["amount"])
-						}
+						amount := utils.GetString(changeMap["amount"])
 						balance := utils.StringDecimals(amount, int(decimals))
 						var userAsset = &data.UserAsset{
 							ChainName:    chainName,
@@ -156,12 +151,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 				if record.ToAddress != "" && record.ToUid != "" {
 					if changeMapi, ok := accountKeyMap[record.ToAddress]; ok {
 						changeMap := changeMapi.(map[string]interface{})
-						var amount string
-						if value, ok := changeMap["amount"].(float64); ok {
-							amount = fmt.Sprintf("%.f", value)
-						} else {
-							amount = fmt.Sprintf("%v", changeMap["amount"])
-						}
+						amount := utils.GetString(changeMap["amount"])
 						balance := utils.StringDecimals(amount, int(decimals))
 						var userAsset = &data.UserAsset{
 							ChainName:    chainName,

@@ -11,7 +11,7 @@ import (
 type NftRecordHistory struct {
 	Id              int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	ChainName       string `json:"chainName" form:"chainName" gorm:"type:character varying(20)"`
-	BlockNumber     int  `json:"blockNumber" form:"blockNumber"`
+	BlockNumber     int    `json:"blockNumber" form:"blockNumber"`
 	EventType       string `json:"eventType" form:"eventType" gorm:"type:character varying(128);index:,unique,composite:unique_type_hash_address"`
 	TransactionHash string `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique,composite:unique_type_hash_address"`
 	FromAddress     string `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index:,unique,composite:unique_type_hash_address"`
@@ -21,11 +21,10 @@ type NftRecordHistory struct {
 	TxTime          string `json:"txTime" form:"txTime"`
 	Quantity        string `json:"quantity" form:"quantity"`
 	ContractAddress string `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(1024)"`
-	TokenId         string `json:"tokenId" form:"tokenId" gorm:"type:character varying(128)"`
+	TokenId         string `json:"tokenId" form:"tokenId" gorm:"type:character varying(128);index:,unique,composite:unique_type_hash_address"`
 	CreatedAt       int64  `json:"createdAt" form:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt" form:"updatedAt"`
 }
-
 
 func (nftRecordHistory NftRecordHistory) TableName() string {
 	return "nft_record_history"
@@ -72,7 +71,7 @@ func (r *NftRecordHistoryRepoImpl) ListByCondition(ctx context.Context, req *pb.
 }
 func (r *NftRecordHistoryRepoImpl) SaveOrUpdate(ctx context.Context, nftRecordHistorys []*NftRecordHistory) (int64, error) {
 	ret := r.gormDB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "transaction_hash"},{Name: "event_type"},{Name: "from_address"},{Name: "to_address"}},
+		Columns:   []clause.Column{{Name: "transaction_hash"}, {Name: "event_type"}, {Name: "from_address"}, {Name: "to_address"}, {Name: "token_id"}},
 		UpdateAll: true,
 	}).Create(&nftRecordHistorys)
 	err := ret.Error

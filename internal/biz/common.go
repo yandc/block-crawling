@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -122,6 +123,7 @@ const (
 	ERC721   = "ERC721"
 	ERC1155  = "ERC1155"
 	APTOSNFT = "AptosNFT"
+	SUINFT   = "SuiNFT"
 )
 
 var rocketMsgLevels = map[string]int{
@@ -339,17 +341,11 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	}
 	var decimals int32
 	if tokenInfo["decimals"] != nil {
-		if decimalsInt32, ok := tokenInfo["decimals"].(int32); ok {
-			decimals = decimalsInt32
-		} else if decimalsFloat, ok := tokenInfo["decimals"].(float64); ok {
-			decimals = int32(decimalsFloat)
-		} else {
-			decimalsInt, err := strconv.Atoi(fmt.Sprintf("%v", tokenInfo["decimals"]))
-			if err != nil {
-				return 0, "", nil
-			}
-			decimals = int32(decimalsInt)
+		decimals32, err := utils.GetInt(tokenInfo["decimals"])
+		if err != nil {
+			return 0, "", err
 		}
+		decimals = int32(decimals32)
 	}
 	var symbol string
 	if tokenInfo["symbol"] != nil {

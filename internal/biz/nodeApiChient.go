@@ -201,14 +201,7 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			break
 		}
 		//解析 对象
-		var s string
-		if _, ok := out.Status.(float64); ok {
-			decimal := out.Status.(float64)
-			s = strconv.FormatFloat(decimal, 'f', 0, 64)
-		}
-		if _, ok := out.Status.(string); ok {
-			s = out.Status.(string)
-		}
+		s := utils.GetString(out.Status)
 
 		if s == API_SUCCEESS {
 			var evmInterface = out.Result.([]interface{})

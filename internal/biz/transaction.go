@@ -302,24 +302,19 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.CsprTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), casperRecord)
 	case STC:
 		stc := make(map[string]interface{})
-		nonce := ""
+		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &stc); jsonErr == nil {
 			evmMap := stc["stc"]
 			ret := evmMap.(map[string]interface{})
-			if _, ok := ret["sequence_number"].(float64); ok {
-				decimal := ret["sequence_number"].(float64)
-				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
-			}
-			if _, ok := ret["sequence_number"].(string); ok {
-				nonce = ret["sequence_number"].(string)
-			}
+			nonceInt, _ := utils.GetInt(ret["sequence_number"])
+			nonce = int64(nonceInt)
 		}
-		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
+
 		stcRecord := &data.StcTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
-			Nonce:           int64(dbNonce),
+			Nonce:           nonce,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
 			FromUid:         pbb.Uid,
@@ -342,23 +337,23 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.StcTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), stcRecord)
 		if result == 1 {
-			key := pendingNonceKey + nonce
+			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
-
 	case POLKADOT:
 		evm := make(map[string]interface{})
-		var dbNonce uint64
+		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &evm); jsonErr == nil {
 			evmMap := evm["polkadot"]
 			ret := evmMap.(map[string]interface{})
-			nonceStr := ret["nonce"].(string)
-			dbNonce, _ = strconv.ParseUint(nonceStr, 10, 64)
+			nonceInt, _ := utils.GetInt(ret["nonce"])
+			nonce = int64(nonceInt)
 		}
+
 		dotTransactionRecord := &data.DotTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           int64(dbNonce),
+			Nonce:           nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -378,15 +373,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
-
 	case EVM:
 		evm := make(map[string]interface{})
-		var dbNonce uint64
+		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &evm); jsonErr == nil {
 			evmMap := evm["evm"]
 			ret := evmMap.(map[string]interface{})
-			nonceStr := ret["nonce"].(string)
-			dbNonce, _ = strconv.ParseUint(nonceStr, 10, 64)
+			nonceInt, _ := utils.GetInt(ret["nonce"])
+			nonce = int64(nonceInt)
 		}
 
 		if pbb.ContractAddress != "" {
@@ -403,7 +397,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		evmTransactionRecord := &data.EvmTransactionRecord{
 			BlockHash:            pbb.BlockHash,
 			BlockNumber:          int(pbb.BlockNumber),
-			Nonce:                int64(dbNonce),
+			Nonce:                nonce,
 			TransactionHash:      pbb.TransactionHash,
 			FromAddress:          pbb.FromAddress,
 			ToAddress:            pbb.ToAddress,
@@ -432,7 +426,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
 		if result == 1 {
-			key := pendingNonceKey + strconv.Itoa(int(dbNonce))
+			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case BTC:
@@ -483,19 +477,13 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		result, err = data.TrxTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), trxRecord)
 	case APTOS:
 		apt := make(map[string]interface{})
-		nonce := ""
+		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &apt); jsonErr == nil {
 			evmMap := apt["aptos"]
 			ret := evmMap.(map[string]interface{})
-			if _, ok := ret["sequence_number"].(float64); ok {
-				decimal := ret["sequence_number"].(float64)
-				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
-			}
-			if _, ok := ret["sequence_number"].(string); ok {
-				nonce = ret["sequence_number"].(string)
-			}
+			nonceInt, _ := utils.GetInt(ret["sequence_number"])
+			nonce = int64(nonceInt)
 		}
-		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 
 		fromAddress := utils.AddressRemove0(pbb.FromAddress)
 		toAddress := utils.AddressRemove0(pbb.ToAddress)
@@ -503,7 +491,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		aptRecord := &data.AptTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           int64(dbNonce),
+			Nonce:           nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     fromAddress,
 			ToAddress:       toAddress,
@@ -527,7 +515,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), aptRecord)
 		if result == 1 {
-			key := pendingNonceKey + nonce
+			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
@@ -624,24 +612,18 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 	case COSMOS:
 		cosmos := make(map[string]interface{})
-		nonce := ""
+		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &cosmos); jsonErr == nil {
 			evmMap := cosmos["cosmos"]
 			ret := evmMap.(map[string]interface{})
-			if _, ok := ret["sequence_number"].(float64); ok {
-				decimal := ret["sequence_number"].(float64)
-				nonce = strconv.FormatFloat(decimal, 'f', 0, 64)
-			}
-			if _, ok := ret["sequence_number"].(string); ok {
-				nonce = ret["sequence_number"].(string)
-			}
+			nonceInt, _ := utils.GetInt(ret["sequence_number"])
+			nonce = int64(nonceInt)
 		}
-		dbNonce, _ := strconv.ParseUint(nonce, 10, 64)
 
 		atomRecord := &data.AtomTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           int64(dbNonce),
+			Nonce:           nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -664,7 +646,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.AtomTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), atomRecord)
 		if result == 1 {
-			key := pendingNonceKey + nonce
+			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	}

@@ -1,6 +1,8 @@
 package sui
 
 import (
+	"block-crawling/internal/biz"
+	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
@@ -76,12 +78,17 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 }
 
 func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error {
+	preHeight := int(block.Number) - 1
+	rows, _ := data.SuiTransactionRecordRepoClient.DeleteByBlockNumber(nil, biz.GetTableName(h.chainName), preHeight+1)
+
+	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)
+	log.Info("出现分叉回滚数据", zap.Any("链类型", h.chainName), zap.Any("共删除数据", rows), zap.Any("回滚到块高", preHeight))
 	return nil
 }
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil {
+	if err == nil || err == pcommon.NotFound {
 		return err
 	}
 	if _, ok := err.(*types.ErrorObject); ok {
@@ -91,10 +98,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || err.Error() == pcommon.NotFound.Error() {
-		return true
-	}
-	if _, ok := err.(*types.ErrorObject); ok {
+	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
 		return true
 	}
 
@@ -105,5 +109,13 @@ func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bo
 		incrHeight = true
 	}
 	pcommon.LogBlockError(h.chainName, err, heights...)
+	return
+}
+
+func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
+	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
+		return true
+	}
+
 	return
 }

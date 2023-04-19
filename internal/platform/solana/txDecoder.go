@@ -181,19 +181,11 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					}
 					instructionMap[key] = newInstruction
 				} else {
-					if value, ok := instructionInfo["lamports"].(float64); ok {
-						amount = fmt.Sprintf("%.f", value)
-					} else {
-						amount = fmt.Sprintf("%v", instructionInfo["lamports"])
-					}
+					amount = utils.GetString(instructionInfo["lamports"])
 
 					newParsed := newInstruction.Parsed.(map[string]interface{})
 					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					if value, ok := newInstructionInfo["lamports"].(float64); ok {
-						newAmount = fmt.Sprintf("%.f", value)
-					} else {
-						newAmount = fmt.Sprintf("%v", newInstructionInfo["lamports"])
-					}
+					newAmount = utils.GetString(newInstructionInfo["lamports"])
 					amountInt, _ := new(big.Int).SetString(amount, 0)
 					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
 					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
@@ -259,19 +251,11 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					}
 					instructionMap[key] = newInstruction
 				} else {
-					if value, ok := instructionInfo["lamports"].(float64); ok {
-						amount = fmt.Sprintf("%.f", value)
-					} else {
-						amount = fmt.Sprintf("%v", instructionInfo["lamports"])
-					}
+					amount = utils.GetString(instructionInfo["lamports"])
 
 					newParsed := newInstruction.Parsed.(map[string]interface{})
 					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					if value, ok := newInstructionInfo["lamports"].(float64); ok {
-						newAmount = fmt.Sprintf("%.f", value)
-					} else {
-						newAmount = fmt.Sprintf("%v", newInstructionInfo["lamports"])
-					}
+					newAmount = utils.GetString(newInstructionInfo["lamports"])
 					amountInt, _ := new(big.Int).SetString(amount, 0)
 					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
 					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
@@ -360,11 +344,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				txType = biz.NATIVE
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
-				if value, ok := instructionInfo["lamports"].(float64); ok {
-					amount = fmt.Sprintf("%.f", value)
-				} else {
-					amount = fmt.Sprintf("%v", instructionInfo["lamports"])
-				}
+				amount = utils.GetString(instructionInfo["lamports"])
 			} else {
 				txType = biz.TRANSFER
 				fromAddress, ok = instructionInfo["authority"].(string)
@@ -381,11 +361,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				txType = biz.NATIVE
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
-				if value, ok := instructionInfo["lamports"].(float64); ok {
-					amount = fmt.Sprintf("%.f", value)
-				} else {
-					amount = fmt.Sprintf("%v", instructionInfo["lamports"])
-				}
+				amount = utils.GetString(instructionInfo["lamports"])
 			} else {
 				txType = biz.TRANSFER
 				fromAddress, ok = instructionInfo["authority"].(string)

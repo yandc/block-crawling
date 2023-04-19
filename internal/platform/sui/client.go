@@ -5,19 +5,16 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"errors"
-	"fmt"
-	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 const (
-	JSONRPC        = "2.0"
-	JSONID         = 1
-	RESULT_SUCCESS = "Exists"
+	JSONRPC = "2.0"
+	JSONID  = 1
 )
 
 type Client struct {
@@ -48,7 +45,7 @@ func (c *Client) Detect() error {
 
 // GetBlockHeight get current block height.
 func (c *Client) GetBlockHeight() (uint64, error) {
-	height, err := c.GetTransactionNumber()
+	height, err := c.GetBlockNumber()
 	if err != nil {
 		return 0, err
 	}
@@ -57,196 +54,345 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 
 // GetBlock fetch block data of the given height.
 func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
-	block, err := c.GetTransactionByNumber(int(height))
+	var chainBlock *chain.Block
+	block, err := c.GetBlockByNumber(height)
 	if err != nil {
-		return nil, err
+		return chainBlock, err
+	}
+	transactions, err := c.GetTransactionByHashs(block.Transactions)
+	if err != nil {
+		return chainBlock, err
 	}
 
-	return &chain.Block{
-		Hash:   block.Certificate.TransactionDigest,
-		Number: height,
-		Raw:    block,
-		Transactions: []*chain.Transaction{
-			{
-				Raw: block,
-			},
-		},
-	}, nil
+	var chainTransactions []*chain.Transaction
+	for _, rawTx := range transactions {
+		chainTransactions = append(chainTransactions, &chain.Transaction{
+			Hash:        rawTx.Digest,
+			BlockNumber: height,
+			TxType:      "",
+			FromAddress: rawTx.Transaction.Data.Sender,
+			ToAddress:   "",
+			Value:       "",
+			Raw:         rawTx,
+			Record:      nil,
+		})
+	}
+	blkTime, _ := strconv.ParseInt(block.TimestampMs, 10, 64)
+
+	chainBlock = &chain.Block{
+		Hash:         block.Digest,
+		ParentHash:   block.PreviousDigest,
+		Number:       height,
+		Raw:          block,
+		Time:         blkTime / 1000,
+		Transactions: chainTransactions,
+	}
+	return chainBlock, nil
 }
 
 // GetTxByHash get transaction by given tx hash.
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
-	block, err := c.GetTransactionByHash(txHash)
+	/*transaction, err := c.GetTransactionByHash(txHash)
 	if err != nil {
 		erro, ok := err.(*types.ErrorObject)
 		if !ok {
 			return nil, err
 		}
-		block.Error = erro
+		if strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
+			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound") {
+			return nil, common.TransactionNotFound
+		}
+		return nil, err
+	}*/
+	var transaction TransactionInfo
+	transactions, err := c.GetTransactionByHashs([]string{txHash})
+	if err != nil {
+		erro, ok := err.(*types.ErrorObject)
+		if !ok {
+			return nil, err
+		}
+		if strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
+			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound") {
+			return nil, common.TransactionNotFound
+		}
+		return nil, err
+	} else {
+		if len(transactions) > 0 {
+			transaction = transactions[0]
+		} else {
+			return nil, common.TransactionNotFound
+		}
 	}
 	return &chain.Transaction{
 		Hash:   txHash,
-		Raw:    block,
+		Raw:    transaction,
 		Record: nil,
 	}, nil
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
-	return c.GetTokenBalance(address, SUI_CODE, 0)
+	return c.GetTokenBalance(address, SUI_CODE, 9)
+}
+
+type TokenBalance struct {
+	CoinType        string      `json:"coinType"`
+	CoinObjectCount int         `json:"coinObjectCount"`
+	TotalBalance    string      `json:"totalBalance"`
+	LockedBalance   interface{} `json:"lockedBalance"`
 }
 
 func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (string, error) {
-	resourceType := fmt.Sprintf("%s<%s>", TYPE_PREFIX, tokenAddress)
-	balance := 0
-	objectIds, err := c.getObjectIds(address, resourceType)
+	method := "suix_getBalance"
+	params := []interface{}{address, tokenAddress}
+	var out TokenBalance
+	timeoutMS := 3_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	if err != nil {
 		return "0", err
 	}
-	for _, objectId := range objectIds {
-		object, err := c.GetObject(objectId)
-		if err != nil {
-			return "0", err
-		}
-		balance += object.Details.Data.Fields.Balance
-	}
-	balances := utils.StringDecimals(strconv.Itoa(balance), decimals)
+	balance := out.TotalBalance
+	balances := utils.StringDecimals(balance, decimals)
 	return balances, err
 }
 
-func (c *Client) getObjectIds(address, coinType string) ([]string, error) {
-	var objectIds []string
-	objectInfo, err := c.getObjectsOwnedByAddress(address)
-	if err != nil {
-		return nil, err
-	}
-	for _, info := range objectInfo {
-		if info.Type == coinType {
-			objectIds = append(objectIds, info.ObjectId)
-		}
-	}
-	return objectIds, nil
-}
-
-type SuiObjectInfo struct {
-	Digest   string `json:"digest"`
-	ObjectId string `json:"object_id"`
-	Owner    struct {
-		AddressOwner string `json:"AddressOwner"`
-	} `json:"owner"`
-	PreviousTransaction string `json:"previous_transaction"`
-	Type                string `json:"type_"`
-	Version             int    `json:"version"`
-}
-
-func (c *Client) getObjectsOwnedByAddress(address string) ([]SuiObjectInfo, error) {
-	method := "sui_getObjectsOwnedByAddress"
-	params := []interface{}{address}
-	var out []SuiObjectInfo
-	timeoutMS := 3_000 * time.Millisecond
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
-	return out, err
-}
-
-type SuiObject struct {
-	Details struct {
-		Data struct {
-			DataType string `json:"dataType"`
-			Fields   struct {
-				Balance int `json:"balance"`
-				Id      struct {
-					Id string `json:"id"`
-				} `json:"id"`
-			} `json:"fields"`
-			HasPublicTransfer bool   `json:"has_public_transfer"`
-			Type              string `json:"type"`
-		} `json:"data"`
-		Owner struct {
+type GetObject struct {
+	Data struct {
+		ObjectId string `json:"objectId"`
+		Version  string `json:"version"`
+		Digest   string `json:"digest"`
+		Type     string `json:"type"`
+		Owner    struct {
 			AddressOwner string `json:"AddressOwner"`
 		} `json:"owner"`
-		PreviousTransaction string `json:"previousTransaction"`
-		Reference           struct {
-			Digest   string `json:"digest"`
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-		} `json:"reference"`
-		StorageRebate int `json:"storageRebate"`
-	} `json:"details"`
-	Status string `json:"status"`
+	} `json:"data"`
 }
 
-func (c *Client) GetObject(objectId string) (*SuiObject, error) {
+func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tokenId string) (string, error) {
 	method := "sui_getObject"
-	out := &SuiObject{}
-	params := []interface{}{objectId}
-	timeoutMS := 5_000 * time.Millisecond
+	params := []interface{}{tokenId, map[string]bool{
+		"showType":                true,
+		"showOwner":               true,
+		"showPreviousTransaction": false,
+		"showDisplay":             false,
+		"showContent":             false,
+		"showBcs":                 false,
+		"showStorageRebate":       false,
+	}}
+	var out GetObject
+	timeoutMS := 3_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	if err != nil {
-		return out, err
+		return "0", err
 	}
-	if out.Status != RESULT_SUCCESS {
-		return out, errors.New(out.Status)
+	if out.Data.Owner.AddressOwner != address {
+		return "0", nil
 	}
-	return out, nil
+	return "1", nil
 }
 
-func (c *Client) GetTransactionNumber() (int, error) {
-	method := "sui_getTotalTransactionNumber"
-	var out int
+func (c *Client) GetBlockNumber() (int, error) {
+	method := "sui_getLatestCheckpointSequenceNumber"
+	var out string
 	timeoutMS := 3_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, nil, &timeoutMS)
+	if err != nil {
+		return 0, err
+	}
+	blockNumber, err := strconv.Atoi(out)
+	return blockNumber, err
+}
+
+type BlockerInfo struct {
+	Epoch                      string `json:"epoch"`
+	SequenceNumber             string `json:"sequenceNumber"`
+	Digest                     string `json:"digest"`
+	NetworkTotalTransactions   string `json:"networkTotalTransactions"`
+	PreviousDigest             string `json:"previousDigest"`
+	EpochRollingGasCostSummary struct {
+		ComputationCost         string `json:"computationCost"`
+		StorageCost             string `json:"storageCost"`
+		StorageRebate           string `json:"storageRebate"`
+		NonRefundableStorageFee string `json:"nonRefundableStorageFee"`
+	} `json:"epochRollingGasCostSummary"`
+	TimestampMs           string        `json:"timestampMs"`
+	Transactions          []string      `json:"transactions"`
+	CheckpointCommitments []interface{} `json:"checkpointCommitments"`
+	ValidatorSignature    string        `json:"validatorSignature"`
+}
+
+func (c *Client) GetBlockByNumber(number uint64) (BlockerInfo, error) {
+	method := "sui_getCheckpoint"
+	var out BlockerInfo
+	params := []interface{}{strconv.Itoa(int(number))}
+	timeoutMS := 5_000 * time.Millisecond
+	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	return out, err
 }
 
-func (c *Client) getTransactionsInRange(number int) (string, error) {
-	method := "sui_getTransactionsInRange"
-	var out []interface{}
-	params := []interface{}{number, number + 1}
-	timeoutMS := 3_000 * time.Millisecond
-	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
-	if err != nil {
-		return "", err
-	}
-	var digest string
-	if len(out) > 0 {
-		digest = out[0].(string)
-	}
-	return digest, err
+type SuiObjectChanges struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Data []struct {
+			Digest      string `json:"digest"`
+			Transaction struct {
+				Data struct {
+					MessageVersion string `json:"messageVersion"`
+					Transaction    struct {
+						Kind   string `json:"kind"`
+						Inputs []struct {
+							Type                 string `json:"type"`
+							ObjectType           string `json:"objectType,omitempty"`
+							ObjectId             string `json:"objectId,omitempty"`
+							Version              string `json:"version,omitempty"`
+							Digest               string `json:"digest,omitempty"`
+							ValueType            string `json:"valueType,omitempty"`
+							Value                string `json:"value,omitempty"`
+							InitialSharedVersion string `json:"initialSharedVersion,omitempty"`
+							Mutable              bool   `json:"mutable,omitempty"`
+						} `json:"inputs"`
+						Transactions []struct {
+							TransferObjects []interface{} `json:"TransferObjects,omitempty"`
+							SplitCoins      []interface{} `json:"SplitCoins,omitempty"`
+							MoveCall        struct {
+								Package   string `json:"package"`
+								Module    string `json:"module"`
+								Function  string `json:"function"`
+								Arguments []struct {
+									Input        int   `json:"Input,omitempty"`
+									NestedResult []int `json:"NestedResult,omitempty"`
+								} `json:"arguments"`
+							} `json:"MoveCall,omitempty"`
+						} `json:"transactions"`
+					} `json:"transaction"`
+					Sender  string `json:"sender"`
+					GasData struct {
+						Payment []struct {
+							ObjectId string `json:"objectId"`
+							Version  int    `json:"version"`
+							Digest   string `json:"digest"`
+						} `json:"payment"`
+						Owner  string `json:"owner"`
+						Price  string `json:"price"`
+						Budget string `json:"budget"`
+					} `json:"gasData"`
+				} `json:"data"`
+				TxSignatures []string `json:"txSignatures"`
+			} `json:"transaction"`
+			Effects struct {
+				MessageVersion string `json:"messageVersion"`
+				Status         struct {
+					Status string `json:"status"`
+				} `json:"status"`
+				ExecutedEpoch string `json:"executedEpoch"`
+				GasUsed       struct {
+					ComputationCost         string `json:"computationCost"`
+					StorageCost             string `json:"storageCost"`
+					StorageRebate           string `json:"storageRebate"`
+					NonRefundableStorageFee string `json:"nonRefundableStorageFee"`
+				} `json:"gasUsed"`
+				ModifiedAtVersions []struct {
+					ObjectId       string `json:"objectId"`
+					SequenceNumber string `json:"sequenceNumber"`
+				} `json:"modifiedAtVersions"`
+				TransactionDigest string `json:"transactionDigest"`
+				Mutated           []struct {
+					Owner struct {
+						AddressOwner string `json:"AddressOwner,omitempty"`
+						Shared       struct {
+							InitialSharedVersion int `json:"initial_shared_version"`
+						} `json:"Shared,omitempty"`
+					} `json:"owner"`
+					Reference struct {
+						ObjectId string `json:"objectId"`
+						Version  int    `json:"version"`
+						Digest   string `json:"digest"`
+					} `json:"reference"`
+				} `json:"mutated"`
+				GasObject struct {
+					Owner struct {
+						AddressOwner string `json:"AddressOwner"`
+					} `json:"owner"`
+					Reference struct {
+						ObjectId string `json:"objectId"`
+						Version  int    `json:"version"`
+						Digest   string `json:"digest"`
+					} `json:"reference"`
+				} `json:"gasObject"`
+				Dependencies  []string `json:"dependencies"`
+				SharedObjects []struct {
+					ObjectId string `json:"objectId"`
+					Version  int    `json:"version"`
+					Digest   string `json:"digest"`
+				} `json:"sharedObjects,omitempty"`
+				Created []struct {
+					Owner struct {
+						AddressOwner string `json:"AddressOwner,omitempty"`
+						ObjectOwner  string `json:"ObjectOwner,omitempty"`
+					} `json:"owner"`
+					Reference struct {
+						ObjectId string `json:"objectId"`
+						Version  int    `json:"version"`
+						Digest   string `json:"digest"`
+					} `json:"reference"`
+				} `json:"created,omitempty"`
+				Deleted []struct {
+					ObjectId string `json:"objectId"`
+					Version  int    `json:"version"`
+					Digest   string `json:"digest"`
+				} `json:"deleted,omitempty"`
+				EventsDigest string `json:"eventsDigest,omitempty"`
+			} `json:"effects"`
+			ObjectChanges []struct {
+				Type   string `json:"type"`
+				Sender string `json:"sender"`
+				Owner  struct {
+					AddressOwner string `json:"AddressOwner,omitempty"`
+					Shared       struct {
+						InitialSharedVersion int `json:"initial_shared_version"`
+					} `json:"Shared,omitempty"`
+					ObjectOwner string `json:"ObjectOwner,omitempty"`
+				} `json:"owner"`
+				ObjectType      string `json:"objectType"`
+				ObjectId        string `json:"objectId"`
+				Version         string `json:"version"`
+				PreviousVersion string `json:"previousVersion,omitempty"`
+				Digest          string `json:"digest"`
+			} `json:"objectChanges"`
+			BalanceChanges []struct {
+				Owner struct {
+					AddressOwner string `json:"AddressOwner"`
+				} `json:"owner"`
+				CoinType string `json:"coinType"`
+				Amount   string `json:"amount"`
+			} `json:"balanceChanges"`
+			TimestampMs string `json:"timestampMs"`
+			Checkpoint  string `json:"checkpoint"`
+		} `json:"data"`
+		NextCursor  string `json:"nextCursor"`
+		HasNextPage bool   `json:"hasNextPage"`
+	} `json:"result"`
+	Id string `json:"id"`
 }
 
 type TransactionInfo struct {
-	Certificate struct {
-		TransactionDigest string `json:"transactionDigest"`
-		Data              struct {
-			Transactions []*Transaction `json:"transactions"`
-			Sender       string         `json:"sender"`
-			GasPayment   struct {
-				ObjectId string `json:"objectId"`
-				Version  int    `json:"version"`
-				Digest   string `json:"digest"`
-			} `json:"gasPayment"`
-			GasBudget int `json:"gasBudget"`
-		} `json:"data"`
-		TxSignature  string `json:"txSignature"`
-		AuthSignInfo struct {
-			Epoch      int         `json:"epoch"`
-			Signature  interface{} `json:"signature"`
-			SignersMap []int       `json:"signers_map"`
-		} `json:"authSignInfo"`
-	} `json:"certificate"`
-	Effects struct {
-		Status struct {
+	Digest      string      `json:"digest"`
+	Transaction Transaction `json:"transaction"`
+	Effects     struct {
+		MessageVersion string `json:"messageVersion"`
+		Status         struct {
 			Status string `json:"status"`
 		} `json:"status"`
-		GasUsed struct {
-			ComputationCost int `json:"computationCost"`
-			StorageCost     int `json:"storageCost"`
-			StorageRebate   int `json:"storageRebate"`
+		ExecutedEpoch string `json:"executedEpoch"`
+		GasUsed       struct {
+			ComputationCost         string `json:"computationCost"`
+			StorageCost             string `json:"storageCost"`
+			StorageRebate           string `json:"storageRebate"`
+			NonRefundableStorageFee string `json:"nonRefundableStorageFee"`
 		} `json:"gasUsed"`
-		SharedObjects []struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"sharedObjects"`
+		ModifiedAtVersions []struct {
+			ObjectId       string `json:"objectId"`
+			SequenceNumber string `json:"sequenceNumber"`
+		} `json:"modifiedAtVersions"`
 		TransactionDigest string `json:"transactionDigest"`
 		Created           []struct {
 			/*Owner struct {
@@ -282,153 +428,189 @@ type TransactionInfo struct {
 				Digest   string `json:"digest"`
 			} `json:"reference"`
 		} `json:"gasObject"`
-		Events       []*Event `json:"events"`
+		EventsDigest string   `json:"eventsDigest"`
 		Dependencies []string `json:"dependencies"`
 	} `json:"effects"`
-	TimestampMs int64              `json:"timestamp_ms"`
-	ParsedData  interface{}        `json:"parsed_data"`
+	Events        []Event `json:"events"`
+	ObjectChanges []struct {
+		Type            string      `json:"type"`
+		Sender          string      `json:"sender"`
+		Owner           interface{} `json:"owner"`
+		ObjectType      string      `json:"objectType"`
+		ObjectId        string      `json:"objectId"`
+		Version         string      `json:"version"`
+		PreviousVersion string      `json:"previousVersion,omitempty"`
+		Digest          string      `json:"digest"`
+	} `json:"objectChanges"`
+	BalanceChanges []struct {
+		Owner struct {
+			AddressOwner string `json:"AddressOwner"`
+		} `json:"owner"`
+		CoinType string `json:"coinType"`
+		Amount   string `json:"amount"`
+	} `json:"balanceChanges"`
+	TimestampMs string             `json:"timestampMs"`
+	Checkpoint  string             `json:"checkpoint"`
 	Error       *types.ErrorObject `json:"error,omitempty"`
 }
 
 type Transaction struct {
-	TransferSui *struct {
-		Recipient string   `json:"recipient"`
-		Amount    *big.Int `json:"amount"`
-	} `json:"TransferSui,omitempty"`
-	Pay *struct {
-		Recipients []string   `json:"recipients"`
-		Amounts    []*big.Int `json:"amounts"`
-		Coins      []struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"coins"`
-	} `json:"Pay,omitempty"`
-	PaySui *struct {
-		Recipients []string   `json:"recipients"`
-		Amounts    []*big.Int `json:"amounts"`
-		Coins      []struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"coins"`
-	} `json:"PaySui,omitempty"`
-	TransferObject *struct {
-		Recipient string `json:"recipient"`
-		ObjectRef struct {
-			ObjectId string `json:"objectId"`
-			Version  int    `json:"version"`
-			Digest   string `json:"digest"`
-		} `json:"objectRef"`
-	} `json:"TransferObject,omitempty"`
-	Call *struct {
-		Package       string        `json:"package"`
-		Module        string        `json:"module"`
-		Function      string        `json:"function"`
-		TypeArguments []string      `json:"typeArguments"`
-		Arguments     []interface{} `json:"arguments"`
-	} `json:"Call,omitempty"`
-	Publish *struct {
-		Disassembled map[string]string `json:"disassembled"`
-	} `json:"Publish,omitempty"`
+	Data struct {
+		MessageVersion string `json:"messageVersion"`
+		Transaction    struct {
+			Kind   string `json:"kind"`
+			Inputs []struct {
+				Type                 string      `json:"type"`
+				ValueType            string      `json:"valueType,omitempty"`
+				Value                interface{} `json:"value,omitempty"`
+				ObjectType           string      `json:"objectType,omitempty"`
+				ObjectId             string      `json:"objectId,omitempty"`
+				InitialSharedVersion string      `json:"initialSharedVersion,omitempty"`
+				Mutable              bool        `json:"mutable,omitempty"`
+			} `json:"inputs"`
+			Transactions []struct {
+				MergeCoins      []interface{} `json:"MergeCoins,omitempty"`
+				SplitCoins      []interface{} `json:"SplitCoins,omitempty"`
+				TransferObjects []interface{} `json:"TransferObjects,omitempty"`
+				MoveCall        interface{}   `json:"MoveCall,omitempty"`
+			} `json:"transactions"`
+		} `json:"transaction"`
+		Sender  string `json:"sender"`
+		GasData struct {
+			Payment []struct {
+				ObjectId string `json:"objectId"`
+				Version  int    `json:"version"`
+				Digest   string `json:"digest"`
+			} `json:"payment"`
+			Owner  string `json:"owner"`
+			Price  string `json:"price"`
+			Budget string `json:"budget"`
+		} `json:"gasData"`
+	} `json:"data"`
+	TxSignatures []string `json:"txSignatures"`
 }
 
 type Event struct {
-	TransferObject *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		/*Recipient         struct {
-			AddressOwner string `json:"AddressOwner"`
-		} `json:"recipient"`*/
-		Recipient  interface{} `json:"recipient"`
-		ObjectType string      `json:"objectType"`
-		ObjectId   string      `json:"objectId"`
-		Version    int         `json:"version"`
-	} `json:"transferObject,omitempty"`
-	MoveEvent *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		Type              string `json:"type"`
-		Fields            struct {
-			Creator  string      `json:"creator"`
-			Name     interface{} `json:"name"`
-			ObjectId string      `json:"object_id"`
-
-			PoolId    interface{} `json:"pool_id"`
-			InAmount  interface{} `json:"in_amount"`
-			OutAmount interface{} `json:"out_amount"`
-			XToY      bool        `json:"x_to_y"`
-
-			IsAdded   bool        `json:"is_added"`
-			LspAmount interface{} `json:"lsp_amount"`
-			XAmount   interface{} `json:"x_amount"`
-			YAmount   interface{} `json:"y_amount"`
-		} `json:"fields"`
-		Bcs string `json:"bcs"`
-	} `json:"moveEvent,omitempty"`
-	Publish *struct {
-		Sender    string `json:"sender"`
-		PackageId string `json:"packageId"`
-	} `json:"publish,omitempty"`
-	DeleteObject *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		ObjectId          string `json:"objectId"`
-	} `json:"deleteObject,omitempty"`
-	NewObject *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		/*Recipient         struct {
-			AddressOwner string `json:"AddressOwner"`
-		} `json:"recipient"`*/
-		Recipient interface{} `json:"recipient"`
-		ObjectId  string      `json:"objectId"`
-	} `json:"newObject,omitempty"`
-	CoinBalanceChange *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		ChangeType        string `json:"changeType"`
-		Owner             *struct {
-			AddressOwner string
-		} `json:"owner"`
-		CoinType     string   `json:"coinType"`
-		CoinObjectId string   `json:"coinObjectId"`
-		Version      int      `json:"version"`
-		Amount       *big.Int `json:"amount"`
-	} `json:"coinBalanceChange,omitempty"`
-	MutateObject *struct {
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		ObjectType        string `json:"objectType"`
-		ObjectId          string `json:"objectId"`
-		Version           int    `json:"version"`
-	} `json:"mutateObject,omitempty"`
+	Id struct {
+		TxDigest string `json:"txDigest"`
+		EventSeq string `json:"eventSeq"`
+	} `json:"id"`
+	PackageId         string      `json:"packageId"`
+	TransactionModule string      `json:"transactionModule"`
+	Sender            string      `json:"sender"`
+	Type              string      `json:"type"`
+	ParsedJson        interface{} `json:"parsedJson"`
+	Bcs               string      `json:"bcs"`
 }
 
 func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
-	method := "sui_getTransaction"
+	method := "sui_getTransactionBlock"
 	var out TransactionInfo
-	params := []interface{}{hash}
+	params := []interface{}{hash, map[string]bool{
+		"showInput":          true,
+		"showRawInput":       false,
+		"showEffects":        true,
+		"showEvents":         true,
+		"showObjectChanges":  true,
+		"showBalanceChanges": true,
+	}}
 	timeoutMS := 10_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	return out, err
 }
 
-func (c *Client) GetTransactionByNumber(number int) (TransactionInfo, error) {
-	var out TransactionInfo
-	hash, err := c.getTransactionsInRange(number)
-	if err != nil {
-		return out, err
+func (c *Client) GetTransactionByHashs(hashs []string) ([]TransactionInfo, error) {
+	method := "sui_multiGetTransactionBlocks"
+	//multi get transaction input limit is 1000
+	pageSize := 1000
+	hashSize := len(hashs)
+	start := 0
+	stop := pageSize
+	if stop > hashSize {
+		stop = hashSize
 	}
-	if hash == "" {
-		return out, common.NotFound
+	var result []TransactionInfo
+	for {
+		hs := hashs[start:stop]
+		var out []TransactionInfo
+		params := []interface{}{hs, map[string]bool{
+			"showInput":          true,
+			"showRawInput":       false,
+			"showEffects":        true,
+			"showEvents":         true,
+			"showObjectChanges":  true,
+			"showBalanceChanges": true,
+		}}
+		timeoutMS := 10_000 * time.Millisecond
+		_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, out...)
+		if stop >= hashSize {
+			break
+		}
+		start = stop
+		stop += pageSize
+		if stop > hashSize {
+			stop = hashSize
+		}
 	}
-	out, err = c.GetTransactionByHash(hash)
-	return out, err
+	return result, nil
+}
+
+type TokenParamReq struct {
+	Filter  Filter  `json:"filter"`
+	Options Options `json:"options"`
+}
+
+type Filter struct {
+	ChangedObject string `json:"ChangedObject"`
+}
+type Options struct {
+	ShowEffects        bool `json:"showEffects"`
+	ShowBalanceChanges bool `json:"showBalanceChanges"`
+	ShowObjectChanges  bool `json:"showObjectChanges"`
+	ShowInput          bool `json:"showInput"`
+}
+
+func (c *Client) GetEventTransfer(tokenId string) (tar SuiObjectChanges, err error) {
+	url := "https://explorer-rpc.testnet.sui.io/"
+	if strings.HasSuffix(c.ChainName, "TEST") {
+		url = "https://explorer-rpc.testnet.sui.io/"
+	}
+
+	filter := Filter{
+		ChangedObject: tokenId,
+	}
+	op := Options{
+		ShowEffects:        true,
+		ShowBalanceChanges: true,
+		ShowObjectChanges:  true,
+		ShowInput:          true,
+	}
+
+	tokenParamReq := TokenParamReq{
+		Filter:  filter,
+		Options: op,
+	}
+
+	params := []interface{}{tokenParamReq, nil, 100, true}
+
+	tokenRequest := SuiTokenNftRecordReq{
+		Method:  "suix_queryTransactionBlocks",
+		Jsonrpc: "2.0",
+		Params:  params,
+		Id:      "1",
+	}
+	timeout := 10_000 * time.Millisecond
+	err = httpclient.HttpPostJson(url, tokenRequest, &tar, &timeout)
+	return
+}
+
+type SuiTokenNftRecordReq struct {
+	Method  string        `json:"method"`
+	Jsonrpc string        `json:"jsonrpc"`
+	Params  []interface{} `json:"params"`
+	Id      string        `json:"id"`
 }
