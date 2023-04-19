@@ -73,6 +73,7 @@ type Preparation struct {
 	AfterPrepare      func()                    // Will be called before indexing blocks & sealing txs.
 	Test              func(*platform.Bootstrap) // Will be called before preparation.
 	Assert            func()                    // Will be called after indexing blocks & sealing txs.
+	AssertErrs        func([]error)             // Will be called after indexing blocks & sealing txs.
 
 	prefetchedBlocks      []*chain.Block       // Prefetched blocks that don't need to request node.
 	prefetchedTransctions []*chain.Transaction // Prefetched transactionts that don't need to request node.
@@ -314,6 +315,10 @@ func (r *Runner) Start(ctx context.Context) error {
 	if len(r.preparation.PendingTxs) > 0 {
 		r.bootstrap.Spider.SealPendingTransactions(handler)
 	}
+	if r.preparation.AssertErrs != nil {
+		r.preparation.AssertErrs(handler.errs)
+	}
+
 	if r.preparation.Assert != nil {
 		r.preparation.Assert()
 	}
@@ -381,6 +386,10 @@ func (w *blockHandlerWrapper) onBlockDone(height uint64) {
 // WrapsError implements chain.BlockHandler
 func (w *blockHandlerWrapper) WrapsError(client chain.Clienter, err error) error {
 	return w.inner.WrapsError(client, err)
+}
+
+func (w *blockHandlerWrapper) IsDroppedTx(txByHash *chain.Transaction, err error) bool {
+	return w.inner.IsDroppedTx(txByHash, err)
 }
 
 type stateStore struct {

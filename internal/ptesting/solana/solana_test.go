@@ -56,6 +56,29 @@ func TestIndexBlock(t *testing.T) {
 	})
 }
 
+func TestIndexBlockFloatAmount(t *testing.T) {
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:    CHAIN_NAME,
+		Configs:      CONFIG_PATH,
+		Prefetch:     true,
+		RawBlockType: reflect.TypeOf(1),
+		RawTxType:    reflect.TypeOf(new(solana.TransactionInfo)),
+		Users:        map[string]string{},
+		IndexBlockNumbers: []uint64{
+			189267116,
+		},
+		AssertErrs: func(errs []error) {
+			// Float amount should not cause panic.
+			// See https://gitlab.bixin.com/mili/block-crawling/-/merge_requests/303
+			ei := make([]interface{}, 0, len(errs))
+			for _, v := range errs {
+				ei = append(ei, v)
+			}
+			assert.Equal(t, 0, len(errs), ei...)
+		},
+	})
+}
+
 func TestPendingTx(t *testing.T) {
 	txHash := "645vEGLMcbAdm7YuRpeDRpqYMEGQpZG9BSf3B4vaQLieJpUELQ8XjCHtdBM5yejAr7ejjvS2ktenda77rysBaCJN"
 	tableName := biz.GetTableName(CHAIN_NAME)
