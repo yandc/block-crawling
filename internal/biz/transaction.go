@@ -519,10 +519,13 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
+		fromAddress := utils.AddressRemove0(pbb.FromAddress)
+		toAddress := utils.AddressRemove0(pbb.ToAddress)
+
 		suiRecord := &data.SuiTransactionRecord{
 			TransactionHash: pbb.TransactionHash,
-			FromAddress:     pbb.FromAddress,
-			ToAddress:       pbb.ToAddress,
+			FromAddress:     fromAddress,
+			ToAddress:       toAddress,
 			FromUid:         pbb.Uid,
 			FeeAmount:       fa,
 			Amount:          a,
@@ -759,6 +762,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case SUI:
+		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
+		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
+
 		var recordList []*data.SuiTransactionRecord
 		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
 		if err == nil {
@@ -1046,6 +1055,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case SUI:
+				if req.FromAddress != "" {
+					req.FromAddress = utils.AddressRemove0(req.FromAddress)
+				}
+
 				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && sui != nil {
 					var r *pb.TransactionRecord
@@ -1431,7 +1444,7 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS:
+	case APTOS, SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
@@ -1722,7 +1735,7 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 		if req.TokenAddress != "" {
 			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
 		}
-	case APTOS:
+	case APTOS, SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
@@ -2005,7 +2018,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		for i := range req.Assets {
 			req.Assets[i].TokenAddress = types2.HexToAddress(req.Assets[i].TokenAddress).Hex()
 		}
-	case APTOS:
+	case APTOS, SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
