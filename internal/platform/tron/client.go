@@ -113,6 +113,7 @@ type txMeta struct {
 func (c *Client) parseTxMeta(tx *types.BlockTx) *txMeta {
 	txType := biz.NATIVE
 	value := tx.RawData.Contract[0].Parameter.Value
+	opType := tx.RawData.Contract[0].Type
 	fromAddress := value.OwnerAddress
 	var toAddress, contractAddress string
 	tokenAmount := "0"
@@ -150,8 +151,18 @@ func (c *Client) parseTxMeta(tx *types.BlockTx) *txMeta {
 			amount = strconv.Itoa(value.Amount)
 		}
 	} else {
-		toAddress = value.ToAddress
-		amount = strconv.Itoa(value.Amount)
+		//质押
+		if opType == TRXSTAKE2 {
+			txType = biz.CONTRACT
+			amount = strconv.Itoa(value.FrozenBalance)
+		} else if opType == TRXUNSTAKE2 {
+			//解质押
+			txType = biz.CONTRACT
+			amount = strconv.Itoa(value.UnfreezeBalance)
+		} else {
+			toAddress = value.ToAddress
+			amount = strconv.Itoa(value.Amount)
+		}
 	}
 	return &txMeta{
 		txType:          txType,

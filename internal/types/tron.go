@@ -54,7 +54,6 @@ type BlockResponse struct {
 	Transactions []BlockTx   `json:"transactions"`
 	Error        interface{} `json:"error"`
 }
-
 type BlockTx struct {
 	Ret []struct {
 		ContractRet string `json:"contractRet"`
@@ -70,6 +69,9 @@ type BlockTx struct {
 					ToAddress       string `json:"to_address"`
 					AssetName       string `json:"asset_name"`
 					Data            string `json:"data"`
+					Resource        string `json:"resource"`
+					FrozenBalance   int    `json:"frozen_balance"`
+					UnfreezeBalance int    `json:"unfreeze_balance"`
 					OwnerAddress    string `json:"owner_address"`
 					ContractAddress string `json:"contract_address"`
 				} `json:"value"`
@@ -147,9 +149,9 @@ type TronContractInfo struct {
 		Contract []struct {
 			Parameter struct {
 				Value struct {
-					Data            string  `json:"data"`
-					OwnerAddress    string  `json:"owner_address"`
-					ContractAddress string  `json:"contract_address"`
+					Data            string   `json:"data"`
+					OwnerAddress    string   `json:"owner_address"`
+					ContractAddress string   `json:"contract_address"`
 					CallValue       *big.Int `json:"call_value"`
 				} `json:"value"`
 				TypeUrl string `json:"type_url"`

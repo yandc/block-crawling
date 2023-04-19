@@ -16,6 +16,8 @@ import (
 
 const ADDRESS_PREFIX = "41"
 const TRC10TYPE = "TransferAssetContract"
+const TRXSTAKE2 ="FreezeBalanceV2Contract"
+const TRXUNSTAKE2 ="UnfreezeBalanceV2Contract"
 
 var TronBridgeWhiteAddressList = []string{
 	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",
