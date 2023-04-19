@@ -105,7 +105,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(fromAddress))
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -113,7 +113,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(toAddress))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -290,7 +290,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		contractAddress = creatorAddress + "::" + collectionName + "::" + propertyVersion
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(fromAddress))
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -298,7 +298,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(toAddress))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -420,7 +420,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
-			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(fromAddress))
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -428,7 +428,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(toAddress))
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
@@ -632,7 +632,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if fromAddress != "" {
-				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(fromAddress))
+				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 				if err != nil {
 					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
@@ -640,7 +640,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if toAddress != "" {
-				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, utils.AddressAdd0(toAddress))
+				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 				if err != nil {
 					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
