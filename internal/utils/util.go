@@ -256,6 +256,8 @@ func GetString(value interface{}) string {
 	var result string
 	if stringValue, ok := value.(string); ok {
 		result = stringValue
+	} else if floatValue, ok := value.(float64); ok {
+		result = fmt.Sprintf("%.f", floatValue)
 	} else {
 		result = fmt.Sprintf("%v", value)
 	}
