@@ -348,11 +348,19 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "afd76a0b" { //BSC链 NFT Contract
+			} else if methodId == "afd76a0b" { //BSC和Avalanche链 NFT Contract
 				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
+				if strings.HasPrefix(c.chainName, "BSC") { //BSC链 NFT Contract
+					if len(data) >= 36 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
+				} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
+					transactionType = biz.CONTRACT
+					if len(data) >= 36 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
 				}
 			} else if methodId == "a8809485" { //BSC链 NFT Contract
 				transactionType = biz.CONTRACT
@@ -372,11 +380,19 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "32389b71" { //Polygon链 NFT Contract
+			} else if methodId == "32389b71" { //Polygon和Avalanche链 NFT Contract
 				transactionType = biz.CONTRACT
-				if len(data) >= 196 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
-					toAddress = toAddress + "," + realToAddress
+				if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
+					if len(data) >= 196 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
+				} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
+					transactionType = biz.CONTRACT
+					if len(data) >= 196 {
+						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+						toAddress = toAddress + "," + realToAddress
+					}
 				}
 			} else if methodId == "a8174404" { //Polygon链 NFT Contract
 				transactionType = biz.CONTRACT
@@ -394,6 +410,24 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				transactionType = biz.CONTRACT
 				if len(data) >= 164 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if methodId == "53d4c775" { //Optimism链 NFT Contract
+				transactionType = biz.CONTRACT
+				if len(data) >= 68 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if methodId == "c725e054" { //Optimism链 NFT Contract
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if methodId == "26fb76c2" || methodId == "50bb4e7f" { //Klaytn链 NFT Contract
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
 			} else if methodId == "3cbf4f8a" { //ETH链 X2Y2: ERC721 Delegate
