@@ -831,28 +831,33 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 {
 						evm := make(map[string]interface{})
 						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
-							ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
-							if err == nil {
-								if ret == nil {
-									//请填补空缺nonce交易 "nonceMsg":"2"
-									evm["pendingMsg"] = NONCE_BREAK
-								} else {
-									if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
-										// "gasfeeMsg" :"1"
-										evm["pendingMsg"] = GAS_FEE_LOW
-									}
-									if ret.Status == PENDING || ret.Status == NO_STATUS {
-										//"nonceMsg":"1"
-										evm["pendingMsg"] = NONCE_QUEUE
-									}
-									if ret.Status == DROPPED {
-										//请填补空缺nonce交易 "nonceMsg":"2"
-										evm["pendingMsg"] = NONCE_BREAK
-									}
-								}
-
+							if record.Nonce == 0 {
+								evm["pendingMsg"] = GAS_FEE_LOW
 								parseDataStr, _ := utils.JsonEncode(evm)
 								record.ParseData = parseDataStr
+							}else {
+								ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
+								if err == nil {
+									if ret == nil {
+										//请填补空缺nonce交易 "nonceMsg":"2"
+										evm["pendingMsg"] = NONCE_BREAK
+									} else {
+										if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
+											// "gasfeeMsg" :"1"
+											evm["pendingMsg"] = GAS_FEE_LOW
+										}
+										if ret.Status == PENDING || ret.Status == NO_STATUS {
+											//"nonceMsg":"1"
+											evm["pendingMsg"] = NONCE_QUEUE
+										}
+										if ret.Status == DROPPED {
+											//请填补空缺nonce交易 "nonceMsg":"2"
+											evm["pendingMsg"] = NONCE_BREAK
+										}
+									}
+									parseDataStr, _ := utils.JsonEncode(evm)
+									record.ParseData = parseDataStr
+								}
 							}
 						}
 					}
