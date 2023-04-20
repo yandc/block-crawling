@@ -18,6 +18,8 @@ const ADDRESS_PREFIX = "41"
 const TRC10TYPE = "TransferAssetContract"
 const TRXSTAKE2 ="FreezeBalanceV2Contract"
 const TRXUNSTAKE2 ="UnfreezeBalanceV2Contract"
+const DELEGATERESOURCES ="DelegateResourceContract"
+const RECLAIMRESOURCES ="UnDelegateResourceContract"
 
 var TronBridgeWhiteAddressList = []string{
 	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",

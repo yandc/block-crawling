@@ -159,6 +159,10 @@ func (c *Client) parseTxMeta(tx *types.BlockTx) *txMeta {
 			//解质押
 			txType = biz.CONTRACT
 			amount = strconv.Itoa(value.UnfreezeBalance)
+		} else if opType == DELEGATERESOURCES || opType == RECLAIMRESOURCES {
+			txType = biz.CONTRACT
+			amount = strconv.Itoa(value.Balance)
+			toAddress = value.ReceiverAddress
 		} else {
 			toAddress = value.ToAddress
 			amount = strconv.Itoa(value.Amount)

@@ -65,6 +65,8 @@ type BlockTx struct {
 		Contract []struct {
 			Parameter struct {
 				Value struct {
+					Balance         int    `json:"balance"`
+					ReceiverAddress string `json:"receiver_address"`
 					Amount          int    `json:"amount"`
 					ToAddress       string `json:"to_address"`
 					AssetName       string `json:"asset_name"`
