@@ -5635,6 +5635,8 @@ func (m *ClientPageListNftAssetGroupResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for TotalBalance
+
 	if len(errors) > 0 {
 		return ClientPageListNftAssetGroupResponseMultiError(errors)
 	}
