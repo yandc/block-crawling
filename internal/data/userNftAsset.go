@@ -48,6 +48,7 @@ type UserNftAssetGroup struct {
 	CollectionName string `json:"collectionName,omitempty"`
 	TokenIdAmount  int64  `json:"tokenIdAmount,omitempty"`
 	Total          int64  `json:"total,omitempty"`
+	TotalBalance   int64  `json:"totalBalance,omitempty"`
 }
 
 type NftAssetRequest struct {
@@ -81,7 +82,7 @@ type UserNftAssetRepo interface {
 	PageList(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, int64, error)
 	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
 	GroupListBalance(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
-	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, error)
+	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
 	Delete(context.Context, *NftAssetRequest) (int64, error)
@@ -416,9 +417,9 @@ func (r *UserNftAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.Pag
 	return userNftAssetList, nil
 }
 
-func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, error) {
+func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error) {
 	var userNftAssetList []*UserNftAssetGroup
-	var total int64
+	var total, totalBalance int64
 
 	sqlStr := "with t as(" +
 		"select chain_name, uid, address, token_address, token_type, (array_agg(token_id))[1] as token_id, " +
@@ -458,11 +459,11 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 
 	sqlStr += " select t.* "
 	if req.Total {
-		sqlStr += " , t1.total "
+		sqlStr += ", t1.* "
 	}
 	sqlStr += " from t "
 	if req.Total {
-		sqlStr += " inner join (select count(*) as total from t) as t1 on 1=1 "
+		sqlStr += " inner join (select count(*) as total, sum(balance) as total_balance from t) as t1 on 1=1 "
 	}
 	sqlStr += " order by t." + req.OrderBy
 
@@ -479,12 +480,13 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	err := ret.Error
 	if err != nil {
 		log.Errore("page query userNftAsset failed", err)
-		return nil, 0, err
+		return nil, 0, 0, err
 	}
 	if len(userNftAssetList) > 0 {
 		total = userNftAssetList[0].Total
+		totalBalance = userNftAssetList[0].TotalBalance
 	}
-	return userNftAssetList, total, nil
+	return userNftAssetList, total, totalBalance, nil
 }
 
 func (r *UserNftAssetRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {

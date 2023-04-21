@@ -454,6 +454,7 @@ message PageListNftAssetRequest {
 message ClientPageListNftAssetGroupResponse {
   int64 total = 1;
   repeated ClientNftAssetGroupResponse list = 2;
+  int64 totalBalance = 3;
 }
 
 message ClientNftAssetGroupResponse {

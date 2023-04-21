@@ -1595,18 +1595,19 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	}
 
 	var result = &pb.ClientPageListNftAssetGroupResponse{}
-	var total int64
+	var total, totalBalance int64
 	var list []*pb.ClientNftAssetGroupResponse
 	var err error
 
 	var recordList []*data.UserNftAssetGroup
-	recordList, total, err = data.UserNftAssetRepoClient.PageListGroup(ctx, req)
+	recordList, total, totalBalance, err = data.UserNftAssetRepoClient.PageListGroup(ctx, req)
 	if err == nil {
 		err = utils.CopyProperties(recordList, &list)
 	}
 
 	if err == nil && len(recordList) > 0 {
 		result.Total = total
+		result.TotalBalance = totalBalance
 		result.List = list
 
 		var nftAddressMap = make(map[string][]string)
