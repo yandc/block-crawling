@@ -111,21 +111,14 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 			continue
 		}
 		events := tar.Data.TokenActivities
-		userTXMap := make(map[int]int)
-
+		userNftMap := make(map[string]string)
 		if len(events) > 0 {
 			now := time.Now().Unix()
 			for _, e := range events {
-				_, ok := userTXMap[e.TransactionVersion]
-				if ok {
-					continue
-				} else {
-					userTXMap[e.TransactionVersion] = e.TransactionVersion
-				}
 				result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
 					return client.GetTransactionByVersion(e.TransactionVersion)
 				})
-				tx := result.(TransactionInfo)
+				tx := result.(*TransactionInfo)
 				if err != nil {
 					// nodeProxy出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链根据txVersion获取交易数据失败，transactionVersion:%v", chainName, e.TransactionVersion)
@@ -136,11 +129,8 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 					continue
 				}
 				var fromAddress, toAddress, fromUid, toUid string
-				fromAddress = tx.Sender
-				mode := strings.Split(tx.Payload.Function, "::")
-				if len(mode) == 3 {
-					toAddress = mode[0]
-				}
+				fromAddress = e.FromAddress
+				toAddress = e.ToAddress
 				userMeta, err := pCommon.MatchUser(fromAddress, toAddress, chainName)
 				if err == nil {
 					fromUid = userMeta.FromUid
@@ -148,8 +138,15 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				}
 				txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
 				txTime = txTime / 1000
+
+				sk := tx.Hash + e.TransferType + fromAddress + toAddress
+				_, ok1 := userNftMap[sk]
+				if ok1 {
+					continue
+				} else {
+					userNftMap[sk] = sk
+				}
 				nrh := &data.NftRecordHistory{
-					BlockNumber:     int(txTime),
 					ChainName:       chainName,
 					TransactionHash: tx.Hash,
 					TxTime:          strconv.Itoa(int(txTime)),
@@ -176,7 +173,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链获取nft流转记录，将数据插入到数据库中失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链获取nft流转记录，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+			log.Error(chainName+"链获取nft流转记录，将数据插入到数据库中失败", zap.Any("tokenIdMap",tokenIdMap), zap.Any("error", err))
 		}
 	}
 }

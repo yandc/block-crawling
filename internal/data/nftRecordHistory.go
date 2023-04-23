@@ -61,7 +61,7 @@ func (r *NftRecordHistoryRepoImpl) ListByCondition(ctx context.Context, req *pb.
 		tx = tx.Where("token_id = ?", req.TokenId)
 	}
 
-	ret := tx.Order("BLOCK_NUMBER DESC").Find(&dars)
+	ret := tx.Order("tx_time DESC").Find(&dars)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query nft history failed", err)
