@@ -38,7 +38,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	curHeight := chainBlock.Number
 	height := h.chainHeight
 
-	tx := chainTx.Raw.(TransactionInfo)
+	tx := chainTx.Raw.(*TransactionInfo)
 	blockType := tx.Type
 	transactionHash := tx.Hash
 	var status string
@@ -829,7 +829,7 @@ func (h *txHandler) Save(c chain.Clienter) error {
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {
 	client := c.(*Client)
-	transactionInfo := tx.Raw.(TransactionInfo)
+	transactionInfo := tx.Raw.(*TransactionInfo)
 	record := tx.Record.(*data.AptTransactionRecord)
 	if !transactionInfo.Success && record.TransactionHash == "" && record.TransactionVersion > 0 {
 		tx, err = client.GetTxByVersion(record.TransactionVersion)
@@ -838,7 +838,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 			return err
 		}
 		tx.Record = record
-		transactionInfo = tx.Raw.(TransactionInfo)
+		transactionInfo = tx.Raw.(*TransactionInfo)
 	}
 
 	transactionVersion, _ := strconv.Atoi(transactionInfo.Version)

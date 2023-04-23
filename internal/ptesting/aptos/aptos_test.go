@@ -45,7 +45,7 @@ func TestIndexBlock(t *testing.T) {
 			},
 		},
 		RawBlockType: reflect.TypeOf(*new(aptos.BlockerInfo)),
-		RawTxType:    reflect.TypeOf(*new(aptos.TransactionInfo)),
+		RawTxType:    reflect.TypeOf(new(aptos.TransactionInfo)),
 		Users: map[string]string{
 			"0x7687dd44a2657b5817002a12252566f3574657ef886f1fed7034b4cccf5a7658": "1",
 			"0xf9d2dd868e0058cdb4e2b95e12adb9530cb3cef4c53eff4ed86c2971c5818993": "1",

@@ -5543,7 +5543,7 @@ func HandleOptimismRecordFee() {
 			log.Error("修复Optimism链交易记录中的手续费，从链上票据中获取f1Fee失败", zap.Any("txHash", txHash), zap.Any("error", err))
 			return
 		}
-		l1FeeInt, err := utils.HexStringToInt(l1Fee)
+		l1FeeInt, err := utils.HexStringToBigInt(l1Fee)
 		if err != nil {
 			continue
 		}

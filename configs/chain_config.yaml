@@ -991,6 +991,8 @@ platformTest:
       - https://rpc-testnet.suiscan.xyz
       - https://sui-testnet-endpoint.blockvision.org
       - https://explorer-rpc.testnet.sui.io
+    httpURL:
+      - https://explorer-rpc.testnet.sui.io
     symbol: SUI
     type: SUI
     safelyConcurrentBlockDelta: 50

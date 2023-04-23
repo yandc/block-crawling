@@ -202,19 +202,52 @@ func GetDayTime(t *time.Time) int64 {
 	return dayTime.Unix()
 }
 
-func HexStringToInt(hetStr string) (*big.Int, error) {
+func HexStringToBigInt(hetStr string) (*big.Int, error) {
 	if strings.HasPrefix(hetStr, "0x") {
 		hetStr = hetStr[2:]
 	}
-	if len(hetStr)&1 == 1 {
-		hetStr = "0" + hetStr
+	bigInt, ok := new(big.Int).SetString(hetStr, 16)
+	if !ok {
+		return bigInt, errors.New("invalid hex string " + hetStr)
 	}
-	byteValue, err := hex.DecodeString(hetStr)
+	return bigInt, nil
+}
+
+func HexStringToInt64(hetStr string) (int64, error) {
+	bigInt, err := HexStringToBigInt(hetStr)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	intValue := new(big.Int).SetBytes(byteValue)
+	intValue := bigInt.Int64()
 	return intValue, nil
+}
+
+func HexStringToUint64(hetStr string) (uint64, error) {
+	bigInt, err := HexStringToBigInt(hetStr)
+	if err != nil {
+		return 0, err
+	}
+	intValue := bigInt.Uint64()
+	return intValue, nil
+}
+
+func HexStringToString(hetStr string) (string, error) {
+	bigInt, err := HexStringToBigInt(hetStr)
+	if err != nil {
+		return "0", err
+	}
+	stringValue := bigInt.String()
+	return stringValue, nil
+}
+
+func StringToHexString(str string) (string, error) {
+	intValue, err := strconv.Atoi(str)
+	if err != nil {
+		return "", err
+	}
+	hexValue := fmt.Sprintf("%x", intValue)
+	hexValue += "0x"
+	return hexValue, nil
 }
 
 func SubError(err error) error {

@@ -207,12 +207,11 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	var transactions []*chain.Transaction
 	transactionList := block.Transactions
 	for _, transaction := range transactionList {
-		txInfo := transaction
-		tx := &chain.Transaction{}
-		tx.BlockNumber = height
-		tx.Hash = transaction.Transaction.Signatures[0]
-		tx.Raw = &txInfo
-		transactions = append(transactions, tx)
+		transactions = append(transactions, &chain.Transaction{
+			BlockNumber: height,
+			Hash:        transaction.Transaction.Signatures[0],
+			Raw:         transaction,
+		})
 	}
 	chainBlock := &chain.Block{
 		Hash:         block.Blockhash,
@@ -228,12 +227,12 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 }
 
 type Block struct {
-	BlockHeight       int               `json:"blockHeight"`
-	BlockTime         int               `json:"blockTime"`
-	Blockhash         string            `json:"blockhash"`
-	ParentSlot        int               `json:"parentSlot"`
-	PreviousBlockhash string            `json:"previousBlockhash"`
-	Transactions      []TransactionInfo `json:"transactions"`
+	BlockHeight       int                `json:"blockHeight"`
+	BlockTime         int                `json:"blockTime"`
+	Blockhash         string             `json:"blockhash"`
+	ParentSlot        int                `json:"parentSlot"`
+	PreviousBlockhash string             `json:"previousBlockhash"`
+	Transactions      []*TransactionInfo `json:"transactions"`
 }
 
 func (c *Client) GetBlockByNumber(number int) (*Block, error) {
@@ -346,7 +345,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 
 func (c *Client) GetTransactionByHash(txHash string) (*TransactionInfo, error) {
 	method := "getTransaction"
-	result := &TransactionInfo{}
+	var result *TransactionInfo
 	params := []interface{}{txHash, map[string]interface{}{"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}}
 	err := c.call(JSONID, method, &result, params)
 	return result, err

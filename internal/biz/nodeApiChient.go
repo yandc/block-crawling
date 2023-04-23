@@ -68,6 +68,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = TrxGetTxByAddress(chainName, address, urls)
 	case "Nervos":
 		err = NervosGetTxByAddress(chainName, address, urls)
+	case "SUI", "SUITEST":
+		err = SuiGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -135,7 +137,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		txMap := make(map[string]string)
 		for _, record := range result {
 			txHash := record.Hash
-			if txHash == ""{
+			if txHash == "" {
 				continue
 			}
 			bn, _ := strconv.Atoi(record.BlockNumber)
@@ -346,10 +348,10 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var chainRecords []CosmosBrowserInfo
+	var chainRecords []*CosmosBrowserInfo
 chainFlag:
 	for {
-		var out []CosmosBrowserInfo
+		var out []*CosmosBrowserInfo
 		reqUrl := url + "limit=" + strconv.Itoa(pageSize) + "&from=" + strconv.Itoa(starIndex)
 
 		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
@@ -413,8 +415,8 @@ chainFlag:
 }
 
 type SolanaBrowserResponse struct {
-	Succcess bool                `json:"succcess"`
-	Data     []SolanaBrowserInfo `json:"data"`
+	Succcess bool                 `json:"succcess"`
+	Data     []*SolanaBrowserInfo `json:"data"`
 }
 type SolanaBrowserInfo struct {
 	BlockTime         int      `json:"blockTime"`
@@ -472,7 +474,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var chainRecords []SolanaBrowserInfo
+	var chainRecords []*SolanaBrowserInfo
 chainFlag:
 	for {
 		var out SolanaBrowserResponse
@@ -543,7 +545,7 @@ type Variables struct {
 }
 type AptosBrowserResponse struct {
 	Data struct {
-		MoveResources []AptosBrowserInfo `json:"move_resources"`
+		MoveResources []*AptosBrowserInfo `json:"move_resources"`
 	} `json:"data"`
 }
 type AptosBrowserInfo struct {
@@ -590,7 +592,7 @@ func AptosGetTxByAddress(chainName string, address string, urls []string) (err e
 		dbLastRecordVersion = dbLastRecords[0].TransactionVersion
 	}
 
-	var chainRecords []AptosBrowserInfo
+	var chainRecords []*AptosBrowserInfo
 chainFlag:
 	for {
 		var out AptosBrowserResponse
@@ -656,8 +658,8 @@ chainFlag:
 }
 
 type StarcoinBrowserResponse struct {
-	Contents []StarcoinBrowserInfo `json:"contents"`
-	Total    int                   `json:"total"`
+	Contents []*StarcoinBrowserInfo `json:"contents"`
+	Total    int                    `json:"total"`
 }
 
 type StarcoinBrowserInfo struct {
@@ -737,7 +739,7 @@ func StarcoinGetTxByAddress(chainName string, address string, urls []string) (er
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var chainRecords []StarcoinBrowserInfo
+	var chainRecords []*StarcoinBrowserInfo
 chainFlag:
 	for {
 		var out StarcoinBrowserResponse
@@ -1044,7 +1046,7 @@ func RoninGetTxByAddress(chainName string, address string, urls []string) (err e
 		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
-	var chainRecords []RoninApiRecord
+	var chainRecords []*RoninApiRecord
 chainFlag:
 	for {
 		var out RoninApiModel
@@ -1130,7 +1132,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 		}
 	}()
 
-	var chainRecords []CasperApiRecord
+	var chainRecords []*CasperApiRecord
 
 	req := &pb.PageListRequest{
 		Address:  address,
@@ -1208,9 +1210,9 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 }
 
 //支持最近一百笔交易
-func CasperTransferAndextendedDeploys(url string, address string, chainName string, dbLastRecordHash string, txTime int64) []CasperApiRecord {
+func CasperTransferAndextendedDeploys(url string, address string, chainName string, dbLastRecordHash string, txTime int64) []*CasperApiRecord {
 	var out CasperApiModel
-	var chainRecords []CasperApiRecord
+	var chainRecords []*CasperApiRecord
 
 	err := httpclient.GetResponse(url, nil, &out, &timeout)
 	if err != nil {
@@ -1230,7 +1232,6 @@ func CasperTransferAndextendedDeploys(url string, address string, chainName stri
 		}
 	}
 	return chainRecords
-
 }
 
 func DogeGetTxByAddress(chainName string, address string, urls []string) (err error) {
@@ -1277,7 +1278,7 @@ func DogeGetTxByAddress(chainName string, address string, urls []string) (err er
 
 	}
 
-	var chainRecords []DogeApiRecord
+	var chainRecords []*DogeApiRecord
 chainFlag:
 	for {
 		var out DogeApiModel
@@ -1337,8 +1338,8 @@ chainFlag:
 	}
 
 	return
-
 }
+
 func DotGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -1378,7 +1379,7 @@ func DotGetTxByAddress(chainName string, address string, urls []string) (err err
 		dbLastRecordHash = dbLastRecords[0].TransactionHash
 		txTime = dbLastRecords[0].TxTime
 	}
-	var chainRecords []PolkadotApiRecord
+	var chainRecords []*PolkadotApiRecord
 chainFlag:
 	for {
 		var out PolkadotApiModel
@@ -1514,10 +1515,10 @@ func BTCGetTxByAddress(chainName string, address string, urls []string) (err err
 		dbLastRecordHash = dbLastRecords[0].TransactionHash
 	}
 
-	var chainRecords []BTCApiModel
+	var chainRecords []*BTCApiModel
 chainFlag:
 	for {
-		var out []BTCApiModel
+		var out []*BTCApiModel
 		reqUrl := url + strconv.Itoa(offset)
 
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
@@ -1550,7 +1551,7 @@ chainFlag:
 		}
 		if dataLen < limit {
 			break
-		}else {
+		} else {
 			offset = offset + dataLen
 		}
 	}
@@ -1675,12 +1676,12 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 }
 
 //tron offset 为 角标
-func GetTronApiTx(url string, actionTx string, address string, chainName string, txTime int64, dbLastRecordHash string) []TornApiRecord {
+func GetTronApiTx(url string, actionTx string, address string, chainName string, txTime int64, dbLastRecordHash string) []*TornApiRecord {
 	offset := 0
 	limit := 50
 	var err error
 	url = url + actionTx + "?sort=-timestamp&count=true&limit=" + strconv.Itoa(limit) + "&address=" + address
-	var chainRecords []TornApiRecord
+	var chainRecords []*TornApiRecord
 chainFlag:
 	for {
 		reqUrl := url + "&start=" + strconv.Itoa(offset)
@@ -1716,8 +1717,9 @@ chainFlag:
 	}
 	return chainRecords
 }
+
 type NervosBrowserResponse struct {
-	Data []NervosBrowserInfo `json:"data"`
+	Data []*NervosBrowserInfo `json:"data"`
 	Meta struct {
 		Total    int `json:"total"`
 		PageSize int `json:"page_size"`
@@ -1801,7 +1803,7 @@ func NervosGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var chainRecords []NervosBrowserInfo
+	var chainRecords []*NervosBrowserInfo
 chainFlag:
 	for {
 		var out NervosBrowserResponse
@@ -1865,4 +1867,168 @@ chainFlag:
 	}
 
 	return
+}
+
+func SuiGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("SuiGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("SuiGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	url := urls[0]
+
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "block_number desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.SuiTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordBlockNumber int
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
+		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
+	}
+
+	var chainRecords []*SuiBrowserInfo
+	chainRecordMap := make(map[string]*SuiBrowserInfo)
+	addressKey := "FromAddress"
+	var startAddress interface{}
+chainFlag:
+	for {
+		out, err := SuiGetTransactionByHash(url, addressKey, address, startAddress, pageSize, &timeout)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out.Data)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Data {
+			txHash := browserInfo.Digest
+			txHeight, err := strconv.Atoi(browserInfo.Checkpoint)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常", chainName)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("blockNumber", browserInfo.Checkpoint), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				if addressKey == "FromAddress" {
+					addressKey = "ToAddress"
+					startAddress = nil
+					continue chainFlag
+				} else {
+					break chainFlag
+				}
+			}
+			chainRecordMap[browserInfo.Digest] = browserInfo
+		}
+
+		if !out.HasNextPage {
+			if addressKey == "FromAddress" {
+				addressKey = "ToAddress"
+				startAddress = nil
+				continue
+			} else {
+				break
+			}
+		}
+		startAddress = out.NextCursor
+	}
+
+	for _, browserInfo := range chainRecordMap {
+		chainRecords = append(chainRecords, browserInfo)
+	}
+
+	var suiTransactionRecordList []*data.SuiTransactionRecord
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Digest
+		atomRecord := &data.SuiTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		suiTransactionRecordList = append(suiTransactionRecordList, atomRecord)
+	}
+
+	if len(suiTransactionRecordList) > 0 {
+		_, err = data.SuiTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), suiTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+type SuiBrowserResponse struct {
+	Data        []*SuiBrowserInfo `json:"data"`
+	NextCursor  string            `json:"nextCursor"`
+	HasNextPage bool              `json:"hasNextPage"`
+}
+
+type SuiBrowserInfo struct {
+	Digest         string `json:"digest"`
+	RawTransaction string `json:"rawTransaction"`
+	TimestampMs    string `json:"timestampMs"`
+	Checkpoint     string `json:"checkpoint"`
+}
+
+func SuiGetTransactionByHash(url, addressKey, address string, startAddress interface{}, pageSize int, timeout *time.Duration) (*SuiBrowserResponse, error) {
+	method := "suix_queryTransactionBlocks"
+	var out *SuiBrowserResponse
+	params := []interface{}{
+		map[string]interface{}{
+			"filter": map[string]string{
+				addressKey: address,
+			},
+			"options": map[string]bool{
+				"showInput":          false,
+				"showRawInput":       true,
+				"showEffects":        false,
+				"showEvents":         false,
+				"showObjectChanges":  false,
+				"showBalanceChanges": false,
+			},
+		},
+		startAddress,
+		pageSize,
+		true,
+	}
+	_, err := httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, timeout)
+	return out, err
 }

@@ -94,25 +94,17 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	/*transaction, err := c.GetTransactionByHash(txHash)
 	if err != nil {
-		erro, ok := err.(*types.ErrorObject)
-		if !ok {
-			return nil, err
-		}
-		if strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
-			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound") {
+		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
+			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound")) {
 			return nil, common.TransactionNotFound
 		}
 		return nil, err
 	}*/
-	var transaction TransactionInfo
+	var transaction *TransactionInfo
 	transactions, err := c.GetTransactionByHashs([]string{txHash})
 	if err != nil {
-		erro, ok := err.(*types.ErrorObject)
-		if !ok {
-			return nil, err
-		}
-		if strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
-			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound") {
+		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
+			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound")) {
 			return nil, common.TransactionNotFound
 		}
 		return nil, err
@@ -389,15 +381,12 @@ type TransactionInfo struct {
 			StorageRebate           string `json:"storageRebate"`
 			NonRefundableStorageFee string `json:"nonRefundableStorageFee"`
 		} `json:"gasUsed"`
-		ModifiedAtVersions []struct {
+		/*ModifiedAtVersions []struct {
 			ObjectId       string `json:"objectId"`
 			SequenceNumber string `json:"sequenceNumber"`
 		} `json:"modifiedAtVersions"`
 		TransactionDigest string `json:"transactionDigest"`
 		Created           []struct {
-			/*Owner struct {
-				AddressOwner string `json:"AddressOwner"`
-			} `json:"owner"`*/
 			Owner     interface{} `json:"owner"`
 			Reference struct {
 				ObjectId string `json:"objectId"`
@@ -427,11 +416,11 @@ type TransactionInfo struct {
 				Version  int    `json:"version"`
 				Digest   string `json:"digest"`
 			} `json:"reference"`
-		} `json:"gasObject"`
-		EventsDigest string   `json:"eventsDigest"`
-		Dependencies []string `json:"dependencies"`
+		} `json:"gasObject"`*/
+		EventsDigest string `json:"eventsDigest"`
+		// Dependencies []string `json:"dependencies"`
 	} `json:"effects"`
-	Events        []Event `json:"events"`
+	// Events        []Event `json:"events"`
 	ObjectChanges []struct {
 		Type            string      `json:"type"`
 		Sender          string      `json:"sender"`
@@ -477,17 +466,17 @@ type Transaction struct {
 		} `json:"transaction"`
 		Sender  string `json:"sender"`
 		GasData struct {
-			Payment []struct {
+			/*Payment []struct {
 				ObjectId string `json:"objectId"`
 				Version  int    `json:"version"`
 				Digest   string `json:"digest"`
-			} `json:"payment"`
+			} `json:"payment"`*/
 			Owner  string `json:"owner"`
 			Price  string `json:"price"`
 			Budget string `json:"budget"`
 		} `json:"gasData"`
 	} `json:"data"`
-	TxSignatures []string `json:"txSignatures"`
+	//TxSignatures []string `json:"txSignatures"`
 }
 
 type Event struct {
@@ -503,14 +492,14 @@ type Event struct {
 	Bcs               string      `json:"bcs"`
 }
 
-func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
+func (c *Client) GetTransactionByHash(hash string) (*TransactionInfo, error) {
 	method := "sui_getTransactionBlock"
-	var out TransactionInfo
+	var out *TransactionInfo
 	params := []interface{}{hash, map[string]bool{
 		"showInput":          true,
 		"showRawInput":       false,
 		"showEffects":        true,
-		"showEvents":         true,
+		"showEvents":         false,
 		"showObjectChanges":  true,
 		"showBalanceChanges": true,
 	}}
@@ -519,25 +508,25 @@ func (c *Client) GetTransactionByHash(hash string) (TransactionInfo, error) {
 	return out, err
 }
 
-func (c *Client) GetTransactionByHashs(hashs []string) ([]TransactionInfo, error) {
+func (c *Client) GetTransactionByHashs(hashs []string) ([]*TransactionInfo, error) {
 	method := "sui_multiGetTransactionBlocks"
-	//multi get transaction input limit is 1000
-	pageSize := 1000
+	//multi get transaction input limit is 50
+	pageSize := 50
 	hashSize := len(hashs)
 	start := 0
 	stop := pageSize
 	if stop > hashSize {
 		stop = hashSize
 	}
-	var result []TransactionInfo
+	var result []*TransactionInfo
 	for {
 		hs := hashs[start:stop]
-		var out []TransactionInfo
+		var out []*TransactionInfo
 		params := []interface{}{hs, map[string]bool{
 			"showInput":          true,
 			"showRawInput":       false,
 			"showEffects":        true,
-			"showEvents":         true,
+			"showEvents":         false,
 			"showObjectChanges":  true,
 			"showBalanceChanges": true,
 		}}

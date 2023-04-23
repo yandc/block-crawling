@@ -150,8 +150,7 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 		return 0, err
 	}
 	number := nbi.Result.Block.Header.Number
-	x, _ := utils.HexStringToInt(number)
-	h := x.Uint64()
+	h, _ := utils.HexStringToUint64(number)
 	if h > 6 {
 		h = h - 6
 	}

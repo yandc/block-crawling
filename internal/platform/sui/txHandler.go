@@ -44,7 +44,7 @@ type AmountChange struct {
 
 func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *chain.Transaction) (err error) {
 	curHeight := chainBlock.Number
-	transactionInfo := chainTx.Raw.(TransactionInfo)
+	transactionInfo := chainTx.Raw.(*TransactionInfo)
 	transactionHash := transactionInfo.Digest
 
 	var status string
@@ -562,7 +562,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {
 	client := c.(*Client)
-	transactionInfo := tx.Raw.(TransactionInfo)
+	transactionInfo := tx.Raw.(*TransactionInfo)
 
 	height, _ := strconv.ParseInt(transactionInfo.Checkpoint, 10, 64)
 	curHeight := uint64(height)
@@ -636,7 +636,6 @@ func (h *txHandler) Save(c chain.Clienter) error {
 		}
 		if h.newTxs {
 			go HandleRecord(h.chainName, *client, h.txRecords)
-
 		} else {
 			go HandlePendingRecord(h.chainName, *client, h.txRecords)
 		}
