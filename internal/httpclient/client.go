@@ -2,21 +2,29 @@ package httpclient
 
 import (
 	"block-crawling/internal/types"
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Danny-Dasilva/CycleTLS/cycletls"
-	"github.com/RomainMichau/cloudscraper_go/cloudscraper"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/Danny-Dasilva/CycleTLS/cycletls"
+	"github.com/RomainMichau/cloudscraper_go/cloudscraper"
 )
 
 var globalTransport *http.Transport
+var pool = &sync.Pool{
+	New: func() interface{} {
+		return &bytes.Buffer{}
+	},
+}
 
 func init() {
 	globalTransport = &http.Transport{
@@ -284,20 +292,24 @@ func handleResponse(resp *http.Response, e error, out interface{}) (err error) {
 		}
 		return
 	}
+	buf := pool.Get().(*bytes.Buffer)
+	defer pool.Put(buf)
+	buf.Reset()
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	_, err = io.Copy(buf, resp.Body)
+	body := buf.String()
 	if err != nil {
 		statusCode := resp.StatusCode
 		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body) + "\n" + fmt.Sprintf("%s", err))
+		err = errors.New(status + "\n" + body + "\n" + fmt.Sprintf("%s", err))
 		return
 	}
-	err = json.Unmarshal(body, out)
+	err = json.Unmarshal(buf.Bytes(), out)
 	if err != nil {
 		statusCode := resp.StatusCode
 		status := "HTTP " + strconv.Itoa(statusCode) + " " + http.StatusText(statusCode)
-		err = errors.New(status + "\n" + string(body) + "\n" + fmt.Sprintf("%s", err))
+		err = errors.New(status + "\n" + body + "\n" + fmt.Sprintf("%s", err))
 	}
 	return
 }

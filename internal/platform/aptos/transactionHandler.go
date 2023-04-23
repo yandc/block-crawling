@@ -125,7 +125,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
 					return client.GetTransactionByVersion(e.TransactionVersion)
 				})
-				tx := result.(TransactionInfo)
+				tx := result.(*TransactionInfo)
 				if err != nil {
 					// nodeProxy出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s链根据txVersion获取交易数据失败，transactionVersion:%v", chainName, e.TransactionVersion)

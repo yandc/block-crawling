@@ -130,8 +130,8 @@ type ZksyncApiModel struct {
 }
 
 type RoninApiModel struct {
-	Results []RoninApiRecord `json:"results"`
-	Total   int              `json:"total"`
+	Results []*RoninApiRecord `json:"results"`
+	Total   int               `json:"total"`
 }
 
 type RoninApiRecord struct {
@@ -154,9 +154,9 @@ type RoninApiRecord struct {
 }
 
 type CasperApiModel struct {
-	Data      []CasperApiRecord `json:"data"`
-	PageCount int               `json:"pageCount"`
-	ItemCount int               `json:"itemCount"`
+	Data      []*CasperApiRecord `json:"data"`
+	PageCount int                `json:"pageCount"`
+	ItemCount int                `json:"itemCount"`
 	Pages     []struct {
 		Number int    `json:"number"`
 		Url    string `json:"url"`
@@ -181,9 +181,9 @@ type CasperApiRecord struct {
 }
 
 type DogeApiModel struct {
-	Transactions []DogeApiRecord `json:"transactions"`
-	Success      int             `json:"success"`
-	Error        string          `json:"error"`
+	Transactions []*DogeApiRecord `json:"transactions"`
+	Success      int              `json:"success"`
+	Error        string           `json:"error"`
 }
 type DogeApiRecord struct {
 	Hash  string `json:"hash"`
@@ -197,8 +197,8 @@ type PolkadotApiModel struct {
 	Message     string `json:"message"`
 	GeneratedAt int    `json:"generated_at"`
 	Data        struct {
-		Count     int                 `json:"count"`
-		Transfers []PolkadotApiRecord `json:"transfers"`
+		Count     int                  `json:"count"`
+		Transfers []*PolkadotApiRecord `json:"transfers"`
 	} `json:"data"`
 }
 
@@ -248,10 +248,10 @@ type BTCApiModel struct {
 	Message string `json:"message"`
 }
 type TornApiModel struct {
-	Total      int             `json:"total"`
-	RangeTotal int             `json:"rangeTotal"`
-	Data       []TornApiRecord `json:"data"`
-	Message    string          `json:"message"`
+	Total      int              `json:"total"`
+	RangeTotal int              `json:"rangeTotal"`
+	Data       []*TornApiRecord `json:"data"`
+	Message    string           `json:"message"`
 }
 
 type TornApiRecord struct {

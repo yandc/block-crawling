@@ -414,12 +414,12 @@ func (c *Client) GetBlockNumber() (int, error) {
 }
 
 type BlockerInfo struct {
-	BlockHeight    string            `json:"block_height"`
-	BlockHash      string            `json:"block_hash"`
-	BlockTimestamp string            `json:"block_timestamp"`
-	FirstVersion   string            `json:"first_version"`
-	LastVersion    string            `json:"last_version"`
-	Transactions   []TransactionInfo `json:"transactions"`
+	BlockHeight    string             `json:"block_height"`
+	BlockHash      string             `json:"block_hash"`
+	BlockTimestamp string             `json:"block_timestamp"`
+	FirstVersion   string             `json:"first_version"`
+	LastVersion    string             `json:"last_version"`
+	Transactions   []*TransactionInfo `json:"transactions"`
 }
 
 type TransactionInfo struct {
@@ -523,7 +523,7 @@ func (c *Client) GetBlockByVersion(version int) (tx BlockerInfo, err error) {
 	return tx, err
 }
 
-func (c *Client) GetTransactionByVersion(version int) (tx TransactionInfo, err error) {
+func (c *Client) GetTransactionByVersion(version int) (tx *TransactionInfo, err error) {
 	u, err := c.buildURL("/transactions/by_version/"+strconv.Itoa(version), nil)
 	if err != nil {
 		return
@@ -532,7 +532,7 @@ func (c *Client) GetTransactionByVersion(version int) (tx TransactionInfo, err e
 	return tx, err
 }
 
-func (c *Client) GetTransactionByHash(hash string) (tx TransactionInfo, err error) {
+func (c *Client) GetTransactionByHash(hash string) (tx *TransactionInfo, err error) {
 	u, err := c.buildURL("/transactions/by_hash/"+hash, nil)
 	if err != nil {
 		return

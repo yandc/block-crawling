@@ -328,11 +328,11 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		"token": tokenInfo,
 	}
 	parseData, _ := utils.JsonEncode(evmMap)
-	gasUsedInt, _ := utils.HexStringToInt(receipt.GasUsed)
+	gasUsedInt, _ := utils.HexStringToBigInt(receipt.GasUsed)
 	gasUsed := gasUsedInt.String()
 	gasPriceInt := transaction.GasPrice()
 	if receipt.EffectiveGasPrice != "" {
-		gasPriceInt, _ = utils.HexStringToInt(receipt.EffectiveGasPrice)
+		gasPriceInt, _ = utils.HexStringToBigInt(receipt.EffectiveGasPrice)
 	}
 	gasPrice := gasPriceInt.String()
 	var maxFeePerGas string
@@ -345,11 +345,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			maxPriorityFeePerGas = transaction.GasTipCap().String()
 		}
 	}
-	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
-	bn := int(intBlockNumber.Int64())
+	blockNumber, _ := utils.HexStringToInt64(receipt.BlockNumber)
 	feeAmount = decimal.NewFromBigInt(new(big.Int).Mul(gasUsedInt, gasPriceInt), 0)
 	if h.chainName == "Optimism" {
-		l1Fee, err := utils.HexStringToInt(receipt.L1Fee)
+		l1Fee, err := utils.HexStringToBigInt(receipt.L1Fee)
 		if err == nil {
 			feeAmount = feeAmount.Add(decimal.NewFromBigInt(l1Fee, 0))
 		}
@@ -397,7 +396,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 	evmTransactionRecord := &data.EvmTransactionRecord{
 		BlockHash:            h.blockHash,
-		BlockNumber:          bn,
+		BlockNumber:          int(blockNumber),
 		Nonce:                int64(transaction.Nonce()),
 		TransactionHash:      transactionHash,
 		FromAddress:          meta.FromAddress,
@@ -452,7 +451,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 			evmlogTransactionRecord := &data.EvmTransactionRecord{
 				BlockHash:            h.blockHash,
-				BlockNumber:          bn,
+				BlockNumber:          int(blockNumber),
 				Nonce:                int64(transaction.Nonce()),
 				TransactionHash:      txHash,
 				FromAddress:          eventLog.From,

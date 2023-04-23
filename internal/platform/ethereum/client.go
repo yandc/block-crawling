@@ -93,7 +93,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	block, err := c.GetBlockByNumber(context.Background(), big.NewInt(int64(height)))
 	if err != nil {
 		if err == ethereum.NotFound /* && isNonstandardEVM(c.chainName)*/ {
-			return nil, errors.New("block not found") // retry on next node
+			return nil, pcommon.BlockNotFound // retry on next node
 		}
 
 		log.Debug(
@@ -133,13 +133,11 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 }
 
 func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error) {
-	var from *common.Address
+	fromAddress := tx.From.String()
 	var toAddress string
-	from = tx.From
 	if tx.To() != nil {
 		toAddress = tx.To().String()
 	}
-	fromAddress := from.String()
 	value := tx.Value().String()
 	transactionType := biz.NATIVE
 	data := tx.Data()
@@ -528,7 +526,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	if receipt == nil {
 		return nil, nil
 	}
-	intBlockNumber, _ := utils.HexStringToInt(receipt.BlockNumber)
+	intBlockNumber, _ := utils.HexStringToBigInt(receipt.BlockNumber)
 	tx = &chain.Transaction{
 		Hash:        txByHash.Hash().Hex(),
 		Nonce:       txByHash.Nonce(),

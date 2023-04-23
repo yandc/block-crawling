@@ -67,7 +67,7 @@ func main() {
 		fmt.Println(v)
 	}
 
-	x, _ := utils.HexStringToInt("0xcd3096")
+	x, _ := utils.HexStringToBigInt("0xcd3096")
 	fmt.Println(x)
 	l := "Error: Block not found: 13481229"
 	yy := strings.Contains(l, "Block not found")
