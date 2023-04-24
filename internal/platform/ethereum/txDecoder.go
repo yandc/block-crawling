@@ -689,6 +689,22 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			} else {
 				toAddress = meta.ToAddress
 			}
+
+			if strings.HasPrefix(h.chainName, "BSC") {
+				//https://bscscan.com/tx/0x538168688bcdb857bb0fd00d586b79be0ef17e6188f68d50dfbc829e2b40e890
+				if len(eventLogs) > 0 {
+					haveTransfer := false
+					for _, eventLog := range eventLogs {
+						if eventLog != nil && eventLog.From == toAddress && eventLog.To == fromAddress && eventLog.Amount.Cmp(amount) == 0 {
+							haveTransfer = true
+							break
+						}
+					}
+					if haveTransfer {
+						continue
+					}
+				}
+			}
 		} else if topic0 == DEPOSIT_TOPIC {
 			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
 			if h.chainName == "Ronin" && len(log_.Topics) == 1 {
@@ -733,6 +749,22 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					tokenAddress = ""
 				} else {
 					fromAddress = meta.ToAddress
+				}
+			}
+
+			if strings.HasPrefix(h.chainName, "BSC") {
+				//https://bscscan.com/tx/0x7e011215ceb9c3318c75a3d0604b9a936141935e801c5e2080659349fe67c1a0
+				if len(eventLogs) > 0 {
+					haveTransfer := false
+					for _, eventLog := range eventLogs {
+						if eventLog != nil && eventLog.From == toAddress && eventLog.To == fromAddress && eventLog.Amount.Cmp(amount) == 0 {
+							haveTransfer = true
+							break
+						}
+					}
+					if haveTransfer {
+						continue
+					}
 				}
 			}
 		} else if topic0 == BRIDGE_TRANSFERNATIVE {
