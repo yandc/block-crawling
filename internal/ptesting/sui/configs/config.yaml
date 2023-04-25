@@ -1,0 +1,192 @@
+server:
+  http:
+    addr: 0.0.0.0:3001
+    timeout: 1s
+  grpc:
+    addr: 0.0.0.0:8999
+    timeout: 1s
+data:
+  database:
+    driver: postgres
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+#    source: host=127.0.0.1 user=postgres password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    pool:
+      connMaxLifetime: 3
+      maxOpenConns: 10
+      maxIdleConns: 10
+  redis:
+    address: 127.0.0.1:6379
+    db: 2
+    password: ""
+    read_timeout: 0.2s
+    write_timeout: 0.2s
+  user:
+    driver: postgres
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    pool:
+      connMaxLifetime: 3
+      maxOpenConns: 10
+      maxIdleConns: 10
+
+app:
+  # Possible values: "debug", "release"
+  #  mode: "debug"
+  mode: "SUITEST"
+  scanAll: false
+  addr: 127.0.0.1:9001
+  starScan: true
+  target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+  source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
+  dogeKey:  # DEPRECATED @2022-09-29: HAVE BEEN MOVED TO THERE URL.
+    - "Bearer bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd"
+    - "Bearer bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk"
+    - "Bearer bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz"
+    - "Bearer bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU"
+    - "Bearer bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ"
+    - "Bearer bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN"
+    - "Bearer bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn"
+
+  httpProxies:
+    # https://gitlab.bixin.com/mili/block-crawling/-/issues/2
+    ## 测试用公网
+    - http://mpcuser01:4fa0cbd14703bb@16.163.66.2:13228         # <-------------------------------+
+    - http://mpcuser01:4fa0cbd14703bb@16.162.179.108:13228      # <-----------------------------+ |
+    - http://mpcuser01:4fa0cbd14703bb@43.198.69.85:13228        # <---------------------------+ | |
+    - http://mpcuser01:4fa0cbd14703bb@43.198.62.186:13228       # <-------------------------+ | | |
+    - http://mpcuser01:4fa0cbd14703bb@43.198.42.7:13228         # <-----------------------+ | | | |
+    - http://mpcuser01:4fa0cbd14703bb@43.198.35.97:13228        # <---------------------+ | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@43.198.32.58:13228        # <-------------------+ | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@16.162.66.48:13228        # <-----------------+ | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@16.163.125.46:13228       # <--------- -----+ | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.162.202.34:13228       # <-------------+ | | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.162.68.137:13228       # <-----------+ | | | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.162.69.17:13228        # <---------+ | | | | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.166.183.64:13228       # <-------+ | | | | | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.167.188.97:13228       # <-----+ | | | | | | | | | | | | |
+    - http://mpcuser01:4fa0cbd14703bb@18.167.77.131:13228       # <---+ | | | | | | | | | | | | | |
+                                                                #     | | | | | | | | | | | | | | |
+    ## Production                                               #     | | | | | | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.1.186:13228      # <---+ | | | | | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.5.26:13228       # <-----+ | | | | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.143:13228      # <-------+ | | | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.237:13228      # <---------+ | | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.74:13228       # <-----------+ | | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.14.10:13228      # <-------------+ | | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.104:13228      # <---------------+ | | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.7.89:13228       # <-----------------+ | | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.1.206:13228      # <-------------------+ | | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.13.15:13228      # <---------------------+ | | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.13.31:13228      # <-----------------------+ | | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.13:13228       # <-------------------------+ | | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.11.67:13228      # <---------------------------+ | |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.166:13228      # <-----------------------------+ |
+    # - http://mpcuser01:4fa0cbd14703bb@10.229.6.184:13228      # <-------------------------------+
+
+
+lark:
+  larkAlarmTitle: "BlockCrawling 测试环境"
+  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
+#  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
+  larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
+  larkAtList: "9674c624"
+  larkUids:
+    yanding: 9674c624
+    dechen: a964d8f6
+    wanghui: 1dd9747c
+    dongdong: 9816g34e
+    qingliang: bfe7128f
+
+  larkSubscriptions:
+    APTOS:
+      uids: [ dongdong ]
+    COSMOS:
+      uids: [ dongdong ]
+    CKB:
+      uids: [ wanghui ]
+    CSPR:
+      uids: [ dongdong ]
+    EVM:
+      uids: [ yanding ]
+    POLKADOT:
+      uids: [ yanding ]
+    SOL:
+      uids: [ wanghui ]
+    STC:
+      uids: [ dongdong ]
+    SUI:
+      uids: [ dongdong ]
+    TVM:
+      uids: [ yanding ]
+    BTC:
+      uids: [ yanding ]
+    node-proxy:
+      uids: [ qingliang ]
+    txinput:
+      uids: [ dechen ]
+
+  lockNum: 64
+
+logger:
+  DEBUG: true
+  fileName: "block-crawling.log"
+  level: "info"
+
+innerNodeList:
+  BTC:
+    chain: "BTC"
+    decimal: 8
+    fullName: "Bitcoin"
+    getPriceKey: "bitcoin"
+    chainName: "BTC"
+    handler: "bitcoin"
+    nativeCurrency: BTC
+    rpcURL:
+      - "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332"
+    symbol: "BTC"
+    type: "BTC"
+
+  DOGE:
+    chain: "DOGE"
+    decimal: 8
+    fullName: "Dogecoin"
+    getPriceKey: "dogecoin"
+    chainName: "DOGE"
+    handler: "dogecoin"
+    nativeCurrency: DOGE
+    rpcURL:
+      - "http://haotech:jHoNTnHnZZY6pXsdfsopweuiUWoUwZKC@chain01.openblock.top:22555"
+    symbol: DOGE
+    type: "BTC"
+
+  LTC:
+    chain: "LTC"
+    decimal: 8
+    fullName: "litecoin"
+    getPriceKey: "litecoin"
+    chainName: "LTC"
+    handler: "litecoin"
+    nativeCurrency: LTC
+    rpcURL:
+      - "http://haotech:BFHsdfsUYTBN2HbaTZBvHJER4fyHy@chain01.openblock.top:9332"
+    symbol: LTC
+    type: "BTC"
+
+innerPublicNodeList:
+  Cronos:
+    blockExplorerAddrUrl: https://cronoscan.com/address/
+    blockExplorerTxUrl: https://cronoscan.com/tx/
+    blockExplorerUrl: https://cronoscan.com/
+    chain: Cronos
+    chainId: 25
+    coinId: 60
+    decimal: 18
+    fullName: Cronos
+    getPriceKey: Cronos
+    handler: cronos
+    icon: https://bxhp.243096.com/mili/images/currency/chain/Cronos.png
+    nativeCurrency: CRO
+    netType: main
+    rpcURL:
+      - https://cronosrpc-1.xstaking.sg
+    symbol: CRO
+    type: EVM

@@ -83,20 +83,27 @@ protoc:
 run:
 	kratos run
 
-.PHONY: test
-test:
-	-docker stop blockcrawling
-	-docker stop redis
-	docker run \
-		--name blockcrawling \
-		-e POSTGRES_PASSWORD=haobtc.asd \
-		-e POSTGRES_USER=haobtc \
-		-e POSTGRES_DB=blockcrawlingtest \
-		-p 15432:5432 -d --rm postgres:12
-	docker run \
-		--name redis \
-		-p 16379:6379 -d --rm redis
-	env PTESTING_ENV=docker	gotestsum --format=testname ./internal/ptesting/...
+.PHONY: docker-test
+docker-test: docker-setup docker-do-test
+
+
+.PHONY: docker-do-test
+docker-do-test:
+	docker-compose exec go make do-test
+
+.PHONY: docker-setup
+docker-setup:
+	docker-compose down
+	docker-compose up -d
+	docker-compose up -d
+	docker-compose exec go git config --global url."ssh://git@gitlab.bixin.com:8222/".insteadOf "https://gitlab.bixin.com/"
+	docker-compose exec go go env -w GOPRIVATE=gitlab.bixin.com
+	docker-compose exec go go env -w GOPROXY="https://goproxy.cn,direct"
+	docker-compose exec go go install gotest.tools/gotestsum@latest
+
+.PHONY: do-test
+do-test:
+	env PTESTING_ENV=docker	/root/.go/bin/gotestsum --format=testname ./internal/ptesting/...
 
 # show help
 help:

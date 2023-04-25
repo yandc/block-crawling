@@ -1174,13 +1174,15 @@ func TestHandleRecordStatus1(t *testing.T) {
 			assert.Equal(t, len(list), 3)
 			for _, asset := range list {
 				if asset.TransactionHash == txPendingRecordList[0].TransactionHash {
-					assert.Equal(t, asset.Status, biz.PENDING)
+					assert.Equal(t, asset.Status, biz.DROPPED_REPLACED)
+					assert.Equal(t, asset.OperateType, "")
 				} else if asset.TransactionHash == txPendingRecordList[1].TransactionHash {
-					assert.Equal(t, asset.Status, biz.PENDING)
+					assert.Equal(t, asset.Status, biz.DROPPED_REPLACED)
+					assert.Equal(t, asset.OperateType, biz.CANCEL)
 				} else if asset.TransactionHash == txRecordList[0].TransactionHash {
 					assert.Equal(t, asset.Status, biz.SUCCESS)
+					assert.Equal(t, asset.OperateType, biz.SPEED_UP)
 				}
-				assert.Equal(t, asset.OperateType, "")
 
 				assert.Equal(t, asset.FromAddress, req.FromAddress)
 				assert.Equal(t, asset.ToAddress, req.ToAddress)
@@ -1236,14 +1238,14 @@ func TestHandleRecordStatus2(t *testing.T) {
 			assert.Equal(t, len(list), 3)
 			for _, asset := range list {
 				if asset.TransactionHash == txPendingRecordList[0].TransactionHash {
-					assert.Equal(t, asset.Status, biz.DROPPED)
+					assert.Equal(t, asset.Status, biz.DROPPED_REPLACED)
 					assert.Equal(t, asset.OperateType, "")
 				} else if asset.TransactionHash == txPendingRecordList[1].TransactionHash {
-					assert.Equal(t, asset.Status, biz.DROPPED)
-					assert.Equal(t, asset.OperateType, "")
+					assert.Equal(t, asset.Status, biz.DROPPED_REPLACED)
+					assert.Equal(t, asset.OperateType, biz.CANCEL)
 				} else if asset.TransactionHash == txRecordList[0].TransactionHash {
 					assert.Equal(t, asset.Status, biz.SUCCESS)
-					assert.Equal(t, asset.OperateType, "")
+					assert.Equal(t, asset.OperateType, biz.SPEED_UP)
 				}
 
 				assert.Equal(t, asset.FromAddress, req.FromAddress)

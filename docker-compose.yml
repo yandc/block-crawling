@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:12
+    environment:
+      - POSTGRES_PASSWORD=haobtc.asd
+      - POSTGRES_USER=haobtc
+      - POSTGRES_DB=blockcrawlingtest
+    ports:
+      - "15432:5432"
+  redis:
+    image: redis:latest
+    ports:
+      - "16379:6379"
+  go:
+    image: golang:1.18
+    volumes:
+      - "./:/apps/block-crawling"
+      - "$HOME/.ssh:/root/.ssh"
+      - go:/root/.go
+    working_dir: /apps/block-crawling
+    entrypoint: tail -f /dev/null
+    environment:
+      PTESTING_ENV: docker
+      GOPATH: /root/.go
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  go: {}
