@@ -114,8 +114,8 @@ func isGitLabCI() bool {
 }
 
 const (
-	dockerDSN   = "host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawlingtest port=15432 sslmode=disable TimeZone=Asia/Shanghai"
-	dockerRedis = "127.0.0.1:16379"
+	dockerDSN   = "host=db user=haobtc password=haobtc.asd dbname=blockcrawlingtest port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dockerRedis = "redis:6379"
 )
 
 func isUsingDocker() bool {

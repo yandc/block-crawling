@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/types"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -305,6 +306,11 @@ func (r *Runner) Start(ctx context.Context) error {
 			r.cancellation.Cancel(&r.preparation)
 		},
 	}
+
+	if len(r.preparation.PendingTxs) > 0 {
+		r.bootstrap.Spider.SealPendingTransactions(handler)
+	}
+
 	r.bootstrap.Spider.StartIndexBlockWithContext(
 		r.cancellation.Context,
 		handler,
@@ -312,11 +318,15 @@ func (r *Runner) Start(ctx context.Context) error {
 		// int(r.bootstrap.Conf.GetMaxConcurrency()),
 		1, // disable concurrency.
 	)
-	if len(r.preparation.PendingTxs) > 0 {
-		r.bootstrap.Spider.SealPendingTransactions(handler)
-	}
 	if r.preparation.AssertErrs != nil {
-		r.preparation.AssertErrs(handler.errs)
+		errs := make([]error, 0, len(handler.errs))
+		for _, e := range handler.errs {
+			if errors.Is(e, chain.ErrSlowBlockHandling) {
+				continue
+			}
+			errs = append(errs, e)
+		}
+		r.preparation.AssertErrs(errs)
 	}
 
 	if r.preparation.Assert != nil {
@@ -327,6 +337,10 @@ func (r *Runner) Start(ctx context.Context) error {
 
 func (r *Runner) Stop(ctx context.Context) error {
 	r.cancellation.Cancel(&r.preparation)
+
+	for _, p := range r.preparation.patches {
+		p.Reset()
+	}
 	return nil
 }
 

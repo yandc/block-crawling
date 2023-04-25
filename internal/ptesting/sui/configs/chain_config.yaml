@@ -1,0 +1,30 @@
+platform: {}
+
+platformTest:
+  SUITEST:
+    blockExplorerAddrUrl: https://explorer.sui.io/addresses/
+    blockExplorerTxUrl: https://explorer.sui.io/transactions/
+    blockExplorerUrl: https://explorer.sui.io/
+    chain: SUITEST
+    chainId: 24
+    coinId: 101012
+    decimal: 9
+    fullName: Sui Test Net
+    getPriceKey: ''
+    handler: sui
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sui.jpg
+    nativeCurrency: SUI
+    netType: test
+    rpcURL:
+      - https://fullnode.testnet.sui.io
+      - https://wallet-rpc.testnet.sui.io
+      - https://rpc-testnet.suiscan.xyz
+      - https://sui-testnet-endpoint.blockvision.org
+      - https://explorer-rpc.testnet.sui.io
+    httpURL:
+      - https://explorer-rpc.testnet.sui.io
+    symbol: SUI
+    type: SUI
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 300
