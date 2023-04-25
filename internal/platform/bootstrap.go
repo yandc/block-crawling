@@ -103,7 +103,7 @@ func (bs Server) Start(ctx context.Context) error {
 
 	go func() {
 		for _, p := range bs {
-			if p.ChainName == "Osmosis" {
+			if p.ChainName == "Osmosis" || p.ChainName == "SUITEST" {
 				continue
 			}
 			go p.GetTransactions()

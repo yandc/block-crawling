@@ -119,11 +119,12 @@ const TOKEN_INFO_QUEUE_PARTITION = "partition1"
 
 // token类型
 const (
-	ERC20    = "ERC20"
-	ERC721   = "ERC721"
-	ERC1155  = "ERC1155"
-	APTOSNFT = "AptosNFT"
-	SUINFT   = "SuiNFT"
+	ERC20     = "ERC20"
+	ERC721    = "ERC721"
+	ERC1155   = "ERC1155"
+	APTOSNFT  = "AptosNFT"
+	SUINFT    = "SuiNFT"
+	SOLANANFT = "METAPLEX"
 )
 
 var rocketMsgLevels = map[string]int{

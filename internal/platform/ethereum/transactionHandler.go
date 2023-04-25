@@ -45,7 +45,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	go HandleUserNonce(chainName, client, txRecords)
 	go HandleRecordStatus(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go HandleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(false, chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -71,7 +71,7 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	}()
 	go HandleRecordStatus(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
-	go HandleUserNftAsset(chainName, client, txRecords)
+	go HandleUserNftAsset(true, chainName, client, txRecords)
 }
 
 func HandleRecordStatus(chainName string, txRecords []*data.EvmTransactionRecord) {
@@ -597,7 +597,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 	}
 }
 
-func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -666,8 +666,8 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 			}
 		}
 
-		if record.FromAddress != "" && record.FromUid != "" {
-			if tokenInfo.TokenType == biz.ERC721 {
+		if !isPending && tokenInfo.TokenType == biz.ERC721 {
+			if record.FromAddress != "" && record.FromUid != "" {
 				payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
 					"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
 				var userAsset = &data.UserNftAsset{
@@ -692,24 +692,9 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 				}
 				userAssetKey := chainName + record.FromAddress + tokenAddress + tokenId
 				userAssetMap[userAssetKey] = userAsset
-			} else if tokenInfo.TokenType == biz.ERC1155 {
-				fromKey := record.FromUid + "," + record.FromAddress
-				tokenAddressIdMap, ok := addressTokenMap[fromKey]
-				if !ok {
-					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
-					addressTokenMap[fromKey] = tokenAddressIdMap
-				}
-				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
-				if !ok {
-					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
-					tokenAddressIdMap[tokenAddress] = tokenIdMap
-				}
-				tokenIdMap[tokenId] = nftInfo
 			}
-		}
 
-		if record.ToAddress != "" && record.ToUid != "" {
-			if tokenInfo.TokenType == biz.ERC721 {
+			if record.ToAddress != "" && record.ToUid != "" {
 				payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
 					"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
 				var userAsset = &data.UserNftAsset{
@@ -734,7 +719,24 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.EvmTr
 				}
 				userAssetKey := chainName + record.ToAddress + tokenAddress + tokenId
 				userAssetMap[userAssetKey] = userAsset
-			} else if tokenInfo.TokenType == biz.ERC1155 {
+			}
+		} else {
+			if record.FromAddress != "" && record.FromUid != "" {
+				fromKey := record.FromUid + "," + record.FromAddress
+				tokenAddressIdMap, ok := addressTokenMap[fromKey]
+				if !ok {
+					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+					addressTokenMap[fromKey] = tokenAddressIdMap
+				}
+				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
+				if !ok {
+					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+					tokenAddressIdMap[tokenAddress] = tokenIdMap
+				}
+				tokenIdMap[tokenId] = nftInfo
+			}
+
+			if record.ToAddress != "" && record.ToUid != "" {
 				toKey := record.ToUid + "," + record.ToAddress
 				tokenAddressIdMap, ok := addressTokenMap[toKey]
 				if !ok {
