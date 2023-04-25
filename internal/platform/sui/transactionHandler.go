@@ -413,37 +413,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			}
 		}
 
-		if isPending {
-			if record.FromAddress != "" && record.FromUid != "" {
-				fromKey := record.FromUid + "," + record.FromAddress
-				tokenAddressIdMap, ok := addressTokenMap[fromKey]
-				if !ok {
-					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
-					addressTokenMap[fromKey] = tokenAddressIdMap
-				}
-				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
-				if !ok {
-					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
-					tokenAddressIdMap[tokenAddress] = tokenIdMap
-				}
-				tokenIdMap[tokenId] = nftInfo
-			}
-
-			if record.ToAddress != "" && record.ToUid != "" {
-				toKey := record.ToUid + "," + record.ToAddress
-				tokenAddressIdMap, ok := addressTokenMap[toKey]
-				if !ok {
-					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
-					addressTokenMap[toKey] = tokenAddressIdMap
-				}
-				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
-				if !ok {
-					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
-					tokenAddressIdMap[tokenAddress] = tokenIdMap
-				}
-				tokenIdMap[tokenId] = nftInfo
-			}
-		} else {
+		if !isPending {
 			if record.FromAddress != "" && record.FromUid != "" {
 				payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
 					"description": nftInfo.Description, "rarity": nftInfo.Rarity, "properties": nftInfo.Properties})
@@ -496,6 +466,36 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 				}
 				userAssetKey := chainName + record.ToAddress + tokenAddress + tokenId
 				userAssetMap[userAssetKey] = userAsset
+			}
+		} else {
+			if record.FromAddress != "" && record.FromUid != "" {
+				fromKey := record.FromUid + "," + record.FromAddress
+				tokenAddressIdMap, ok := addressTokenMap[fromKey]
+				if !ok {
+					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+					addressTokenMap[fromKey] = tokenAddressIdMap
+				}
+				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
+				if !ok {
+					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+					tokenAddressIdMap[tokenAddress] = tokenIdMap
+				}
+				tokenIdMap[tokenId] = nftInfo
+			}
+
+			if record.ToAddress != "" && record.ToUid != "" {
+				toKey := record.ToUid + "," + record.ToAddress
+				tokenAddressIdMap, ok := addressTokenMap[toKey]
+				if !ok {
+					tokenAddressIdMap = make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
+					addressTokenMap[toKey] = tokenAddressIdMap
+				}
+				tokenIdMap, ok := tokenAddressIdMap[tokenAddress]
+				if !ok {
+					tokenIdMap = make(map[string]*v1.GetNftReply_NftInfoResp)
+					tokenAddressIdMap[tokenAddress] = tokenIdMap
+				}
+				tokenIdMap[tokenId] = nftInfo
 			}
 		}
 	}
@@ -585,13 +585,6 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 	return userAssets, nil
 }
 
-func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
-	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
-		c, _ := client.(*Client)
-		return fc(*c)
-	})
-	return result, err
-}
 func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -713,4 +706,12 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTrans
 			}
 		}
 	}
+}
+
+func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error)) (interface{}, error) {
+	result, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+		c, _ := client.(*Client)
+		return fc(*c)
+	})
+	return result, err
 }

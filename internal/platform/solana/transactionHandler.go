@@ -32,7 +32,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.SolTransact
 
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
-		HandleUserAsset(chainName, client, txRecords)
+		HandleUserAsset(false, chainName, client, txRecords)
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
 }
@@ -56,11 +56,11 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolT
 
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
-		HandleUserAsset(chainName, client, txRecords)
+		HandleUserAsset(true, chainName, client, txRecords)
 	}()
 }
 
-func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTransactionRecord) {
+func HandleUserAsset(isPending bool, chainName string, client Client, txRecords []*data.SolTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -90,7 +90,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 		var tokenAddress = record.ContractAddress
 
 		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.REGISTERTOKEN {
-			decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -98,163 +98,159 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SolTrans
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
 					zap.Any("txHash", record.TransactionHash), zap.Any("parseData", record.ParseData), zap.Any("error", err))
-				continue
 			}
+			tokenType := tokenInfo.TokenType
+			decimals := tokenInfo.Decimals
+			symbol := tokenInfo.Symbol
 
-			if record.Data == "" {
-				continue
-			}
-			changesPayload := make(map[string]interface{})
-			err = json.Unmarshal([]byte(record.Data), &changesPayload)
-			if err != nil {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
-					zap.Any("txHash", record.TransactionHash), zap.Any("data", record.Data), zap.Any("error", err))
-				continue
-			}
-
-			accountKeyStr, ok := changesPayload["accountKey"]
-			if !ok || accountKeyStr == nil {
-				continue
-			}
-			tokenBalanceStr, ok := changesPayload["tokenBalance"]
-			if !ok || tokenBalanceStr == nil {
-				continue
-			}
-			accountKeyMap := accountKeyStr.(map[string]interface{})
-			tokenBalanceMap := tokenBalanceStr.(map[string]interface{})
-			if tokenAddress == "" {
-				if record.FromAddress != "" && record.FromUid != "" {
-					if changeMapi, ok := accountKeyMap[record.FromAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						amount := utils.GetString(changeMap["amount"])
-						balance := utils.StringDecimals(amount, int(decimals))
-						var userAsset = &data.UserAsset{
-							ChainName:    chainName,
-							Uid:          record.FromUid,
-							Address:      record.FromAddress,
-							TokenAddress: tokenAddress,
-							Balance:      balance,
-							Decimals:     decimals,
-							Symbol:       symbol,
-							CreatedAt:    now,
-							UpdatedAt:    now,
-						}
-						userAssetKey := chainName + record.FromAddress + tokenAddress
-						userAssetMap[userAssetKey] = userAsset
-					}
-				}
-
-				if record.ToAddress != "" && record.ToUid != "" {
-					if changeMapi, ok := accountKeyMap[record.ToAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						amount := utils.GetString(changeMap["amount"])
-						balance := utils.StringDecimals(amount, int(decimals))
-						var userAsset = &data.UserAsset{
-							ChainName:    chainName,
-							Uid:          record.ToUid,
-							Address:      record.ToAddress,
-							TokenAddress: tokenAddress,
-							Balance:      balance,
-							Decimals:     decimals,
-							Symbol:       symbol,
-							CreatedAt:    now,
-							UpdatedAt:    now,
-						}
-						userAssetKey := chainName + record.ToAddress + tokenAddress
-						userAssetMap[userAssetKey] = userAsset
-					}
-				}
-			} else {
-				if record.FromAddress != "" && record.FromUid != "" {
-					if changeMapi, ok := tokenBalanceMap[record.FromAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						mint := changeMap["mint"].(string)
-						if tokenAddress == mint {
-							uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
-							balance := uiTokenAmount["uiAmountString"].(string)
-							var userAsset = &data.UserAsset{
-								ChainName:    chainName,
-								Uid:          record.FromUid,
-								Address:      record.FromAddress,
-								TokenAddress: tokenAddress,
-								Balance:      balance,
-								Decimals:     decimals,
-								Symbol:       symbol,
-								CreatedAt:    now,
-								UpdatedAt:    now,
-							}
-							userAssetKey := chainName + record.FromAddress + tokenAddress
-							userAssetMap[userAssetKey] = userAsset
-						}
-					}
-				}
-
-				if record.ToAddress != "" && record.ToUid != "" {
-					if changeMapi, ok := tokenBalanceMap[record.ToAddress]; ok {
-						changeMap := changeMapi.(map[string]interface{})
-						mint := changeMap["mint"].(string)
-						if tokenAddress == mint {
-							uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
-							balance := uiTokenAmount["uiAmountString"].(string)
-							var userAsset = &data.UserAsset{
-								ChainName:    chainName,
-								Uid:          record.ToUid,
-								Address:      record.ToAddress,
-								TokenAddress: tokenAddress,
-								Balance:      balance,
-								Decimals:     decimals,
-								Symbol:       symbol,
-								CreatedAt:    now,
-								UpdatedAt:    now,
-							}
-							userAssetKey := chainName + record.ToAddress + tokenAddress
-							userAssetMap[userAssetKey] = userAsset
-						}
-					}
-				}
-			}
-
-			fromUserAssetKey := chainName + record.FromAddress + tokenAddress
-			if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
-				for i := 0; i < 10 && err != nil; i++ {
-					time.Sleep(time.Duration(i*5) * time.Second)
-					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, decimals, symbol, now)
-				}
+			if tokenType != biz.SOLANANFT {
+				changesPayload := make(map[string]interface{})
+				err = json.Unmarshal([]byte(record.Data), &changesPayload)
 				if err != nil {
 					// 更新用户资产出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+					alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-					return
+					log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+						zap.Any("txHash", record.TransactionHash), zap.Any("data", record.Data), zap.Any("error", err))
 				}
-				if userAsset != nil {
-					userAssetMap[fromUserAssetKey] = userAsset
-				}
-			}
 
-			toUserAssetKey := chainName + record.ToAddress + tokenAddress
-			if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
-				userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
-				for i := 0; i < 10 && err != nil; i++ {
-					time.Sleep(time.Duration(i*5) * time.Second)
-					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, decimals, symbol, now)
+				accountKeyStr, accountOk := changesPayload["accountKey"]
+				tokenBalanceStr, tokenBalanceOk := changesPayload["tokenBalance"]
+				if !isPending && accountOk && accountKeyStr != nil && tokenBalanceOk && tokenBalanceStr != nil {
+					accountKeyMap := accountKeyStr.(map[string]interface{})
+					tokenBalanceMap := tokenBalanceStr.(map[string]interface{})
+					if tokenAddress == "" {
+						if record.FromAddress != "" && record.FromUid != "" {
+							if changeMapi, ok := accountKeyMap[record.FromAddress]; ok {
+								changeMap := changeMapi.(map[string]interface{})
+								amount := utils.GetString(changeMap["amount"])
+								balance := utils.StringDecimals(amount, int(decimals))
+								var userAsset = &data.UserAsset{
+									ChainName:    chainName,
+									Uid:          record.FromUid,
+									Address:      record.FromAddress,
+									TokenAddress: tokenAddress,
+									Balance:      balance,
+									Decimals:     int32(decimals),
+									Symbol:       symbol,
+									CreatedAt:    now,
+									UpdatedAt:    now,
+								}
+								userAssetKey := chainName + record.FromAddress + tokenAddress
+								userAssetMap[userAssetKey] = userAsset
+							}
+						}
+
+						if record.ToAddress != "" && record.ToUid != "" {
+							if changeMapi, ok := accountKeyMap[record.ToAddress]; ok {
+								changeMap := changeMapi.(map[string]interface{})
+								amount := utils.GetString(changeMap["amount"])
+								balance := utils.StringDecimals(amount, int(decimals))
+								var userAsset = &data.UserAsset{
+									ChainName:    chainName,
+									Uid:          record.ToUid,
+									Address:      record.ToAddress,
+									TokenAddress: tokenAddress,
+									Balance:      balance,
+									Decimals:     int32(decimals),
+									Symbol:       symbol,
+									CreatedAt:    now,
+									UpdatedAt:    now,
+								}
+								userAssetKey := chainName + record.ToAddress + tokenAddress
+								userAssetMap[userAssetKey] = userAsset
+							}
+						}
+					} else {
+						if record.FromAddress != "" && record.FromUid != "" {
+							if changeMapi, ok := tokenBalanceMap[record.FromAddress]; ok {
+								changeMap := changeMapi.(map[string]interface{})
+								mint := changeMap["mint"].(string)
+								if tokenAddress == mint {
+									uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
+									balance := uiTokenAmount["uiAmountString"].(string)
+									var userAsset = &data.UserAsset{
+										ChainName:    chainName,
+										Uid:          record.FromUid,
+										Address:      record.FromAddress,
+										TokenAddress: tokenAddress,
+										Balance:      balance,
+										Decimals:     int32(decimals),
+										Symbol:       symbol,
+										CreatedAt:    now,
+										UpdatedAt:    now,
+									}
+									userAssetKey := chainName + record.FromAddress + tokenAddress
+									userAssetMap[userAssetKey] = userAsset
+								}
+							}
+						}
+
+						if record.ToAddress != "" && record.ToUid != "" {
+							if changeMapi, ok := tokenBalanceMap[record.ToAddress]; ok {
+								changeMap := changeMapi.(map[string]interface{})
+								mint := changeMap["mint"].(string)
+								if tokenAddress == mint {
+									uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
+									balance := uiTokenAmount["uiAmountString"].(string)
+									var userAsset = &data.UserAsset{
+										ChainName:    chainName,
+										Uid:          record.ToUid,
+										Address:      record.ToAddress,
+										TokenAddress: tokenAddress,
+										Balance:      balance,
+										Decimals:     int32(decimals),
+										Symbol:       symbol,
+										CreatedAt:    now,
+										UpdatedAt:    now,
+									}
+									userAssetKey := chainName + record.ToAddress + tokenAddress
+									userAssetMap[userAssetKey] = userAsset
+								}
+							}
+						}
+					}
 				}
-				if err != nil {
-					// 更新用户资产出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-					return
+
+				fromUserAssetKey := chainName + record.FromAddress + tokenAddress
+				if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+					for i := 0; i < 10 && err != nil; i++ {
+						time.Sleep(time.Duration(i*5) * time.Second)
+						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+					}
+					if err != nil {
+						// 更新用户资产出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(chainName+"查询用户资产失败", zap.Any("fromAddress", record.FromAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						return
+					}
+					if userAsset != nil {
+						userAssetMap[fromUserAssetKey] = userAsset
+					}
 				}
-				if userAsset != nil {
-					userAssetMap[toUserAssetKey] = userAsset
+
+				toUserAssetKey := chainName + record.ToAddress + tokenAddress
+				if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+					for i := 0; i < 10 && err != nil; i++ {
+						time.Sleep(time.Duration(i*5) * time.Second)
+						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+					}
+					if err != nil {
+						// 更新用户资产出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s查询用户资产失败", chainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(chainName+"查询用户资产失败", zap.Any("toAddress", record.ToAddress), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						return
+					}
+					if userAsset != nil {
+						userAssetMap[toUserAssetKey] = userAsset
+					}
 				}
 			}
 		}

@@ -962,7 +962,7 @@ func TestHandleUserNftAsset(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			ethereum.HandleUserNftAsset(CHAIN_NAME, *c, txNftRecords)
+			ethereum.HandleUserNftAsset(false, CHAIN_NAME, *c, txNftRecords)
 			list, err := data.UserNftAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -1011,7 +1011,7 @@ func TestHandleUserNftAsset1(t *testing.T) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
 			c := client.(*ethereum.Client)
 
-			ethereum.HandleUserNftAsset(CHAIN_NAME, *c, txRecordList)
+			ethereum.HandleUserNftAsset(false, CHAIN_NAME, *c, txRecordList)
 			list, err := data.UserNftAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -1043,7 +1043,7 @@ func TestHandleUserNftAsset2(t *testing.T) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
 			c := client.(*ethereum.Client)
 
-			ethereum.HandleUserNftAsset(CHAIN_NAME, *c, txRecordList)
+			ethereum.HandleUserNftAsset(false, CHAIN_NAME, *c, txRecordList)
 			list, err := data.UserNftAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -1069,7 +1069,7 @@ func TestHandleUserNftAsset3(t *testing.T) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
 			c := client.(*ethereum.Client)
 
-			ethereum.HandleUserNftAsset(CHAIN_NAME, *c, txRecords)
+			ethereum.HandleUserNftAsset(false, CHAIN_NAME, *c, txRecords)
 			list, err := data.UserNftAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)

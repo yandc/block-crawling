@@ -387,7 +387,7 @@ func TestHandleUserAsset(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			aptos.HandleUserAsset(CHAIN_NAME, *c, txRecords)
+			aptos.HandleUserAsset(false, CHAIN_NAME, *c, txRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -442,7 +442,7 @@ func TestHandleUserAsset(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			aptos.HandleUserAsset(CHAIN_NAME, *c, txRecords)
+			aptos.HandleUserAsset(false, CHAIN_NAME, *c, txRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -497,7 +497,7 @@ func TestHandleUserAsset1(t *testing.T) {
 		},
 		Test: func(plat *platform.Bootstrap) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
-			aptos.HandleUserAsset(CHAIN_NAME, *client.(*aptos.Client), txRecordList)
+			aptos.HandleUserAsset(false, CHAIN_NAME, *client.(*aptos.Client), txRecordList)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -547,7 +547,7 @@ func TestHandleUserAsset2(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			aptos.HandleUserAsset(CHAIN_NAME, *c, txRecordList)
+			aptos.HandleUserAsset(false, CHAIN_NAME, *c, txRecordList)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -592,7 +592,7 @@ func TestHandleUserAsset3(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			aptos.HandleUserAsset(CHAIN_NAME, *c, txNftRecords)
+			aptos.HandleUserAsset(false, CHAIN_NAME, *c, txNftRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)

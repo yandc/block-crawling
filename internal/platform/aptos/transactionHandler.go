@@ -36,9 +36,35 @@ func HandleRecord(chainName string, client Client, txRecords []*data.AptTransact
 
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
-		HandleUserAsset(chainName, client, txRecords)
+		HandleUserAsset(false, chainName, client, txRecords)
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
+	HandleUserNonce(chainName, txRecords)
+	go HandleNftRecord(chainName, client, txRecords)
+	go HandleUserNftAsset(chainName, client, txRecords)
+}
+
+func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandlePendingRecord error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandlePendingRecord panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	go func() {
+		HandleTokenPush(chainName, client, txRecords)
+		HandleUserAsset(true, chainName, client, txRecords)
+	}()
 	HandleUserNonce(chainName, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(chainName, client, txRecords)
@@ -173,35 +199,9 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 			alarmMsg := fmt.Sprintf("请注意：%s链获取nft流转记录，将数据插入到数据库中失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链获取nft流转记录，将数据插入到数据库中失败", zap.Any("tokenIdMap",tokenIdMap), zap.Any("error", err))
+			log.Error(chainName+"链获取nft流转记录，将数据插入到数据库中失败", zap.Any("tokenIdMap", tokenIdMap), zap.Any("error", err))
 		}
 	}
-}
-
-func HandlePendingRecord(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("HandlePendingRecord error, chainName:"+chainName, e)
-			} else {
-				log.Errore("HandlePendingRecord panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
-			}
-
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链处理交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-
-	go func() {
-		HandleTokenPush(chainName, client, txRecords)
-		HandleUserAsset(chainName, client, txRecords)
-	}()
-	HandleUserNonce(chainName, txRecords)
-	go HandleNftRecord(chainName, client, txRecords)
-	go HandleUserNftAsset(chainName, client, txRecords)
 }
 
 func HandleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
@@ -252,7 +252,7 @@ func HandleUserNonce(chainName string, txRecords []*data.AptTransactionRecord) {
 	}
 }
 
-func HandleUserAsset(chainName string, client Client, txRecords []*data.AptTransactionRecord) {
+func HandleUserAsset(isPending bool, chainName string, client Client, txRecords []*data.AptTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -313,7 +313,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.AptTrans
 				}
 
 				changesStr, ok := changesPayload["changes"]
-				if ok {
+				if !isPending && ok {
 					changes := changesStr.(map[string]interface{})
 					changeTokenAddress := tokenAddress
 					if changeTokenAddress == "" {

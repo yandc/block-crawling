@@ -368,7 +368,7 @@ func TestHandleUserAsset(t *testing.T) {
 		},
 		Test: func(plat *platform.Bootstrap) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
-			solana.HandleUserAsset(CHAIN_NAME, *client.(*solana.Client), txRecords)
+			solana.HandleUserAsset(false, CHAIN_NAME, *client.(*solana.Client), txRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -425,7 +425,7 @@ func TestHandleUserAsset(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			solana.HandleUserAsset(CHAIN_NAME, *c, txRecords)
+			solana.HandleUserAsset(false, CHAIN_NAME, *c, txRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -474,7 +474,7 @@ func TestHandleUserAsset1(t *testing.T) {
 		},
 		Test: func(plat *platform.Bootstrap) {
 			client := plat.Platform.CreateClient(plat.Conf.RpcURL[0])
-			solana.HandleUserAsset(CHAIN_NAME, *client.(*solana.Client), txRecordList)
+			solana.HandleUserAsset(false, CHAIN_NAME, *client.(*solana.Client), txRecordList)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -516,7 +516,7 @@ func TestHandleUserAsset2(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			solana.HandleUserAsset(CHAIN_NAME, *c, txRecordList)
+			solana.HandleUserAsset(false, CHAIN_NAME, *c, txRecordList)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
@@ -560,7 +560,7 @@ func TestHandleUserAsset2(t *testing.T) {
 			// 执行完毕后释放桩序列
 			defer patches.Reset()
 
-			solana.HandleUserAsset(CHAIN_NAME, *c, txNftRecords)
+			solana.HandleUserAsset(false, CHAIN_NAME, *c, txNftRecords)
 			list, err := data.UserAssetRepoClient.List(context.Background(), req)
 			assert.NoError(t, err)
 			assert.NotNil(t, list)
