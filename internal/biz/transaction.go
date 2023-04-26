@@ -835,7 +835,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 								evm["pendingMsg"] = GAS_FEE_LOW
 								parseDataStr, _ := utils.JsonEncode(evm)
 								record.ParseData = parseDataStr
-							}else {
+							} else {
 								ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
 								if err == nil {
 									if ret == nil {
@@ -1386,8 +1386,18 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 						return true
 					} else {*/
 					if strings.EqualFold(orderByDirection, "asc") {
+						if iCurrencyAmount.Equal(jCurrencyAmount) {
+							iBalance, _ := decimal.NewFromString(list[i].Balance)
+							jBalance, _ := decimal.NewFromString(list[j].Balance)
+							return iBalance.LessThan(jBalance)
+						}
 						return iCurrencyAmount.LessThan(jCurrencyAmount)
 					} else {
+						if iCurrencyAmount.Equal(jCurrencyAmount) {
+							iBalance, _ := decimal.NewFromString(list[i].Balance)
+							jBalance, _ := decimal.NewFromString(list[j].Balance)
+							return iBalance.GreaterThan(jBalance)
+						}
 						return iCurrencyAmount.GreaterThan(jCurrencyAmount)
 					}
 					//}
