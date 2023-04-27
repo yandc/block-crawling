@@ -506,38 +506,35 @@ func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*Block,
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	txHash = strings.Split(txHash, "#")[0]
 	txByHash, _, err := c.GetTransactionByHash(context.Background(), common.HexToHash(txHash))
-
-	if err != nil && err != ethereum.NotFound {
+	if err != nil {
+		if err == ethereum.NotFound {
+			return nil, pcommon.TransactionNotFound
+		}
 		log.Error(c.chainName+"查询链上数据失败", zap.Any("txHash", txHash), zap.Any("error", err))
 		return nil, err
 	}
 
-	if txByHash == nil {
-		// 兜底
-		return nil, nil
-	}
 	receipt, err := c.GetTransactionReceipt(context.Background(), txByHash.Hash())
-
-	if err != nil && err != ethereum.NotFound {
+	if err != nil {
+		if err == ethereum.NotFound {
+			return nil, pcommon.TransactionNotFound
+		}
 		log.Error(c.chainName+"查询链上 Receipt 数据失败", zap.Any("txHash", txHash), zap.Any("error", err))
 		return nil, err
 	}
 
-	if receipt == nil {
-		return nil, nil
-	}
-	intBlockNumber, _ := utils.HexStringToBigInt(receipt.BlockNumber)
+	intBlockNumber, _ := utils.HexStringToUint64(receipt.BlockNumber)
 	tx = &chain.Transaction{
 		Hash:        txByHash.Hash().Hex(),
 		Nonce:       txByHash.Nonce(),
-		BlockNumber: intBlockNumber.Uint64(),
+		BlockNumber: intBlockNumber,
 
 		TxType:      "",
 		FromAddress: "",
 		ToAddress:   "",
 		Value:       "",
 
-		Raw:    receipt,
+		Raw:    []interface{}{txByHash, receipt},
 		Record: nil,
 	}
 	c.parseTxMeta(tx, txByHash)
