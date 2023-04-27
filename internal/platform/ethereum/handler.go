@@ -5,9 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
-	"block-crawling/internal/utils"
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -119,7 +117,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil || err == ethereum.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
+	if err == nil || err == ethereum.NotFound || err == pcommon.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
 		return err
 	}
 	pcommon.NotifyForkedError(h.chainName, err)
@@ -127,46 +125,21 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	nerr := utils.SubError(err)
-	fields := make([]zap.Field, 0, 4)
-	fields = append(
-		fields,
-		zap.String("chainName", h.chainName),
-		zap.Error(nerr),
-	)
-	if len(optHeights) > 0 {
-		fields = append(
-			fields,
-			zap.Uint64("curHeight", optHeights[0].CurHeight),
-			zap.Uint64("chainHeight", optHeights[0].ChainHeight),
-		)
+	if err == nil || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
+		return true
 	}
 
-	if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
-		if err == ethereum.NotFound {
-			// Use Info to avoid stacktrace.
-			log.Info(
-				"SOMETHING MISSED IN NONSTANDARD EVM CHAIN, WILL TRY LATER",
-				fields...,
-			)
-		} else {
-			if errors.Is(err, chain.ErrSlowBlockHandling) {
-				log.ErrorS(
-					"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-					fields...,
-				)
-			} else {
-				log.Error(
-					"ERROR OCCURRED WHILE HANDLING BLOCK, WILL TRY LATER",
-					fields...,
-				)
-			}
-		}
-		return false
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
+	return
+}
+
+func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
+	if txByHash == nil && (err == nil || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
+		return true
 	}
-	log.InfoS(
-		"IGNORE CURRENT BLOCK AS AN UNRESOLVABLE ERROR OCCURRED",
-		fields...,
-	)
-	return true
+	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		return true
+	}
+
+	return
 }

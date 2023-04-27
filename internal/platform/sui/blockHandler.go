@@ -116,6 +116,9 @@ func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped
 	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
 		return true
 	}
+	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		return true
+	}
 
 	return
 }

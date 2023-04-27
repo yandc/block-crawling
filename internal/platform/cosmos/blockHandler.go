@@ -90,6 +90,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 		log.Error(h.chainName+"扫块，从数据库中删除分叉孤块数据失败", zap.Any("current", curHeight), zap.Any("error", err))
 		return err
 	}
+	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)
 	log.Info(
 		"出现分叉回滚数据",
 		zap.Any("链类型", h.chainName),
@@ -129,6 +130,9 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 
 func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
 	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
+		return true
+	}
+	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
 		return true
 	}
 

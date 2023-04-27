@@ -552,6 +552,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		var token types.TokenInfo
+		var tokens []*types.TokenInfo
 		var err error
 		ctx := context.Background()
 		tokenAddress := log_.Address.String()
@@ -666,14 +667,48 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
 		} else if topic0 == TRANSFERBATCH_TOPIC {
-			tokenId = new(big.Int).SetBytes(log_.Data[96:128]).String()
-			amount = new(big.Int).SetBytes(log_.Data[128:160])
+			//https://etherscan.io/tx/0x247e793635ff121dc2500564c7f9c81fbeb8063859428a77da46cc44f5cf515c
+			//https://ftmscan.com/tx/0xf280f166ed86b7b02229d012dfdccd406407b11f67d74915920e632d8692be58
+			//https://www.bscscan.com/tx/0x852ae27d53936378f08c0b6e97d57dc11c214d9eecac049df821aa5a6109cc59
+			//https://arbiscan.io/tx/0xd204a3aa6f3c505ac0a4fcf6de4c7da9fa81097bfae8cdc31c756268a0f082ab
+			if len(log_.Data) < 192 {
+				//https://mumbai.polygonscan.com/tx/0xc126afea00adcd311900c73a556794504128141d8b69a8fa7f0de980cb16336b
+				continue
+			}
+			tokenNumIndex := new(big.Int).SetBytes(log_.Data[:32]).Int64()
+			tokenNum := int(new(big.Int).SetBytes(log_.Data[tokenNumIndex : tokenNumIndex+32]).Int64())
+			amountNumIndex := new(big.Int).SetBytes(log_.Data[32:64]).Int64()
+			amountNum := int(new(big.Int).SetBytes(log_.Data[amountNumIndex : amountNumIndex+32]).Int64())
+			if tokenNum != amountNum {
+				continue
+			}
+			tokenIdIndex := tokenNumIndex + 32
+			amountIndex := amountNumIndex + 32
+			for i := 0; i < tokenNum; i++ {
+				tokenId = new(big.Int).SetBytes(log_.Data[tokenIdIndex : tokenIdIndex+32]).String()
+				amount = new(big.Int).SetBytes(log_.Data[amountIndex : amountIndex+32])
+				amountStr := amount.String()
+				if amountStr == "0" {
+					//https://snowtrace.io/tx/0x2a9fa926d53c73fdb8c7c0ce9f28aa0b80e5927cb730d86ea1f8b30a24693edc
+					continue
+				}
+				tokens = append(tokens, &types.TokenInfo{
+					TokenType: biz.ERC1155,
+					TokenId:   tokenId,
+					Amount:    amountStr,
+				})
+				tokenIdIndex += 32
+				amountIndex += 32
+			}
+			if len(tokens) == 0 {
+				continue
+			}
 			/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 			}*/
-			token.TokenType = biz.ERC1155
-			token.Amount = amount.String()
+			/*token.TokenType = biz.ERC1155
+			token.Amount = amount.String()*/
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
 		} else if topic0 == WITHDRAWAL_TOPIC {
@@ -1011,6 +1046,36 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		}
 
+		if len(tokens) > 0 {
+			for _, tokenInfo := range tokens {
+				tokenType := tokenInfo.TokenType
+				tokenId := tokenInfo.TokenId
+				tokenAmount := tokenInfo.Amount
+				token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+				}
+				token.TokenType = tokenType
+				token.Address = tokenAddress
+				token.TokenId = tokenId
+				token.Amount = tokenAmount
+
+				eventLogInfo := &types.EventLogUid{
+					EventLog: types.EventLog{
+						From:   fromAddress,
+						To:     toAddress,
+						Amount: amount,
+						Token:  token,
+					},
+					FromUid: fromUid,
+					ToUid:   toUid,
+				}
+
+				eventLogs = append(eventLogs, eventLogInfo)
+			}
+			continue
+		}
+
 		if token.TokenType == biz.ERC721 || token.TokenType == biz.ERC1155 {
 			tokenType := token.TokenType
 			tokenAmount := token.Amount
@@ -1085,8 +1150,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) error {
 	client := c.(*Client)
-
-	rawReceipt := txByHash.Raw
+	raw := txByHash.Raw.([]interface{})
+	rawTransaction := raw[0].(*Transaction)
+	rawReceipt := raw[1].(*Receipt)
 
 	meta, err := pCommon.AttemptMatchUser(h.chainName, txByHash)
 	if err != nil {
@@ -1130,26 +1196,21 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 		h.blocksStore[curHeight] = block
 	}
 
-	for _, blkTx := range block.Transactions {
-		if txByHash.Hash == blkTx.Hash {
-			job := &txHandleJob{
-				block:       block,
-				tx:          txByHash,
-				transaction: blkTx.Raw.(*Transaction),
-				meta:        meta,
-				receipt:     rawReceipt.(*Receipt),
-			}
-			h.block = block // to let below invocation work.
-			if err := h.handleEachTransaction(c.(*Client), job); err != nil {
-				return err
-			}
-		}
+	job := &txHandleJob{
+		block:       block,
+		tx:          txByHash,
+		transaction: rawTransaction,
+		meta:        meta,
+		receipt:     rawReceipt,
+	}
+	h.block = block // to let below invocation work.
+	if err := h.handleEachTransaction(c.(*Client), job); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
-	client := c.(*Client)
 	ctx := context.Background()
 	record := tx.Record.(*data.EvmTransactionRecord)
 	//a.扫块时候 给扫到 一样nonce的值 成功后  更新 当nonce一样，并且状态不是 biz.DROPPED_REPLACED 更新状态为 biz.DROPPED_REPLACED
@@ -1171,10 +1232,13 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	)
 
 	//判断nonce 是否小于 当前链上的nonce
-	nonce, nonceErr := client.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
-	if nonceErr != nil {
+	result, err := ExecuteRetry(h.chainName, func(client Client) (interface{}, error) {
+		return client.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
+	})
+	if err != nil {
 		return nil
 	}
+	nonce := result.(uint64)
 	if int(record.Nonce) < int(nonce) {
 		record.Status = biz.DROPPED_REPLACED
 		h.txRecords = append(h.txRecords, record)
