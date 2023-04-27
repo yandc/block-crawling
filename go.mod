@@ -21,7 +21,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
 	github.com/stretchr/testify v1.8.1
-	gitlab.bixin.com/mili/node-driver v0.0.0-20230418012520-7878f6e73832
+	gitlab.bixin.com/mili/node-driver v0.0.0-20230427072138-ef5a4ceeffe8
 	go.uber.org/zap v1.13.0
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
