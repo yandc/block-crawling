@@ -101,6 +101,9 @@ func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bo
 	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
 		return true
 	}
+	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		return true
+	}
 
 	errStr := err.Error()
 	errList := strings.Split(errStr, "\n")
