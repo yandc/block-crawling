@@ -123,6 +123,9 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
 		return true
 	}
+	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		return true
+	}
 
 	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return
