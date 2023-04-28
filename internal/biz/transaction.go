@@ -2025,6 +2025,10 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 
 // JsonRPC
 func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
+	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {
+		return struct{}{}, nil
+	}
+
 	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
