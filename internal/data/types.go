@@ -24,6 +24,10 @@ type TransactionRequest struct {
 	DappDataEmpty            bool
 	ClientDataNotEmpty       bool
 	OrderBy                  string
+	DataDirection            int32
+	StartIndex               int64
+	PageNum                  int32
+	PageSize                 int32
 }
 
 type TBTransactionRecord struct {

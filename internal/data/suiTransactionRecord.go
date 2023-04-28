@@ -49,6 +49,10 @@ type SuiTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*SuiTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SuiTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*SuiTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*SuiTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*SuiTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*SuiTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByTransactionHash(context.Context, string, []*SuiTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *SuiTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*SuiTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*SuiTransactionRecord, error)
@@ -61,6 +65,7 @@ type SuiTransactionRecordRepo interface {
 	FindOneByBlockNumber(context.Context, string, int) (*SuiTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*SuiTransactionRecord, error)
+	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*SuiTransactionRecord, error)
 }
 
 type SuiTransactionRecordRepoImpl struct {
@@ -165,6 +170,83 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, suiTransactionRecords []*SuiTransactionRecord) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   columnList,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			/*"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},*/
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":           gorm.Expr("case when excluded.amount != '' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
+			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			/*"gas_limit":        clause.Column{Table: "excluded", Name: "gas_limit"},
+			"gas_used":         clause.Column{Table: "excluded", Name: "gas_used"},*/
+			"data":      gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log": gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			//"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&suiTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective suiTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *SuiTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, txRecords []*SuiTransactionRecord, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(txRecords)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subTxRecords := txRecords[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, tableName, columns, subTxRecords)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
+}
+
+func (r *SuiTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*SuiTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
+}
+
+func (r *SuiTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByTransactionHash(ctx context.Context, tableName string, txRecords []*SuiTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"transaction_hash"}, txRecords, pageSize)
 }
 
 func (r *SuiTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, suiTransactionRecord *SuiTransactionRecord) (int64, error) {
@@ -453,4 +535,45 @@ func (r *SuiTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *SuiTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*SuiTransactionRecord, error) {
+	var suiTransactionRecords []*SuiTransactionRecord
+
+	sqlStr := "select transaction_type, transaction_hash, amount, parse_data, event_log from " + tableName +
+		" where 1=1 " +
+		"and (" +
+		"(" +
+		"(" +
+		"(parse_data not like '%\"collection_name\":\"%' and parse_data not like '%\"item_name\":%') " +
+		"or (parse_data like '%\"collection_name\":\"\"%' and parse_data like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"parse_data like '%\"token_type\":\"SuiNFT\"%' " +
+		")" +
+		") or (" +
+		"(" +
+		"(event_log not like '%\"collection_name\":\"%' and event_log not like '%\"item_name\":%') " +
+		"or (event_log like '%\"collection_name\":\"\"%' and event_log like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"event_log like '%\"token_type\":\"SuiNFT\"%'" +
+		")" +
+		")" +
+		")"
+
+	if len(req.StatusNotInList) > 0 {
+		statusNotInList := strings.ReplaceAll(utils.ListToString(req.StatusNotInList), "\"", "'")
+		sqlStr += " and status not in (" + statusNotInList + ")"
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		transactionTypeNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeNotInList), "\"", "'")
+		sqlStr += " and transaction_type not in (" + transactionTypeNotInList + ")"
+	}
+
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Raw(sqlStr).Find(&suiTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query suiTransactionRecord failed", err)
+		return nil, err
+	}
+	return suiTransactionRecords, nil
 }

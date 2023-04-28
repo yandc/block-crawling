@@ -56,8 +56,10 @@ type EvmTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*EvmTransactionRecord) (int64, error)
-	BatchSaveOrUpdateSelectiveById(context.Context, string, []*EvmTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*EvmTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*EvmTransactionRecord, int) (int64, error)
 	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*EvmTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByTransactionHash(context.Context, string, []*EvmTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *EvmTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*EvmTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*EvmTransactionRecord, error)
@@ -79,6 +81,7 @@ type EvmTransactionRecordRepo interface {
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	FindFromAddress(context.Context, string) ([]string, error)
 	FindLastNonceByAddress(context.Context, string, string) (int64, error)
+	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -102,7 +105,7 @@ func (r *EvmTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
 			err = &common.ApiResponse{Code: 200, Status: false,
 				Msg: "duplicate key value, id:" + strconv.FormatInt(evmTransactionRecord.Id, 10), Data: 0}
-			log.Warne("insert evmTransactionRecord failed", err)
+			log.Warne("insert "+tableName+" failed", err)
 		} else {
 			log.Errore("insert "+tableName+" failed", err)
 		}
@@ -183,7 +186,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	}).Create(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
-		log.Errore("batch insert or update selective evmTransactionRecord failed", err)
+		log.Errore("batch insert or update selective "+tableName+" failed", err)
 		return 0, err
 	}
 
@@ -191,25 +194,29 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return affected, err
 }
 
-func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, evmTransactionRecords []*EvmTransactionRecord) (int64, error) {
+func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*EvmTransactionRecord) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "id"}},
+		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			/*"block_hash":               clause.Column{Table: "excluded", Name: "block_hash"},
 			"block_number":             clause.Column{Table: "excluded", Name: "block_number"},
 			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
-			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},*/
-			"to_address": gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
-			/*"from_uid":                 clause.Column{Table: "excluded", Name: "from_uid"},
-			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},*/
-			"fee_amount": gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
-			/*"amount":                   clause.Column{Table: "excluded", Name: "amount"},
-			"status":                   gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
-			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
-			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},*/
-			"parse_data": gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},*/
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":           gorm.Expr("case when excluded.amount != '' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
+			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
 			/*"type":                     clause.Column{Table: "excluded", Name: "type"},
 			"gas_limit":                clause.Column{Table: "excluded", Name: "gas_limit"},
 			"gas_used":                 clause.Column{Table: "excluded", Name: "gas_used"},
@@ -229,7 +236,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 	}).Create(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
-		log.Errore("batch insert or update selective evmTransactionRecord failed", err)
+		log.Errore("batch insert or update selective "+tableName+" failed", err)
 		return 0, err
 	}
 
@@ -237,7 +244,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 	return affected, err
 }
 
-func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*EvmTransactionRecord, pageSize int) (int64, error) {
+func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, txRecords []*EvmTransactionRecord, pageSize int) (int64, error) {
 	var totalAffected int64 = 0
 	total := len(txRecords)
 	start := 0
@@ -253,7 +260,7 @@ func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx co
 			stop = total
 		}
 
-		affected, err := r.BatchSaveOrUpdateSelectiveById(ctx, tableName, subTxRecords)
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, tableName, columns, subTxRecords)
 		if err != nil {
 			return totalAffected, err
 		} else {
@@ -261,6 +268,14 @@ func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx co
 		}
 	}
 	return totalAffected, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*EvmTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
+}
+
+func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByTransactionHash(ctx context.Context, tableName string, txRecords []*EvmTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"transaction_hash"}, txRecords, pageSize)
 }
 
 func (r *EvmTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, evmTransactionRecord *EvmTransactionRecord) (int64, error) {
@@ -325,7 +340,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByNonceAndAddress(ctx context.Context
 	ret := db.Find(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
-		log.Errore("findByNonceAndAddress evmTransactionRecord failed", err)
+		log.Errore("findByNonceAndAddress "+tableName+" failed", err)
 		return nil, err
 	}
 
@@ -434,7 +449,7 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	ret := db.Find(&evmTransactionRecordList)
 	err := ret.Error
 	if err != nil {
-		log.Errore("page query evmTransactionRecord failed", err)
+		log.Errore("page query "+tableName+" failed", err)
 		return nil, 0, err
 	}
 	return evmTransactionRecordList, total, nil
@@ -513,7 +528,7 @@ func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	ret := db.Find(&evmTransactionRecordList)
 	err := ret.Error
 	if err != nil {
-		log.Errore("page query evmTransactionRecord failed", err)
+		log.Errore("list query "+tableName+" failed", err)
 		return nil, err
 	}
 	return evmTransactionRecordList, nil
@@ -660,7 +675,7 @@ func (r *EvmTransactionRecordRepoImpl) FindOneByBlockNumber(ctx context.Context,
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("block_number = ?", blockNumber).Limit(1).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
-		log.Errore("query one evmTransactionRecord by blockNumber failed", err)
+		log.Errore("query one "+tableName+" by blockNumber failed", err)
 		return nil, err
 	} else {
 		if ret.RowsAffected == 0 {
@@ -740,7 +755,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
-		log.Errore("query evmTransactionRecord by txHash failed", err)
+		log.Errore("query "+tableName+" by txHash failed", err)
 		return nil, err
 	}
 	if evmTransactionRecord.Id != 0 {
@@ -754,7 +769,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByTxhashLike(ctx context.Context, tab
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ?", txhash+"%").Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
-		log.Errore("query evmTransactionRecord by txHash failed", err)
+		log.Errore("query "+tableName+" by txHash failed", err)
 		return nil, err
 	}
 	return evmTransactionRecord, nil
@@ -766,7 +781,7 @@ func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%", token).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
-		log.Errore("query evmTransactionRecord by txHash failed", err)
+		log.Errore("query "+tableName+" by txHash failed", err)
 		return nil, err
 	}
 	if evmTransactionRecord.Id != 0 {
@@ -781,7 +796,7 @@ func (r *EvmTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context
 	ret := r.gormDB.Table(tableName).Where("status = 'success' and block_hash != '' and transaction_type = ?", transactionType).Order("block_number asc").Find(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
-		log.Errore("query evmTransactionRecord by txType failed", err)
+		log.Errore("query "+tableName+" by txType failed", err)
 		return nil, err
 	}
 	return evmTransactionRecords, nil
@@ -808,4 +823,47 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Contex
 		return 0, err
 	}
 	return nonce, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
+	var evmTransactionRecords []*EvmTransactionRecord
+
+	sqlStr := "select transaction_type, transaction_hash, amount, parse_data, event_log from " + tableName +
+		" where 1=1 " +
+		"and (" +
+		"(" +
+		"(" +
+		"(parse_data not like '%\"collection_name\":\"%' and parse_data not like '%\"item_name\":%') " +
+		"or (parse_data like '%\"collection_name\":\"\"%' and parse_data like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"parse_data like '%\"token_type\":\"ERC721\"%' " +
+		"or parse_data like '%\"token_type\":\"ERC1155\"%'" +
+		")" +
+		") or (" +
+		"(" +
+		"(event_log not like '%\"collection_name\":\"%' and event_log not like '%\"item_name\":%') " +
+		"or (event_log like '%\"collection_name\":\"\"%' and event_log like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"event_log like '%\"token_type\":\"ERC721\"%' " +
+		"or event_log like '%\"token_type\":\"ERC1155\"%'" +
+		")" +
+		")" +
+		")"
+
+	if len(req.StatusNotInList) > 0 {
+		statusNotInList := strings.ReplaceAll(utils.ListToString(req.StatusNotInList), "\"", "'")
+		sqlStr += " and status not in (" + statusNotInList + ")"
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		transactionTypeNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeNotInList), "\"", "'")
+		sqlStr += " and transaction_type not in (" + transactionTypeNotInList + ")"
+	}
+
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Raw(sqlStr).Find(&evmTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query "+tableName+" failed", err)
+		return nil, err
+	}
+	return evmTransactionRecords, nil
 }

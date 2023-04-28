@@ -81,7 +81,7 @@ type UserNftAssetRepo interface {
 	ListAll(context.Context) ([]*UserNftAsset, error)
 	PageList(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, int64, error)
 	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
-	GroupListBalance(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
+	ListBalanceGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
 	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -372,7 +372,7 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	return userNftAssetList, nil
 }
 
-func (r *UserNftAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAsset, error) {
+func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAsset, error) {
 	var userNftAssetList []*UserNftAsset
 
 	sqlStr := "select chain_name, token_address, sum(cast(balance as numeric)) as balance " +
