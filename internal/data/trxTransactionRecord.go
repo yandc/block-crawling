@@ -46,7 +46,8 @@ type TrxTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*TrxTransactionRecord) (int64, error)
-	BatchSaveOrUpdateSelectiveById(context.Context, string, []*TrxTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*TrxTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*TrxTransactionRecord, int) (int64, error)
 	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*TrxTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *TrxTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*TrxTransactionRecord, error)
@@ -166,28 +167,32 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return affected, err
 }
 
-func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
+func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "id"}},
+		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			/*"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
 			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
-			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"from_address":     clause.Column{Table: "excluded", Name: "from_address"},*/
-			"to_address": gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
-			/*"from_uid":         clause.Column{Table: "excluded", Name: "from_uid"},
-			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
-			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":           clause.Column{Table: "excluded", Name: "amount"},
-			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
-			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
-			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},*/
-			"parse_data": gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},*/
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":           gorm.Expr("case when excluded.amount != '' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
+			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
 			/*"fee_limit":        clause.Column{Table: "excluded", Name: "fee_limit"},
 			"net_usage":        clause.Column{Table: "excluded", Name: "net_usage"},
 			"energy_usage":     clause.Column{Table: "excluded", Name: "energy_usage"},*/
-			//"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			"event_log": gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
 			//"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
@@ -205,7 +210,7 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveById(ctx contex
 	return affected, err
 }
 
-func (r *TrxTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*TrxTransactionRecord, pageSize int) (int64, error) {
+func (r *TrxTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, txRecords []*TrxTransactionRecord, pageSize int) (int64, error) {
 	var totalAffected int64 = 0
 	total := len(txRecords)
 	start := 0
@@ -221,7 +226,7 @@ func (r *TrxTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx co
 			stop = total
 		}
 
-		affected, err := r.BatchSaveOrUpdateSelectiveById(ctx, tableName, subTxRecords)
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, tableName, columns, subTxRecords)
 		if err != nil {
 			return totalAffected, err
 		} else {
@@ -229,6 +234,10 @@ func (r *TrxTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx co
 		}
 	}
 	return totalAffected, nil
+}
+
+func (r *TrxTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*TrxTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
 }
 
 func (r *TrxTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
@@ -469,7 +478,7 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	ret := db.Delete(&TrxTransactionRecord{})
 	err := ret.Error
 	if err != nil {
-		log.Errore("delete "+tableName+" failed", err)
+		log.Errore("delete trxTransactionRecord failed", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected
