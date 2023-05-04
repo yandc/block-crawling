@@ -1398,6 +1398,9 @@ platformTest:
     proxyCacheTime: 0
     rpcURL:
       - https://alpha-rpc.scroll.io/l2
+      - https://scroll-alpha-public.unifra.io
+      - https://scroll-alphanet.public.blastapi.io
+      - https://scroll-testnet.blockpi.network/v1/rpc/public
     symbol: Scroll L2
     type: EVM
     safelyConcurrentBlockDelta: 20

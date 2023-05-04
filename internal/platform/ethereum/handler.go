@@ -117,7 +117,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil || err == ethereum.NotFound || err == pcommon.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION {
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound {
 		return err
 	}
 	pcommon.NotifyForkedError(h.chainName, err)
@@ -125,10 +125,10 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || err == ethereum.NotFound || err == pcommon.NotFound || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && (retryErr.Error() == pcommon.BlockNotFound.Error() || retryErr.Error() == pcommon.TransactionNotFound.Error()) {
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound {
+		if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
+			pcommon.LogBlockWarn(h.chainName, err, optHeights...)
+		}
 		return true
 	}
 
@@ -138,9 +138,6 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 
 func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
 	if txByHash == nil && (err == nil || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
 		return true
 	}
 
