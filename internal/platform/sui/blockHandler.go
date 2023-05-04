@@ -97,11 +97,9 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	return common.Retry(err)
 }
 
-func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bool) {
+func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		pcommon.LogBlockWarn(h.chainName, err, optHeights...)
 		return true
 	}
 
@@ -111,15 +109,12 @@ func (h *handler) OnError(err error, heights ...chain.HeightInfo) (incrHeight bo
 	if errListLen >= 3 && errList[0] == "HTTP 200 OK" && errList[errListLen-1] == "context deadline exceeded (Client.Timeout or context cancellation while reading body)" && len(errStr) > 1048576 {
 		incrHeight = true
 	}
-	pcommon.LogBlockError(h.chainName, err, heights...)
+	pcommon.LogBlockError(h.chainName, err, optHeights...)
 	return
 }
 
 func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
 	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
 		return true
 	}
 

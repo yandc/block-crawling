@@ -121,9 +121,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
 	if err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
+		pcommon.LogBlockWarn(h.chainName, err, optHeights...)
 		return true
 	}
 
@@ -133,9 +131,6 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 
 func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
 	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
-		return true
-	}
-	if retryErr, ok := err.(*common.RetryErr); ok && retryErr.Error() == pcommon.TransactionNotFound.Error() {
 		return true
 	}
 

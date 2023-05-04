@@ -190,6 +190,17 @@ func failedOnChain(status string) bool {
 }
 
 func LogBlockError(chainName string, err error, optHeights ...chain.HeightInfo) {
+	LogBlock(chainName, "error", err, optHeights...)
+}
+
+func LogBlockWarn(chainName string, err error, optHeights ...chain.HeightInfo) {
+	LogBlock(chainName, "warn", err, optHeights...)
+}
+
+func LogBlock(chainName, level string, err error, optHeights ...chain.HeightInfo) {
+	if err == nil {
+		return
+	}
 	nerr := utils.SubError(err)
 	fields := make([]zap.Field, 0, 4)
 	fields = append(
@@ -205,12 +216,22 @@ func LogBlockError(chainName string, err error, optHeights ...chain.HeightInfo) 
 		)
 	}
 
-	showMsg := log.Error
+	var showMsg func(msg string, args ...zap.Field)
 	if errors.Is(err, chain.ErrSlowBlockHandling) {
-		showMsg = log.ErrorS
+		if level == "error" {
+			showMsg = log.ErrorS
+		} else if level == "warn" {
+			showMsg = log.WarnS
+		}
+	} else {
+		if level == "error" {
+			showMsg = log.Error
+		} else if level == "warn" {
+			showMsg = log.Warn
+		}
 	}
 	showMsg(
-		"ERROR OCCURRED WHILE HANDLING BLOCK",
+		"error occurred while handling block",
 		fields...,
 	)
 }
