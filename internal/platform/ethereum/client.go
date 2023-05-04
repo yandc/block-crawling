@@ -696,6 +696,12 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 	}
 	ownerAddress, err := erc721Token.OwnerOf(opts, tokenIdBig)
 	if err != nil {
+		if strings.HasSuffix(err.Error(), "ERC721: owner query for nonexistent token") {
+			if address == "0x0000000000000000000000000000000000000000" {
+				return "1", nil
+			}
+			return "0", nil
+		}
 		return "", err
 	}
 	if address == ownerAddress.String() {

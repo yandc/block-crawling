@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/common"
+	"block-crawling/internal/types"
 	"context"
 	"errors"
 	"fmt"
@@ -134,7 +135,12 @@ func FixNftInfo() {
 				txHash := incompleteNft.TransactionHash
 				txHash = strings.Split(txHash, "#")[0]
 				if _, ok := txHashMap[txHash]; !ok {
-					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
+					var token types.TokenInfo
+					if tokenId != "" {
+						token, err = biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
+					} else {
+						token, err = biz.GetCollectionInfoDirectlyRetryAlert(nil, chainName, tokenAddress)
+					}
 					if err != nil {
 						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
