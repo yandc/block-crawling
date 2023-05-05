@@ -862,6 +862,22 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 						}
 					}
 
+					if record.Status == FAIL {
+						evm := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+							//| 150878    | 149039
+							gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
+							gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
+
+							f := gasUsed/gasLimit
+							if f > 0.9 {
+								evm["failMsg"] = GAS_LIMIT_LOW
+								parseDataStr, _ := utils.JsonEncode(evm)
+								record.ParseData = parseDataStr
+							}
+						}
+					}
+
 				case TVM:
 					feeData["fee_limit"] = record.FeeLimit
 					feeData["net_usage"] = record.NetUsage

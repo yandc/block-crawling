@@ -85,6 +85,7 @@ const (
 	GAS_FEE_LOW = "gasFeeLow"
 	NONCE_QUEUE = "nonceQueue"
 	NONCE_BREAK = "nonceBreak"
+	GAS_LIMIT_LOW = "gasLimitLow"
 )
 
 const (
