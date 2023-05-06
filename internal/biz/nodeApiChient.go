@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	types2 "github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"net/http"
@@ -104,6 +105,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 	}
 	//func GetApiTx(url string, starblock string, page int, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
 	var result []EvmApiRecord
+	var intxResult []EvmApiRecord
 
 	for i := 0; i < len(urls); i++ {
 		//init record
@@ -114,7 +116,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				continue
 			}
 			result = append(result, evmRecords...)
-			result = append(result, evmIntxRecords...)
+			intxResult = append(intxResult, evmIntxRecords...)
 			break
 		} else {
 			starblock := lastRecord.BlockNumber + 1
@@ -124,7 +126,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				continue
 			}
 			result = append(result, evmRecords...)
-			result = append(result, evmIntxRecords...)
+			intxResult = append(intxResult, evmIntxRecords...)
 			break
 		}
 	}
@@ -149,6 +151,66 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				Status:          PENDING,
 				DappData:        "",
 				ClientData:      "",
+				CreatedAt:       now,
+				UpdatedAt:       now,
+			}
+			if _, ok := txMap[txHash]; !ok {
+				txMap[txHash] = txHash
+				evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
+
+			}
+		}
+		for _, intxRecord := range intxResult {
+			txHash := intxRecord.Hash
+			if txHash == "" {
+				continue
+			}
+			bn, _ := strconv.Atoi(intxRecord.BlockNumber)
+			txTime, _ := strconv.Atoi(intxRecord.TimeStamp)
+			am, _ := decimal.NewFromString(intxRecord.Value)
+			fa := types2.HexToAddress(intxRecord.From).Hex()
+			ta := types2.HexToAddress(intxRecord.To).Hex()
+			_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, fa)
+			if err1 != nil {
+				log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", fa), zap.Any("error", err1))
+				return
+			}
+			_, toUid, err2 := UserAddressSwitchRetryAlert(chainName, ta)
+			if err2 != nil {
+				log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", fa), zap.Any("error", err2))
+				return
+			}
+			parseData := ""
+			transactionType := NATIVE
+			if intxRecord.ContractAddress != "" {
+				transactionType = TRANSFER
+				tokenInfo, e := GetTokenInfoRetryAlert(ctx, chainName, intxRecord.ContractAddress)
+				if e == nil {
+					tokenInfo.Amount = intxRecord.Value
+					tokenInfo.Address = intxRecord.ContractAddress
+					evmMap := map[string]interface{}{
+						"token": tokenInfo,
+					}
+					parseData, _ = utils.JsonEncode(evmMap)
+				}
+
+			}
+
+			evmRecord := &data.EvmTransactionRecord{
+				TransactionHash: txHash,
+				BlockNumber:     bn,
+				FromAddress:     fa,
+				FromUid:         fromUid,
+				ToAddress:       ta,
+				ToUid:           toUid,
+				Status:          SUCCESS,
+				TxTime:          int64(txTime),
+				ContractAddress: intxRecord.ContractAddress,
+				TransactionType: transactionType,
+				Amount:          am,
+				DappData:        "",
+				ClientData:      "",
+				ParseData:       parseData,
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
