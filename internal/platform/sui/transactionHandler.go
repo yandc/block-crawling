@@ -318,7 +318,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 			continue
 		}
 
-		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
@@ -328,6 +328,12 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
+		tokenType := tokenInfo.TokenType
+		if tokenType == biz.SUINFT {
+			continue
+		}
+		decimals := tokenInfo.Decimals
+		symbol := tokenInfo.Symbol
 
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
@@ -338,7 +344,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 				Uid:          uid,
 				Address:      address,
 				TokenAddress: tokenAddress,
-				Decimals:     decimals,
+				Decimals:     int32(decimals),
 				Symbol:       symbol,
 			}
 			userAssetList = append(userAssetList, userAsset)
