@@ -119,6 +119,18 @@ func main() {
 	fmt.Println(rets[2])
 	fmt.Println(len(rets) >= 3)
 
+
+	gl := "150878"
+	gu := "149039"
+	gasLimit, _ := strconv.ParseFloat(gl, 64)
+	gasUsed, _ := strconv.ParseFloat(gu, 64)
+
+	f := gasUsed/gasLimit
+	if f > 0.9 {
+		fmt.Println(f)
+		fmt.Println(f > 0.9)
+	}
+
 }
 
 func Dec2HexStr(v []byte) []string {
