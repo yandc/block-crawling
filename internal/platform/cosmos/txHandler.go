@@ -510,20 +510,24 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						} else if key == "recipient" {
 							toAddress = value
 						} else if key == "amount" {
+							if value == "" {
+								//https://www.mintscan.io/osmosis/txs/834574CEC6C645637870D4EE5CC54C5C7523B4B03C29F21E5950367C6C3B17CF
+								continue
+							}
 							values := strings.Split(value, ",")
-							for _, value := range values {
+							for _, tvalue := range values {
 								var tokenInfo types.TokenInfo
 								var amount, contractAddress string
 
 								var tokenDenomIndex int
-								for i, val := range value {
+								for i, val := range tvalue {
 									if val > 57 {
 										tokenDenomIndex = i
 										break
 									}
 								}
-								amount = value[:tokenDenomIndex]
-								tokenDenom := value[tokenDenomIndex:]
+								amount = tvalue[:tokenDenomIndex]
+								tokenDenom := tvalue[tokenDenomIndex:]
 								var denom string
 								if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
 									denom = strings.ToLower(platInfo.NativeCurrency)
