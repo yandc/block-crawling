@@ -82,6 +82,7 @@ type EvmTransactionRecordRepo interface {
 	FindFromAddress(context.Context, string) ([]string, error)
 	FindLastNonceByAddress(context.Context, string, string) (int64, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
+	FindLastNonce(context.Context, string, string) (*EvmTransactionRecord, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -866,4 +867,20 @@ func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return evmTransactionRecords, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableName string, fromAddress string) (*EvmTransactionRecord, error) {
+	var evmTransactionRecord *EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in('success', 'fail') and from_address = ?", fromAddress).Order("nonce desc").Limit(1).Find(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query last nonce from "+tableName+" failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return evmTransactionRecord, nil
+		}
+	}
 }

@@ -592,17 +592,19 @@ func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 
 	nowTime := time.Now().Unix()
 	if record.CreatedAt+180 > nowTime {
-		record.Status = biz.NO_STATUS
-		record.UpdatedAt = h.now
-		h.txRecords = append(h.txRecords, record)
-		log.Info(
-			"更新 PENDING txhash对象无状态",
-			zap.String("chainName", h.chainName),
-			zap.Any("txHash", record.TransactionHash),
-			zap.String("nodeUrl", c.URL()),
-			zap.Int64("nowTime", nowTime),
-			zap.Int64("createTime", record.CreatedAt),
-		)
+		if record.Status == biz.PENDING {
+			record.Status = biz.NO_STATUS
+			record.UpdatedAt = h.now
+			h.txRecords = append(h.txRecords, record)
+			log.Info(
+				"更新 PENDING txhash对象无状态",
+				zap.String("chainName", h.chainName),
+				zap.Any("txHash", record.TransactionHash),
+				zap.String("nodeUrl", c.URL()),
+				zap.Int64("nowTime", nowTime),
+				zap.Int64("createTime", record.CreatedAt),
+			)
+		}
 	} else {
 		record.Status = biz.DROPPED
 		record.UpdatedAt = h.now

@@ -66,6 +66,7 @@ type AtomTransactionRecordRepo interface {
 	FindByTxhash(context.Context, string, string) (*AtomTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*AtomTransactionRecord, error)
 	UpdateStatusByNonce(context.Context, string, string, int64, string) (int64, error)
+	FindLastNonce(context.Context, string, string) (*AtomTransactionRecord, error)
 }
 
 type AtomTransactionRecordRepoImpl struct {
@@ -555,4 +556,20 @@ func (r *AtomTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context,
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+
+func (r *AtomTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableName string, fromAddress string) (*AtomTransactionRecord, error) {
+	var atomTransactionRecord *AtomTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in('success', 'fail') and from_address = ?", fromAddress).Order("nonce desc").Limit(1).Find(&atomTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query last nonce from "+tableName+" failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return atomTransactionRecord, nil
+		}
+	}
 }

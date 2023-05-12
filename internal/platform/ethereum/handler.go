@@ -48,7 +48,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		block:     block,
 		newTxs:    true,
 		blockHash: "",
-		now:       time.Now(),
+		now:       time.Now().Unix(),
 	}
 	/*log.Info(
 		"GOT NEW BLOCK",
@@ -91,7 +91,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 		txByHash:    tx,
 		blockHash:   "",
 		newTxs:      false,
-		now:         time.Now(),
+		now:         time.Now().Unix(),
 		blocksStore: h.blocksStore,
 	}
 	return decoder, nil
