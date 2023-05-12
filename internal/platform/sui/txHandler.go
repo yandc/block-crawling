@@ -66,8 +66,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	balanceChanges := transactionInfo.BalanceChanges
 	for _, balanceChange := range balanceChanges {
 		txType := biz.NATIVE
-		tokenAddress := ""
-		address := balanceChange.Owner.AddressOwner
+		var address, tokenAddress string
+		if taddress, ok := balanceChange.Owner.(string); ok {
+			address = taddress
+		} else {
+			owner := balanceChange.Owner.(map[string]interface{})
+			address = owner["AddressOwner"].(string)
+		}
 		amount := balanceChange.Amount
 		if balanceChange.CoinType != SUI_CODE {
 			txType = biz.TRANSFER

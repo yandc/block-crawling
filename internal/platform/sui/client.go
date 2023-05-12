@@ -432,11 +432,12 @@ type TransactionInfo struct {
 		Digest          string      `json:"digest"`
 	} `json:"objectChanges"`
 	BalanceChanges []struct {
-		Owner struct {
+		/*Owner struct {
 			AddressOwner string `json:"AddressOwner"`
-		} `json:"owner"`
-		CoinType string `json:"coinType"`
-		Amount   string `json:"amount"`
+		} `json:"owner"`*/
+		Owner    interface{} `json:"owner"`
+		CoinType string      `json:"coinType"`
+		Amount   string      `json:"amount"`
 	} `json:"balanceChanges"`
 	TimestampMs string             `json:"timestampMs"`
 	Checkpoint  string             `json:"checkpoint"`
