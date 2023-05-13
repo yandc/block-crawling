@@ -68,10 +68,18 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		txType := biz.NATIVE
 		var address, tokenAddress string
 		if taddress, ok := balanceChange.Owner.(string); ok {
+			//https://suiexplorer.com/txblock/6xKvAZfQANGnJPbuReez3RjnYNqWDt73WkiEThMsCGze
 			address = taddress
 		} else {
 			owner := balanceChange.Owner.(map[string]interface{})
-			address = owner["AddressOwner"].(string)
+			if owner != nil {
+				if owner["AddressOwner"] != nil {
+					address = owner["AddressOwner"].(string)
+				} else if owner["ObjectOwner"] != nil {
+					//https://suiexplorer.com/txblock/5XaTqu2CJ4WBpHw5NeSt46EVYPPYDTxirRUNYZbU7Sb3
+					address = owner["ObjectOwner"].(string)
+				}
+			}
 		}
 		amount := balanceChange.Amount
 		if balanceChange.CoinType != SUI_CODE {
