@@ -39,7 +39,8 @@ func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle) *Tra
 
 func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenAmountReq) (*pb.OpenAmoutResp, error) {
 	chainType := ChainNameType[req.ChainName]
-	if chainType == EVM {
+	switch chainType {
+	case EVM:
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
@@ -125,7 +126,8 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 
 func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
 	chainType := ChainNameType[req.ChainName]
-	if chainType == EVM {
+	switch chainType {
+	case EVM:
 		req.Addresses = utils.HexToAddress(req.Addresses)
 		if req.ContractAddress != "" {
 			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
@@ -623,6 +625,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			nonce = int64(nonceInt)
 		}
 
+		if pbb.ContractAddress != "" {
+			pbb.ContractAddress = utils.AddressIbcToLower(pbb.ContractAddress)
+		}
+
 		atomRecord := &data.AtomTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -869,7 +875,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 							gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
 							gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
 
-							f := gasUsed/gasLimit
+							f := gasUsed / gasLimit
 							if f > 0.9 {
 								evm["failMsg"] = GAS_LIMIT_LOW
 								parseDataStr, _ := utils.JsonEncode(evm)
@@ -877,7 +883,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 							}
 						}
 					}
-
 				case TVM:
 					feeData["fee_limit"] = record.FeeLimit
 					feeData["net_usage"] = record.NetUsage
@@ -909,11 +914,18 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 
 	chainType := ChainNameType[req.ChainName]
 	switch chainType {
-	case BTC:
-		amount, err = data.BtcTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
 	case EVM:
 		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
 		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
+	case APTOS, SUI:
+		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
+		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
+	}
+
+	switch chainType {
+	case BTC:
+		amount, err = data.BtcTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
+	case EVM:
 		amount, err = data.EvmTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
 	case STC:
 		amount, err = data.StcTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
@@ -921,6 +933,10 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 		amount, err = data.TrxTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
 	case APTOS:
 		amount, err = data.AptTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
+	case SUI:
+		amount, err = data.SuiTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
+	case COSMOS:
+		amount, err = data.AtomTransactionRecordRepoClient.GetAmount(ctx, GetTableName(req.ChainName), req, PENDING)
 	}
 
 	if err == nil {
@@ -930,15 +946,9 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 }
 
 func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) (*pb.DappPageListResp, error) {
-	if req.Page == 0 {
-		req.Page = 1
-	}
-	if req.Limit == 0 {
-		req.Limit = 20
-	}
-
 	chainType := ChainNameType[req.ChainName]
-	if chainType == EVM {
+	switch chainType {
+	case EVM:
 		if req.ContractAddress != "" {
 			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
 		}
@@ -946,6 +956,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
 		}
 	}
+
 	dapps, err := data.DappApproveRecordRepoClient.GetDappListPageList(ctx, req)
 	if err != nil {
 		log.Errore("返回授权dapp列表报错！", err)
@@ -1125,9 +1136,17 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
 	chainType := ChainNameType[req.ChainName]
-	if req.Address != "" && chainType == EVM {
-		req.Address = types2.HexToAddress(req.Address).Hex()
+	switch chainType {
+	case EVM:
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+	case APTOS, SUI:
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
 	}
+
 	doneNonceKey := ADDRESS_DONE_NONCE + req.ChainName + ":" + req.Address
 	nonce, err := data.RedisClient.Get(doneNonceKey).Result()
 	if err == redis.Nil {
@@ -1177,8 +1196,10 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS:
+	case APTOS, SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
 	var result = &pb.PageListAssetResponse{}
@@ -1295,6 +1316,10 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case APTOS, SUI:
+		req.AddressList = utils.AddressListRemove0(req.AddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
 	var request = &data.AssetRequest{
@@ -1479,6 +1504,8 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
 	var request = &data.AssetRequest{
@@ -1616,8 +1643,10 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS:
+	case APTOS, SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
 	var result = &pb.ClientPageListNftAssetGroupResponse{}
@@ -1685,8 +1714,10 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS:
+	case APTOS, SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
 	var result = &pb.ClientPageListNftAssetResponse{}
@@ -1770,6 +1801,10 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 	case APTOS, SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
+		}
+	case COSMOS:
+		if req.TokenAddress != "" {
+			req.TokenAddress = utils.AddressIbcToLower(req.TokenAddress)
 		}
 	}
 
@@ -2058,6 +2093,10 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
+	case COSMOS:
+		for i := range req.Assets {
+			req.Assets[i].TokenAddress = utils.AddressIbcToLower(req.Assets[i].TokenAddress)
+		}
 	}
 
 	assets, err := data.UserAssetRepoClient.List(ctx, &data.AssetRequest{
@@ -2221,7 +2260,6 @@ func (s *TransactionUsecase) getBalance(ctx context.Context, chainName, address 
 		return "", err
 	}
 	return result.(string), nil
-
 }
 
 func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {
@@ -2238,7 +2276,6 @@ func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, addres
 		// extract from config
 	}
 	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
-
 }
 
 func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *BroadcastRequest) (*BroadcastResponse, error) {
@@ -2265,5 +2302,4 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	return &BroadcastResponse{
 		Ok: result == 1,
 	}, nil
-
 }

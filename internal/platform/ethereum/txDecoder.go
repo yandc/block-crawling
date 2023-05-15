@@ -739,6 +739,15 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					}
 				}
 			}
+
+			if strings.HasPrefix(h.chainName, "Polygon") {
+				//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
+				if transaction.To().String() == "0xc1DCb196BA862B337Aa23eDA1Cb9503C0801b955" && hex.EncodeToString(transaction.Data()[:4]) == "439dff06" {
+					if len(transaction.Data()) >= 100 {
+						toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[68:100])).String()
+					}
+				}
+			}
 		} else if topic0 == DEPOSIT_TOPIC {
 			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
 			if h.chainName == "Ronin" && len(log_.Topics) == 1 {

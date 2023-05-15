@@ -1,7 +1,6 @@
 package biz
 
 import (
-	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
@@ -25,6 +24,7 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 	}
 
 	var userTokenPushs []UserTokenPush
+	var userTokenPushMap = make(map[string]UserTokenPush)
 	for _, userTokenPush := range userTokenPushList {
 		if userTokenPush.Decimals == 0 && (userTokenPush.Symbol == "" || userTokenPush.Symbol == "Unknown Token") {
 			alarmMsg := fmt.Sprintf("请注意：%s链推送用户token信息失败，tokenAddress:%s，symbol:%s", chainName, userTokenPush.TokenAddress, userTokenPush.Symbol)
@@ -34,27 +34,33 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 			continue
 		}
 
-		userTokenPushs = append(userTokenPushs, userTokenPush)
+		key := userTokenPush.ChainName + userTokenPush.Address + userTokenPush.TokenAddress
+		userTokenPushMap[key] = userTokenPush
 	}
-	if len(userTokenPushs) == 0 {
+	if len(userTokenPushMap) == 0 {
 		return
+	}
+	for _, userTokenPush := range userTokenPushMap {
+		userTokenPushs = append(userTokenPushs, userTokenPush)
 	}
 	userTokenPushList = userTokenPushs
 
-	var assetRequest = &pb.PageListAssetRequest{
-		ChainName: chainName,
-	}
-	var addressList []string
+	var chainNameAddressTokenAddressList []*data.AssetRequest
 	for _, record := range userTokenPushList {
-		address := record.Address
-		addressList = append(addressList, address)
+		chainNameAddressTokenAddressList = append(chainNameAddressTokenAddressList, &data.AssetRequest{
+			ChainName:    record.ChainName,
+			Address:      record.Address,
+			TokenAddress: record.TokenAddress,
+		})
 	}
 
-	assetRequest.AddressList = addressList
-	list, _, err := data.UserAssetRepoClient.PageList(nil, assetRequest)
+	var assetRequest = &data.AssetRequest{
+		ChainNameAddressTokenAddressList: chainNameAddressTokenAddressList,
+	}
+	list, err := data.UserAssetRepoClient.List(nil, assetRequest)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		list, _, err = data.UserAssetRepoClient.PageList(nil, assetRequest)
+		list, err = data.UserAssetRepoClient.List(nil, assetRequest)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
@@ -64,32 +70,19 @@ func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
 		log.Error(chainName+"推送token信息，查询数据库中用户资产数据失败", zap.Any("error", err))
 		return
 	}
-	assetMap := make(map[string][]string)
+	assetMap := make(map[string]string)
 	for _, asset := range list {
 		if asset.Decimals == 0 && (asset.Symbol == "" || asset.Symbol == "Unknown Token") {
 			continue
 		}
 
-		tokenAddressList, ok := assetMap[asset.Address]
-		if !ok {
-			tokenAddressList = make([]string, 0)
-		}
-		tokenAddressList = append(tokenAddressList, asset.TokenAddress)
-		assetMap[asset.Address] = tokenAddressList
+		key := asset.ChainName + asset.Address + asset.TokenAddress
+		assetMap[key] = ""
 	}
 
 	for _, userTokenPush := range userTokenPushList {
-		address := userTokenPush.Address
-		tokenAddress := userTokenPush.TokenAddress
-		tokenAddressList := assetMap[address]
-		var exist bool
-		for _, tokenAddr := range tokenAddressList {
-			if tokenAddr == tokenAddress {
-				exist = true
-			}
-		}
-
-		if !exist {
+		key := userTokenPush.ChainName + userTokenPush.Address + userTokenPush.TokenAddress
+		if _, ok := assetMap[key]; !ok {
 			tokenInfo, _ := utils.JsonEncode(userTokenPush)
 			err = data.RedisQueueManager.QueuePublish(&data.QueueSendMessage{
 				Topic:     TOKEN_INFO_QUEUE_TOPIC,

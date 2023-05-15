@@ -167,6 +167,13 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 			req.DappType = biz.APPROVE
 		}
 	}
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.Limit == 0 {
+		req.Limit = 20
+	}
+
 	result, err := s.ts.GetDappListPageList(subctx, req)
 	return result, err
 }
