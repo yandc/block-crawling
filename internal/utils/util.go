@@ -190,6 +190,27 @@ func AddressListRemove0(list []string) []string {
 	return addressList
 }
 
+func AddressIbcToLower(address string) string {
+	if len(address) > 4 {
+		ibc := address[:4]
+		if libc := strings.ToLower(ibc); libc == "ibc/" {
+			address = libc + address[4:]
+		}
+	}
+	return address
+}
+
+func AddressListIbcToLower(list []string) []string {
+	var addressList []string
+	if len(list) > 0 {
+		for _, addr := range list {
+			addr = AddressIbcToLower(addr)
+			addressList = append(addressList, addr)
+		}
+	}
+	return addressList
+}
+
 func GetDayTime(t *time.Time) int64 {
 	var tm time.Time
 	if t == nil {

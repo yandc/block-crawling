@@ -248,12 +248,16 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		return nil, nil
 	}
 
-	var denom string
+	var tokenDenom string
 	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
-		denom = strings.ToLower(platInfo.NativeCurrency)
+		tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
+	}
+	realChainName := GetChainName(address)
+	if chainName != realChainName && tokenAddress == "" {
+		tokenAddress = tokenDenom
 	}
 	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-		if transactionType == biz.NATIVE || tokenAddress == denom || tokenAddress == "" {
+		if chainName == realChainName && (transactionType == biz.NATIVE || tokenAddress == tokenDenom || tokenAddress == "") {
 			return client.GetBalance(address)
 		} else {
 			return client.GetTokenBalance(address, tokenAddress, int(decimals))
@@ -266,7 +270,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
-		ChainName:    chainName,
+		ChainName:    realChainName,
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
@@ -378,13 +382,17 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AtomTran
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		var denom string
+		var tokenDenom string
 		if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
-			denom = strings.ToLower(platInfo.NativeCurrency)
+			tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
 		}
-		if tokenAddress != denom && tokenAddress != "" && address != "" && uid != "" {
+		realChainName := GetChainName(address)
+		if chainName != realChainName && tokenAddress == "" {
+			tokenAddress = tokenDenom
+		}
+		if (chainName != realChainName || (tokenAddress != tokenDenom && tokenAddress != "")) && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
-				ChainName:    chainName,
+				ChainName:    realChainName,
 				Uid:          uid,
 				Address:      address,
 				TokenAddress: tokenAddress,
@@ -403,4 +411,22 @@ func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error))
 		return fc(*c)
 	})
 	return result, err
+}
+
+func GetChainName(address string) string {
+	var chainName string
+	var chainNameIndex int
+	for i, val := range address {
+		if val == 49 {
+			chainNameIndex = i
+			break
+		}
+	}
+	chain := address[:chainNameIndex]
+	if chain == "osmo" {
+		chainName = "Osmosis"
+	} else {
+		chainName = strings.ToUpper(chain[:1]) + chain[1:]
+	}
+	return chainName
 }

@@ -29,13 +29,15 @@ type UserAsset struct {
 }
 
 type AssetRequest struct {
-	ChainName        string
-	Uid              string
-	UidList          []string
-	Address          string
-	AddressList      []string
-	TokenAddressList []string
-	AmountType       int32
+	ChainName                        string
+	Uid                              string
+	UidList                          []string
+	Address                          string
+	AddressList                      []string
+	TokenAddress                     string
+	TokenAddressList                 []string
+	AmountType                       int32
+	ChainNameAddressTokenAddressList []*AssetRequest
 }
 
 func (userAsset UserAsset) TableName() string {
@@ -299,6 +301,9 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
+	if req.TokenAddress != "" {
+		db = db.Where("token_address = ?", req.TokenAddress)
+	}
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
 	}
@@ -308,6 +313,16 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 		} else if req.AmountType == 2 {
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
 		}
+	}
+	if len(req.ChainNameAddressTokenAddressList) > 0 {
+		chainNameAddressTokenAddressList := req.ChainNameAddressTokenAddressList
+		chainNameAddressTokenAddress := "("
+		for _, record := range chainNameAddressTokenAddressList {
+			chainNameAddressTokenAddress += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "'),"
+		}
+		chainNameAddressTokenAddress = chainNameAddressTokenAddress[:len(chainNameAddressTokenAddress)-1]
+		chainNameAddressTokenAddress += ")"
+		db = db.Where("(chain_name, address, token_address) in" + chainNameAddressTokenAddress)
 	}
 
 	ret := db.Find(&userAssetList)
@@ -477,6 +492,9 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
+	if req.TokenAddress != "" {
+		db = db.Where("token_address = ?", req.TokenAddress)
+	}
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
 	}
@@ -486,6 +504,16 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 		} else if req.AmountType == 2 {
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
 		}
+	}
+	if len(req.ChainNameAddressTokenAddressList) > 0 {
+		chainNameAddressTokenAddressList := req.ChainNameAddressTokenAddressList
+		chainNameAddressTokenAddress := "("
+		for _, record := range chainNameAddressTokenAddressList {
+			chainNameAddressTokenAddress += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "'),"
+		}
+		chainNameAddressTokenAddress = chainNameAddressTokenAddress[:len(chainNameAddressTokenAddress)-1]
+		chainNameAddressTokenAddress += ")"
+		db = db.Where("(chain_name, address, token_address) in" + chainNameAddressTokenAddress)
 	}
 
 	ret := db.Delete(&UserAsset{})
