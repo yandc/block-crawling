@@ -117,7 +117,7 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 
 func (h *handler) WrapsError(client chain.Clienter, err error) error {
 	// DO NOT RETRY
-	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound {
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound {
 		return err
 	}
 	pcommon.NotifyForkedError(h.chainName, err)
@@ -125,7 +125,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound {
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL{
 		if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
 			pcommon.LogBlockWarn(h.chainName, err, optHeights...)
 		}

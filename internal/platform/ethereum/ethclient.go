@@ -6,8 +6,8 @@
 package ethereum
 
 import (
+	"block-crawling/internal/utils"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,21 +39,21 @@ type rpcBlock struct {
 
 // Header represents a block header in the Ethereum blockchain.
 type Header struct {
-	ParentHash  common.Hash      `json:"parentHash"       gencodec:"required"`
-	UncleHash   common.Hash      `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address   `json:"miner"`
-	Root        common.Hash      `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash      `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash common.Hash      `json:"receiptsRoot"     gencodec:"required"`
-	Bloom       types.Bloom      `json:"logsBloom"` //`json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int         `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int         `json:"number"           gencodec:"required"`
-	GasLimit    uint64           `json:"gasLimit"         gencodec:"required"`
-	GasUsed     uint64           `json:"gasUsed"          gencodec:"required"`
-	Time        uint64           `json:"timestamp"        gencodec:"required"`
-	Extra       []byte           `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash      `json:"mixHash"`
-	Nonce       types.BlockNonce `json:"nonce"`
+	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
+	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	Coinbase    common.Address `json:"miner"`
+	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	//Bloom       types.Bloom    `json:"logsBloom"` //`json:"logsBloom"        gencodec:"required"`
+	Difficulty *big.Int    `json:"difficulty"       gencodec:"required"`
+	Number     *big.Int    `json:"number"           gencodec:"required"`
+	GasLimit   uint64      `json:"gasLimit"         gencodec:"required"`
+	GasUsed    uint64      `json:"gasUsed"          gencodec:"required"`
+	Time       uint64      `json:"timestamp"        gencodec:"required"`
+	Extra      []byte      `json:"extraData"        gencodec:"required"`
+	MixDigest  common.Hash `json:"mixHash"`
+	Nonce      uint64      `json:"nonce"`
 
 	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
 	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
@@ -67,28 +67,36 @@ type Header struct {
 	Hash common.Hash `json:"hash" gencodec:"required"`
 }
 
+// A BlockNonce is a 64-bit hash which proves (combined with the
+// mix-hash) that a sufficient amount of computation has been carried
+// out on a block.
+
+// EncodeNonce converts the given integer to a block nonce.
+
 // UnmarshalJSON unmarshals from JSON.
 func (h *Header) UnmarshalJSON(input []byte) error {
 	type Header struct {
-		ParentHash  *common.Hash      `json:"parentHash"       gencodec:"required"`
-		UncleHash   *common.Hash      `json:"sha3Uncles"       gencodec:"required"`
-		Coinbase    *common.Address   `json:"miner"`
-		Root        *common.Hash      `json:"stateRoot"        gencodec:"required"`
-		TxHash      *common.Hash      `json:"transactionsRoot" gencodec:"required"`
-		ReceiptHash *common.Hash      `json:"receiptsRoot"     gencodec:"required"`
-		Bloom       *types.Bloom      `json:"logsBloom"` //`json:"logsBloom"        gencodec:"required"`
-		Difficulty  *hexutil.Big      `json:"difficulty"       gencodec:"required"`
-		Number      *hexutil.Big      `json:"number"           gencodec:"required"`
-		GasLimit    *hexutil.Uint64   `json:"gasLimit"         gencodec:"required"`
-		GasUsed     *hexutil.Uint64   `json:"gasUsed"          gencodec:"required"`
-		Time        *hexutil.Uint64   `json:"timestamp"        gencodec:"required"`
-		Extra       *hexutil.Bytes    `json:"extraData"        gencodec:"required"`
-		MixDigest   *common.Hash      `json:"mixHash"`
-		Nonce       *types.BlockNonce `json:"nonce"`
-		BaseFee     *hexutil.Big      `json:"baseFeePerGas" rlp:"optional"`
+		ParentHash *common.Hash `json:"parentHash"       gencodec:"required"`
+		//UncleHash   *common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+		Coinbase    *common.Address `json:"miner"`
+		Root        *common.Hash    `json:"stateRoot"        gencodec:"required"`
+		TxHash      *common.Hash    `json:"transactionsRoot" gencodec:"required"`
+		ReceiptHash *common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+		//Bloom       *types.Bloom    `json:"logsBloom"` //`json:"logsBloom"        gencodec:"required"`
+		Difficulty      *string        `json:"difficulty"       gencodec:"required"`
+		TotalDifficulty *string        `json:"totalDifficulty"`
+		Number          *string        `json:"number"           gencodec:"required"`
+		GasLimit        *string        `json:"gasLimit"         gencodec:"required"`
+		GasUsed         *string        `json:"gasUsed"          gencodec:"required"`
+		Time            *string        `json:"timestamp"        gencodec:"required"`
+		Extra           *hexutil.Bytes `json:"extraData"        gencodec:"required"`
+		MixDigest       *common.Hash   `json:"mixHash"`
+		Nonce           *string        `json:"nonce"`
+		BaseFee         *string        `json:"baseFeePerGas" rlp:"optional"`
 
 		Hash *common.Hash `json:"hash" gencodec:"required"`
 	}
+	var e error
 	var dec Header
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
@@ -97,10 +105,10 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'parentHash' for Header")
 	}
 	h.ParentHash = *dec.ParentHash
-	if dec.UncleHash == nil {
-		return errors.New("missing required field 'sha3Uncles' for Header")
-	}
-	h.UncleHash = *dec.UncleHash
+	//if dec.UncleHash == nil {
+	//	return errors.New("missing required field 'sha3Uncles' for Header")
+	//}
+	//h.UncleHash = *dec.UncleHash
 	if dec.Coinbase != nil {
 		h.Coinbase = *dec.Coinbase
 	}
@@ -119,29 +127,58 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	/*if dec.Bloom == nil {
 		return errors.New("missing required field 'logsBloom' for Header")
 	}*/
-	if dec.Bloom != nil {
-		h.Bloom = *dec.Bloom
-	}
-	if dec.Difficulty == nil {
+	//if dec.Bloom != nil {
+	//	h.Bloom = *dec.Bloom
+	//}
+
+	if dec.Difficulty == nil && dec.TotalDifficulty == nil{
 		return errors.New("missing required field 'difficulty' for Header")
 	}
-	h.Difficulty = (*big.Int)(dec.Difficulty)
+	if dec.Difficulty != nil {
+		h.Difficulty, e = utils.HexStringToBigInt(*dec.Difficulty)
+		if e != nil {
+			return e
+		}
+	}else {
+		h.Difficulty, e = utils.HexStringToBigInt(*dec.TotalDifficulty)
+		if e != nil {
+			return e
+		}
+	}
+
 	if dec.Number == nil {
 		return errors.New("missing required field 'number' for Header")
 	}
-	h.Number = (*big.Int)(dec.Number)
+	h.Number, e = utils.HexStringToBigInt(*dec.Number)
+	if e != nil {
+		return e
+	}
+
 	if dec.GasLimit == nil {
 		return errors.New("missing required field 'gasLimit' for Header")
 	}
-	h.GasLimit = uint64(*dec.GasLimit)
+
+	h.GasLimit, e = utils.HexStringToUint64(*dec.GasLimit)
+	if e != nil {
+		return e
+	}
+
 	if dec.GasUsed == nil {
 		return errors.New("missing required field 'gasUsed' for Header")
 	}
-	h.GasUsed = uint64(*dec.GasUsed)
+	h.GasUsed, e = utils.HexStringToUint64(*dec.GasUsed)
+	if e != nil {
+		return e
+	}
+
 	if dec.Time == nil {
 		return errors.New("missing required field 'timestamp' for Header")
 	}
-	h.Time = uint64(*dec.Time)
+	h.Time, e = utils.HexStringToUint64(*dec.Time)
+	if e != nil {
+		return e
+	}
+
 	if dec.Extra == nil {
 		return errors.New("missing required field 'extraData' for Header")
 	}
@@ -150,12 +187,17 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		h.MixDigest = *dec.MixDigest
 	}
 	if dec.Nonce != nil {
-		h.Nonce = *dec.Nonce
+		h.Nonce, e = utils.HexStringToUint64(*dec.Nonce)
+		if e != nil {
+			return e
+		}
 	}
 	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+		h.BaseFee, e = utils.HexStringToBigInt(*dec.BaseFee)
+		if e != nil {
+			return e
+		}
 	}
-
 	if dec.Hash == nil {
 		return errors.New("missing required field 'hash' for Header")
 	}
@@ -287,7 +329,7 @@ func (b *Block) NumberU64() uint64 {
 }
 
 func (b *Block) Nonce() uint64 {
-	return binary.BigEndian.Uint64(b.header.Nonce[:])
+	return b.header.Nonce
 }
 
 func (b *Block) Time() uint64 {
@@ -326,19 +368,19 @@ type Transaction struct {
 
 // txJSON is the JSON representation of transactions.
 type txJSON struct {
-	Type hexutil.Uint64 `json:"type"`
+	Type uint64 `json:"type"`
 
 	// Common transaction fields:
-	Nonce                *hexutil.Uint64 `json:"nonce"`
-	GasPrice             *hexutil.Big    `json:"gasPrice"`
-	MaxPriorityFeePerGas *hexutil.Big    `json:"maxPriorityFeePerGas"`
-	MaxFeePerGas         *hexutil.Big    `json:"maxFeePerGas"`
-	Gas                  *hexutil.Uint64 `json:"gas"`
-	Value                *hexutil.Big    `json:"value"`
+	Nonce                *uint64         `json:"nonce"`
+	GasPrice             *big.Int        `json:"gasPrice"`
+	MaxPriorityFeePerGas *big.Int        `json:"maxPriorityFeePerGas"`
+	MaxFeePerGas         *big.Int        `json:"maxFeePerGas"`
+	Gas                  *uint64         `json:"gas"`
+	Value                *big.Int        `json:"value"`
 	Data                 *hexutil.Bytes  `json:"input"`
-	V                    *hexutil.Big    `json:"v"`
-	R                    *hexutil.Big    `json:"r"`
-	S                    *hexutil.Big    `json:"s"`
+	V                    *big.Int        `json:"v"`
+	R                    *big.Int        `json:"r"`
+	S                    *big.Int        `json:"s"`
 	To                   *common.Address `json:"to"`
 
 	// Access list transaction fields:
@@ -351,6 +393,127 @@ type txJSON struct {
 	BlockNumber *string         `json:"blockNumber,omitempty"`
 	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
 	From        *common.Address `json:"from,omitempty"`
+}
+
+func (h *txJSON) UnmarshalJSON(input []byte) error {
+
+	type txJSON struct {
+		Type                 *string         `json:"type"`
+		Nonce                *string         `json:"nonce"`
+		GasPrice             *string         `json:"gasPrice"`
+		MaxPriorityFeePerGas *string         `json:"maxPriorityFeePerGas"`
+		MaxFeePerGas         *string         `json:"maxFeePerGas"`
+		Gas                  *string         `json:"gas"`
+		Value                *string         `json:"value"`
+		Data                 *hexutil.Bytes  `json:"input"`
+		V                    *string         `json:"v"`
+		R                    *string         `json:"r"`
+		S                    *string         `json:"s"`
+		To                   *common.Address `json:"to"`
+
+		// Access list transaction fields:
+		ChainID    *hexutil.Big      `json:"chainId,omitempty"`
+		AccessList *types.AccessList `json:"accessList,omitempty"`
+
+		// Only used for encoding:
+		Hash common.Hash `json:"hash"`
+
+		BlockNumber *string         `json:"blockNumber,omitempty"`
+		BlockHash   *common.Hash    `json:"blockHash,omitempty"`
+		From        *common.Address `json:"from,omitempty"`
+	}
+
+	var e error
+	var dec txJSON
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	if dec.Data != nil {
+		h.Data = dec.Data
+	}
+	if dec.To != nil {
+		h.To = dec.To
+	}
+	if dec.ChainID != nil {
+		h.ChainID = dec.ChainID
+	}
+	if dec.AccessList != nil {
+		h.AccessList = dec.AccessList
+	}
+	h.Hash = dec.Hash
+	if dec.BlockHash != nil {
+		h.BlockHash = dec.BlockHash
+	}
+	if dec.BlockNumber != nil {
+		h.BlockNumber = dec.BlockNumber
+	}
+	if dec.From != nil {
+		h.From = dec.From
+	}
+	if dec.Type != nil {
+		h.Type, e = utils.HexStringToUint64(*dec.Type)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.Nonce != nil {
+		nonceV, e := utils.HexStringToUint64(*dec.Nonce)
+		h.Nonce = &nonceV
+		if e != nil {
+			return e
+		}
+	}
+	if dec.GasPrice != nil {
+		h.GasPrice, e = utils.HexStringToBigInt(*dec.GasPrice)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.MaxPriorityFeePerGas != nil {
+		h.MaxPriorityFeePerGas, e = utils.HexStringToBigInt(*dec.MaxPriorityFeePerGas)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.MaxFeePerGas != nil {
+		h.MaxFeePerGas, e = utils.HexStringToBigInt(*dec.MaxFeePerGas)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.Gas != nil {
+		gasV, e := utils.HexStringToUint64(*dec.Gas)
+		h.Gas = &gasV
+		if e != nil {
+			return e
+		}
+	}
+
+	if dec.Value != nil {
+		h.Value, e = utils.HexStringToBigInt(*dec.Value)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.V != nil {
+		h.V, e = utils.HexStringToBigInt(*dec.V)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.R != nil {
+		h.R, e = utils.HexStringToBigInt(*dec.R)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.S != nil {
+		h.S, e = utils.HexStringToBigInt(*dec.S)
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 // Hash returns the transaction hash.
@@ -538,10 +701,13 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'value' in transaction")
 		}
 		itx.Value = (*big.Int)(dec.Value)
-		if dec.Data == nil {
-			return errors.New("missing required field 'input' in transaction")
+		//if dec.Data == nil {
+		//	return errors.New("missing required field 'input' in transaction")
+		//}
+		if dec.Data != nil {
+			itx.Data = *dec.Data
 		}
-		itx.Data = *dec.Data
+
 		/*if dec.V == nil {
 			return errors.New("missing required field 'v' in transaction")
 		}*/
@@ -722,15 +888,15 @@ func (ec *Client) TransactionReceipt(ctx context.Context, txHash common.Hash) (r
 // Receipt represents the results of a transaction.
 type Receipt struct {
 	// Consensus fields: These fields are defined by the Yellow Paper
-	Type              string       `json:"type,omitempty"`
-	PostState         string       `json:"root,omitempty"`
-	Status            string       `json:"status,omitempty"`
-	From              string       `json:"from,omitempty"`
-	To                string       `json:"to,omitempty"`
-	CumulativeGasUsed string       `json:"cumulativeGasUsed"` //`json:"cumulativeGasUsed" gencodec:"required"`
-	EffectiveGasPrice string       `json:"effectiveGasPrice,omitempty"`
-	Bloom             string       `json:"logsBloom"` //`json:"logsBloom" gencodec:"required"`
-	Logs              []*types.Log `json:"logs" gencodec:"required"`
+	Type              string `json:"type,omitempty"`
+	PostState         string `json:"root,omitempty"`
+	Status            string `json:"status,omitempty"`
+	From              string `json:"from,omitempty"`
+	To                string `json:"to,omitempty"`
+	CumulativeGasUsed string `json:"cumulativeGasUsed"` //`json:"cumulativeGasUsed" gencodec:"required"`
+	EffectiveGasPrice string `json:"effectiveGasPrice,omitempty"`
+	Bloom             string `json:"logsBloom"` //`json:"logsBloom" gencodec:"required"`
+	Logs              []*Log `json:"logs" gencodec:"required"`
 
 	// Implementation fields: These fields are added by geth when processing a transaction.
 	// They are stored in the chain database.
@@ -744,6 +910,126 @@ type Receipt struct {
 	BlockHash        string `json:"blockHash,omitempty"`
 	BlockNumber      string `json:"blockNumber,omitempty"`
 	TransactionIndex string `json:"transactionIndex,omitempty"`
+}
+
+//go:generate go run github.com/fjl/gencodec -type Log -field-override logMarshaling -out gen_log_json.go
+
+// Log represents a contract log event. These events are generated by the LOG opcode and
+// stored/indexed by the node.
+type Log struct {
+	// Consensus fields:
+	// address of the contract that generated the event
+	Address common.Address `json:"address" gencodec:"required"`
+	// list of topics provided by the contract.
+	Topics []common.Hash `json:"topics" gencodec:"required"`
+	// supplied by the contract, usually ABI-encoded
+	Data []byte `json:"data" gencodec:"required"`
+
+	// Derived fields. These fields are filled in by the node
+	// but not secured by consensus.
+	// block in which the transaction was included
+	BlockNumber uint64 `json:"blockNumber"`
+	// hash of the transaction
+	TxHash common.Hash `json:"transactionHash" gencodec:"required"`
+	// index of the transaction in the block
+	TxIndex uint `json:"transactionIndex"`
+	// hash of the block in which the transaction was included
+	BlockHash common.Hash `json:"blockHash"`
+	// index of the log in the block
+	Index uint `json:"logIndex"`
+
+	// The Removed field is true if this log was reverted due to a chain reorganisation.
+	// You must pay attention to this field if you receive logs through a filter query.
+	Removed bool `json:"removed"`
+}
+
+func (l Log) MarshalJSON() ([]byte, error) {
+	type Log struct {
+		Address     common.Address `json:"address" gencodec:"required"`
+		Topics      []common.Hash  `json:"topics" gencodec:"required"`
+		Data        []byte         `json:"data" gencodec:"required"`
+		BlockNumber uint64         `json:"blockNumber"`
+		TxHash      common.Hash    `json:"transactionHash" gencodec:"required"`
+		TxIndex     uint           `json:"transactionIndex"`
+		BlockHash   common.Hash    `json:"blockHash"`
+		Index       uint           `json:"logIndex"`
+		Removed     bool           `json:"removed"`
+	}
+	var enc Log
+	enc.Address = l.Address
+	enc.Topics = l.Topics
+	enc.Data = l.Data
+
+	enc.BlockNumber = l.BlockNumber
+	enc.TxHash = l.TxHash
+	enc.TxIndex = l.TxIndex
+	enc.BlockHash = l.BlockHash
+	enc.Index = l.Index
+	enc.Removed = l.Removed
+	return json.Marshal(&enc)
+}
+
+// UnmarshalJSON unmarshals from JSON.
+func (l *Log) UnmarshalJSON(input []byte) error {
+	type Log struct {
+		Address     *common.Address `json:"address" gencodec:"required"`
+		Topics      []common.Hash   `json:"topics" gencodec:"required"`
+		Data        *hexutil.Bytes  `json:"data" gencodec:"required"`
+		BlockNumber *string         `json:"blockNumber"`
+		TxHash      *common.Hash    `json:"transactionHash" gencodec:"required"`
+		TxIndex     *string         `json:"transactionIndex"`
+		BlockHash   *common.Hash    `json:"blockHash"`
+		Index       *string         `json:"logIndex"`
+		Removed     *bool           `json:"removed"`
+	}
+	var e error
+	var dec Log
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	if dec.Address == nil {
+		return errors.New("missing required field 'address' for Log")
+	}
+	l.Address = *dec.Address
+	if dec.Topics == nil {
+		return errors.New("missing required field 'topics' for Log")
+	}
+	l.Topics = dec.Topics
+	if dec.Data == nil {
+		return errors.New("missing required field 'data' for Log")
+	}
+	l.Data = *dec.Data
+	if dec.BlockNumber != nil {
+		l.BlockNumber, e = utils.HexStringToUint64(*dec.BlockNumber)
+		if e != nil {
+			return e
+		}
+	}
+	if dec.TxHash == nil {
+		return errors.New("missing required field 'transactionHash' for Log")
+	}
+	l.TxHash = *dec.TxHash
+	if dec.TxIndex != nil {
+		ti64, e := utils.HexStringToUint64(*dec.TxIndex)
+		if e != nil {
+			return e
+		}
+		l.TxIndex = uint(ti64)
+	}
+	if dec.BlockHash != nil {
+		l.BlockHash = *dec.BlockHash
+	}
+	if dec.Index != nil {
+		i64, e := utils.HexStringToUint64(*dec.Index)
+		if e != nil {
+			return e
+		}
+		l.Index = uint(i64)
+	}
+	if dec.Removed != nil {
+		l.Removed = *dec.Removed
+	}
+	return nil
 }
 
 func toBlockNumArg(number *big.Int) string {

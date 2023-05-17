@@ -35,6 +35,7 @@ type CommPlatform struct {
 	HeightAlarmThr int
 
 	heightAlarmSeq uint64
+	Source string
 }
 
 func (p *CommPlatform) SetRedisHeight() {

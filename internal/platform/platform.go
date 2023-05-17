@@ -31,6 +31,9 @@ type PlatformContainer []biz.Platform
 
 func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker) Server {
 	c := bc.Platform
+	if c == nil {
+		c = map[string]*conf.PlatInfo{}
+	}
 	confInnerPublicNodeList := bc.InnerPublicNodeList
 	testConfig := bc.PlatformTest
 	if appConfig.Mode != "" {
@@ -57,6 +60,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 			c[key] = value
 		}
 	}
+
 	bs := make(Server)
 
 	var PlatInfos []*conf.PlatInfo

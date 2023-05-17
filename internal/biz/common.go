@@ -43,6 +43,8 @@ const (
 	ADDRESS_PENDING_NONCE     = "pending:" // + chainname:address:nonce --->过期时间六个小时
 	API_SUCCEESS              = "1"
 	API_FAIL                  = "0"
+	SOURCE_LOCAL              = "local"
+	SOURCE_REMOTE             = "remote"
 )
 
 const (

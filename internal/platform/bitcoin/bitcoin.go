@@ -92,7 +92,7 @@ func (p *Platform) GetPendingTransactionsByInnerNode() {
 	result, err := p.client.DispatchClient.GetMemoryPoolTXByNode()
 
 	if err != nil || result.Error != nil {
-		log.Error(p.ChainName+"获取为上链交易hash报错", zap.Any("error", err))
+		//log.Error(p.ChainName+"获取为上链交易hash报错", zap.Any("error", err))
 		return
 	}
 	if len(result.Result) == 0 {
@@ -176,7 +176,7 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 				queryCount++
 				btcPreTx, err1 := p.client.DispatchClient.GetTransactionsByTXHash(preTxid)
 				if err1 != nil || btcPreTx.Error != nil {
-					log.Error(p.ChainName+"获取vin交易报错", zap.Any("error", err1))
+					//log.Error(p.ChainName+"获取vin交易报错", zap.Any("error", err1))
 					return
 				}
 				pvout := btcPreTx.Result.Vout[voutIndex]

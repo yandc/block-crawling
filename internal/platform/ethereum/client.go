@@ -570,11 +570,23 @@ func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transactio
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
+	var err error
+	var balance *big.Int
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	account := common.HexToAddress(address)
-	balance, err := c.BalanceAt(ctx, account, nil)
+	if c.ChainName == "evm15" {
+		var result string
+		err = c.c.CallContext(ctx, &result, "eth_getBalance", account, toBlockNumArg(nil))
+		if err != nil {
+			return "", err
+		}
+		balance, err = utils.HexStringToBigInt(result)
+	} else {
+		balance, err = c.BalanceAt(ctx, account, nil)
+
+	}
 	if err != nil {
 		return "", err
 	}

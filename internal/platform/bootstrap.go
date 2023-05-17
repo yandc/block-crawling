@@ -11,7 +11,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -19,13 +22,21 @@ import (
 )
 
 type Bootstrap struct {
-	ChainName string
-	Conf      *conf.PlatInfo
-	Platform  biz.Platform
-	Spider    *chain.BlockSpider
+	ChainName   string
+	Conf        *conf.PlatInfo
+	Platform    biz.Platform
+	Spider      *chain.BlockSpider
+	cancel      func()
+	ctx         context.Context
+	pending     *time.Ticker
+	inerPending *time.Ticker
 }
 
+var startChainMap = make(map[string]*Bootstrap)
+var startCustomChainMap = &sync.Map{}
+
 func NewBootstrap(p biz.Platform, value *conf.PlatInfo) *Bootstrap {
+	ctx, cancel := context.WithCancel(context.Background())
 	nodeURL := value.RpcURL
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
@@ -52,9 +63,100 @@ func NewBootstrap(p biz.Platform, value *conf.PlatInfo) *Bootstrap {
 		Platform:  p,
 		Spider:    spider,
 		Conf:      value,
+		cancel:    cancel,
+		ctx:       ctx,
 	}
 }
 
+func (b *Bootstrap) Stop() {
+	b.cancel()
+	if b.pending != nil {
+		b.pending.Stop()
+	}
+	if b.inerPending != nil {
+		b.inerPending.Stop()
+	}
+
+}
+func (b *Bootstrap) Start() {
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("main panic:", zap.Any("", err))
+		}
+	}()
+	quit := make(chan int)
+	innerquit := make(chan int)
+	go func() {
+		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" {
+			return
+		}
+		go b.GetTransactions()
+	}()
+
+	// get inner memerypool
+	go func() {
+		go func(b *Bootstrap) {
+			log.Info("start main", zap.Any("platform", b))
+			// get result
+			go b.GetTransactionResultByTxhash()
+
+			resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
+			b.pending = resultPlan
+			for range resultPlan.C {
+				go b.GetTransactionResultByTxhash()
+				go b.Platform.MonitorHeight()
+			}
+
+		}(b)
+
+	}()
+
+	go func() {
+		go FixNftInfo()
+		resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
+		for true {
+			select {
+			case <-resultPlan.C:
+				go FixNftInfo()
+			case <-quit:
+				resultPlan.Stop()
+				return
+			}
+		}
+	}()
+
+	go func() {
+		platforms := InnerPlatforms
+		platformsLen := len(platforms)
+		for i := 0; i < platformsLen; i++ {
+			p := platforms[i]
+			if p == nil {
+				continue
+			}
+			go func(p biz.Platform) {
+				if btc, ok := p.(*bitcoin.Platform); ok {
+					log.Info("start inner main", zap.Any("platform", btc))
+					signal := make(chan bool)
+					go runGetPendingTransactionsByInnerNode(signal, btc)
+					signalGetPendingTransactionsByInnerNode(signal, btc)
+					liveInterval := p.Coin().LiveInterval
+					pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
+					for true {
+						select {
+						case <-pendingTransactions.C:
+							signalGetPendingTransactionsByInnerNode(signal, btc)
+						case <-innerquit:
+							close(signal) // close signal to make background goroutine to exit.
+							pendingTransactions.Stop()
+							return
+						}
+					}
+				}
+			}(p)
+		}
+	}()
+}
 func (b *Bootstrap) GetTransactions() {
 	liveInterval := b.liveInterval()
 	log.Info(
@@ -62,7 +164,7 @@ func (b *Bootstrap) GetTransactions() {
 		zap.String("liveInterval", liveInterval.String()),
 		zap.Bool("roundRobinConcurrent", b.Conf.GetRoundRobinConcurrent()),
 	)
-	b.Spider.StartIndexBlock(
+	b.Spider.StartIndexBlockWithContext(b.ctx,
 		b.Platform.CreateBlockHandler(liveInterval),
 		int(b.Conf.GetSafelyConcurrentBlockDelta()),
 		int(b.Conf.GetMaxConcurrency()),
@@ -272,90 +374,113 @@ func (b *Bootstrap) liveInterval() time.Duration {
 type Server map[string]*Bootstrap
 
 func (bs Server) Start(ctx context.Context) error {
+
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("main panic:", zap.Any("", err))
 		}
 	}()
-	quit := make(chan int)
-	innerquit := make(chan int)
+	//本地配置 链的爬取
+	for _, b := range bs {
+		b.Start()
+		//记录 已启动chain
+		ci := b.Conf.Type + b.Conf.ChainId
+		startChainMap[ci] = b
+		log.Info("本地配置启动bnb",zap.Any("",b))
+	}
 
-	go func() {
-		for _, p := range bs {
-			if p.ChainName == "Osmosis" || p.ChainName == "SUITEST" {
-				continue
-			}
-			go p.GetTransactions()
-		}
-	}()
+	//定时  已启动的 ==  拉取内存 配置
+	InitCustomePlan()
+	//他那边的链配置
+	return nil
+}
 
-	// get inner memerypool
+func InitCustomePlan() {
 	go func() {
-		for _, b := range bs {
-			go func(p *Bootstrap) {
-				log.Info("start main", zap.Any("platform", p))
-				// get result
-				go p.GetTransactionResultByTxhash()
-				resultPlan := time.NewTicker(time.Duration(5) * time.Minute)
-				for true {
-					select {
-					case <-resultPlan.C:
-						go p.GetTransactionResultByTxhash()
-						go p.Platform.MonitorHeight()
-					case <-quit:
-						resultPlan.Stop()
-						return
-					}
-				}
-			}(b)
-		}
-	}()
-
-	go func() {
-		go FixNftInfo()
-		resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
+		customChainPlan := time.NewTicker(time.Duration(10) * time.Second)
 		for true {
 			select {
-			case <-resultPlan.C:
-				go FixNftInfo()
-			case <-quit:
-				resultPlan.Stop()
-				return
+			case <-customChainPlan.C:
+				go customChainRun()
 			}
 		}
 	}()
+}
 
-	go func() {
-		platforms := InnerPlatforms
-		platformsLen := len(platforms)
-		for i := 0; i < platformsLen; i++ {
-			p := platforms[i]
-			if p == nil {
-				continue
-			}
-			go func(p biz.Platform) {
-				if btc, ok := p.(*bitcoin.Platform); ok {
-					log.Info("start inner main", zap.Any("platform", btc))
-					signal := make(chan bool)
-					go runGetPendingTransactionsByInnerNode(signal, btc)
-					signalGetPendingTransactionsByInnerNode(signal, btc)
-					liveInterval := p.Coin().LiveInterval
-					pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
-					for true {
-						select {
-						case <-pendingTransactions.C:
-							signalGetPendingTransactionsByInnerNode(signal, btc)
-						case <-innerquit:
-							close(signal) // close signal to make background goroutine to exit.
-							pendingTransactions.Stop()
-							return
-						}
-					}
-				}
-			}(p)
+func customChainRun() {
+	//定是拉取 调用 grpc node-proxy
+	//la := []string{"BSC","ETH"}
+	chainNodeInUsedList, err := biz.GetCustomChainList(nil)
+
+	if err != nil {
+		log.Error("获取自定义链信息失败", zap.Error(err))
+		return
+	}
+
+	for _, chainInfo := range chainNodeInUsedList.Data {
+		if chainInfo != nil && len(chainInfo.Urls) == 0 {
+			continue
 		}
-	}()
-	return nil
+
+		//已启动 本地爬块
+		k := chainInfo.Type + chainInfo.ChainId
+		if startChainMap[k] != nil {
+			continue
+		}
+		if sl , ok  :=startCustomChainMap.Load(k) ; ok {
+			sccm := sl.(*Bootstrap)
+			//校验块高差 1000  停止爬块 更新块高
+			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + chainInfo.Chain).Result()
+			redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + chainInfo.Chain).Result()
+
+			oldHeight, _ := strconv.Atoi(redisHeight)
+			height, _ := strconv.Atoi(nodeRedisHeight)
+
+			ret := height - oldHeight
+			if ret > 1000 {
+				sccm.Stop()
+				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+chainInfo.Chain, height, 0).Err()
+				sccm.Start()
+			}
+			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
+				//sccm.Stop()
+				//sccm.Conf.RpcURs = chainInfo.Urls
+				//sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
+				//sccm.Start()
+				nodeURL := chainInfo.Urls
+				cs := make([]chain.Clienter, 0, len(nodeURL))
+				for _, url := range nodeURL {
+					cs = append(cs, sccm.Platform.CreateClient(url))
+				}
+				sccm.Spider.ReplaceClients(cs...)
+				startCustomChainMap.Store(k,sccm)
+			}
+		} else {
+			cp := &conf.PlatInfo{
+				Chain:          chainInfo.Chain,
+				Type:           chainInfo.Type,
+				RpcURL:         chainInfo.Urls,
+				ChainId:        chainInfo.ChainId,
+				Decimal:        int32(chainInfo.Decimals),
+				NativeCurrency: chainInfo.CurrencyName,
+				Source:         biz.SOURCE_REMOTE,
+			}
+			var PlatInfos []*conf.PlatInfo
+			PlatInfos = append(PlatInfos, cp)
+			platform := GetPlatform(cp)
+			bt := NewBootstrap(platform, cp)
+			startCustomChainMap.Store(k,bt)
+			DynamicCreateTable(data.BlockCreawlingDB, PlatInfos)
+
+			biz.PlatInfos = PlatInfos
+			biz.ChainNameType[cp.Chain] = cp.Type
+			biz.PlatformMap[cp.Chain] = platform
+			biz.PlatInfoMap[cp.Chain] = cp
+			bt.Start()
+			log.Info("拉取配置启动bnb",zap.Any("",bt))
+
+		}
+	}
 }
 
 func (bs Server) Stop(ctx context.Context) error {
