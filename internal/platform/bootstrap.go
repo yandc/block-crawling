@@ -440,6 +440,7 @@ func customChainRun() {
 			if ret > 1000 {
 				sccm.Stop()
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+chainInfo.Chain, height, 0).Err()
+				sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
 				sccm.Start()
 			}
 			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
