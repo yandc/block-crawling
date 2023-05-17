@@ -408,11 +408,10 @@ platform:
     netType: main
     rpcURL:
     - https://mainnet.optimism.io
-    # 从香港访问会出现返回块高 0x175dfe3 但实际块高已经是 0x187b124 @2022-09-27
-    # - https://optimism-mainnet.public.blastapi.io
-#    - https://optimism-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
-#    - https://opt-mainnet.g.alchemy.com/v2/Jf5Wy7l2wJcNqaNP517J2iAsXiooKGBI
-#    - https://opt-mainnet.g.alchemy.com/v2/ev1v-c_M3nWCYZTCl5pSpdEGdo14bWsX
+    - https://optimism-mainnet.public.blastapi.io
+    - https://optimism-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
+    - https://opt-mainnet.g.alchemy.com/v2/Jf5Wy7l2wJcNqaNP517J2iAsXiooKGBI
+    - https://opt-mainnet.g.alchemy.com/v2/ev1v-c_M3nWCYZTCl5pSpdEGdo14bWsX
     symbol: Optimism
     type: EVM
     safelyConcurrentBlockDelta: 30
