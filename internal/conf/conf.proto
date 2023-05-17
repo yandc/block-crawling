@@ -136,6 +136,11 @@ message PlatInfo {
 
   // 从数据库读取块高时允许和链上块高的最大间隔值，超过当前阈值则直接使用链上块高。
   optional int32 maxAllowedHeightGap = 19;
+  // chainId 区分链唯一标识
+  string chainId = 20;
+  //本地配置文件不需要配置，用户自定义 remote
+  string source = 21;
+
 }
 
 

@@ -30,6 +30,7 @@ const TRANSFERBATCH_TOPIC = "0x4a39dc06d4c0dbc64b70af90fd698a233a518aa5d07e595d9
 const WITHDRAWAL_TOPIC = "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"
 const DEPOSIT_TOPIC = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 const BLOCK_NO_TRANSCATION = "server returned empty transaction list but block header indicates transactions"
+const FILE_BLOCK_NULL = "requested epoch was a null round"
 const BLOCK_NONAL_TRANSCATION = "server returned non-empty transaction list but block header indicates no transactions"
 const TOO_MANY_REQUESTS = "429 Too Many Requests"
 const POLYGON_CODE = "0x0000000000000000000000000000000000001010"
@@ -148,6 +149,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
+			Source:         c.Source,
 			HeightAlarmThr: int(c.GetMonitorHeightAlarmThr()),
 		},
 	}

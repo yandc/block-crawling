@@ -177,7 +177,7 @@ innerPublicNodeList:
     blockExplorerTxUrl: https://cronoscan.com/tx/
     blockExplorerUrl: https://cronoscan.com/
     chain: Cronos
-    chainId: 25
+    chainId: "25"
     coinId: 60
     decimal: 18
     fullName: Cronos

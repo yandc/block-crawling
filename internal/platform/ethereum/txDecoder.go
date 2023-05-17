@@ -145,9 +145,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 	}
 	status := biz.PENDING
-	if receipt.Status == "0x0" {
+	if receipt.Status == "0x0" || receipt.Status == "0x00"{
 		status = biz.FAIL
-	} else if receipt.Status == "0x1" {
+	} else if receipt.Status == "0x1" || receipt.Status == "0x01" {
 		status = biz.SUCCESS
 	}
 	transactionHash := transaction.Hash().String()

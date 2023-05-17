@@ -3,18 +3,19 @@ package biz
 import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/common"
-	"block-crawling/internal/log"
+	//"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
+	//"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -225,7 +226,7 @@ func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress 
 	}
 	if err != nil {
 		// nodeProxy出错 接入lark报警
-		log.Info("GET TOKEN INFO FAILED", zap.String("chainName", chainName), zap.String("tokenAddress", tokenAddress))
+		//log.Info("GET TOKEN INFO FAILED", zap.String("chainName", chainName), zap.String("tokenAddress", tokenAddress))
 		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
 		alarmOpts := WithMsgLevel("FATAL")
 		alarmOpts = WithAlarmChannel("node-proxy")
@@ -540,4 +541,44 @@ func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string
 
 	data := response.Data
 	return data, nil
+}
+
+func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, error) {
+	//mock
+	//return &v1.GetChainNodeInUsedListResp{
+	//	Data: []*v1.GetChainNodeInUsedListResp_Data{
+	//		{
+	//			Name: "HH",
+	//			ChainId: "2222",
+	//			Chain: "evm2222",
+	//			Urls: []string{
+	//				"https://evm.kava.io",
+	//				"https://evm2.kava.io",
+	//				},
+	//			Type: "EVM",
+	//		},
+			//{
+			//	Name: "ETH",
+			//	ChainId: 1,
+			//
+			//	Urls: []string{"https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161", "https://geth.mytokenpocket.vip", "https://rpc.onekey.so/eth"},
+			//	Type: "EVM",
+			//},
+		//},
+	//}, nil
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+		ctx = context
+		defer cancel()
+	}
+	defer conn.Close()
+	client := v1.NewChainListClient(conn)
+
+
+	return client.GetChainNodeInUsedList(ctx, &emptypb.Empty{})
 }

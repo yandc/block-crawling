@@ -598,8 +598,10 @@ github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRT
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
-gitlab.bixin.com/mili/node-driver v0.0.0-20230427094541-b9d7790d1da1 h1:5uBnTmNXAODTWuYl0MweIiYX2C/52SuNaOJni+i4TDw=
-gitlab.bixin.com/mili/node-driver v0.0.0-20230427094541-b9d7790d1da1/go.mod h1:KOnksSGljzXcay+NJaH+G61ZRVo7i/NU3cWAs9XLEnI=
+gitlab.bixin.com/mili/node-driver v0.0.0-20230504083117-27355d0851b4 h1:7NmuqGI9HVoG57gJtpVqSm+S4g84ZFA3kNEuDxJ0WGQ=
+gitlab.bixin.com/mili/node-driver v0.0.0-20230504083117-27355d0851b4/go.mod h1:KOnksSGljzXcay+NJaH+G61ZRVo7i/NU3cWAs9XLEnI=
+gitlab.bixin.com/mili/node-driver v0.0.0-20230515014544-69be5be22146 h1:7gzckJ4vUVc44rRMOBYeQUQIGsJEYhWigBw8XtLzQI4=
+gitlab.bixin.com/mili/node-driver v0.0.0-20230515014544-69be5be22146/go.mod h1:KOnksSGljzXcay+NJaH+G61ZRVo7i/NU3cWAs9XLEnI=
 gitlab.com/yawning/bsaes.git v0.0.0-20190805113838-0a714cd429ec/go.mod h1:BZ1RAoRPbCxum9Grlv5aeksu2H8BiKehBYooU2LFiOQ=
 go.dedis.ch/fixbuf v1.0.3 h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=
 go.dedis.ch/fixbuf v1.0.3/go.mod h1:yzJMt34Wa5xD37V5RTdmp38cz3QhMagdGoem9anUalw=

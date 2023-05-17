@@ -12,6 +12,8 @@ import (
 
 type UserGormDB *gorm.DB
 
+var BlockCreawlingDB *gorm.DB
+
 // NewGormDB use grom connect to postgres
 func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 	log.Info("opening connection to postgres")
@@ -26,7 +28,7 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 		log.Fatale("failed opening connection to postgres", err)
 	}
 
-	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{},&UserSendRawHistory{})
+	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{})
 
 	sqlDb, err := gormlDb.DB()
 	if err != nil {
@@ -46,6 +48,7 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 	}
 
 	log.Info("opened connection to postgres")
+	BlockCreawlingDB = gormlDb
 	return gormlDb, cleanup, nil
 }
 
