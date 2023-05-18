@@ -283,7 +283,12 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			if out.Message == "No transactions found" || out.Message == "No internal transactions found" {
 				return result, changeUrl
 			}
-			msg := out.Result.(string)
+			msg := ""
+			if out.Result != nil {
+				if intValue, ok := out.Result.(string); ok {
+					msg = intValue
+				}
+			}
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询失败, error：%s", chainName, msg)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)

@@ -333,8 +333,10 @@ platform:
     proxyCacheTime: 5
     proxyKey: gasOracleHeco
     rpcURL:
-#    - https://http-mainnet.hecochain.com/
+    - https://http-mainnet.hecochain.com
     - https://http-mainnet-node.defibox.com
+    - https://http-mainnet-node.huobichain.com
+
     symbol: HECO
     type: EVM
     safelyConcurrentBlockDelta: 100
