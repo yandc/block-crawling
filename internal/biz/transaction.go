@@ -1202,6 +1202,19 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Uid:              req.Uid,
+		AddressList:      req.AddressList,
+		TokenAddressList: req.TokenAddressList,
+		AmountType:       req.AmountType,
+		OrderBy:          req.OrderBy,
+		DataDirection:    req.DataDirection,
+		StartIndex:       req.StartIndex,
+		PageNum:          req.PageNum,
+		PageSize:         req.PageSize,
+		Total:            req.Total,
+	}
 	var result = &pb.PageListAssetResponse{}
 	var total int64
 	var totalCurrencyAmount decimal.Decimal
@@ -1209,14 +1222,14 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	var err error
 
 	var recordList []*data.UserAsset
-	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, req)
+	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, request)
 	if err == nil {
 		err = utils.CopyProperties(recordList, &list)
 	}
 
 	var recordGroupList []*data.UserAsset
 	if err == nil {
-		recordGroupList, err = data.UserAssetRepoClient.GroupListBalance(ctx, req)
+		recordGroupList, err = data.UserAssetRepoClient.ListBalanceGroup(ctx, request)
 	}
 
 	if err == nil && len(recordGroupList) > 0 {
@@ -1720,13 +1733,28 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
+	var request = &data.NftAssetRequest{
+		ChainName:          req.ChainName,
+		Uid:                req.Uid,
+		AddressList:        req.AddressList,
+		TokenAddressList:   req.TokenAddressList,
+		TokenIdList:        req.TokenIdList,
+		AmountType:         req.AmountType,
+		CollectionNameLike: req.CollectionNameLike,
+		OrderBy:            req.OrderBy,
+		DataDirection:      req.DataDirection,
+		StartIndex:         req.StartIndex,
+		PageNum:            req.PageNum,
+		PageSize:           req.PageSize,
+		Total:              req.Total,
+	}
 	var result = &pb.ClientPageListNftAssetResponse{}
 	var total int64
 	var list []*pb.ClientNftAssetResponse
 	var err error
 
 	var recordList []*data.UserNftAsset
-	recordList, total, err = data.UserNftAssetRepoClient.PageList(ctx, req)
+	recordList, total, err = data.UserNftAssetRepoClient.PageList(ctx, request)
 	if err == nil {
 		err = utils.CopyProperties(recordList, &list)
 	}

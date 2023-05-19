@@ -65,7 +65,7 @@ func main() {
 	//platform.MigrateRecord()
 	//platform.DappReset()
 	//platform.BtcReset()
-	platform.HandleOptimismRecordFee()
+	//platform.HandleOptimismRecordFee()
 	//platform.HandleAsset()
 	//platform.HandleAssetByEventLog()
 	//platform.DeleteAsset()
@@ -74,5 +74,6 @@ func main() {
 	//platform.HandleTokenInfo()
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
+	platform.FixAddressToUid()
 	//biz.GetTxByAddress("osmo1hrvmdzflvfnkpjtrpsvfhvxqdrvv8td3sy8spy","https://api.mintscan.io/v1/osmosis/account/","Osmosis")
 }

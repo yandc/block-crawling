@@ -38,6 +38,8 @@ type DappApproveRecordRepo interface {
 	GetDappListPageCount(ctx context.Context, req *pb.DappPageListReq) int64
 	GetDappListByToken(ctx context.Context, req *pb.DappPageListReq) ([]*DappApproveRecord, error)
 	FindByLasTxtHash(context.Context, string) (*DappApproveRecord, error)
+	FindAddressGroup(ctx context.Context) ([]string, error)
+	UpdateUidByAddress(context.Context, string, string) (int64, error)
 }
 
 type DappApproveRecordRepoImpl struct {
@@ -232,4 +234,26 @@ func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txhash
 		return nil, err
 	}
 	return dar, nil
+}
+
+func (r *DappApproveRecordRepoImpl) FindAddressGroup(ctx context.Context) ([]string, error) {
+	var ncr []string
+	ret := r.gormDB.Model(&DappApproveRecord{}).Select("address").Where("address != '' ").Group("address").Find(&ncr)
+	err := ret.Error
+	if err != nil {
+		return nil ,err
+	}
+	return ncr, nil
+
+}
+
+func (r *DappApproveRecordRepoImpl) UpdateUidByAddress(ctx context.Context, address string, uid string) (int64, error) {
+	ret := r.gormDB.Model(&DappApproveRecord{}).Where("address = ?", address).Update("uid", uid)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update cell failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
 }

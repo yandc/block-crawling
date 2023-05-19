@@ -164,6 +164,10 @@ func HexToAddress(hexList []string) []string {
 }
 
 func AddressAdd0(address string) string {
+	if address == "" {
+		return ""
+	}
+
 	addressLen := len(address)
 	if addressLen < 66 {
 		lackNum := 66 - addressLen
@@ -173,6 +177,10 @@ func AddressAdd0(address string) string {
 }
 
 func AddressRemove0(address string) string {
+	if address == "" {
+		return ""
+	}
+
 	if len(address) == 66 && strings.HasPrefix(address, "0x0") {
 		address = "0x" + strings.TrimLeft(address[2:], "0")
 	}

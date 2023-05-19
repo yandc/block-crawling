@@ -16,10 +16,9 @@ import (
 )
 
 type SuiTransactionRecord struct {
-	Id          int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	BlockHash   string `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
-	BlockNumber int    `json:"blockNumber" form:"blockNumber"`
-	//TransactionVersion int             `json:"transactionVersion" form:"transactionVersion"`
+	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
+	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
 	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
 	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
@@ -181,9 +180,9 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			/*"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
-			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
-			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},*/
+			"block_hash":       gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
+			"block_number":     gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
+			"transaction_hash": gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
 			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
 			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
 			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
@@ -194,11 +193,11 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
 			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
 			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
-			/*"gas_limit":        clause.Column{Table: "excluded", Name: "gas_limit"},
-			"gas_used":         clause.Column{Table: "excluded", Name: "gas_used"},*/
-			"data":      gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
-			"event_log": gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
-			//"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"gas_limit":        gorm.Expr("case when excluded.gas_limit != '' then excluded.gas_limit else " + tableName + ".gas_limit end"),
+			"gas_used":         gorm.Expr("case when excluded.gas_used != '' then excluded.gas_used else " + tableName + ".gas_used end"),
+			"data":             gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),

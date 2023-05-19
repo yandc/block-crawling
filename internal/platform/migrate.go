@@ -1,6 +1,7 @@
 package platform
 
 import (
+	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -5603,4 +5604,1122 @@ func GetRecordL1Fee(chainName string, txHash string) (string, error) {
 		return "", err
 	}
 	return transactionReceipt.L1Fee, nil
+}
+
+var addressUid = make(map[string]string)
+
+func FixAddressToUid() {
+	log.Info("修改企业钱包地址对应的uid开始")
+
+	var startTime, stopTime int64
+	//startTime = 1680192000//2023-04-00 00:00:00
+	startTime = 1677513600 //2023-03-00 00:00:00
+	stopTime = time.Now().Unix()
+
+	HandleUserAsset(startTime, stopTime)
+	HandleUserNftAsset(startTime, stopTime)
+	ReplaceDappApproveRecord()
+	ReplaceNervosCellRecord()
+	ReplaceUtxoUnspentRecord()
+	ReplaceNftRecordHistory()
+	HandleTransactionRecord(startTime, stopTime)
+	log.Info("修改企业钱包地址对应的uid结束")
+}
+
+func HandleUserAsset(startTime, stopTime int64) {
+	log.Info("修改企业钱包地址对应的uid，处理用户资产表开始")
+
+	var userAssetList []*data.UserAsset
+	var request = &data.AssetRequest{
+		StartTime: startTime,
+		StopTime:  stopTime,
+		OrderBy:   "id asc",
+		PageNum:   1,
+		PageSize:  biz.PAGE_SIZE,
+	}
+
+	for {
+		list, _, err := data.UserAssetRepoClient.PageList(nil, request)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从用户资产表中查询用户资产信息失败", zap.Any("request", request), zap.Any("error", err))
+			return
+		}
+
+		if len(list) == 0 {
+			break
+		}
+		for _, userAsset := range list {
+			var uid string
+
+			address := userAsset.Address
+			chainType := biz.ChainNameType[userAsset.ChainName]
+			switch chainType {
+			case biz.APTOS, biz.SUI:
+				if address != "" {
+					address = utils.AddressAdd0(address)
+				}
+			}
+
+			if address != "" {
+				var ok bool
+				uid, ok = addressUid[address]
+				if !ok {
+					_, uid, err = biz.UserAddressSwitchRetryAlert(userAsset.ChainName, address)
+					if err != nil {
+						log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("userAsset", userAsset), zap.Any("error", err))
+						return
+					}
+					addressUid[address] = uid
+				}
+			}
+
+			if userAsset.Uid != uid {
+				userAssetList = append(userAssetList, &data.UserAsset{
+					Id:  userAsset.Id,
+					Uid: uid,
+				})
+			}
+		}
+		if len(list) < biz.PAGE_SIZE {
+			break
+		}
+		request.PageNum += 1
+	}
+
+	count, err := data.UserAssetRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, userAssetList, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = data.UserAssetRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, userAssetList, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，将用户资产信息插入到用户资产表中失败", zap.Any("size", len(userAssetList)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("修改企业钱包地址对应的uid，处理用户资产表结束", zap.Any("query size", len(userAssetList)), zap.Any("affected count", count))
+}
+
+func HandleUserNftAsset(startTime, stopTime int64) {
+	log.Info("修改企业钱包地址对应的uid，处理用户Nft资产表开始")
+
+	var userNftAssetList []*data.UserNftAsset
+	var request = &data.NftAssetRequest{
+		StartTime: startTime,
+		StopTime:  stopTime,
+		OrderBy:   "id asc",
+		PageNum:   1,
+		PageSize:  biz.PAGE_SIZE,
+	}
+
+	for {
+		list, _, err := data.UserNftAssetRepoClient.PageList(nil, request)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从用户Nft资产表中查询用户Nft资产信息失败", zap.Any("request", request), zap.Any("error", err))
+			return
+		}
+
+		if len(list) == 0 {
+			break
+		}
+		for _, userNftAsset := range list {
+			var uid string
+
+			address := userNftAsset.Address
+			chainType := biz.ChainNameType[userNftAsset.ChainName]
+			switch chainType {
+			case biz.APTOS, biz.SUI:
+				if address != "" {
+					address = utils.AddressAdd0(address)
+				}
+			}
+
+			if address != "" {
+				var ok bool
+				uid, ok = addressUid[address]
+				if !ok {
+					_, uid, err = biz.UserAddressSwitchRetryAlert(userNftAsset.ChainName, address)
+					if err != nil {
+						log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("userNftAsset", userNftAsset), zap.Any("error", err))
+						return
+					}
+					addressUid[address] = uid
+				}
+			}
+
+			if userNftAsset.Uid != uid {
+				userNftAssetList = append(userNftAssetList, &data.UserNftAsset{
+					Id:  userNftAsset.Id,
+					Uid: uid,
+				})
+			}
+		}
+		if len(list) < biz.PAGE_SIZE {
+			break
+		}
+		request.PageNum += 1
+	}
+
+	count, err := data.UserNftAssetRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, userNftAssetList, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = data.UserNftAssetRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, userNftAssetList, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，将用户Nft资产信息插入到用户Nft资产表中失败", zap.Any("size", len(userNftAssetList)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("修改企业钱包地址对应的uid，处理用户Nft资产表结束", zap.Any("query size", len(userNftAssetList)), zap.Any("affected count", count))
+}
+
+func ReplaceDappApproveRecord() {
+	log.Info("start=======修改企业钱包地址对应的uid，DappApproveRecord")
+
+	addresses, err := data.DappApproveRecordRepoClient.FindAddressGroup(nil)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		addresses, err = data.DappApproveRecordRepoClient.FindAddressGroup(nil)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，信息失败", zap.Any("error", err))
+		return
+	}
+
+	for _, address := range addresses {
+		addressExist, uid, err := biz.UserAddressSwitch(address)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
+			continue
+		}
+		if !addressExist {
+			continue
+		}
+		data.DappApproveRecordRepoClient.UpdateUidByAddress(nil, address, uid)
+	}
+	log.Info("end=======修改企业钱包地址对应的uid，DappApproveRecord")
+}
+
+func ReplaceNervosCellRecord() {
+	log.Info("start=======修改企业钱包地址对应的uid，NervosCellRecord")
+
+	addresses, err := data.NervosCellRecordRepoClient.FindAddressGroup(nil)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		addresses, err = data.NervosCellRecordRepoClient.FindAddressGroup(nil)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，信息失败", zap.Any("error", err))
+		return
+	}
+
+	for _, address := range addresses {
+		addressExist, uid, err := biz.UserAddressSwitch(address)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
+			continue
+		}
+		if !addressExist {
+			continue
+		}
+		data.NervosCellRecordRepoClient.UpdateUidByAddress(nil, address, uid)
+	}
+	log.Info("end=======修改企业钱包地址对应的uid，NervosCellRecord")
+}
+
+func ReplaceNftRecordHistory() {
+	log.Info("start=======修改企业钱包地址对应的uid，ReplaceNftRecordHistory")
+
+	ReplaceNftRecordHistoryUid("from_address", "from_uid")
+	ReplaceNftRecordHistoryUid("to_address", "to_uid")
+	log.Info("end=======修改企业钱包地址对应的uid，ReplaceNftRecordHistory")
+}
+
+func ReplaceNftRecordHistoryUid(columnAddress string, columnUrd string) {
+	addresses, err := data.NftRecordHistoryRepoClient.FindAddressGroup(nil, columnAddress)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		addresses, err = data.NftRecordHistoryRepoClient.FindAddressGroup(nil, columnAddress)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，信息失败", zap.Any("error", err))
+		return
+	}
+
+	for _, address := range addresses {
+		addressExist, uid, err := biz.UserAddressSwitch(address)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
+			continue
+		}
+		if !addressExist {
+			continue
+		}
+		data.NftRecordHistoryRepoClient.UpdateUidByAddress(nil, address, columnAddress, uid, columnUrd)
+	}
+}
+
+func ReplaceUtxoUnspentRecord() {
+	log.Info("start=======修改企业钱包地址对应的uid，ReplaceUtxoUnspentRecord")
+
+	addresses, err := data.UtxoUnspentRecordRepoClient.FindAddressGroup(nil)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		addresses, err = data.UtxoUnspentRecordRepoClient.FindAddressGroup(nil)
+	}
+	if err != nil {
+		log.Error("修改企业钱包地址对应的uid，信息失败", zap.Any("error", err))
+		return
+	}
+
+	for _, address := range addresses {
+		addressExist, uid, err := biz.UserAddressSwitch(address)
+		if err != nil {
+			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
+			continue
+		}
+		if !addressExist {
+			continue
+		}
+		data.UtxoUnspentRecordRepoClient.UpdateUidByAddress(nil, address, uid)
+	}
+	log.Info("end=======修改企业钱包地址对应的uid，ReplaceUtxoUnspentRecord")
+}
+
+func HandleTransactionRecord(startTime, stopTime int64) {
+	log.Info("修改企业钱包地址对应的uid，处理交易记录表开始")
+
+	for _, platInfo := range biz.PlatInfoMap {
+		chainName := platInfo.Chain
+		chainType := platInfo.Type
+		tableName := biz.GetTableName(chainName)
+
+		switch chainType {
+		case biz.BTC:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.BtcTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.BtcTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.BtcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.BtcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.EVM:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.EvmTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.EvmTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.APTOS:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.AptTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.AptTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						fromAddress = utils.AddressAdd0(fromAddress)
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						toAddress = utils.AddressAdd0(toAddress)
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.AptTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.AptTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.AptTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.SUI:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.SuiTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.SuiTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						fromAddress = utils.AddressAdd0(fromAddress)
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						toAddress = utils.AddressAdd0(toAddress)
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.SuiTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.SuiTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.SuiTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.COSMOS:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.AtomTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.AtomTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.AtomTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.AtomTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.NERVOS:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.CkbTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.CkbTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.CkbTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.CkbTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.CkbTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.CASPER:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.CsprTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.CsprTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.CsprTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.CsprTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.CsprTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.POLKADOT:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.DotTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.DotTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.DotTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.DotTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.DotTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.SOLANA:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.SolTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.SolTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.SolTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.STC:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.StcTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.StcTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.StcTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.StcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.StcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.TVM:
+			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+			var transactionRecordList []*data.TrxTransactionRecord
+			var request = &pb.PageListRequest{
+				StartTime: startTime,
+				StopTime:  stopTime,
+				OrderBy:   "id asc",
+				PageNum:   1,
+				PageSize:  biz.PAGE_SIZE,
+			}
+
+			for {
+				list, _, err := data.TrxTransactionRecordRepoClient.PageList(nil, tableName, request)
+				if err != nil {
+					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+					return
+				}
+
+				if len(list) == 0 {
+					break
+				}
+				for _, record := range list {
+					var fromUid, toUid string
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.TrxTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				if len(list) < biz.PAGE_SIZE {
+					break
+				}
+				request.PageNum += 1
+			}
+
+			count, err := data.TrxTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.TrxTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		}
+	}
+	log.Info("修改企业钱包地址对应的uid，处理交易记录表结束")
 }

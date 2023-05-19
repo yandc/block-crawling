@@ -76,10 +76,9 @@ func (b *Bootstrap) Stop() {
 	if b.inerPending != nil {
 		b.inerPending.Stop()
 	}
-
 }
-func (b *Bootstrap) Start() {
 
+func (b *Bootstrap) Start() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("main panic:", zap.Any("", err))
@@ -99,21 +98,16 @@ func (b *Bootstrap) Start() {
 			// get result
 			go b.GetTransactionResultByTxhash()
 
-			resultPlan := time.NewTicker(time.Duration(10) * time.Minute)
+			resultPlan := time.NewTicker(time.Duration(5) * time.Minute)
 			b.pending = resultPlan
 			for range resultPlan.C {
 				go b.GetTransactionResultByTxhash()
 				go b.Platform.MonitorHeight()
 			}
-
 		}(b)
-
 	}()
-
-
-
-
 }
+
 func (b *Bootstrap) GetTransactions() {
 	liveInterval := b.liveInterval()
 	log.Info(
@@ -331,7 +325,6 @@ func (b *Bootstrap) liveInterval() time.Duration {
 type Server map[string]*Bootstrap
 
 func (bs Server) Start(ctx context.Context) error {
-
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("main panic:", zap.Any("", err))
@@ -347,7 +340,7 @@ func (bs Server) Start(ctx context.Context) error {
 		//记录 已启动chain
 		ci := b.Conf.Type + b.Conf.ChainId
 		startChainMap[ci] = b
-		log.Info("本地配置启动bnb",zap.Any("",b))
+		log.Info("本地配置启动bnb", zap.Any("", b))
 	}
 
 	go func() {
@@ -432,7 +425,7 @@ func customChainRun() {
 		if startChainMap[k] != nil {
 			continue
 		}
-		if sl , ok  :=startCustomChainMap.Load(k) ; ok {
+		if sl, ok := startCustomChainMap.Load(k); ok {
 			sccm := sl.(*Bootstrap)
 			//校验块高差 1000  停止爬块 更新块高
 			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + chainInfo.Chain).Result()
@@ -459,7 +452,7 @@ func customChainRun() {
 					cs = append(cs, sccm.Platform.CreateClient(url))
 				}
 				sccm.Spider.ReplaceClients(cs...)
-				startCustomChainMap.Store(k,sccm)
+				startCustomChainMap.Store(k, sccm)
 			}
 		} else {
 			cp := &conf.PlatInfo{
@@ -475,7 +468,7 @@ func customChainRun() {
 			PlatInfos = append(PlatInfos, cp)
 			platform := GetPlatform(cp)
 			bt := NewBootstrap(platform, cp)
-			startCustomChainMap.Store(k,bt)
+			startCustomChainMap.Store(k, bt)
 			DynamicCreateTable(data.BlockCreawlingDB, PlatInfos)
 
 			biz.PlatInfos = PlatInfos
@@ -483,8 +476,7 @@ func customChainRun() {
 			biz.PlatformMap[cp.Chain] = platform
 			biz.PlatInfoMap[cp.Chain] = cp
 			bt.Start()
-			log.Info("拉取配置启动bnb",zap.Any("",bt))
-
+			log.Info("拉取配置启动bnb", zap.Any("", bt))
 		}
 	}
 }
