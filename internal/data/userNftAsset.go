@@ -61,6 +61,14 @@ type NftAssetRequest struct {
 	TokenIdList        []string
 	AmountType         int32
 	CollectionNameLike string
+	StartTime          int64
+	StopTime           int64
+	OrderBy            string
+	DataDirection      int32
+	StartIndex         int64
+	PageNum            int32
+	PageSize           int32
+	Total              bool
 }
 
 func (userNftAsset UserNftAsset) TableName() string {
@@ -74,12 +82,15 @@ type UserNftAssetRepo interface {
 	SaveOrUpdate(context.Context, *UserNftAsset) (int64, error)
 	BatchSaveOrUpdate(context.Context, []*UserNftAsset) (int64, error)
 	PageBatchSaveOrUpdate(context.Context, []*UserNftAsset, int) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, []string, []*UserNftAsset) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, []string, []*UserNftAsset, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, []*UserNftAsset, int) (int64, error)
 	Update(context.Context, *UserNftAsset) (int64, error)
 	FindByID(context.Context, int64) (*UserNftAsset, error)
 	FindByUniqueKey(context.Context, *pb.NftAssetRequest) (*UserNftAsset, error)
 	ListByID(context.Context, int64) ([]*UserNftAsset, error)
 	ListAll(context.Context) ([]*UserNftAsset, error)
-	PageList(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, int64, error)
+	PageList(context.Context, *NftAssetRequest) ([]*UserNftAsset, int64, error)
 	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
 	ListBalanceGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
 	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error)
@@ -198,6 +209,74 @@ func (r *UserNftAssetRepoImpl) PageBatchSaveOrUpdate(ctx context.Context, userNf
 	return totalAffected, nil
 }
 
+func (r *UserNftAssetRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, columns []string, userNftAssets []*UserNftAsset) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
+	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   columnList,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"chain_name":         gorm.Expr("case when excluded.chain_name != '' then excluded.chain_name else user_nft_asset.chain_name end"),
+			"uid":                gorm.Expr("case when excluded.uid != '' then excluded.uid else user_nft_asset.uid end"),
+			"address":            gorm.Expr("case when excluded.address != '' then excluded.address else user_nft_asset.address end"),
+			"token_address":      gorm.Expr("case when excluded.token_address != '' then excluded.token_address else user_nft_asset.token_address end"),
+			"token_uri":          gorm.Expr("case when excluded.token_uri != '' then excluded.token_uri else user_nft_asset.token_uri end"),
+			"token_id":           gorm.Expr("case when excluded.token_id != '' then excluded.token_id else user_nft_asset.token_id end"),
+			"balance":            gorm.Expr("case when excluded.balance != '' then excluded.balance else user_nft_asset.balance end"),
+			"token_type":         gorm.Expr("case when excluded.token_type != '' then excluded.token_type else user_nft_asset.token_type end"),
+			"collection_name":    gorm.Expr("case when excluded.collection_name != '' then excluded.collection_name else user_nft_asset.collection_name end"),
+			"symbol":             gorm.Expr("case when excluded.symbol != '' then excluded.symbol else user_nft_asset.symbol end"),
+			"name":               gorm.Expr("case when excluded.name != '' then excluded.name else user_nft_asset.name end"),
+			"item_name":          gorm.Expr("case when excluded.item_name != '' then excluded.item_name else user_nft_asset.item_name end"),
+			"item_uri":           gorm.Expr("case when excluded.item_uri != '' then excluded.item_uri else user_nft_asset.item_uri end"),
+			"item_original_uri":  gorm.Expr("case when excluded.item_original_uri != '' then excluded.item_original_uri else user_nft_asset.item_original_uri end"),
+			"item_animation_uri": gorm.Expr("case when excluded.item_animation_uri != '' then excluded.item_animation_uri else user_nft_asset.item_animation_uri end"),
+			"data":               gorm.Expr("case when excluded.data != '' then excluded.data else user_nft_asset.data end"),
+			"updated_at":         gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&userNftAssets)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective userNftAsset failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *UserNftAssetRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, columns []string, userNftAssets []*UserNftAsset, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(userNftAssets)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subUserNftAssetss := userNftAssets[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, columns, subUserNftAssetss)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
+}
+
+func (r *UserNftAssetRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, userNftAssets []*UserNftAsset, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, []string{"id"}, userNftAssets, pageSize)
+}
+
 func (r *UserNftAssetRepoImpl) Update(ctx context.Context, userNftAsset *UserNftAsset) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Model(&UserNftAsset{}).Where("id = ?", userNftAsset.Id).Updates(userNftAsset)
 	err := ret.Error
@@ -261,7 +340,7 @@ func (r *UserNftAssetRepoImpl) ListAll(ctx context.Context) ([]*UserNftAsset, er
 	return userNftAssetList, nil
 }
 
-func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAsset, int64, error) {
+func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *NftAssetRequest) ([]*UserNftAsset, int64, error) {
 	var userNftAssetList []*UserNftAsset
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table("user_nft_asset")
@@ -290,6 +369,12 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListNft
 	}
 	if req.CollectionNameLike != "" {
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
 	if req.Total {
@@ -361,6 +446,12 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	}
 	if req.CollectionNameLike != "" {
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
 	ret := db.Find(&userNftAssetList)
@@ -543,7 +634,7 @@ func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest)
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
 	}
 
-	ret := db.Delete(&UserAsset{})
+	ret := db.Delete(&UserNftAsset{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete userNftAssets failed", err)

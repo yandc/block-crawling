@@ -43,6 +43,8 @@ type NervosCellRecordRepo interface {
 	UpdateStatusByUseTransactionHash(context.Context, string, string) (int64, error)
 	Save(context.Context, *NervosCellRecord) (int64, error)
 	LoadBatch(ctx context.Context, txHashs []string) ([]*NervosCellRecord, error)
+	FindAddressGroup(ctx context.Context) ([]string, error)
+	UpdateUidByAddress(context.Context, string, string) (int64, error)
 }
 
 var NervosCellRecordRepoClient NervosCellRecordRepo
@@ -97,7 +99,7 @@ func (r *NervosCellRecordRepoImpl) FindByCondition(ctx context.Context, req *pb.
 	if req.Address != "" {
 		tx = tx.Where("address = ?", req.Address)
 	}
-	tx = tx.Where("contract_address = ?",req.ContractAddress)
+	tx = tx.Where("contract_address = ?", req.ContractAddress)
 
 	ret := tx.Find(&ncr)
 	err := ret.Error
@@ -133,4 +135,26 @@ func (r *NervosCellRecordRepoImpl) Save(ctx context.Context, nervosCellRecord *N
 	}
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *NervosCellRecordRepoImpl) FindAddressGroup(ctx context.Context) ([]string, error) {
+	var ncr []string
+	ret := r.gormDB.Table("nervos_cell_record").Select("address").Where("address != '' ").Group("address").Find(&ncr)
+	err := ret.Error
+	if err != nil {
+		return nil ,err
+	}
+	return ncr, nil
+
+}
+
+func (r *NervosCellRecordRepoImpl) UpdateUidByAddress(ctx context.Context, address string, uid string) (int64, error) {
+	ret := r.gormDB.Table("nervos_cell_record").Where("address = ?", address).Update("uid", uid)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update cell failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
 }

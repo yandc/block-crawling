@@ -32,6 +32,8 @@ type UtxoUnspentRecordRepo interface {
 	UpdateUnspent(context.Context, string, string, string, int, string) (int64, error)
 	FindByCondition(context.Context, *pb.UnspentReq) ([]*UtxoUnspentRecord, error)
 	DeleteByUid(context.Context, string, string, string) (int64, error)
+	FindAddressGroup(ctx context.Context) ([]string, error)
+	UpdateUidByAddress(context.Context, string, string) (int64, error)
 }
 
 type UtxoUnspentRecordRepoImpl struct {
@@ -109,6 +111,28 @@ func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid strin
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+address+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *UtxoUnspentRecordRepoImpl) FindAddressGroup(ctx context.Context) ([]string, error) {
+	var ncr []string
+	ret := r.gormDB.Table("utxo_unspent_record").Select("address").Where("address != '' ").Group("address").Find(&ncr)
+	err := ret.Error
+	if err != nil {
+		return nil ,err
+	}
+	return ncr, nil
+
+}
+
+func (r *UtxoUnspentRecordRepoImpl) UpdateUidByAddress(ctx context.Context, address string, uid string) (int64, error) {
+	ret := r.gormDB.Table("utxo_unspent_record").Where("address = ?", address).Update("uid", uid)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update cell failed", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected

@@ -176,9 +176,9 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			/*"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
-			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
-			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},*/
+			"block_hash":       gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
+			"block_number":     gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
+			"transaction_hash": gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
 			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
 			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
 			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
@@ -189,11 +189,10 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
 			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
 			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
-			/*"fee_limit":        clause.Column{Table: "excluded", Name: "fee_limit"},
-			"net_usage":        clause.Column{Table: "excluded", Name: "net_usage"},
-			"energy_usage":     clause.Column{Table: "excluded", Name: "energy_usage"},*/
-			"event_log": gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
-			//"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"fee_limit":        gorm.Expr("case when excluded.fee_limit != '' then excluded.fee_limit else " + tableName + ".fee_limit end"),
+			"net_usage":        gorm.Expr("case when excluded.net_usage != '' then excluded.net_usage else " + tableName + ".net_usage end"),
+			"energy_usage":     gorm.Expr("case when excluded.energy_usage != '' then excluded.energy_usage else " + tableName + ".energy_usage end"),
+			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),

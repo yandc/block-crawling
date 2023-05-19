@@ -1,7 +1,6 @@
 package data
 
 import (
-	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/common"
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
@@ -38,6 +37,14 @@ type AssetRequest struct {
 	TokenAddressList                 []string
 	AmountType                       int32
 	ChainNameAddressTokenAddressList []*AssetRequest
+	StartTime                        int64
+	StopTime                         int64
+	OrderBy                          string
+	DataDirection                    int32
+	StartIndex                       int64
+	PageNum                          int32
+	PageSize                         int32
+	Total                            bool
 }
 
 func (userAsset UserAsset) TableName() string {
@@ -51,15 +58,18 @@ type UserAssetRepo interface {
 	SaveOrUpdate(context.Context, *UserAsset) (int64, error)
 	BatchSaveOrUpdate(context.Context, []*UserAsset) (int64, error)
 	PageBatchSaveOrUpdate(context.Context, []*UserAsset, int) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, []string, []*UserAsset) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, []string, []*UserAsset, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, []*UserAsset, int) (int64, error)
 	Update(context.Context, *UserAsset) (int64, error)
 	UpdateZeroByAddress(context.Context, string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
-	PageList(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, int64, error)
+	PageList(context.Context, *AssetRequest) ([]*UserAsset, int64, error)
 	List(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
-	GroupListBalance(context.Context, *pb.PageListAssetRequest) ([]*UserAsset, error)
+	ListBalanceGroup(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalanceGroupByUid(context.Context, *AssetRequest) ([]*UserAsset, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -174,6 +184,65 @@ func (r *UserAssetRepoImpl) PageBatchSaveOrUpdate(ctx context.Context, userAsset
 	return totalAffected, nil
 }
 
+func (r *UserAssetRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, columns []string, userAssets []*UserAsset) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
+	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   columnList,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"chain_name":    gorm.Expr("case when excluded.chain_name != '' then excluded.chain_name else user_asset.chain_name end"),
+			"uid":           gorm.Expr("case when excluded.uid != '' then excluded.uid else user_asset.uid end"),
+			"address":       gorm.Expr("case when excluded.address != '' then excluded.address else user_asset.address end"),
+			"token_address": gorm.Expr("case when excluded.token_address != '' then excluded.token_address else user_asset.token_address end"),
+			"balance":       gorm.Expr("case when excluded.balance != '' then excluded.balance else user_asset.balance end"),
+			"decimals":      gorm.Expr("case when excluded.decimals != 0 then excluded.decimals else user_asset.decimals end"),
+			"symbol":        gorm.Expr("case when excluded.symbol != '' then excluded.symbol else user_asset.symbol end"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&userAssets)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective userAsset failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *UserAssetRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, columns []string, userAssets []*UserAsset, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(userAssets)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subUserAssetss := userAssets[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, columns, subUserAssetss)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
+}
+
+func (r *UserAssetRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, userAssets []*UserAsset, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, []string{"id"}, userAssets, pageSize)
+}
+
 func (r *UserAssetRepoImpl) Update(ctx context.Context, userAsset *UserAsset) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("id = ?", userAsset.Id).Updates(userAsset)
 	err := ret.Error
@@ -222,7 +291,7 @@ func (r *UserAssetRepoImpl) ListAll(ctx context.Context) ([]*UserAsset, error) {
 	return userAssetList, nil
 }
 
-func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetRequest) ([]*UserAsset, int64, error) {
+func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]*UserAsset, int64, error) {
 	var userAssetList []*UserAsset
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table("user_asset")
@@ -245,6 +314,12 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *pb.PageListAssetR
 		} else if req.AmountType == 2 {
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
 		}
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
 	if req.Total {
@@ -324,6 +399,12 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 		chainNameAddressTokenAddress += ")"
 		db = db.Where("(chain_name, address, token_address) in" + chainNameAddressTokenAddress)
 	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
 
 	ret := db.Find(&userAssetList)
 	err := ret.Error
@@ -375,7 +456,7 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 	return userAssetList, nil
 }
 
-func (r *UserAssetRepoImpl) GroupListBalance(ctx context.Context, req *pb.PageListAssetRequest) ([]*UserAsset, error) {
+func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
 	var userAssetList []*UserAsset
 
 	sqlStr := "select chain_name, token_address, sum(cast(balance as numeric)) as balance " +

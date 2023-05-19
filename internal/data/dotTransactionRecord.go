@@ -47,6 +47,9 @@ type DotTransactionRecordRepo interface {
 	BatchSave(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*DotTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*DotTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*DotTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*DotTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *DotTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*DotTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*DotTransactionRecord, error)
@@ -164,6 +167,79 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*DotTransactionRecord) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   columnList,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"block_hash":       gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
+			"block_number":     gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
+			"nonce":            gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
+			"transaction_hash": gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       gorm.Expr("case when excluded.fee_amount != '' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":           gorm.Expr("case when excluded.amount != '' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"contract_address": gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
+			"parse_data":       gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"type":             gorm.Expr("case when excluded.type != '' then excluded.type else " + tableName + ".type end"),
+			"data":             gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			"log_address":      gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&evmTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *DotTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, txRecords []*DotTransactionRecord, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(txRecords)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subTxRecords := txRecords[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, tableName, columns, subTxRecords)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
+}
+
+func (r *DotTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*DotTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
 }
 
 func (r *DotTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, dotTransactionRecord *DotTransactionRecord) (int64, error) {

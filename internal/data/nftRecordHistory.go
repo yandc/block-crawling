@@ -33,6 +33,8 @@ func (nftRecordHistory NftRecordHistory) TableName() string {
 type NftRecordHistoryRepo interface {
 	ListByCondition(context.Context, *pb.NftRecordReq) ([]*NftRecordHistory, error)
 	SaveOrUpdate(context.Context, []*NftRecordHistory) (int64, error)
+	FindAddressGroup(ctx context.Context, column string) ([]string, error)
+	UpdateUidByAddress(context.Context, string, string, string, string) (int64, error)
 }
 
 type NftRecordHistoryRepoImpl struct {
@@ -83,3 +85,25 @@ func (r *NftRecordHistoryRepoImpl) SaveOrUpdate(ctx context.Context, nftRecordHi
 	affected := ret.RowsAffected
 	return affected, err
 }
+func (r *NftRecordHistoryRepoImpl) FindAddressGroup(ctx context.Context, column string) ([]string, error) {
+	var ncr []string
+	ret := r.gormDB.Table("nft_record_history").Select(column).Where(column + " != '' ").Group(column).Find(&ncr)
+	err := ret.Error
+	if err != nil {
+		return nil, err
+	}
+	return ncr, nil
+
+}
+
+func (r *NftRecordHistoryRepoImpl) UpdateUidByAddress(ctx context.Context, address string, addressColumn string, uid string, uidColumn string) (int64, error) {
+	ret := r.gormDB.Table("nft_record_history").Where(addressColumn+" = ?", address).Update(uidColumn, uid)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update cell failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
