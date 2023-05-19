@@ -3,6 +3,7 @@ package biz
 import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/signhash"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -487,6 +488,26 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 	})
 
 	return result, err
+}
+
+func HashSignMessage(chainName string, req *signhash.SignMessageRequest) (string, error) {
+	if v, ok := PlatInfoMap[chainName]; ok {
+		rawMsg, err := signhash.Hash(v.Type, req)
+		if err != nil {
+			return "", err
+		}
+		ret := data.RedisClient.Set(fmt.Sprintf("signing-message:%s", req.SessionId), rawMsg, time.Hour*24*7)
+		if ret.Err() != nil {
+			log.Error(
+				"SAVE SIGNING MESSAGE TO REDIS FAILED",
+				zap.Error(ret.Err()),
+				zap.String("chainName", req.ChainName),
+				zap.String("sessionId", req.SessionId),
+			)
+		}
+		return rawMsg, nil
+	}
+	return "", errors.New("unknown chain")
 }
 
 type RPCNodeBalancer interface {

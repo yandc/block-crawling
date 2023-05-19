@@ -5,6 +5,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/signhash"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -2308,4 +2309,8 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	return &BroadcastResponse{
 		Ok: result == 1,
 	}, nil
+}
+
+func (s *TransactionUsecase) SigningMessage(ctx context.Context, req *signhash.SignMessageRequest) (string, error) {
+	return HashSignMessage(req.ChainName, req)
 }
