@@ -2227,6 +2227,12 @@ func (s *TransactionUsecase) attemptFixZeroDecimals(ctx context.Context, req *Us
 		}
 		tokenInfo = &token
 	}
+
+	// Ignore native currency
+	if tokenInfo.Address == "" {
+		return
+	}
+
 	if tokenInfo.Decimals != 0 {
 		newBalance := utils.StringDecimals(asset.Balance, int(tokenInfo.Decimals))
 		log.Info(
