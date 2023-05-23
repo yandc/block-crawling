@@ -98,6 +98,7 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				log.Error(chainName+"解析parseData失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
 					zap.Any("txHash", record.TransactionHash), zap.Any("parseData", record.ParseData), zap.Any("error", err))
+				continue
 			}
 			tokenType := tokenInfo.TokenType
 			decimals := tokenInfo.Decimals

@@ -3248,6 +3248,8 @@ func (m *PageListRequest) validate(all bool) error {
 
 	// no validation rules for OsVersion
 
+	// no validation rules for TokenAddress
+
 	if len(errors) > 0 {
 		return PageListRequestMultiError(errors)
 	}
@@ -5483,6 +5485,8 @@ func (m *PageListNftAssetRequest) validate(all bool) error {
 	}
 
 	// no validation rules for Total
+
+	// no validation rules for CollectionNameLikeIgnoreCase
 
 	if len(errors) > 0 {
 		return PageListNftAssetRequestMultiError(errors)

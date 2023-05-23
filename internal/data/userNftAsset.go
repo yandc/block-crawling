@@ -52,23 +52,24 @@ type UserNftAssetGroup struct {
 }
 
 type NftAssetRequest struct {
-	ChainName          string
-	Uid                string
-	UidList            []string
-	Address            string
-	AddressList        []string
-	TokenAddressList   []string
-	TokenIdList        []string
-	AmountType         int32
-	CollectionNameLike string
-	StartTime          int64
-	StopTime           int64
-	OrderBy            string
-	DataDirection      int32
-	StartIndex         int64
-	PageNum            int32
-	PageSize           int32
-	Total              bool
+	ChainName                    string
+	Uid                          string
+	UidList                      []string
+	Address                      string
+	AddressList                  []string
+	TokenAddressList             []string
+	TokenIdList                  []string
+	AmountType                   int32
+	CollectionNameLike           string
+	CollectionNameLikeIgnoreCase string
+	StartTime                    int64
+	StopTime                     int64
+	OrderBy                      string
+	DataDirection                int32
+	StartIndex                   int64
+	PageNum                      int32
+	PageSize                     int32
+	Total                        bool
 }
 
 func (userNftAsset UserNftAsset) TableName() string {
@@ -370,6 +371,9 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *NftAssetReques
 	if req.CollectionNameLike != "" {
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
 	}
+	if req.CollectionNameLikeIgnoreCase != "" {
+		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
+	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
 	}
@@ -447,6 +451,9 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	if req.CollectionNameLike != "" {
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
 	}
+	if req.CollectionNameLikeIgnoreCase != "" {
+		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
+	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
 	}
@@ -497,6 +504,9 @@ func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *pb.Pag
 	if req.CollectionNameLike != "" {
 		sqlStr += " and collection_name like '%" + req.CollectionNameLike + "%'"
 	}
+	if req.CollectionNameLikeIgnoreCase != "" {
+		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
+	}
 	sqlStr += " group by chain_name, token_address"
 
 	ret := r.gormDB.WithContext(ctx).Table("user_nft_asset").Raw(sqlStr).Find(&userNftAssetList)
@@ -544,6 +554,9 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	}
 	if req.CollectionNameLike != "" {
 		sqlStr += " and collection_name like '%" + req.CollectionNameLike + "%'"
+	}
+	if req.CollectionNameLikeIgnoreCase != "" {
+		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
 	}
 	sqlStr += " group by chain_name, uid, address, token_address, token_type" +
 		")"
@@ -632,6 +645,9 @@ func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest)
 	}
 	if req.CollectionNameLike != "" {
 		db = db.Where("collection_name like ?", "%"+req.CollectionNameLike+"%")
+	}
+	if req.CollectionNameLikeIgnoreCase != "" {
+		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
 	}
 
 	ret := db.Delete(&UserNftAsset{})

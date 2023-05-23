@@ -353,6 +353,13 @@ func (r *SolTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.StopTime > 0 {
 		db = db.Where("created_at < ?", req.StopTime)
 	}
+	if req.TokenAddress != "" {
+		if req.TokenAddress == MAIN_ADDRESS_PARAM {
+			req.TokenAddress = ""
+		}
+		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
+		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+	}
 
 	if req.Total {
 		// 统计总记录数
