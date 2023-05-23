@@ -68,7 +68,6 @@ type AtomTransactionRecordRepo interface {
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*AtomTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*AtomTransactionRecord, error)
-	UpdateStatusByNonce(context.Context, string, string, int64, string) (int64, error)
 	FindLastNonce(context.Context, string, string) (*AtomTransactionRecord, error)
 }
 
@@ -629,18 +628,6 @@ func (r *AtomTransactionRecordRepoImpl) ListByTransactionType(ctx context.Contex
 		return nil, err
 	}
 	return atomTransactionRecords, nil
-
-}
-
-func (r *AtomTransactionRecordRepoImpl) UpdateStatusByNonce(ctx context.Context, tableName string, address string, nonce int64, transactionHash string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where("status != 'dropped' and transaction_type != 'eventLog' and from_address = ? and nonce = ?  and transaction_hash not like ? ", address, nonce, transactionHash+"%").Update("status", "dropped_replaced")
-	err := ret.Error
-	if err != nil {
-		log.Errore("update "+tableName+" failed", err)
-		return 0, err
-	}
-	affected := ret.RowsAffected
-	return affected, nil
 }
 
 func (r *AtomTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableName string, fromAddress string) (*AtomTransactionRecord, error) {

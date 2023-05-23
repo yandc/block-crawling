@@ -93,10 +93,6 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			}
 
 			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
-				if req.OsVersion < 2023011001 && record.OperateType != "" {
-					record.TransactionType = record.OperateType
-				}
-
 				if req.OsVersion < 2023040601 {
 					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
 						continue
