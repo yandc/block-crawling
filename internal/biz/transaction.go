@@ -697,6 +697,34 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	chainType := ChainNameType[req.ChainName]
 	switch chainType {
+	case EVM:
+		if req.ContractAddress != "" {
+			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
+		}
+		if req.TokenAddress != "" && req.TokenAddress != data.MAIN_ADDRESS_PARAM {
+			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+		}
+		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
+		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+	case APTOS, SUI:
+		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
+		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
+		if req.Address != "" {
+			req.Address = utils.AddressRemove0(req.Address)
+		}
+	case COSMOS:
+		if req.ContractAddress != "" {
+			req.ContractAddress = utils.AddressIbcToLower(req.ContractAddress)
+		}
+		if req.TokenAddress != "" && req.TokenAddress != data.MAIN_ADDRESS_PARAM {
+			req.TokenAddress = utils.AddressIbcToLower(req.TokenAddress)
+		}
+	}
+
+	switch chainType {
 	case POLKADOT:
 		var recordList []*data.DotTransactionRecord
 		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
@@ -731,14 +759,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			}
 		}
 	case EVM:
-		if req.ContractAddress != "" {
-			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
-		}
-		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
-		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
-		if req.Address != "" {
-			req.Address = types2.HexToAddress(req.Address).Hex()
-		}
 		var recordList []*data.EvmTransactionRecord
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
 		if err == nil {
@@ -757,24 +777,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case APTOS:
-		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
-		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
-		}
-
 		var recordList []*data.AptTransactionRecord
 		recordList, total, err = data.AptTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case SUI:
-		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
-		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
-		}
-
 		var recordList []*data.SuiTransactionRecord
 		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
 		if err == nil {
@@ -1735,19 +1743,20 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	}
 
 	var request = &data.NftAssetRequest{
-		ChainName:          req.ChainName,
-		Uid:                req.Uid,
-		AddressList:        req.AddressList,
-		TokenAddressList:   req.TokenAddressList,
-		TokenIdList:        req.TokenIdList,
-		AmountType:         req.AmountType,
-		CollectionNameLike: req.CollectionNameLike,
-		OrderBy:            req.OrderBy,
-		DataDirection:      req.DataDirection,
-		StartIndex:         req.StartIndex,
-		PageNum:            req.PageNum,
-		PageSize:           req.PageSize,
-		Total:              req.Total,
+		ChainName:                    req.ChainName,
+		Uid:                          req.Uid,
+		AddressList:                  req.AddressList,
+		TokenAddressList:             req.TokenAddressList,
+		TokenIdList:                  req.TokenIdList,
+		AmountType:                   req.AmountType,
+		CollectionNameLike:           req.CollectionNameLike,
+		CollectionNameLikeIgnoreCase: req.CollectionNameLikeIgnoreCase,
+		OrderBy:                      req.OrderBy,
+		DataDirection:                req.DataDirection,
+		StartIndex:                   req.StartIndex,
+		PageNum:                      req.PageNum,
+		PageSize:                     req.PageSize,
+		Total:                        req.Total,
 	}
 	var result = &pb.ClientPageListNftAssetResponse{}
 	var total int64

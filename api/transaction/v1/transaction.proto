@@ -297,6 +297,7 @@ message PageListRequest {
   string platform = 22;
   int32 osVersion = 23;
   repeated string operateTypeList = 24;
+  string tokenAddress = 25;
 }
 
 message PageListResponse {
@@ -449,6 +450,7 @@ message PageListNftAssetRequest {
   int32 pageNum = 12 [(validate.rules).int32.gte = 0];
   int32 pageSize = 13 [(validate.rules).int32.gte = 0];
   bool total = 14;
+  string collectionNameLikeIgnoreCase = 15;
 }
 
 message ClientPageListNftAssetGroupResponse {
