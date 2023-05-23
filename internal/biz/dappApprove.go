@@ -89,7 +89,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			return
 		}
 	}()
-
+	log.Info(chainName,zap.Any("dappdd",txRecords))
 	txhashMap := make(map[string]*data.EvmTransactionRecord)
 	txhashEventLogMap := make(map[string][]*data.EvmTransactionRecord)
 

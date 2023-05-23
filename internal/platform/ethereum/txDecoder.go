@@ -1049,9 +1049,20 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			eventLogTokenId = tokenId
 		}
 
-		//不展示event log中的授权记录
-		if topic0 == APPROVAL_TOPIC || topic0 == APPROVALFORALL_TOPIC {
+		if topic0 == APPROVALFORALL_TOPIC {
 			continue
+		}
+
+		//不展示event log中的授权记录
+		//https://polygonscan.com/tx/0xdd8635bfce70c989487eea4403826e691efbf230887e92cc958d53e79281b7b9#eventlog
+		if topic0 == APPROVAL_TOPIC {
+			if "0xf0511f123164602042ab2bCF02111fA5D3Fe97CD" == receipt.To && strings.HasPrefix(h.chainName, "Polygon") {
+				//更新 敞口
+				data.DappApproveRecordRepoClient.UpdateAddressBalanceByTokenAndContract(nil, fromAddress, tokenAddress, toAddress, amount.String(), h.chainName)
+				continue
+			}else {
+				continue
+			}
 		}
 
 		if len(tokens) > 0 {
