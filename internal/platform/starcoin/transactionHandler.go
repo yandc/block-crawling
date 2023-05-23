@@ -35,7 +35,6 @@ func HandleRecord(chainName string, client Client, txRecords []*data.StcTransact
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
 	HandleUserNonce(chainName, txRecords)
-	go HandleRecordStatus(chainName, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.StcTransactionRecord) {
@@ -60,76 +59,6 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.StcT
 		HandleUserAsset(chainName, client, txRecords)
 	}()
 	HandleUserNonce(chainName, txRecords)
-	go HandleRecordStatus(chainName, txRecords)
-}
-
-func HandleRecordStatus(chainName string, txRecords []*data.StcTransactionRecord) {
-	for _, record := range txRecords {
-		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
-			continue
-		}
-		if record.TransactionType == biz.EVENTLOG {
-			continue
-		}
-
-		transactionRecordRequest := &data.TransactionRequest{
-			FromAddress:        record.FromAddress,
-			Nonce:              record.Nonce,
-			ClientDataNotEmpty: true,
-			OrderBy:            "id asc",
-		}
-		list, _ := data.StcTransactionRecordRepoClient.List(nil, biz.GetTableName(chainName), transactionRecordRequest)
-		if len(list) == 0 {
-			continue
-		}
-		/*first := list[0]
-		var newList []*data.StcTransactionRecord
-		var chainRecord bool
-		for i, transactionRecord := range list {
-			if i > 0 {
-				if (transactionRecord.Amount.String() != "0" && (transactionRecord.TransactionType != first.TransactionType || transactionRecord.Amount.String() != first.Amount.String())) ||
-					(transactionRecord.DappData != "" && transactionRecord.TransactionType != first.TransactionType) {
-					continue
-				} else if transactionRecord.Amount.String() != "0" && transactionRecord.TransactionType == first.TransactionType && transactionRecord.Amount.String() == first.Amount.String() &&
-					transactionRecord.CreatedAt-first.CreatedAt > 21610 {
-					continue
-				}
-			}
-			newList = append(newList, transactionRecord)
-			if transactionRecord.Status == biz.SUCCESS || transactionRecord.Status == biz.FAIL {
-				chainRecord = true
-			}
-		}
-		list = newList*/
-
-		if len(list) > 1 {
-			for i, transactionRecord := range list {
-				//2023 0411 不需要判断 被 加速或取消的状态
-				//if record.Id != transactionRecord.Id && (transactionRecord.Status != biz.SUCCESS || transactionRecord.Status != biz.FAIL || transactionRecord.Status != biz.DROPPED_REPLACED) {
-				if record.Id != transactionRecord.Id {
-					transactionRecord.Status = biz.DROPPED_REPLACED
-				}
-
-				if i > 0 {
-					if transactionRecord.OperateType == "" {
-						if transactionRecord.Amount.String() == "0" {
-							transactionRecord.OperateType = biz.CANCEL
-						} else {
-							transactionRecord.OperateType = biz.SPEED_UP
-						}
-					}
-				}
-			}
-			_, err := data.StcTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, biz.GetTableName(chainName), list)
-			if err != nil {
-				// 更新用户加速或取消信息失败 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s更新用户加速或取消信息失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"更新用户加速或取消信息失败", zap.Any("txHash", record.TransactionHash), zap.Any("fromAddress", record.FromAddress), zap.Any("toAddress", record.ToAddress), zap.Any("nonce", record.Nonce), zap.Any("error", err))
-			}
-		}
-	}
 }
 
 func HandleUserNonce(chainName string, txRecords []*data.StcTransactionRecord) {
