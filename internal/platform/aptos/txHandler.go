@@ -81,6 +81,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				mode := strings.Split(tyArgs, "::")
 				if len(mode) == 3 {
 					toAddress = mode[0]
+					contractAddress = tyArgs
 				}
 			}
 		} else {
@@ -156,7 +157,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		feeAmount := decimal.NewFromInt(int64(gasUsed * gasPrice))
 		payload, _ := utils.JsonEncode(map[string]interface{}{"changes": changes, "payload": tx.Payload})
 
-		if txType == biz.TRANSFER {
+		if txType == biz.TRANSFER || (contractAddress != APT_CODE && contractAddress != "") {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
