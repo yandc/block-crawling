@@ -330,6 +330,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			txType = biz.REGISTERTOKEN
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["account"].(string)
+			contractAddress = instructionInfo["mint"].(string)
 			index := accountKeyMap[toAddress].Index
 			bigAmount := new(big.Int).Sub(postBalances[index], preBalances[index])
 			if len(instructions) == 1 {
@@ -410,7 +411,9 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if err != nil {
 				log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("error", err))
 			}
-			tokenInfo.Amount = amount
+			if txType != biz.REGISTERTOKEN {
+				tokenInfo.Amount = amount
+			}
 			tokenInfo.Address = contractAddress
 		}
 		stcMap := map[string]interface{}{
