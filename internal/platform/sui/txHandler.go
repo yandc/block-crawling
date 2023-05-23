@@ -82,7 +82,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 		}
 		amount := balanceChange.Amount
-		if balanceChange.CoinType != SUI_CODE {
+		if balanceChange.CoinType != SUI_CODE && balanceChange.CoinType != SUI_CODE1 {
 			txType = biz.TRANSFER
 			tokenAddress = balanceChange.CoinType
 		}
@@ -155,7 +155,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if owner == nil {
 			continue
 		}
-		if strings.HasPrefix(objectType, "0x2::") || strings.HasPrefix(objectType, "0x3::") {
+		if strings.HasPrefix(objectType, "0x2::") || strings.HasPrefix(objectType, "0x3::") ||
+			strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000002::") ||
+			strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000003::") {
 			continue
 		}
 		var toAddress string
@@ -366,7 +368,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		gasUsed = strconv.Itoa(gasUsedInt)
 		feeAmount = decimal.NewFromInt(int64(gasUsedInt))
 
-		if contractAddress != SUI_CODE && contractAddress != "" {
+		if contractAddress != SUI_CODE && contractAddress != SUI_CODE1 && contractAddress != "" {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))

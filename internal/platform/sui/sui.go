@@ -19,6 +19,7 @@ type Platform struct {
 }
 
 const SUI_CODE = "0x2::sui::SUI"
+const SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	chainType := value.Handler
