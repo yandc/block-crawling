@@ -60,6 +60,7 @@ type StcTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*StcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*StcTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*StcTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*StcTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -699,3 +700,19 @@ func (r *StcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 		return nil, nil
 	}
 }
+
+func (r *StcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*StcTransactionRecord, error) {
+	var stcTransactionRecordList []*StcTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&stcTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return stcTransactionRecordList, nil
+}
+

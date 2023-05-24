@@ -55,6 +55,7 @@ type TrxTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*TrxTransactionRecord, error)
 	ListAll(context.Context, string) ([]*TrxTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*TrxTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*TrxTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
@@ -587,6 +588,20 @@ func (r *TrxTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
+func (r *TrxTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*TrxTransactionRecord, error) {
+	var trxTransactionRecordList []*TrxTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&trxTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query trxTransactionRecord failed", err)
+		return nil, err
+	}
+	return trxTransactionRecordList, nil
+}
 func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*TrxTransactionRecord, error) {
 	var trxTransactionRecord *TrxTransactionRecord
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&trxTransactionRecord)

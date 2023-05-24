@@ -2112,6 +2112,231 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 	return result, nil
 }
 
+func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressPendingAmountRequest) (*AddressPendingAmountResponse, error) {
+	if req == nil || len(req.ChainAndAddressList) == 0 {
+		return nil, nil
+	}
+	userAssetMap := make(map[string]decimal.Decimal)
+	userAssetDecimalResult := make(map[string]string)
+	userAssetTokenMap := make(map[string]map[string]decimal.Decimal)
+	userAssetTokenDecimalResult := make(map[string]map[string]string)
+
+	var result = make(map[string]PendingInfo)
+	var list []*pb.TransactionRecord
+	for _, apa := range req.ChainAndAddressList {
+		add := apa.Address
+		chainName := apa.ChainName
+		if chainName == "" {
+			continue
+		}
+		addChainName := chainName + "-" + add
+		chainType := ChainNameType[chainName]
+
+		switch chainType {
+		case POLKADOT:
+			recordList, err := data.DotTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case CASPER:
+			recordList, err := data.CsprTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case NERVOS:
+			recordList, err := data.CkbTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case BTC:
+			recordList, err := data.BtcTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case EVM:
+			if add != "" {
+				add = types2.HexToAddress(add).Hex()
+			}
+			recordList, err := data.EvmTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case STC:
+			recordList, err := data.StcTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case TVM:
+			recordList, err := data.TrxTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case APTOS:
+			if add != "" {
+				add = utils.AddressRemove0(add)
+			}
+			recordList, err := data.AptTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case SUI:
+			recordList, err := data.SuiTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case SOLANA:
+			recordList, err := data.SolTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		case COSMOS:
+			recordList, err := data.AtomTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// 主币 精度
+		platInfo := PlatInfoMap[chainName]
+		decimals := platInfo.Decimal
+		if len(list) == 0 {
+			result[chainName+"-"+strings.ToLower(add)] = CreatePendingInfo("0", "0", "1", nil)
+		}
+		for _, record := range list {
+			feeAmount, _ := decimal.NewFromString(record.FeeAmount)
+			amount, _ := decimal.NewFromString(record.Amount)
+			tokenInfo, _ := ParseGetTokenInfo(chainName, record.ParseData)
+
+			switch record.TransactionType {
+			case NATIVE,"":
+				var totalAmount decimal.Decimal
+				oldTotal := userAssetMap[addChainName]
+				if record.FromAddress == add {
+					totalAmount = feeAmount.Add(amount)
+					totalAmount = oldTotal.Sub(totalAmount)
+				} else {
+					totalAmount = oldTotal.Add(amount)
+				}
+				userAssetMap[addChainName] = totalAmount
+				total := utils.StringDecimalsValue(totalAmount.String(), int(decimals))
+				userAssetDecimalResult[addChainName] = total
+			case TRANSFER:
+				var totalAmount = decimal.Zero
+				var totalTokenAmount decimal.Decimal
+				oldTotal := userAssetMap[addChainName]
+				tokenAddress := tokenInfo.Address
+				tokenDecimals := tokenInfo.Decimals
+				ta := tokenInfo.Amount
+				tokenAmount, _ := decimal.NewFromString(ta)
+				if record.FromAddress == add {
+					totalAmount = oldTotal.Sub(feeAmount)
+					oldTokenAmount := userAssetTokenMap[add][tokenAddress]
+					totalTokenAmount = oldTokenAmount.Sub(tokenAmount)
+
+				} else {
+					oldTokenAmount := userAssetTokenMap[add][tokenAddress]
+					totalTokenAmount = oldTokenAmount.Add(tokenAmount)
+					totalAmount = oldTotal
+				}
+				userAssetMap[addChainName] = totalAmount
+				total := utils.StringDecimalsValue(totalAmount.String(), int(decimals))
+				userAssetDecimalResult[addChainName] = total
+				if userAssetTokenMap[addChainName] == nil {
+					var tv = make(map[string]decimal.Decimal)
+					tv[tokenAddress] = totalTokenAmount
+					userAssetTokenMap[addChainName] = tv
+				} else {
+					userAssetTokenMap[addChainName][tokenAddress] = totalTokenAmount
+				}
+				totalToken := utils.StringDecimalsValue(totalTokenAmount.String(), int(tokenDecimals))
+				var utv = make(map[string]string)
+				utv[tokenAddress] = totalToken
+				userAssetTokenDecimalResult[addChainName] = utv
+
+			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, REGISTERTOKEN:
+				if record.FromAddress == add {
+					oldTotal := userAssetMap[addChainName]
+					totalAmount := oldTotal.Sub(feeAmount)
+					userAssetMap[addChainName] = totalAmount
+					total := utils.StringDecimalsValue(totalAmount.String(), int(decimals))
+					userAssetDecimalResult[addChainName] = total
+				}
+			default:
+				continue
+			}
+		}
+	}
+	for key, userAsset := range userAssetMap {
+
+		decimalAmount := userAssetDecimalResult[key]
+		flag := decimalAmount[0:1] == "-"
+
+		modes := strings.Split(key, "-")
+		chainName := modes[0]
+		address := strings.ToLower(modes[1])
+
+		tokenMap := userAssetTokenMap[key]
+		var tokenList = make(map[string]PendingTokenInfo)
+		for tokenAddress, tokenAsset := range tokenMap {
+			decimalTokenAsset := userAssetTokenDecimalResult[key][tokenAddress]
+
+			ft := "1"
+			tokenFlag := decimalTokenAsset[0:1] == "-"
+			tokenAmount := tokenAsset.String()
+			if tokenFlag {
+				tokenAmount = tokenAmount[1:]
+				decimalTokenAsset = decimalTokenAsset[1:]
+				ft = "0"
+			}
+			tokenList[strings.ToLower(tokenAddress)] = CreatePendingTokenInfo(tokenAmount, decimalTokenAsset, ft)
+		}
+		amount := userAsset.String()
+		fat := "1"
+		if flag {
+			amount = userAsset.String()[1:]
+			decimalAmount = decimalAmount[1:]
+			fat = "0"
+		}
+		result[chainName+"-"+address] = CreatePendingInfo(amount, decimalAmount, fat, tokenList)
+	}
+
+	return &AddressPendingAmountResponse{
+		Result: result,
+	}, nil
+}
 // JsonRPC
 func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
 	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {

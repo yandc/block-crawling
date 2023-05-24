@@ -41,6 +41,17 @@ func StringDecimals(amount string, decimals int) string {
 	}
 	return clean(strings.TrimRight(result, "0"))
 }
+func StringDecimalsValue(amount string, decimals int) string {
+	flag := amount[0:1] == "-"
+	if flag {
+		amount = amount[1:]
+	}
+	s := StringDecimals(amount,decimals)
+	if flag {
+		s = "-" + s
+	}
+	return s
+}
 
 func bigIntFloat(balance *big.Int, decimals int64) *big.Float {
 	if balance.Sign() == 0 {

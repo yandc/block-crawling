@@ -56,6 +56,7 @@ type DotTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*DotTransactionRecord, error)
 	ListAll(context.Context, string) ([]*DotTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*DotTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*DotTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*DotTransactionRecord, error)
@@ -597,3 +598,18 @@ func (r *DotTransactionRecordRepoImpl) UpdateStatus(ctx context.Context, tableNa
 	affected := ret.RowsAffected
 	return affected, err
 }
+func (r *DotTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*DotTransactionRecord, error) {
+	var dotTransactionRecordList []*DotTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&dotTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query DotTransactionRecord failed", err)
+		return nil, err
+	}
+	return dotTransactionRecordList, nil
+}
+

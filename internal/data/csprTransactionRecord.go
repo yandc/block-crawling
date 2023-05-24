@@ -50,6 +50,7 @@ type CsprTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*CsprTransactionRecord, error)
 	ListAll(context.Context, string) ([]*CsprTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*CsprTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*CsprTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*CsprTransactionRecord, error)
@@ -492,3 +493,18 @@ func (r *CsprTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableN
 		return nil, nil
 	}
 }
+func (r *CsprTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*CsprTransactionRecord, error) {
+	var csprTransactionRecordList []*CsprTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&csprTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return csprTransactionRecordList, nil
+}
+

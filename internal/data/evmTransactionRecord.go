@@ -67,6 +67,7 @@ type EvmTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*EvmTransactionRecord, error)
 	ListAll(context.Context, string) ([]*EvmTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*EvmTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -833,6 +834,20 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonceByAddress(ctx context.Contex
 	return nonce, nil
 }
 
+func (r *EvmTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*EvmTransactionRecord, error) {
+	var evmTransactionRecordList []*EvmTransactionRecord
+	db := r.gormDB.Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&evmTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return evmTransactionRecordList, nil
+}
 func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
 

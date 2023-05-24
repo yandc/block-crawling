@@ -56,6 +56,7 @@ type SolTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*SolTransactionRecord, error)
 	ListAll(context.Context, string) ([]*SolTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*SolTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*SolTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*SolTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -686,4 +687,19 @@ func (r *SolTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return solTransactionRecord, nil
 	}
+}
+
+func (r *SolTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*SolTransactionRecord, error) {
+	var solTransactionRecordList []*SolTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&solTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return solTransactionRecordList, nil
 }

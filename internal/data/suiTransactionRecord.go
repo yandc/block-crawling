@@ -58,6 +58,7 @@ type SuiTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*SuiTransactionRecord, error)
 	ListAll(context.Context, string) ([]*SuiTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*SuiTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*SuiTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*SuiTransactionRecord, error)
@@ -543,6 +544,20 @@ func (r *SuiTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	}
 }
 
+func (r *SuiTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*SuiTransactionRecord, error) {
+	var suiTransactionRecordList []*SuiTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&suiTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query suiTransactionRecord failed", err)
+		return nil, err
+	}
+	return suiTransactionRecordList, nil
+}
 func (r *SuiTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*SuiTransactionRecord, error) {
 	var suiTransactionRecords []*SuiTransactionRecord
 

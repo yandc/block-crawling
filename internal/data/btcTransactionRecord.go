@@ -50,6 +50,7 @@ type BtcTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*BtcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*BtcTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*BtcTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*BtcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*BtcTransactionRecord, error)
@@ -556,4 +557,19 @@ func (r *BtcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *BtcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*BtcTransactionRecord, error) {
+	var btcTransactionRecordList []*BtcTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&btcTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return btcTransactionRecordList, nil
 }
