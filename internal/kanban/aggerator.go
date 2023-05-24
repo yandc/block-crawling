@@ -27,8 +27,26 @@ func NewAggerator(bc *conf.Bootstrap, bundle *kanban.Bundle, options *Options) *
 }
 
 func (a *Aggerator) Start(ctx context.Context) error {
-	defer a.options.Cancel()
+	if a.options.RunPeriodically {
+		go func() {
+			for {
+				sleepUntilTomorrow()
+				yesterday := time.Now().Unix() - (24 * 3600)
+				yesterdayStart := yesterday - yesterday%(24*3600)
+				a.options.AggerateTime = yesterdayStart
+				if err := a.run(ctx); err != nil {
+					log.Errore("KANBAN AGGERATING", err)
+				}
+			}
+		}()
+		return nil
+	} else {
+		defer a.options.Cancel()
+		return a.run(ctx)
+	}
 
+}
+func (a *Aggerator) run(ctx context.Context) error {
 	for _, platInfo := range iterChains(a.bc) {
 		agger := createChainAggerator(platInfo, a.bundle)
 

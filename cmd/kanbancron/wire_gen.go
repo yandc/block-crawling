@@ -12,7 +12,6 @@ import (
 	"block-crawling/internal/data"
 	kanban2 "block-crawling/internal/data/kanban"
 	"block-crawling/internal/kanban"
-	"block-crawling/internal/platform"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -20,7 +19,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressServer *conf.AddressServer, lark *conf.Lark, logger *conf.Logger, transaction *conf.Transaction, bootstrap *conf.Bootstrap, logLogger log.Logger, subcommand Subcommand, options *kanban.Options) (*kratos.App, func(), error) {
+func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressServer *conf.AddressServer, lark *conf.Lark, logger *conf.Logger, transaction *conf.Transaction, bootstrap *conf.Bootstrap, logLogger log.Logger, options *kanban.Options) (*kratos.App, func(), error) {
 	kanbanGormDB, cleanup, err := kanban2.NewGormDB(confData)
 	if err != nil {
 		return nil, nil, err
@@ -66,11 +65,7 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, dataBundle, bundle)
 	migrateScheduler := kanban.NewMigrateScheduler(bootstrap, bundle, transactionUsecase, kanbanGormDB, options)
 	aggerator := kanban.NewAggerator(bootstrap, bundle, options)
-	appConf := biz.NewConfig(app)
-	platformServer := platform.NewPlatform(bootstrap, dataBundle, appConf, db, bizLark)
-	timeMachine := kanban.NewTimeMachine(bootstrap, kanbanGormDB, platformServer, bundle, options)
-	recordSync := kanban.NewRecordSync(bootstrap, dataBundle, bundle, options)
-	kratosApp := newApp(logLogger, migrateScheduler, aggerator, timeMachine, recordSync, subcommand)
+	kratosApp := newApp(logLogger, migrateScheduler, aggerator)
 	return kratosApp, func() {
 		cleanup3()
 		cleanup2()
