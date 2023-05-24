@@ -55,6 +55,7 @@ type CkbTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*CkbTransactionRecord, error)
 	ListAll(context.Context, string) ([]*CkbTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*CkbTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*CkbTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*CkbTransactionRecord, error)
@@ -514,4 +515,18 @@ func (r *CkbTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+func (r *CkbTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*CkbTransactionRecord, error) {
+	var ckbTransactionRecord []*CkbTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&ckbTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query ckbTransactionRecordRepoImpl failed", err)
+		return nil, err
+	}
+	return ckbTransactionRecord, nil
 }

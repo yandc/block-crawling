@@ -60,6 +60,7 @@ type AtomTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*AtomTransactionRecord, error)
 	ListAll(context.Context, string) ([]*AtomTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*AtomTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*AtomTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*AtomTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -645,3 +646,19 @@ func (r *AtomTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, table
 		}
 	}
 }
+
+func (r *AtomTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*AtomTransactionRecord, error) {
+	var atomTransactionRecordList []*AtomTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&atomTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query atomTransactionRecord failed", err)
+		return nil, err
+	}
+	return atomTransactionRecordList, nil
+}
+

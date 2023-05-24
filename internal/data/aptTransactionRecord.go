@@ -64,6 +64,7 @@ type AptTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*AptTransactionRecord, error)
 	ListAll(context.Context, string) ([]*AptTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*AptTransactionRecord, int64, error)
+	PendingByAddress(context.Context, string, string) ([]*AptTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*AptTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -719,6 +720,20 @@ func (r *AptTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	}
 }
 
+func (r *AptTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*AptTransactionRecord, error) {
+	var aptTransactionRecordList []*AptTransactionRecord
+	db := r.gormDB.WithContext(ctx).Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("(from_address = ? or to_address = ?)", address, address)
+	}
+	ret := db.Find(&aptTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query CsprTransactionRecord failed", err)
+		return nil, err
+	}
+	return aptTransactionRecordList, nil
+}
 func (r *AptTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*AptTransactionRecord, error) {
 	var aptTransactionRecords []*AptTransactionRecord
 

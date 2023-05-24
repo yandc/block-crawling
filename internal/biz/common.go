@@ -158,6 +158,81 @@ type DataDictionary struct {
 	ServiceStatus          []string `json:"serviceStatus,omitempty"`
 }
 
+type AddressPendingAmountRequest struct {
+	ChainAndAddressList []ChainAndAddress `json:"chainAndAddressList,omitempty"`
+}
+
+type ChainAndAddress struct {
+	ChainName string `json:"chainName,omitempty"`
+	Address   string `json:"address,omitempty"`
+}
+
+type AddressPendingAmountResponse struct {
+	Result map[string]PendingInfo `json:"result,omitempty"`
+}
+
+type PendingInfo struct {
+	Amount        string                      `json:"amount,omitempty"`        //不带小数点的
+	DeciamlAmount string                      `json:"deciamlAmount,omitempty"` //带小数点的
+	IsPositive    string                      `json:"isPositive,omitempty"`    // 0 否 1 是
+	Token         map[string]PendingTokenInfo `json:"token,omitempty"`
+}
+
+type PendingTokenInfo struct {
+	Amount        string `json:"amount,omitempty"`        //不带小数点的
+	DeciamlAmount string `json:"deciamlAmount,omitempty"` //带小数点的
+	IsPositive    string `json:"isPositive,omitempty"`    //是负号 否 true 正 ， false 负
+}
+
+type AddressPendingAmount struct {
+	ChainName              string               `json:"chainName,omitempty"`
+	Address                string               `json:"address,omitempty"`
+	Amount                 string               `json:"amount,omitempty"`        //带小数点的
+	DeciamlAmount          string               `json:"deciamlAmount,omitempty"` //不带小数点的
+	TokenPendingAmountList []TokenPendingAmount `json:"tokenPendingAmountList,omitempty"`
+}
+
+type TokenPendingAmount struct {
+	TokenAddress       string `json:"tokenAddress,omitempty"`
+	TokenAmount        string `json:"tokenAmount,omitempty"`        //带小数点的
+	DeciamlTokenAmount string `json:"deciamlTokenAmount,omitempty"` //不带小数点的
+
+}
+
+func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
+	return PendingInfo{
+		Amount:        amount,
+		DeciamlAmount: deciamlAmount,
+		IsPositive:    isPositive,
+		Token:         token,
+	}
+}
+
+func CreatePendingTokenInfo(amount, deciamlAmount string, isPositive string) PendingTokenInfo {
+	return PendingTokenInfo{
+		Amount:        amount,
+		DeciamlAmount: deciamlAmount,
+		IsPositive:    isPositive,
+	}
+}
+
+func CreateAddressPendingTokenAmount(tokenAddress, tokenAmount, deciamlTokenAmount string) TokenPendingAmount {
+	return TokenPendingAmount{
+		TokenAddress:       tokenAddress,
+		TokenAmount:        tokenAmount,
+		DeciamlTokenAmount: deciamlTokenAmount,
+	}
+}
+
+func CreateAddressPendingAmount(chainName, address, amount, DeciamlAmount string, tokenPendingAmountList []TokenPendingAmount) AddressPendingAmount {
+	return AddressPendingAmount{
+		ChainName:              chainName,
+		Address:                address,
+		Amount:                 amount,
+		DeciamlAmount:          DeciamlAmount,
+		TokenPendingAmountList: tokenPendingAmountList,
+	}
+}
 type UserAssetUpdateRequest struct {
 	ChainName string `json:"chainName"`
 	Address   string `json:"address"`
@@ -400,14 +475,61 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 	if tokenInfoMap == nil {
 		return nil, errors.New("token is null")
 	}
+
 	tokenInfoByte, err := json.Marshal(tokenInfoMap)
 	if err != nil {
 		return nil, err
 	}
 	tokenInfo := &types.TokenInfo{}
+
 	err = json.Unmarshal(tokenInfoByte, tokenInfo)
 	if err != nil {
-		return nil, err
+		tokenInfoMapString := make(map[string]interface{})
+		err = json.Unmarshal(tokenInfoByte, &tokenInfoMapString)
+		if err != nil {
+			return nil, err
+		}
+
+		if tokenInfoMapString["address"] != nil {
+			tokenInfo.Address = tokenInfoMapString["address"].(string)
+		}
+		if tokenInfoMapString["amount"] != nil {
+			if a, ok := tokenInfoMapString["amount"].(string); ok {
+				tokenInfo.Amount = a
+			}
+		}
+		if tokenInfoMapString["symbol"] != nil {
+			tokenInfo.Symbol = tokenInfoMapString["symbol"].(string)
+		}
+		if tokenInfoMapString["token_uri"] != nil {
+			tokenInfo.TokenUri = tokenInfoMapString["token_uri"].(string)
+		}
+		if tokenInfoMapString["collection_name"] != nil {
+			tokenInfo.CollectionName = tokenInfoMapString["collection_name"].(string)
+		}
+		if tokenInfoMapString["token_type"] != nil {
+			tokenInfo.TokenType = tokenInfoMapString["token_type"].(string)
+		}
+		if tokenInfoMapString["token_id"] != nil {
+			tokenInfo.TokenId = tokenInfoMapString["token_id"].(string)
+		}
+		if tokenInfoMapString["item_name"] != nil {
+			tokenInfo.ItemName = tokenInfoMapString["item_name"].(string)
+		}
+		if tokenInfoMapString["item_uri"] != nil {
+			tokenInfo.ItemUri = tokenInfoMapString["item_uri"].(string)
+		}
+
+		if tokenInfoMapString["decimals"] != nil {
+			if d, ok := tokenInfoMapString["decimals"].(string); ok {
+				ds, _ := strconv.Atoi(d)
+				tokenInfo.Decimals = int64(ds)
+			} else if di, ok := tokenInfoMapString["decimals"].(int); ok {
+				tokenInfo.Decimals = int64(di)
+			}
+
+		}
+
 	}
 	return tokenInfo, nil
 }
