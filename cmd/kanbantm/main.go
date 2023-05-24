@@ -73,8 +73,9 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	options := &kanban.Options{
-		Context: ctx,
-		Cancel:  cancel,
+		ChainName: "ScrollL2TEST",
+		Context:   ctx,
+		Cancel:    cancel,
 	}
 
 	var bc conf.Bootstrap
