@@ -7448,3 +7448,988 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = FundRateResponseValidationError{}
+
+// Validate checks the field values on KanbanSummaryRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *KanbanSummaryRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanSummaryRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// KanbanSummaryRequestMultiError, or nil if none found.
+func (m *KanbanSummaryRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanSummaryRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for Address
+
+	// no validation rules for Uid
+
+	if len(errors) > 0 {
+		return KanbanSummaryRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanSummaryRequestMultiError is an error wrapping multiple validation
+// errors returned by KanbanSummaryRequest.ValidateAll() if the designated
+// constraints aren't met.
+type KanbanSummaryRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanSummaryRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanSummaryRequestMultiError) AllErrors() []error { return m }
+
+// KanbanSummaryRequestValidationError is the validation error returned by
+// KanbanSummaryRequest.Validate if the designated constraints aren't met.
+type KanbanSummaryRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanSummaryRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanSummaryRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanSummaryRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanSummaryRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanSummaryRequestValidationError) ErrorName() string {
+	return "KanbanSummaryRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e KanbanSummaryRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanSummaryRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanSummaryRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanSummaryRequestValidationError{}
+
+// Validate checks the field values on KanbanRank with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *KanbanRank) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanRank with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in KanbanRankMultiError, or
+// nil if none found.
+func (m *KanbanRank) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanRank) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TopPercent
+
+	// no validation rules for LowerBound
+
+	if len(errors) > 0 {
+		return KanbanRankMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanRankMultiError is an error wrapping multiple validation errors
+// returned by KanbanRank.ValidateAll() if the designated constraints aren't met.
+type KanbanRankMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanRankMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanRankMultiError) AllErrors() []error { return m }
+
+// KanbanRankValidationError is the validation error returned by
+// KanbanRank.Validate if the designated constraints aren't met.
+type KanbanRankValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanRankValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanRankValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanRankValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanRankValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanRankValidationError) ErrorName() string { return "KanbanRankValidationError" }
+
+// Error satisfies the builtin error interface
+func (e KanbanRankValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanRank.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanRankValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanRankValidationError{}
+
+// Validate checks the field values on KanbanTopPercent with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *KanbanTopPercent) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanTopPercent with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// KanbanTopPercentMultiError, or nil if none found.
+func (m *KanbanTopPercent) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanTopPercent) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TotalTx
+
+	// no validation rules for TotalTxAmount
+
+	// no validation rules for TotalContract
+
+	// no validation rules for TotalTxInAmount
+
+	if len(errors) > 0 {
+		return KanbanTopPercentMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanTopPercentMultiError is an error wrapping multiple validation errors
+// returned by KanbanTopPercent.ValidateAll() if the designated constraints
+// aren't met.
+type KanbanTopPercentMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanTopPercentMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanTopPercentMultiError) AllErrors() []error { return m }
+
+// KanbanTopPercentValidationError is the validation error returned by
+// KanbanTopPercent.Validate if the designated constraints aren't met.
+type KanbanTopPercentValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanTopPercentValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanTopPercentValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanTopPercentValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanTopPercentValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanTopPercentValidationError) ErrorName() string { return "KanbanTopPercentValidationError" }
+
+// Error satisfies the builtin error interface
+func (e KanbanTopPercentValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanTopPercent.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanTopPercentValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanTopPercentValidationError{}
+
+// Validate checks the field values on KanbanSummaryResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *KanbanSummaryResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanSummaryResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// KanbanSummaryResponseMultiError, or nil if none found.
+func (m *KanbanSummaryResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanSummaryResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for FirstTxTime
+
+	// no validation rules for TotalTxNum
+
+	// no validation rules for TotalTxAmount
+
+	// no validation rules for TotalContract
+
+	// no validation rules for TotalTxInAmount
+
+	for idx, item := range m.GetTotalTxsRanks() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxsRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxsRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanSummaryResponseValidationError{
+					field:  fmt.Sprintf("TotalTxsRanks[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetTotalTxAmountRanks() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxAmountRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxAmountRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanSummaryResponseValidationError{
+					field:  fmt.Sprintf("TotalTxAmountRanks[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetTotalContractRanks() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalContractRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalContractRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanSummaryResponseValidationError{
+					field:  fmt.Sprintf("TotalContractRanks[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetTotalTxInAmountRanks() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxInAmountRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  fmt.Sprintf("TotalTxInAmountRanks[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanSummaryResponseValidationError{
+					field:  fmt.Sprintf("TotalTxInAmountRanks[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.TopPercents != nil {
+
+		if all {
+			switch v := interface{}(m.GetTopPercents()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  "TopPercents",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanSummaryResponseValidationError{
+						field:  "TopPercents",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTopPercents()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanSummaryResponseValidationError{
+					field:  "TopPercents",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return KanbanSummaryResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanSummaryResponseMultiError is an error wrapping multiple validation
+// errors returned by KanbanSummaryResponse.ValidateAll() if the designated
+// constraints aren't met.
+type KanbanSummaryResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanSummaryResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanSummaryResponseMultiError) AllErrors() []error { return m }
+
+// KanbanSummaryResponseValidationError is the validation error returned by
+// KanbanSummaryResponse.Validate if the designated constraints aren't met.
+type KanbanSummaryResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanSummaryResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanSummaryResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanSummaryResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanSummaryResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanSummaryResponseValidationError) ErrorName() string {
+	return "KanbanSummaryResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e KanbanSummaryResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanSummaryResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanSummaryResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanSummaryResponseValidationError{}
+
+// Validate checks the field values on KanbanChartRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *KanbanChartRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanChartRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// KanbanChartRequestMultiError, or nil if none found.
+func (m *KanbanChartRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanChartRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for Address
+
+	// no validation rules for StartTime
+
+	// no validation rules for EndTime
+
+	// no validation rules for Uid
+
+	if len(errors) > 0 {
+		return KanbanChartRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanChartRequestMultiError is an error wrapping multiple validation errors
+// returned by KanbanChartRequest.ValidateAll() if the designated constraints
+// aren't met.
+type KanbanChartRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanChartRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanChartRequestMultiError) AllErrors() []error { return m }
+
+// KanbanChartRequestValidationError is the validation error returned by
+// KanbanChartRequest.Validate if the designated constraints aren't met.
+type KanbanChartRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanChartRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanChartRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanChartRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanChartRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanChartRequestValidationError) ErrorName() string {
+	return "KanbanChartRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e KanbanChartRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanChartRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanChartRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanChartRequestValidationError{}
+
+// Validate checks the field values on KanbanBar with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *KanbanBar) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanBar with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in KanbanBarMultiError, or nil
+// if none found.
+func (m *KanbanBar) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanBar) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Time
+
+	// no validation rules for Value
+
+	if len(errors) > 0 {
+		return KanbanBarMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanBarMultiError is an error wrapping multiple validation errors returned
+// by KanbanBar.ValidateAll() if the designated constraints aren't met.
+type KanbanBarMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanBarMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanBarMultiError) AllErrors() []error { return m }
+
+// KanbanBarValidationError is the validation error returned by
+// KanbanBar.Validate if the designated constraints aren't met.
+type KanbanBarValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanBarValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanBarValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanBarValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanBarValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanBarValidationError) ErrorName() string { return "KanbanBarValidationError" }
+
+// Error satisfies the builtin error interface
+func (e KanbanBarValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanBar.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanBarValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanBarValidationError{}
+
+// Validate checks the field values on KanbanChartResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *KanbanChartResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on KanbanChartResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// KanbanChartResponseMultiError, or nil if none found.
+func (m *KanbanChartResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *KanbanChartResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetNumsByDay() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanChartResponseValidationError{
+						field:  fmt.Sprintf("NumsByDay[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanChartResponseValidationError{
+						field:  fmt.Sprintf("NumsByDay[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanChartResponseValidationError{
+					field:  fmt.Sprintf("NumsByDay[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetAccumulatedNums() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, KanbanChartResponseValidationError{
+						field:  fmt.Sprintf("AccumulatedNums[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, KanbanChartResponseValidationError{
+						field:  fmt.Sprintf("AccumulatedNums[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return KanbanChartResponseValidationError{
+					field:  fmt.Sprintf("AccumulatedNums[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return KanbanChartResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// KanbanChartResponseMultiError is an error wrapping multiple validation
+// errors returned by KanbanChartResponse.ValidateAll() if the designated
+// constraints aren't met.
+type KanbanChartResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m KanbanChartResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m KanbanChartResponseMultiError) AllErrors() []error { return m }
+
+// KanbanChartResponseValidationError is the validation error returned by
+// KanbanChartResponse.Validate if the designated constraints aren't met.
+type KanbanChartResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e KanbanChartResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e KanbanChartResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e KanbanChartResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e KanbanChartResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e KanbanChartResponseValidationError) ErrorName() string {
+	return "KanbanChartResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e KanbanChartResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sKanbanChartResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = KanbanChartResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = KanbanChartResponseValidationError{}

@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2"
@@ -22,7 +23,9 @@ func wireApp(*conf.Server, *conf.Data, *conf.App, *conf.AddressServer, *conf.Lar
 	panic(wire.Build(
 		server.ProviderSet,
 		data.ConnProviderSet,
+		kanban.ConnProviderSet,
 		data.ProviderSet,
+		kanban.ProviderSet,
 		biz.LarkProviderSet,
 		biz.ProviderSet,
 		service.ProviderSet,

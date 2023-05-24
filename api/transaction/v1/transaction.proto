@@ -46,7 +46,12 @@ service Transaction {
   rpc GetNftRecord(NftRecordReq) returns (NftRecordResponse);
   //通用 接口定义
   rpc JsonRpc(JsonReq) returns (JsonResponse);
-
+  // 看板数据汇总
+  rpc KanbanSummary(KanbanSummaryRequest) returns (KanbanSummaryResponse);
+  // 看板交易数据
+  rpc KanbanTxChart(KanbanChartRequest) returns (KanbanChartResponse);
+  // 看板合约数据
+  rpc KanbanContractChart(KanbanChartRequest) returns (KanbanChartResponse);
 }
 
 message JsonReq{
@@ -578,4 +583,55 @@ message FundRateResponse {
   string cnyAmount = 5;
   string usdAmount = 6;
   string rate = 7;
+}
+
+
+message KanbanSummaryRequest {
+  string chainName = 1;
+  string address = 2;
+  string uid = 3;
+}
+
+message KanbanRank {
+  int32 topPercent = 1; //10 即为前 10%
+  string lowerBound = 2; // 当前排名的下界，大于等于此值且小于更高排名区间的下界则位于当前排名区间
+}
+
+message KanbanTopPercent {
+  int32 totalTx = 1;          // 总交易数
+  int32 totalTxAmount = 2;    // 总交易金额
+  int32 totalContract = 3;    // 交互合约数
+  int32 totalTxInAmount = 4;  // 总转入金额
+}
+
+message KanbanSummaryResponse {
+  uint64 firstTxTime = 1; // UTC
+  uint64 totalTxNum = 2;    // 总交易次数
+  string totalTxAmount = 3; // 总交易额
+  uint64 totalContract = 4; // 交互合约数
+  string totalTxInAmount = 5; // 总转入金额
+  repeated KanbanRank totalTxsRanks = 6;
+  repeated KanbanRank totalTxAmountRanks = 7;
+  repeated KanbanRank totalContractRanks = 8;
+  repeated KanbanRank totalTxInAmountRanks = 9;
+  optional KanbanTopPercent topPercents = 10;
+}
+
+message KanbanChartRequest {
+  string chainName = 1;
+  string address = 2;
+  uint64 startTime = 3;  // UTC
+  uint64 endTime = 4;    // UTC
+  string uid = 5;
+}
+
+
+message KanbanBar {
+  uint64 time = 1; // UTC
+  uint64 value = 2;
+}
+
+message KanbanChartResponse {
+  repeated KanbanBar numsByDay = 1;
+  repeated KanbanBar accumulatedNums = 2;
 }

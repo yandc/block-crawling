@@ -1435,3 +1435,6 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
+    enableKanban: true
+    kanbanFullRPCURL:
+      - http://10.228.81.165:8545

@@ -64,10 +64,12 @@ func RunTest(preparation Preparation) {
 		if isGitLabCI() {
 			bc.Data.Database.Source = "host=db user=haobtc password=haobtc.asd dbname=blockcrawlingtest port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 			bc.Data.User.Source = "host=db user=haobtc password=haobtc.asd dbname=blockcrawlingtest port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+			bc.Data.Kanban.Source = "host=db user=haobtc password=haobtc.asd dbname=blockcrawlingtest port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 			bc.Data.Redis.Address = "cache:6379"
 		} else {
 			bc.Data.Database.Source = dockerDSN
 			bc.Data.User.Source = dockerDSN
+			bc.Data.Kanban.Source = dockerDSN
 			bc.Data.Redis.Address = dockerRedis
 		}
 		var err error

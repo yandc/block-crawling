@@ -341,3 +341,26 @@ func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	)
 	return result, err
 }
+
+func (s *TransactionService) KanbanSummary(ctx context.Context, req *pb.KanbanSummaryRequest) (*pb.KanbanSummaryResponse, error) {
+	log.Info("KanbanSummary", zap.Any("request", req))
+	subctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+	return s.ts.KanbanSummary(subctx, req)
+}
+
+// 看板交易数据
+func (s *TransactionService) KanbanTxChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
+	log.Info("KanbanTxChart", zap.Any("request", req))
+	subctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+	return s.ts.KanbanTxChart(subctx, req)
+}
+
+// 看板合约数据
+func (s *TransactionService) KanbanContractChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
+	log.Info("KanbanContractChart", zap.Any("request", req))
+	subctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+	return s.ts.KanbanContractChart(subctx, req)
+}
