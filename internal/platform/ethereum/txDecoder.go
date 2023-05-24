@@ -39,6 +39,10 @@ type txDecoder struct {
 
 	txRecords      []*data.EvmTransactionRecord
 	txNonceRecords []*data.EvmTransactionRecord
+	kanbanRecords  []*data.EvmTransactionRecord
+
+	kanbanEnabled bool
+	matchedUser   bool
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
@@ -49,9 +53,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if err != nil {
 		return err
 	}
+	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo
 
 	// Ignore this transaction.
-	if !(meta.User.MatchFrom || meta.User.MatchTo) {
+	if !h.matchedUser && !h.kanbanEnabled {
 		if len(transaction.Data()) < 4 || transaction.To() == nil {
 			return nil
 		}
@@ -145,7 +150,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 	}
 	status := biz.PENDING
-	if receipt.Status == "0x0" || receipt.Status == "0x00"{
+	if receipt.Status == "0x0" || receipt.Status == "0x00" {
 		status = biz.FAIL
 	} else if receipt.Status == "0x1" || receipt.Status == "0x01" {
 		status = biz.SUCCESS
@@ -434,55 +439,63 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		}
 	}
 
-	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
-		for index, eventLog := range eventLogs {
-			eventMap := map[string]interface{}{
-				"evm": map[string]string{
-					"nonce": fmt.Sprintf("%v", transaction.Nonce()),
-					"type":  fmt.Sprintf("%v", transaction.Type()),
-				},
-				"token": eventLog.Token,
-			}
-			eventParseData, _ := utils.JsonEncode(eventMap)
-			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
-			txType := biz.EVENTLOG
-			contractAddress := eventLog.Token.Address
-			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
+	if h.kanbanEnabled {
+		h.kanbanRecords = append(h.kanbanRecords, evmTransactionRecord)
+	}
 
-			evmlogTransactionRecord := &data.EvmTransactionRecord{
-				BlockHash:            h.blockHash,
-				BlockNumber:          int(blockNumber),
-				Nonce:                int64(transaction.Nonce()),
-				TransactionHash:      txHash,
-				FromAddress:          eventLog.From,
-				ToAddress:            eventLog.To,
-				FromUid:              eventLog.FromUid,
-				ToUid:                eventLog.ToUid,
-				FeeAmount:            feeAmount,
-				Amount:               amountValue,
-				Status:               status,
-				TxTime:               h.block.Time,
-				ContractAddress:      contractAddress,
-				ParseData:            eventParseData,
-				Type:                 fmt.Sprintf("%v", transaction.Type()),
-				GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
-				GasUsed:              gasUsed,
-				GasPrice:             gasPrice,
-				BaseFee:              block.BaseFee,
-				MaxFeePerGas:         maxFeePerGas,
-				MaxPriorityFeePerGas: maxPriorityFeePerGas,
-				Data:                 hex.EncodeToString(transaction.Data()),
-				TransactionType:      txType,
-				OperateType:          "",
-				DappData:             "",
-				ClientData:           "",
-				CreatedAt:            h.now,
-				UpdatedAt:            h.now,
-			}
+	for index, eventLog := range eventLogs {
+		eventMap := map[string]interface{}{
+			"evm": map[string]string{
+				"nonce": fmt.Sprintf("%v", transaction.Nonce()),
+				"type":  fmt.Sprintf("%v", transaction.Type()),
+			},
+			"token": eventLog.Token,
+		}
+		eventParseData, _ := utils.JsonEncode(eventMap)
+		txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+		txType := biz.EVENTLOG
+		contractAddress := eventLog.Token.Address
+		amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
+
+		evmlogTransactionRecord := &data.EvmTransactionRecord{
+			BlockHash:            h.blockHash,
+			BlockNumber:          int(blockNumber),
+			Nonce:                int64(transaction.Nonce()),
+			TransactionHash:      txHash,
+			FromAddress:          eventLog.From,
+			ToAddress:            eventLog.To,
+			FromUid:              eventLog.FromUid,
+			ToUid:                eventLog.ToUid,
+			FeeAmount:            feeAmount,
+			Amount:               amountValue,
+			Status:               status,
+			TxTime:               h.block.Time,
+			ContractAddress:      contractAddress,
+			ParseData:            eventParseData,
+			Type:                 fmt.Sprintf("%v", transaction.Type()),
+			GasLimit:             fmt.Sprintf("%v", transaction.Gas()),
+			GasUsed:              gasUsed,
+			GasPrice:             gasPrice,
+			BaseFee:              block.BaseFee,
+			MaxFeePerGas:         maxFeePerGas,
+			MaxPriorityFeePerGas: maxPriorityFeePerGas,
+			Data:                 hex.EncodeToString(transaction.Data()),
+			TransactionType:      txType,
+			OperateType:          "",
+			DappData:             "",
+			ClientData:           "",
+			CreatedAt:            h.now,
+			UpdatedAt:            h.now,
+		}
+		if isPlatformUser && meta.TransactionType == biz.CONTRACT {
 			h.txRecords = append(h.txRecords, evmlogTransactionRecord)
 			if !h.newTxs {
 				h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
 			}
+		}
+
+		if h.kanbanEnabled {
+			h.kanbanRecords = append(h.kanbanRecords, evmlogTransactionRecord)
 		}
 	}
 	return nil
@@ -492,7 +505,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	txNonceRecords := h.txNonceRecords
 	if txRecords != nil && len(txRecords) > 0 {
-		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName), false)
 		if err != nil {
 			// postgres出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
@@ -516,6 +529,17 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			pCommon.SetResultOfTxs(h.block, records)
 		} else {
 			pCommon.SetTxResult(h.txByHash, txRecords[0])
+		}
+	}
+	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
+		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			return err
 		}
 	}
 	return nil
@@ -605,6 +629,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		if topic0 == APPROVAL_TOPIC {
+			if len(log_.Topics) < 3 {
+				log.Warn(
+					"EXPECT AT LEAST THREE TOPICS",
+					zap.Any("topics", log_.Topics),
+					zap.String("chainName", h.chainName),
+					zap.String("txhash", transactionHash),
+				)
+				continue
+			}
+
 			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			if toAddress == "0x0000000000000000000000000000000000000000" {
 				continue

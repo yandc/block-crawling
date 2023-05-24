@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
@@ -53,7 +54,17 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	client := data.NewRedisClient(confData)
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo)
-	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, bundle)
+	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	kanbanEvmTransactionRecordRepo := kanban.NewEvmTransactionRecordRepo(kanbanGormDB)
+	walletRepo := kanban.NewWalletRepo(kanbanGormDB)
+	trendingRepo := kanban.NewTrendingRepo(kanbanGormDB)
+	kanbanBundle := kanban.NewBundle(kanbanEvmTransactionRecordRepo, walletRepo, trendingRepo)
+	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, bundle, kanbanBundle)
 	appConf := biz.NewConfig(app)
 	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark)
 	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
@@ -62,6 +73,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	httpServer := server.NewHTTPServer(confServer, transactionService, logLogger)
 	kratosApp := newApp(logLogger, grpcServer, httpServer, platformServer)
 	return kratosApp, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

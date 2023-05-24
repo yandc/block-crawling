@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -39,7 +38,7 @@ const (
 	BLOCK_HASH_KEY            = "block:hash:"
 	USER_ADDRESS_KEY          = "usercore:"
 	BLOCK_HASH_EXPIRATION_KEY = 2 * time.Hour
-	TABLE_POSTFIX             = "_transaction_record"
+	TABLE_POSTFIX             = data.TABLE_POSTFIX
 	ADDRESS_DONE_NONCE        = "done:"    // + chainanme:address value-->nonce
 	ADDRESS_PENDING_NONCE     = "pending:" // + chainname:address:nonce --->过期时间六个小时
 	API_SUCCEESS              = "1"
@@ -411,7 +410,7 @@ func BjNow() string {
 }
 
 func GetTableName(chainName string) string {
-	return strings.ToLower(chainName) + TABLE_POSTFIX
+	return data.GetTableName(chainName)
 }
 
 func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {

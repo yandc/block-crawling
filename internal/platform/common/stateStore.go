@@ -97,6 +97,10 @@ func (store *StateStore) LoadHeight() (uint64, error) {
 }
 
 func (store *StateStore) loadHeightFromDB() (uint64, error) {
+	if store.dbHeightLoader == nil {
+		return 0, chain.ErrNoCurrentHeight
+	}
+
 	lastRecord, err := store.dbHeightLoader(store.chainName)
 
 	// NOTE: can we remove this retry logic?

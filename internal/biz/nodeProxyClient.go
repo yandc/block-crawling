@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc"
 )
@@ -22,7 +23,7 @@ const (
 	JSONRPC = "2.0"
 )
 
-var TokenInfoMap = make(map[string]types.TokenInfo)
+var TokenInfoMap = &sync.Map{} // make(map[string]types.TokenInfo)
 var lock = common.NewSyncronized(0)
 var mutex = new(sync.Mutex)
 
@@ -239,15 +240,18 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	}
 
 	var key = chainName + tokenAddress
-	tokenInfo, ok := TokenInfoMap[key]
-	if ok {
-		return tokenInfo, nil
-	}
+	// FIX: read-write race
+	// var ok bool
+	// tokenInfo, ok := TokenInfoMap[key]
+	// if ok {
+	// 	return tokenInfo, nil
+	// }
 
 	lock.Lock(key)
 	defer lock.Unlock(key)
-	tokenInfo, ok = TokenInfoMap[key]
+	tokenInfoInner, ok := TokenInfoMap.Load(key)
 	if ok {
+		tokenInfo = *(tokenInfoInner.(*types.TokenInfo))
 		return tokenInfo, nil
 	}
 
@@ -278,7 +282,7 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 		respData := data[0]
 		tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(respData.Decimals), Symbol: respData.Symbol}
 		mutex.Lock()
-		TokenInfoMap[key] = tokenInfo
+		TokenInfoMap.Store(key, &tokenInfo)
 		mutex.Unlock()
 		return tokenInfo, nil
 	}

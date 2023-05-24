@@ -7,12 +7,13 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 // EvmTransactionRecord is a EvmTransactionRecord model.
@@ -83,6 +84,7 @@ type EvmTransactionRecordRepo interface {
 	FindFromAddress(context.Context, string) ([]string, error)
 	FindLastNonceByAddress(context.Context, string, string) (int64, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
+	CursorListAll(ctx context.Context, tableName string, cursor *int64, pageLimit int) ([]*EvmTransactionRecord, error)
 	FindLastNonce(context.Context, string, string) (*EvmTransactionRecord, error)
 }
 
@@ -889,6 +891,23 @@ func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return evmTransactionRecords, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) CursorListAll(ctx context.Context, tableName string, cursor *int64, pageLimit int) ([]*EvmTransactionRecord, error) {
+	var evmTransactionRecordList []*EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("id > ?", cursor).Order("id ASC").Limit(pageLimit).Find(&evmTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" failed", err)
+		return nil, err
+	}
+
+	// Set cursor
+	if len(evmTransactionRecordList) > 0 {
+		*cursor = evmTransactionRecordList[len(evmTransactionRecordList)-1].Id
+	}
+
+	return evmTransactionRecordList, nil
 }
 
 func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableName string, fromAddress string) (*EvmTransactionRecord, error) {

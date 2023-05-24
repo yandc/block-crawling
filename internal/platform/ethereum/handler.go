@@ -21,13 +21,15 @@ type handler struct {
 	chainName         string
 	liveBlockInterval time.Duration
 	blocksStore       map[uint64]*chain.Block
+	kanbanEnabled     bool
 }
 
-func newHandler(chainName string, liveBlockInterval time.Duration) chain.BlockHandler {
+func newHandler(chainName string, liveBlockInterval time.Duration, kanbanEnabled bool) chain.BlockHandler {
 	return &handler{
 		chainName:         chainName,
 		liveBlockInterval: liveBlockInterval,
 		blocksStore:       make(map[uint64]*chain.Block),
+		kanbanEnabled:     kanbanEnabled,
 	}
 }
 
@@ -44,11 +46,12 @@ func (h *handler) BlockMayFork() bool {
 
 func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	decoder := &txDecoder{
-		chainName: h.chainName,
-		block:     block,
-		newTxs:    true,
-		blockHash: "",
-		now:       time.Now().Unix(),
+		chainName:     h.chainName,
+		block:         block,
+		newTxs:        true,
+		blockHash:     "",
+		now:           time.Now().Unix(),
+		kanbanEnabled: h.kanbanEnabled,
 	}
 	/*log.Info(
 		"GOT NEW BLOCK",
@@ -93,6 +96,8 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 		newTxs:      false,
 		now:         time.Now().Unix(),
 		blocksStore: h.blocksStore,
+
+		kanbanEnabled: h.kanbanEnabled,
 	}
 	return decoder, nil
 }
@@ -125,7 +130,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL{
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL {
 		if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
 			pcommon.LogBlockWarn(h.chainName, err, optHeights...)
 		}

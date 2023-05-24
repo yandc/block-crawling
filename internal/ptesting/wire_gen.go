@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
@@ -55,13 +56,24 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	appConf := biz.NewConfig(app)
 	ptestingDummyLark := NewDummyLark()
 	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, ptestingDummyLark)
-	transactionUsecase := biz.NewTransactionUsecase(db, ptestingDummyLark, bundle)
+	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	kanbanEvmTransactionRecordRepo := kanban.NewEvmTransactionRecordRepo(kanbanGormDB)
+	walletRepo := kanban.NewWalletRepo(kanbanGormDB)
+	trendingRepo := kanban.NewTrendingRepo(kanbanGormDB)
+	kanbanBundle := kanban.NewBundle(kanbanEvmTransactionRecordRepo, walletRepo, trendingRepo)
+	transactionUsecase := biz.NewTransactionUsecase(db, ptestingDummyLark, bundle, kanbanBundle)
 	runner := NewRunner(platformServer, preparation, transactionUsecase, cancellation)
 	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
 	transactionService := service.NewTransactionService(transactionUsecase, platformServer, innerPlatformContainer)
 	grpcServer := server.NewGRPCServer(confServer, transactionService, logLogger)
 	kratosApp := newApp(logLogger, runner, grpcServer)
 	return kratosApp, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

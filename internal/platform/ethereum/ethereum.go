@@ -5,6 +5,7 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/data/kanban"
 	"fmt"
 	"strings"
 	"time"
@@ -132,6 +133,8 @@ type Platform struct {
 	biz.CommPlatform
 	CoinIndex uint
 	spider    *chain.BlockSpider
+
+	kanbanEnabled bool
 }
 
 type Config struct {
@@ -148,7 +151,8 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 	chainName := c.Chain   // ETH
 
 	return &Platform{
-		CoinIndex: coins.HandleMap[handler],
+		CoinIndex:     coins.HandleMap[handler],
+		kanbanEnabled: c.GetEnableKanban(),
 		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
@@ -176,7 +180,7 @@ func (p *Platform) CreateClient(url string) chain.Clienter {
 }
 
 func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
-	return newHandler(p.ChainName, liveInterval)
+	return newHandler(p.ChainName, liveInterval, p.kanbanEnabled)
 }
 
 func (p *Platform) GetBlockSpider() *chain.BlockSpider {
@@ -187,13 +191,17 @@ func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
 	p.spider = blockSpider
 }
 
-func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string) error {
+func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string, saveKanban bool) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0
 	stop := pageSize
 	if stop > total {
 		stop = total
+	}
+	repoMethod := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective
+	if saveKanban {
+		repoMethod = kanban.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective
 	}
 	for start < stop {
 		subTxRecords := txRecords[start:stop]
@@ -203,10 +211,10 @@ func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string)
 			stop = total
 		}
 
-		_, err := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
+		_, err := repoMethod(nil, tableName, subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
+			_, err = repoMethod(nil, tableName, subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

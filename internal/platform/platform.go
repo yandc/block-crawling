@@ -106,32 +106,7 @@ func DynamicCreateTable(gormDb *gorm.DB, platInfos []*conf.PlatInfo) {
 		if loaded {
 			continue
 		}
-
-		switch platInfo.Type {
-		case biz.STC:
-			gormDb.Table(chain).AutoMigrate(&data.StcTransactionRecord{})
-		case biz.EVM:
-			gormDb.Table(chain).AutoMigrate(&data.EvmTransactionRecord{})
-		case biz.BTC:
-			gormDb.Table(chain).AutoMigrate(&data.BtcTransactionRecord{})
-		case biz.TVM:
-			gormDb.Table(chain).AutoMigrate(&data.TrxTransactionRecord{})
-		case biz.APTOS:
-			gormDb.Table(chain).AutoMigrate(&data.AptTransactionRecord{})
-		case biz.SUI:
-			gormDb.Table(chain).AutoMigrate(&data.SuiTransactionRecord{})
-		case biz.SOLANA:
-			gormDb.Table(chain).AutoMigrate(&data.SolTransactionRecord{})
-		case biz.NERVOS:
-			gormDb.Table(chain).AutoMigrate(&data.CkbTransactionRecord{})
-		case biz.CASPER:
-			gormDb.Table(chain).AutoMigrate(&data.CsprTransactionRecord{})
-		case biz.COSMOS:
-			gormDb.Table(chain).AutoMigrate(&data.AtomTransactionRecord{})
-		case biz.POLKADOT:
-			gormDb.Table(chain).AutoMigrate(&data.DotTransactionRecord{})
-
-		}
+		biz.DynamicCreateTable(gormDb, chain, platInfo.Type)
 	}
 }
 
