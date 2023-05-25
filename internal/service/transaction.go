@@ -44,11 +44,19 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 		} else {
 			req.TransactionTypeNotInList = []string{biz.CONTRACT}
 		}
+
+		if req.OsVersion < 2023052301 {
+			req.TransactionTypeNotInList = append(req.TransactionTypeNotInList, []string{biz.APPROVENFT, biz.TRANSFERNFT}...)
+		}
 	} else if req.Platform == biz.IOS {
 		if req.OsVersion >= 2022101501 {
 			req.TransactionTypeNotInList = []string{biz.EVENTLOG}
 		} else {
 			req.TransactionTypeNotInList = []string{biz.CONTRACT}
+		}
+
+		if req.OsVersion < 2023052301 {
+			req.TransactionTypeNotInList = append(req.TransactionTypeNotInList, []string{biz.APPROVENFT, biz.TRANSFERNFT}...)
 		}
 	}
 	for _, transactionType := range req.TransactionTypeList {
@@ -117,6 +125,30 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 						eventLogStr, _ = utils.JsonEncode(eventLogs)
 						record.EventLog = eventLogStr
 					}
+				}
+
+				if req.OsVersion < 2023052301 {
+					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+						continue
+					}
+					eventLogStr := record.EventLog
+					var eventLogs []*types.EventLogUid
+					var newEventLogs []*types.EventLogUid
+					err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+					if err != nil {
+						continue
+					}
+					for _, eventLog := range eventLogs {
+						if eventLog.Token.TokenType == "" || eventLog.Token.TokenType == biz.ERC20 {
+							newEventLogs = append(newEventLogs, eventLog)
+						}
+					}
+					if newEventLogs != nil {
+						eventLogStr, _ = utils.JsonEncode(newEventLogs)
+					} else {
+						eventLogStr = ""
+					}
+					record.EventLog = eventLogStr
 				}
 			}
 		}
