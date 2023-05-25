@@ -2244,7 +2244,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			tokenInfo, _ := ParseGetTokenInfo(chainName, record.ParseData)
 
 			switch record.TransactionType {
-			case NATIVE,"":
+			case NATIVE, "":
 				var totalAmount decimal.Decimal
 				oldTotal := userAssetMap[addChainName]
 				if record.FromAddress == add {
@@ -2340,6 +2340,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		Result: result,
 	}, nil
 }
+
 // JsonRPC
 func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
 	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {
@@ -2590,19 +2591,24 @@ func (s *TransactionUsecase) KanbanSummary(ctx context.Context, req *pb.KanbanSu
 		summary = &kanban.WalletSummaryRecord{}
 	}
 
-	totalTxsRanks, totalTxTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_num", decimal.New(summary.TotalTxNum, 0))
+	price, err := GetTokenPriceRetryAlert(ctx, "ETH", "USD", "")
 	if err != nil {
 		return nil, err
 	}
-	totalTxAmountRanks, totalTxAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_amount", summary.TotalTxAmount)
+
+	totalTxsRanks, totalTxTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_num", decimal.New(summary.TotalTxNum, 0), price)
 	if err != nil {
 		return nil, err
 	}
-	totalContractRanks, totalContractTp, err := s.loadRanks(ctx, req.ChainName, "total_contract_num", decimal.New(summary.TotalContractNum, 0))
+	totalTxAmountRanks, totalTxAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_amount", summary.TotalTxAmount, price)
 	if err != nil {
 		return nil, err
 	}
-	totalTxInAmountRanks, totalTxInAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_in_amount", summary.TotalTxInAmount)
+	totalContractRanks, totalContractTp, err := s.loadRanks(ctx, req.ChainName, "total_contract_num", decimal.New(summary.TotalContractNum, 0), price)
+	if err != nil {
+		return nil, err
+	}
+	totalTxInAmountRanks, totalTxInAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_in_amount", summary.TotalTxInAmount, price)
 	if err != nil {
 		return nil, err
 	}
@@ -2610,9 +2616,9 @@ func (s *TransactionUsecase) KanbanSummary(ctx context.Context, req *pb.KanbanSu
 	return &pb.KanbanSummaryResponse{
 		FirstTxTime:          uint64(summary.FirstTradeTime) * 1000,
 		TotalTxNum:           uint64(summary.TotalTxNum),
-		TotalTxAmount:        utils.StringDecimals(summary.TotalTxAmount.String(), 18),
+		TotalTxAmount:        s.currencyAmount(utils.StringDecimals(summary.TotalTxAmount.String(), 18), price),
 		TotalContract:        uint64(summary.TotalContractNum),
-		TotalTxInAmount:      utils.StringDecimals(summary.TotalTxInAmount.String(), 18),
+		TotalTxInAmount:      s.currencyAmount(utils.StringDecimals(summary.TotalTxInAmount.String(), 18), price),
 		TotalTxsRanks:        totalTxsRanks,
 		TotalTxAmountRanks:   totalTxAmountRanks,
 		TotalContractRanks:   totalContractRanks,
@@ -2626,7 +2632,14 @@ func (s *TransactionUsecase) KanbanSummary(ctx context.Context, req *pb.KanbanSu
 	}, nil
 }
 
-func (s *TransactionUsecase) loadRanks(ctx context.Context, chainName, key string, value decimal.Decimal) ([]*pb.KanbanRank, int32, error) {
+func (s *TransactionUsecase) currencyAmount(amount string, price string) string {
+	prices, _ := decimal.NewFromString(price)
+	balances, _ := decimal.NewFromString(amount)
+	cAmount := prices.Mul(balances)
+	return cAmount.String()
+}
+
+func (s *TransactionUsecase) loadRanks(ctx context.Context, chainName, key string, value decimal.Decimal, price string) ([]*pb.KanbanRank, int32, error) {
 	trendings, err := s.kBundle.Trending.Load(ctx, chainName, key)
 	if err != nil {
 		return nil, 0, err
@@ -2643,7 +2656,7 @@ func (s *TransactionUsecase) loadRanks(ctx context.Context, chainName, key strin
 		if _, ok := rankTopPercents[item.TopPercent]; ok {
 			lower_bound := item.Rank.String()
 			if strings.HasSuffix(key, "_amount") {
-				lower_bound = utils.StringDecimals(lower_bound, 18)
+				lower_bound = s.currencyAmount(utils.StringDecimals(lower_bound, 18), price)
 			}
 			results = append(results, &pb.KanbanRank{
 				TopPercent: int32(item.TopPercent),
