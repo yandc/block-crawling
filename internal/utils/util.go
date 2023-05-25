@@ -46,7 +46,7 @@ func StringDecimalsValue(amount string, decimals int) string {
 	if flag {
 		amount = amount[1:]
 	}
-	s := StringDecimals(amount,decimals)
+	s := StringDecimals(amount, decimals)
 	if flag {
 		s = "-" + s
 	}
@@ -124,6 +124,10 @@ func GetRPCFailureRate(rpc string) int {
 }
 
 func JsonEncode(source interface{}) (string, error) {
+	if source == nil {
+		return "", nil
+	}
+
 	bytesBuffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(bytesBuffer)
 	encoder.SetEscapeHTML(false)
@@ -133,11 +137,18 @@ func JsonEncode(source interface{}) (string, error) {
 	}
 
 	jsons := string(bytesBuffer.Bytes())
+	if jsons == "null\n" {
+		return "", nil
+	}
 	tsjsons := strings.TrimSuffix(jsons, "\n")
 	return tsjsons, nil
 }
 
 func CopyProperties(source interface{}, target interface{}) error {
+	if source == nil {
+		return nil
+	}
+
 	bytesBuffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(bytesBuffer)
 	encoder.SetEscapeHTML(false)
@@ -152,6 +163,10 @@ func CopyProperties(source interface{}, target interface{}) error {
 }
 
 func ListToString(list interface{}) string {
+	if list == nil {
+		return ""
+	}
+
 	tsjsons, err := JsonEncode(list)
 	if err != nil {
 		return ""
