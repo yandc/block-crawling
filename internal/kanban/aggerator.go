@@ -114,7 +114,7 @@ type chainCursorAggerator struct {
 	chainName string
 	bundle    *kanban.Bundle
 	cursor    kanban.TxRecordCursor
-	addresses map[string]bool
+	parser    *txRecordParser
 }
 
 func newChainCursorAggerator(chainName string, bundle *kanban.Bundle, cursor kanban.TxRecordCursor) *chainCursorAggerator {
@@ -122,7 +122,7 @@ func newChainCursorAggerator(chainName string, bundle *kanban.Bundle, cursor kan
 		chainName: chainName,
 		cursor:    cursor,
 		bundle:    bundle,
-		addresses: make(map[string]bool),
+		parser:    newTxRecordParser(bundle.Wallet),
 	}
 }
 
@@ -131,9 +131,6 @@ func (a *chainCursorAggerator) AggerateDaySummary(ctx context.Context, txTime in
 	pageLimit := 1_000
 
 	sharding := kanban.GetShardingTable(a.chainName, txTime)
-
-	contracts := make(map[string]*kanban.WalletContractRecord)
-	summaries := make(map[string]*kanban.WalletDaySummaryRecord)
 
 	for {
 		txRecords, err := a.cursor.CursorList(ctx, txTime, a.chainName, pageLimit, &nextCursor)
@@ -148,122 +145,17 @@ func (a *chainCursorAggerator) AggerateDaySummary(ctx context.Context, txTime in
 			zap.Int("len", len(txRecords)),
 			zap.String("sharding", sharding),
 		)
-		for _, item := range txRecords {
-			if item.Status != biz.SUCCESS {
-				continue
-			}
 
-			for _, c := range item.IntoContracts() {
-				if _, ok := contracts[c.Key()]; ok {
-					contracts[c.Key()].Merge(c)
-				} else {
-					contracts[c.Key()] = c
-				}
-				a.addresses[c.Address] = true
-			}
-
-			for _, s := range item.IntoDaySummary() {
-				if _, ok := summaries[s.Key()]; ok {
-					summaries[s.Key()].Merge(s)
-				} else {
-					summaries[s.Key()] = s
-				}
-				a.addresses[s.Address] = true
-			}
+		if err := a.parser.Parse(txRecords); err != nil {
+			return err
 		}
+
 		if len(txRecords) < pageLimit {
 			break
 		}
 	}
 
-	batchSize := 100
-	counterBatch := make([]*kanban.WalletContractRecord, 0, batchSize)
-	saved := 0
-	for _, c := range contracts {
-		counterBatch = append(counterBatch, c)
-		if len(counterBatch) >= batchSize {
-
-			if err := a.bundle.Wallet.BatchSaveContract(ctx, a.chainName, counterBatch); err != nil {
-				log.Error("SAVE CONTRACT FAILED WITH ERROR", zap.Error(err), zap.Any("record", c), zap.String("chainName", a.chainName))
-				return err
-			}
-			saved += len(counterBatch)
-
-			if saved%10000 == 0 {
-				log.Info(
-					"BATCH SAVE CONTRACTS",
-					zap.String("chainName", a.chainName),
-					zap.Int("totalSize", len(contracts)),
-					zap.Int("batchSize", batchSize),
-					zap.String("sharding", sharding),
-					zap.Int("saved", saved),
-				)
-			}
-
-			counterBatch = counterBatch[:0]
-		}
-	}
-
-	if len(counterBatch) > 0 {
-		if err := a.bundle.Wallet.BatchSaveContract(ctx, a.chainName, counterBatch); err != nil {
-			log.Error("SAVE CONTRACT FAILED WITH ERROR", zap.Error(err), zap.String("chainName", a.chainName))
-			return err
-		}
-		saved += len(counterBatch)
-
-		log.Info(
-			"BATCH SAVE CONTRACTS",
-			zap.String("chainName", a.chainName),
-			zap.Int("totalSize", len(contracts)),
-			zap.String("sharding", sharding),
-			zap.Int("batchSize", batchSize),
-			zap.Int("saved", saved),
-		)
-
-		counterBatch = counterBatch[:0]
-	}
-
-	saved = 0
-	summaryBatch := make([]*kanban.WalletDaySummaryRecord, 0, batchSize)
-	for _, s := range summaries {
-		summaryBatch = append(summaryBatch, s)
-		if len(summaryBatch) >= batchSize {
-			if err := a.bundle.Wallet.BatchSaveDaySummary(ctx, a.chainName, summaryBatch); err != nil {
-				log.Error("SAVE DAY SUMMARY FAILED WITH ERROR", zap.Error(err), zap.String("chainName", a.chainName))
-				return err
-			}
-			saved += len(summaryBatch)
-			if saved%10000 == 0 {
-				log.Info(
-					"BATCH SAVE DAY SUMMARY",
-					zap.String("chainName", a.chainName),
-					zap.Int("totalSize", len(summaries)),
-					zap.String("sharding", sharding),
-					zap.Int("batchSize", batchSize),
-					zap.Int("saved", saved),
-				)
-			}
-			summaryBatch = summaryBatch[:0]
-		}
-	}
-
-	if len(summaryBatch) > 0 {
-		if err := a.bundle.Wallet.BatchSaveDaySummary(ctx, a.chainName, summaryBatch); err != nil {
-			log.Error("SAVE DAY SUMMARY FAILED WITH ERROR", zap.Error(err), zap.String("chainName", a.chainName))
-			return err
-		}
-		saved += len(summaryBatch)
-		log.Info(
-			"BATCH SAVE DAY SUMMARY",
-			zap.String("chainName", a.chainName),
-			zap.String("sharding", sharding),
-			zap.Int("totalSize", len(summaries)),
-			zap.Int("batchSize", batchSize),
-			zap.Int("saved", saved),
-		)
-		summaryBatch = summaryBatch[:0]
-	}
-	return nil
+	return a.parser.Save(ctx, a.chainName, sharding)
 }
 
 func (a *chainCursorAggerator) LoadAllAddresses(ctx context.Context) error {
@@ -276,7 +168,7 @@ func (a *chainCursorAggerator) LoadAllAddresses(ctx context.Context) error {
 		}
 
 		for _, addr := range addresses {
-			a.addresses[addr] = true
+			a.parser.addresses[addr] = true
 		}
 
 		if len(addresses) < pageLimit {
@@ -287,7 +179,7 @@ func (a *chainCursorAggerator) LoadAllAddresses(ctx context.Context) error {
 
 func (a *chainCursorAggerator) AccumulateAddresses(ctx context.Context) error {
 	accNum := 0
-	for addr := range a.addresses {
+	for addr := range a.parser.addresses {
 		if addr == "" {
 			continue
 		}
@@ -302,7 +194,7 @@ func (a *chainCursorAggerator) AccumulateAddresses(ctx context.Context) error {
 		}
 		accNum++
 		if accNum%1000 == 0 {
-			log.Info("ACCUMULATING", zap.Int("total", len(a.addresses)), zap.Int("accumulated", accNum))
+			log.Info("ACCUMULATING", zap.Int("total", len(a.parser.addresses)), zap.Int("accumulated", accNum))
 		}
 	}
 	return nil
@@ -350,6 +242,140 @@ func (a *chainCursorAggerator) GenerateTrending(ctx context.Context) error {
 				)
 			}
 		}
+	}
+	return nil
+}
+
+type txRecordParser struct {
+	contracts map[string]*kanban.WalletContractRecord
+	summaries map[string]*kanban.WalletDaySummaryRecord
+	addresses map[string]bool
+	wallet    kanban.WalletRepo
+}
+
+func newTxRecordParser(wallet kanban.WalletRepo) *txRecordParser {
+	return &txRecordParser{
+		contracts: make(map[string]*kanban.WalletContractRecord),
+		summaries: make(map[string]*kanban.WalletDaySummaryRecord),
+		addresses: make(map[string]bool),
+		wallet:    wallet,
+	}
+}
+
+func (p *txRecordParser) Parse(txRecords []*kanban.TxRecord) error {
+	for _, item := range txRecords {
+		if item.Status != biz.SUCCESS {
+			continue
+		}
+
+		for _, c := range item.IntoContracts() {
+			if _, ok := p.contracts[c.Key()]; ok {
+				p.contracts[c.Key()].Merge(c)
+			} else {
+				p.contracts[c.Key()] = c
+			}
+			p.addresses[c.Address] = true
+		}
+
+		for _, s := range item.IntoDaySummary() {
+			if _, ok := p.summaries[s.Key()]; ok {
+				p.summaries[s.Key()].Merge(s)
+			} else {
+				p.summaries[s.Key()] = s
+			}
+			p.addresses[s.Address] = true
+		}
+	}
+	return nil
+}
+
+func (p *txRecordParser) Save(ctx context.Context, chainName string, sharding string) error {
+	batchSize := 100
+	counterBatch := make([]*kanban.WalletContractRecord, 0, batchSize)
+	saved := 0
+	for _, c := range p.contracts {
+		counterBatch = append(counterBatch, c)
+		if len(counterBatch) >= batchSize {
+
+			if err := p.wallet.BatchSaveContract(ctx, chainName, counterBatch); err != nil {
+				log.Error("SAVE CONTRACT FAILED WITH ERROR", zap.Error(err), zap.Any("record", c), zap.String("chainName", chainName))
+				return err
+			}
+			saved += len(counterBatch)
+
+			if saved%10000 == 0 {
+				log.Info(
+					"BATCH SAVE CONTRACTS",
+					zap.String("chainName", chainName),
+					zap.Int("totalSize", len(p.contracts)),
+					zap.Int("batchSize", batchSize),
+					zap.String("sharding", sharding),
+					zap.Int("saved", saved),
+				)
+			}
+
+			counterBatch = counterBatch[:0]
+		}
+	}
+
+	if len(counterBatch) > 0 {
+		if err := p.wallet.BatchSaveContract(ctx, chainName, counterBatch); err != nil {
+			log.Error("SAVE CONTRACT FAILED WITH ERROR", zap.Error(err), zap.String("chainName", chainName))
+			return err
+		}
+		saved += len(counterBatch)
+
+		log.Info(
+			"BATCH SAVE CONTRACTS",
+			zap.String("chainName", chainName),
+			zap.Int("totalSize", len(p.contracts)),
+			zap.String("sharding", sharding),
+			zap.Int("batchSize", batchSize),
+			zap.Int("saved", saved),
+		)
+
+		counterBatch = counterBatch[:0]
+	}
+
+	saved = 0
+	summaryBatch := make([]*kanban.WalletDaySummaryRecord, 0, batchSize)
+	for _, s := range p.summaries {
+		summaryBatch = append(summaryBatch, s)
+		if len(summaryBatch) >= batchSize {
+			if err := p.wallet.BatchSaveDaySummary(ctx, chainName, summaryBatch); err != nil {
+				log.Error("SAVE DAY SUMMARY FAILED WITH ERROR", zap.Error(err), zap.String("chainName", chainName))
+				return err
+			}
+			saved += len(summaryBatch)
+			if saved%10000 == 0 {
+				log.Info(
+					"BATCH SAVE DAY SUMMARY",
+					zap.String("chainName", chainName),
+					zap.Int("totalSize", len(p.summaries)),
+					zap.String("sharding", sharding),
+					zap.Int("batchSize", batchSize),
+					zap.Int("saved", saved),
+				)
+			}
+			summaryBatch = summaryBatch[:0]
+		}
+	}
+
+	if len(summaryBatch) > 0 {
+		if err := p.wallet.BatchSaveDaySummary(ctx, chainName, summaryBatch); err != nil {
+			log.Error("SAVE DAY SUMMARY FAILED WITH ERROR", zap.Error(err), zap.String("chainName", chainName))
+			return err
+		}
+		saved += len(summaryBatch)
+		log.Info(
+			"BATCH SAVE DAY SUMMARY",
+			zap.String("chainName", chainName),
+			zap.String("sharding", sharding),
+			zap.Int("totalSize", len(p.summaries)),
+			zap.Int("batchSize", batchSize),
+			zap.Int("saved", saved),
+		)
+		summaryBatch = summaryBatch[:0]
 	}
 	return nil
 }

@@ -43,18 +43,22 @@ func (r *evmTransactionRecordRepoImpl) CursorList(ctx context.Context, txTime in
 	}
 	results := make([]*TxRecord, 0, len(evmTransactionRecords))
 	for _, item := range evmTransactionRecords {
-		results = append(results, &TxRecord{
-			FromAddress:     item.FromAddress,
-			ToAddress:       item.ToAddress,
-			Amount:          item.Amount,
-			TxTime:          item.TxTime,
-			Status:          item.Status,
-			ContractAddress: item.ContractAddress,
-			TransactionType: item.TransactionType,
-		})
+		results = append(results, EVMRecordIntoTxRecord(item))
 		*cursor = uint64(item.Id)
 	}
 	return results, nil
+}
+
+func EVMRecordIntoTxRecord(item *data.EvmTransactionRecord) *TxRecord {
+	return &TxRecord{
+		FromAddress:     item.FromAddress,
+		ToAddress:       item.ToAddress,
+		Amount:          item.Amount,
+		TxTime:          item.TxTime,
+		Status:          item.Status,
+		ContractAddress: item.ContractAddress,
+		TransactionType: item.TransactionType,
+	}
 }
 
 func (r *evmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, evmTransactionRecords []*data.EvmTransactionRecord) (int64, error) {

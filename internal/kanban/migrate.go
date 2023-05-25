@@ -109,6 +109,9 @@ func (s *RecordSync) Start(ctx context.Context) error {
 		tableName := data.GetTableName(platInfo.Chain)
 		switch platInfo.Type {
 		case biz.EVM:
+			agger := newChainCursorAggerator(platInfo.Chain, s.kanbanBundle, nil)
+
+			txRecords := make([]*kanban.TxRecord, 0, pageLimit)
 			dataEVM := s.dataBundle.EVM
 			kanbanEVM := s.kanbanBundle.EVM
 			for {
@@ -120,15 +123,33 @@ func (s *RecordSync) Start(ctx context.Context) error {
 				for _, item := range records {
 					item.Id = 0
 				}
+
 				nrows, err := kanbanEVM.BatchSaveOrUpdateSelective(ctx, tableName, records)
 				if err != nil {
 					return err
 				}
 				println("Sync", nrows, "items for", tableName)
 
+				for _, item := range records {
+					txRecords = append(txRecords, kanban.EVMRecordIntoTxRecord(item))
+				}
+				if err := agger.parser.Parse(txRecords); err != nil {
+					return err
+				}
+				if err := agger.parser.Save(ctx, platInfo.Chain, tableName); err != nil {
+					return err
+				}
+
+				txRecords = txRecords[:0]
 				if len(records) < pageLimit {
 					break
 				}
+			}
+			if err := agger.AccumulateAddresses(ctx); err != nil {
+				return err
+			}
+			if err := agger.GenerateTrending(ctx); err != nil {
+				return err
 			}
 		}
 	}
