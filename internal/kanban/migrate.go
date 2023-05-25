@@ -136,14 +136,15 @@ func (s *RecordSync) Start(ctx context.Context) error {
 				if err := agger.parser.Parse(txRecords); err != nil {
 					return err
 				}
-				if err := agger.parser.Save(ctx, platInfo.Chain, tableName); err != nil {
-					return err
-				}
 
 				txRecords = txRecords[:0]
 				if len(records) < pageLimit {
 					break
 				}
+			}
+
+			if err := agger.parser.Save(ctx, platInfo.Chain, tableName); err != nil {
+				return err
 			}
 			if err := agger.AccumulateAddresses(ctx); err != nil {
 				return err
