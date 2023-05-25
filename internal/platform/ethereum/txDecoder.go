@@ -504,6 +504,24 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	txNonceRecords := h.txNonceRecords
+
+	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
+		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			return err
+		}
+	}
+
+	// Id may be setted when save to kanban, we need to reset it to zero to avoid conflict.
+	for _, item := range txRecords {
+		item.Id = 0
+	}
+
 	if txRecords != nil && len(txRecords) > 0 {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName), false)
 		if err != nil {
@@ -529,17 +547,6 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			pCommon.SetResultOfTxs(h.block, records)
 		} else {
 			pCommon.SetTxResult(h.txByHash, txRecords[0])
-		}
-	}
-	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
-		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-			return err
 		}
 	}
 	return nil
@@ -1094,7 +1101,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				//更新 敞口
 				data.DappApproveRecordRepoClient.UpdateAddressBalanceByTokenAndContract(nil, fromAddress, tokenAddress, toAddress, amount.String(), h.chainName)
 				continue
-			}else {
+			} else {
 				continue
 			}
 		}
