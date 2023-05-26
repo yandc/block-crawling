@@ -45,6 +45,7 @@ type CkbTransactionRecordRepo interface {
 	Save(context.Context, string, *CkbTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CkbTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*CkbTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*CkbTransactionRecord, int) (int64, error)
@@ -129,6 +130,21 @@ func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	return affected, err
 }
 
+func (r *CkbTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, ckbTransactionRecords []*CkbTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&ckbTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
 func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, ckbTransactionRecords []*CkbTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -165,7 +181,7 @@ func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return affected, err
 }
 
-func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*CkbTransactionRecord) (int64, error) {
+func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, ckbTransactionRecords []*CkbTransactionRecord) (int64, error) {
 	var columnList []clause.Column
 	for _, column := range columns {
 		columnList = append(columnList, clause.Column{Name: column})
@@ -194,7 +210,7 @@ func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&evmTransactionRecords)
+	}).Create(&ckbTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective "+tableName+" failed", err)

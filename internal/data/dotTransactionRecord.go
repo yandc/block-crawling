@@ -46,6 +46,7 @@ type DotTransactionRecordRepo interface {
 	Save(context.Context, string, *DotTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*DotTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*DotTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*DotTransactionRecord, int) (int64, error)
@@ -133,6 +134,21 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	return affected, err
 }
 
+func (r *DotTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, dotTransactionRecords []*DotTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&dotTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
 func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, dotTransactionRecord []*DotTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -168,7 +184,7 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return affected, err
 }
 
-func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*DotTransactionRecord) (int64, error) {
+func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, dotTransactionRecords []*DotTransactionRecord) (int64, error) {
 	var columnList []clause.Column
 	for _, column := range columns {
 		columnList = append(columnList, clause.Column{Name: column})
@@ -200,7 +216,7 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&evmTransactionRecords)
+	}).Create(&dotTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective "+tableName+" failed", err)
@@ -612,4 +628,3 @@ func (r *DotTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 	}
 	return dotTransactionRecordList, nil
 }
-

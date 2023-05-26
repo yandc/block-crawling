@@ -40,6 +40,7 @@ type BtcTransactionRecordRepo interface {
 	Save(context.Context, string, *BtcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*BtcTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*BtcTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*BtcTransactionRecord, int) (int64, error)
@@ -125,6 +126,21 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	return affected, err
 }
 
+func (r *BtcTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&btcTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
 func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -157,7 +173,7 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return affected, err
 }
 
-func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*BtcTransactionRecord) (int64, error) {
+func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
 	var columnList []clause.Column
 	for _, column := range columns {
 		columnList = append(columnList, clause.Column{Name: column})
@@ -182,7 +198,7 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&evmTransactionRecords)
+	}).Create(&btcTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective btcTransactionRecord failed", err)

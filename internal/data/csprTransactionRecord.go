@@ -40,6 +40,7 @@ type CsprTransactionRecordRepo interface {
 	Save(context.Context, string, *CsprTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CsprTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*CsprTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*CsprTransactionRecord, int) (int64, error)
@@ -123,7 +124,22 @@ func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, t
 	return affected, err
 }
 
-func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, CsprTransactionRecords []*CsprTransactionRecord) (int64, error) {
+func (r *CsprTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, csprTransactionRecords []*CsprTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&csprTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, csprTransactionRecords []*CsprTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
@@ -145,7 +161,7 @@ func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.C
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&CsprTransactionRecords)
+	}).Create(&csprTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective CsprTransactionRecord failed", err)
@@ -156,7 +172,7 @@ func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.C
 	return affected, err
 }
 
-func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*CsprTransactionRecord) (int64, error) {
+func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, csprTransactionRecords []*CsprTransactionRecord) (int64, error) {
 	var columnList []clause.Column
 	for _, column := range columns {
 		columnList = append(columnList, clause.Column{Name: column})
@@ -182,7 +198,7 @@ func (r *CsprTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx 
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&evmTransactionRecords)
+	}).Create(&csprTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective CsprTransactionRecord failed", err)
@@ -507,4 +523,3 @@ func (r *CsprTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, ta
 	}
 	return csprTransactionRecordList, nil
 }
-

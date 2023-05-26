@@ -147,11 +147,16 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		log.Warn(alarmMsg, zap.Any("lastTx", lastRecord))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
+		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
-		txMap := make(map[string]string)
 		for _, record := range result {
 			txHash := record.Hash
 			if txHash == "" {
+				continue
+			}
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
 				continue
 			}
 			bn, _ := strconv.Atoi(record.BlockNumber)
@@ -166,15 +171,17 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
-			if _, ok := txMap[txHash]; !ok {
-				txMap[txHash] = txHash
-				evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
-
-			}
+			evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
 		}
+
 		for _, intxRecord := range intxResult {
 			txHash := intxRecord.Hash
 			if txHash == "" {
+				continue
+			}
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
 				continue
 			}
 			bn, _ := strconv.Atoi(intxRecord.BlockNumber)
@@ -205,7 +212,6 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 					}
 					parseData, _ = utils.JsonEncode(evmMap)
 				}
-
 			}
 
 			evmRecord := &data.EvmTransactionRecord{
@@ -226,15 +232,11 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
-			if _, ok := txMap[txHash]; !ok {
-				txMap[txHash] = txHash
-				evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
-
-			}
+			evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
 		}
 
 		if len(evmTransactionRecordList) > 0 {
-			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, GetTableName(chainName), evmTransactionRecordList)
+			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
 			if err != nil {
 				alarmMsg := fmt.Sprintf("请注意：%s链插入链上交易记录数据到数据库中失败", chainName)
 				alarmOpts := WithMsgLevel("FATAL")
@@ -243,14 +245,11 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				return err
 			}
 		}
-
 	}
 	return
-
 }
 
 func GetApiTx(url string, starblock string, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
-
 	var result []EvmApiRecord
 	page := 1
 	changeUrl := false
@@ -266,8 +265,16 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 		//查询
 		if chainName == "ETH" || chainName == "Optimism" || chainName == "ETC" || chainName == "xDai" {
 			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+			for i := 0; i < 10 && err != nil; i++ {
+				time.Sleep(time.Duration(i*5) * time.Second)
+				err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+			}
 		} else {
 			_, err = httpclient.HttpGet(reqUrl, nil, &out, &timeout, nil)
+			for i := 0; i < 10 && err != nil; i++ {
+				time.Sleep(time.Duration(i*5) * time.Second)
+				_, err = httpclient.HttpGet(reqUrl, nil, &out, &timeout, nil)
+			}
 		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询失败, error：%s", chainName, fmt.Sprintf("%s", err))
@@ -434,6 +441,10 @@ chainFlag:
 		reqUrl := url + "limit=" + strconv.Itoa(pageSize) + "&from=" + strconv.Itoa(starIndex)
 
 		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -465,9 +476,15 @@ chainFlag:
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.Data.Txhash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		atomRecord := &data.AtomTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -480,7 +497,7 @@ chainFlag:
 	}
 
 	if len(atomTransactionRecordList) > 0 {
-		_, err = data.AtomTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), atomTransactionRecordList)
+		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -560,6 +577,10 @@ chainFlag:
 		reqUrl := url + "&before=" + beforeTxHash
 
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -584,9 +605,15 @@ chainFlag:
 	}
 
 	var solTransactionRecordList []*data.SolTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.TxHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		solRecord := &data.SolTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -599,7 +626,7 @@ chainFlag:
 	}
 
 	if len(solTransactionRecordList) > 0 {
-		_, err = data.SolTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), solTransactionRecordList)
+		_, err = data.SolTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), solTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -686,6 +713,10 @@ chainFlag:
 			Query: "query AccountTransactionsData($address: String, $limit: Int, $offset: Int) {\n  move_resources(\n    where: {address: {_eq: $address}}\n    order_by: {transaction_version: desc}\n    distinct_on: transaction_version\n    limit: $limit\n    offset: $offset\n  ) {\n    transaction_version\n    __typename\n  }\n}",
 		}
 		err = httpclient.HttpPostJson(url, tokenRequest, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.HttpPostJson(url, tokenRequest, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -708,9 +739,15 @@ chainFlag:
 	}
 
 	var aptTransactionRecordList []*data.AptTransactionRecord
+	transactionRecordMap := make(map[int]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txVersion := record.TransactionVersion
+		if _, ok := transactionRecordMap[txVersion]; !ok {
+			transactionRecordMap[txVersion] = ""
+		} else {
+			continue
+		}
 		aptRecord := &data.AptTransactionRecord{
 			TransactionVersion: txVersion,
 			Status:             PENDING,
@@ -723,7 +760,7 @@ chainFlag:
 	}
 
 	if len(aptTransactionRecordList) > 0 {
-		_, err = data.AptTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), aptTransactionRecordList)
+		_, err = data.AptTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), aptTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -825,6 +862,10 @@ chainFlag:
 		reqUrl := url + strconv.Itoa(pageNum)
 
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -856,9 +897,15 @@ chainFlag:
 	}
 
 	var stcTransactionRecordList []*data.StcTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.TransactionHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		atomRecord := &data.StcTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -871,7 +918,7 @@ chainFlag:
 	}
 
 	if len(stcTransactionRecordList) > 0 {
-		_, err = data.StcTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), stcTransactionRecordList)
+		_, err = data.StcTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), stcTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -932,6 +979,10 @@ chainFlag:
 		var out KlaytnApiModel
 		reqUrl := url + strconv.Itoa(pageNum)
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -963,14 +1014,18 @@ chainFlag:
 		log.Warn(alarmMsg, zap.Any("lastTx", klayRecords))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
+		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
-		txMap := make(map[string]string)
 		for _, record := range klayRecords {
 			txHash := record.TxHash
-			bn := record.BlockNumber
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
+				continue
+			}
 			evmRecord := &data.EvmTransactionRecord{
 				TransactionHash: txHash,
-				BlockNumber:     bn,
+				BlockNumber:     record.BlockNumber,
 				FromAddress:     types2.HexToAddress(record.FromAddress).Hex(),
 				ToAddress:       types2.HexToAddress(record.ToAddress).Hex(),
 				Status:          PENDING,
@@ -979,15 +1034,11 @@ chainFlag:
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
-			if _, ok := txMap[txHash]; !ok {
-				txMap[txHash] = txHash
-				evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
-
-			}
+			evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
 		}
 
 		if len(evmTransactionRecordList) > 0 {
-			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, GetTableName(chainName), evmTransactionRecordList)
+			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
 			if err != nil {
 				alarmMsg := fmt.Sprintf("请注意：%s链插入链上交易记录数据到数据库中失败", chainName)
 				alarmOpts := WithMsgLevel("FATAL")
@@ -996,10 +1047,8 @@ chainFlag:
 				return err
 			}
 		}
-
 	}
 	return
-
 }
 
 func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err error) {
@@ -1046,6 +1095,10 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 
 	var out ZksyncApiModel
 	err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+	}
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
@@ -1054,13 +1107,20 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 	}
 	var zkTransactionRecordList []*data.EvmTransactionRecord
 	if out.Total > 0 {
+		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
 		for _, zkRecord := range out.List {
-			if zkRecord.BlockNumber < dbLastRecordBlockNumber || zkRecord.TransactionHash == dbLastRecordHash {
+			txHash := zkRecord.TransactionHash
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
+				continue
+			}
+			if zkRecord.BlockNumber < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
 				break
 			}
 			zkEvmRecord := &data.EvmTransactionRecord{
-				TransactionHash: zkRecord.TransactionHash,
+				TransactionHash: txHash,
 				Status:          PENDING,
 				DappData:        "",
 				ClientData:      "",
@@ -1072,7 +1132,7 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 	}
 
 	if len(zkTransactionRecordList) > 0 {
-		_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrUpdate(nil, GetTableName(chainName), zkTransactionRecordList)
+		_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), zkTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1132,6 +1192,10 @@ chainFlag:
 		reqUrl := url + strconv.Itoa(pageNum)
 
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1162,9 +1226,15 @@ chainFlag:
 	}
 
 	var evmTransactionRecordList []*data.EvmTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		evmRecord := &data.EvmTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -1179,7 +1249,7 @@ chainFlag:
 	}
 
 	if len(evmTransactionRecordList) > 0 {
-		_, err = data.EvmTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), evmTransactionRecordList)
+		_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1190,11 +1260,9 @@ chainFlag:
 	}
 
 	return
-
 }
 
 func CasperGetTxByAddress(chainName string, address string, urls []string) (err error) {
-
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -1261,9 +1329,15 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 	chainRecords = append(chainRecords, cir...)
 
 	var csprTransactionRecordList []*data.CsprTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.DeployHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		csprRecord := &data.CsprTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -1276,7 +1350,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 	}
 
 	if len(csprTransactionRecordList) > 0 {
-		_, err = data.CsprTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), csprTransactionRecordList)
+		_, err = data.CsprTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), csprTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1294,6 +1368,10 @@ func CasperTransferAndextendedDeploys(url string, address string, chainName stri
 	var chainRecords []*CasperApiRecord
 
 	err := httpclient.GetResponse(url, nil, &out, &timeout)
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		err = httpclient.GetResponse(url, nil, &out, &timeout)
+	}
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
@@ -1363,6 +1441,10 @@ chainFlag:
 		var out DogeApiModel
 		reqUrl := url + strconv.Itoa(pageNum)
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1392,9 +1474,15 @@ chainFlag:
 		}
 	}
 	var btcTransactionRecordList []*data.BtcTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		btcRecord := &data.BtcTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -1405,8 +1493,9 @@ chainFlag:
 		}
 		btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
 	}
+
 	if len(btcTransactionRecordList) > 0 {
-		_, err = data.BtcTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), btcTransactionRecordList)
+		_, err = data.BtcTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), btcTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1471,7 +1560,10 @@ chainFlag:
 		}
 
 		err = httpclient.HttpRequest(baseURL, http.MethodPost, map[string]string{"Authorization": key}, nil, param, &out, &timeout, nil)
-
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.HttpRequest(baseURL, http.MethodPost, map[string]string{"Authorization": key}, nil, param, &out, &timeout, nil)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1502,10 +1594,15 @@ chainFlag:
 		}
 	}
 	var dotTransactionRecordList []*data.DotTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
-	txMap := make(map[string]string)
 	for _, record := range chainRecords {
 		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		dotRecord := &data.DotTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -1516,13 +1613,11 @@ chainFlag:
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
-		if _, ok := txMap[txHash]; !ok {
-			txMap[txHash] = txHash
-			dotTransactionRecordList = append(dotTransactionRecordList, dotRecord)
-		}
+		dotTransactionRecordList = append(dotTransactionRecordList, dotRecord)
 	}
+
 	if len(dotTransactionRecordList) > 0 {
-		_, err = data.DotTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), dotTransactionRecordList)
+		_, err = data.DotTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), dotTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1533,7 +1628,6 @@ chainFlag:
 	}
 
 	return
-
 }
 
 func parseKeyFromNodeURL(nodeURL string) (key, restURL string) {
@@ -1601,6 +1695,10 @@ chainFlag:
 		reqUrl := url + strconv.Itoa(offset)
 
 		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1636,27 +1734,29 @@ chainFlag:
 	}
 
 	var btcTransactionRecordList []*data.BtcTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
-	txMap := make(map[string]string)
 	for _, record := range chainRecords {
 		txHash := record.Txid
-		blockNumber := record.Block.Height
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		btcRecord := &data.BtcTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			BlockNumber:     blockNumber,
+			BlockNumber:     record.Block.Height,
 			DappData:        "",
 			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
-		if _, ok := txMap[txHash]; !ok {
-			txMap[txHash] = txHash
-			btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
-		}
+		btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
 	}
+
 	if len(btcTransactionRecordList) > 0 {
-		_, err = data.BtcTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), btcTransactionRecordList)
+		_, err = data.BtcTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), btcTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1788,10 +1888,16 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 	normalTx := GetTronApiTx(url, "transaction", address, chainName, txTime, dbLastRecordHash)
 	internalTx := GetTronApiTx(url, "internal-transaction", address, chainName, txTime, dbLastRecordHash)
 	var trxTransactionRecordList []*data.TrxTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	if normalTx != nil {
 		for _, record := range normalTx {
 			txHash := record.Hash
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
+				continue
+			}
 			trxRecord := &data.TrxTransactionRecord{
 				TransactionHash: txHash,
 				Status:          PENDING,
@@ -1807,6 +1913,11 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 	if internalTx != nil {
 		for _, inRecord := range internalTx {
 			txHash := inRecord.Hash
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
+			} else {
+				continue
+			}
 			trxInRecord := &data.TrxTransactionRecord{
 				TransactionHash: txHash,
 				Status:          PENDING,
@@ -1820,7 +1931,7 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 	}
 
 	if len(trxTransactionRecordList) > 0 {
-		_, err = data.TrxTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), trxTransactionRecordList)
+		_, err = data.TrxTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), trxTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1845,6 +1956,10 @@ chainFlag:
 		var out TornApiModel
 		//查询
 		_, err = httpclient.HttpGet(reqUrl, nil, &out, &timeout, nil)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			_, err = httpclient.HttpGet(reqUrl, nil, &out, &timeout, nil)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询失败, error：%s", chainName, fmt.Sprintf("%s", err))
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1967,6 +2082,10 @@ chainFlag:
 		reqUrl := url + strconv.Itoa(pageNum)
 
 		err = httpclient.GetResponseApiJson(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponseApiJson(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -1998,9 +2117,15 @@ chainFlag:
 	}
 
 	var ckbTransactionRecordList []*data.CkbTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.Attributes.TransactionHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		atomRecord := &data.CkbTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -2013,7 +2138,7 @@ chainFlag:
 	}
 
 	if len(ckbTransactionRecordList) > 0 {
-		_, err = data.CkbTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), ckbTransactionRecordList)
+		_, err = data.CkbTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), ckbTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -2124,9 +2249,15 @@ chainFlag:
 	}
 
 	var suiTransactionRecordList []*data.SuiTransactionRecord
+	transactionRecordMap := make(map[string]string)
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.Digest
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
 		atomRecord := &data.SuiTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
@@ -2139,7 +2270,7 @@ chainFlag:
 	}
 
 	if len(suiTransactionRecordList) > 0 {
-		_, err = data.SuiTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), suiTransactionRecordList)
+		_, err = data.SuiTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), suiTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -2187,5 +2318,9 @@ func SuiGetTransactionByHash(url, addressKey, address string, startAddress inter
 		true,
 	}
 	_, err := httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, timeout)
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		_, err = httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, timeout)
+	}
 	return out, err
 }

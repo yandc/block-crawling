@@ -45,6 +45,7 @@ type SolTransactionRecordRepo interface {
 	Save(context.Context, string, *SolTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SolTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*SolTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*SolTransactionRecord, int) (int64, error)
@@ -125,6 +126,21 @@ func (r *SolTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	err := ret.Error
 	if err != nil {
 		log.Errore("insert solTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *SolTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, solTransactionRecords []*SolTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&solTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
 		return 0, err
 	}
 

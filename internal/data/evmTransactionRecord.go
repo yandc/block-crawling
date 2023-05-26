@@ -56,6 +56,7 @@ type EvmTransactionRecordRepo interface {
 	Save(context.Context, string, *EvmTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*EvmTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*EvmTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*EvmTransactionRecord, int) (int64, error)
@@ -145,6 +146,21 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *EvmTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, atomTransactionRecords []*EvmTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&atomTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
 		return 0, err
 	}
 
