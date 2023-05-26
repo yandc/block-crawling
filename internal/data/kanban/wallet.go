@@ -94,6 +94,8 @@ type WalletRepo interface {
 	AutoMigrate(ctx context.Context, chainName string) error
 	BatchSaveContract(ctx context.Context, chainName string, records []*WalletContractRecord) error
 	BatchSaveDaySummary(ctx context.Context, chainName string, records []*WalletDaySummaryRecord) error
+	// AnalyzeDaySummary to avoid index missing
+	AnalyzeDaySummary(ctx context.Context, chainName string) error
 	Accumulate(ctx context.Context, chainName string, address string) error
 	Count(ctx context.Context, chainName, key string) (int64, error)
 	GetTopPercentRank(ctx context.Context, chainName string, count int64, key string, percent int) (decimal.Decimal, error)
@@ -414,4 +416,8 @@ func (r *walletRepoImpl) LoadAllAddresses(ctx context.Context, chainName string,
 		*cursor = uint64(item.Id)
 	}
 	return results, nil
+}
+
+func (r *walletRepoImpl) AnalyzeDaySummary(ctx context.Context, chainName string) error {
+	return r.db.Exec(fmt.Sprint("ANALYZE ", r.daySummaryTable(chainName))).Error
 }
