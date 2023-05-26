@@ -313,7 +313,6 @@ func (p *txRecordParser) Save(ctx context.Context, chainName string, sharding st
 					zap.Int("saved", saved),
 				)
 			}
-
 			counterBatch = counterBatch[:0]
 		}
 	}
@@ -376,6 +375,9 @@ func (p *txRecordParser) Save(ctx context.Context, chainName string, sharding st
 			zap.Int("saved", saved),
 		)
 		summaryBatch = summaryBatch[:0]
+	}
+	if err := p.wallet.AnalyzeDaySummary(ctx, chainName); err != nil {
+		return err
 	}
 	return nil
 }
