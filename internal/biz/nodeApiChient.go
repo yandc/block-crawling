@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/utils"
 	"context"
 	"errors"
@@ -22,6 +23,16 @@ import (
 
 var pageSize = 50
 var timeout = 10_000 * time.Millisecond
+
+var btcUrls = []string{
+	"https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1",
+}
 
 func GetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
@@ -65,6 +76,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = DotGetTxByAddress(chainName, address, urls)
 	case "BTC":
 		err = BTCGetTxByAddress(chainName, address, urls)
+		err = UtxoByAddress(chainName, address)
 	case "TRX":
 		err = TrxGetTxByAddress(chainName, address, urls)
 	case "Nervos":
@@ -1651,6 +1663,84 @@ chainFlag:
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
 			return err
+		}
+	}
+	return
+}
+
+func UtxoByAddress(chainName string, address string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("UtxoByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("UtxoByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过余额更新utxo失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var flag string
+	if chainName == "BTC" {
+		flag = "/bitcoin/mainnet/"
+	} else if chainName == "LTC" {
+		flag = "/litecoin/mainnet/"
+	} else if chainName == "DOGE" {
+		flag = "/dogecoin/mainnet/"
+	} else {
+		flag = ""
+	}
+
+	list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, address)
+	for i := 0; i < len(btcUrls) && err != nil; i++ {
+		list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, address)
+	}
+
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链, query utxo balance error", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("update utxo query balance error", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, address)
+	if err1 != nil {
+		log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err1))
+		return
+	}
+	ret, err := data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, fromUid, chainName, address)
+
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链删除数据库utxo数据失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"扫块，链删除数据库utxo数据失败", zap.Any("address", address), zap.Any("error", err))
+		return
+	}
+	log.Info(address, zap.Any("删除utxo条数", ret))
+	if list.Total > 0 {
+		for _, d := range list.Data {
+			var utxoUnspentRecord = &data.UtxoUnspentRecord{
+				Uid:       fromUid,
+				Hash:      d.Mined.TxId,
+				N:         d.Mined.Index,
+				ChainName: chainName,
+				Address:   address,
+				Script:    d.Mined.Meta.Script,
+				Unspent:   1, //1 未花费 2 已花费 联合索引
+				Amount:    strconv.Itoa(d.Value),
+				TxTime:    int64(d.Mined.Date),
+				UpdatedAt: time.Now().Unix(),
+			}
+			log.Info(address, zap.Any("插入utxo对象", utxoUnspentRecord))
+			r, error := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+			log.Info(address, zap.Any("插入utxo对象结果", r), zap.Any("error", error))
 		}
 	}
 	return

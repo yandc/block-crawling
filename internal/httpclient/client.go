@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	//"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,8 +28,12 @@ var pool = &sync.Pool{
 }
 
 func init() {
+	//rpc 代理
+	//uu, _ := url.Parse("http://127.0.0.1:7890")
 	globalTransport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//Proxy:            http.ProxyURL(uu),
+
 	}
 }
 
