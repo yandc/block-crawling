@@ -50,6 +50,7 @@ type AtomTransactionRecordRepo interface {
 	Save(context.Context, string, *AtomTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*AtomTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*AtomTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*AtomTransactionRecord, int) (int64, error)
@@ -136,6 +137,21 @@ func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, t
 	return affected, err
 }
 
+func (r *AtomTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, atomTransactionRecords []*AtomTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&atomTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
 func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, atomTransactionRecords []*AtomTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -177,7 +193,7 @@ func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.C
 	return affected, err
 }
 
-func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, evmTransactionRecords []*AtomTransactionRecord) (int64, error) {
+func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, atomTransactionRecords []*AtomTransactionRecord) (int64, error) {
 	var columnList []clause.Column
 	for _, column := range columns {
 		columnList = append(columnList, clause.Column{Name: column})
@@ -211,7 +227,7 @@ func (r *AtomTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx 
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
-	}).Create(&evmTransactionRecords)
+	}).Create(&atomTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update selective "+tableName+" failed", err)
@@ -661,4 +677,3 @@ func (r *AtomTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, ta
 	}
 	return atomTransactionRecordList, nil
 }
-

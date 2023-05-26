@@ -45,6 +45,7 @@ type TrxTransactionRecordRepo interface {
 	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*TrxTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*TrxTransactionRecord, int) (int64, error)
@@ -123,6 +124,21 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update trxTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *TrxTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&trxTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
 		return 0, err
 	}
 
