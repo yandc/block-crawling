@@ -455,6 +455,9 @@ func customChainRun() {
 				startCustomChainMap.Store(k, sccm)
 			}
 		} else {
+			var mhat int32 = 160
+			var mc int32 = 2
+			var scbd int32 = 500
 			cp := &conf.PlatInfo{
 				Chain:          chainInfo.Chain,
 				Type:           chainInfo.Type,
@@ -463,6 +466,10 @@ func customChainRun() {
 				Decimal:        int32(chainInfo.Decimals),
 				NativeCurrency: chainInfo.CurrencyName,
 				Source:         biz.SOURCE_REMOTE,
+				MonitorHeightAlarmThr: &mhat,
+				MaxConcurrency : &mc,
+				SafelyConcurrentBlockDelta: &scbd,
+
 			}
 			var PlatInfos []*conf.PlatInfo
 			PlatInfos = append(PlatInfos, cp)
