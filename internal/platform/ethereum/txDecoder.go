@@ -355,7 +355,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	blockNumber, _ := utils.HexStringToInt64(receipt.BlockNumber)
 	feeAmount = decimal.NewFromBigInt(new(big.Int).Mul(gasUsedInt, gasPriceInt), 0)
 	if h.chainName == "Optimism" {
-		l1Fee, err := utils.HexStringToBigInt(receipt.L1Fee)
+		l1FeeStr := utils.GetHexString(receipt.L1Fee)
+		l1Fee, err := utils.HexStringToBigInt(l1FeeStr)
 		if err == nil {
 			feeAmount = feeAmount.Add(decimal.NewFromBigInt(l1Fee, 0))
 		}

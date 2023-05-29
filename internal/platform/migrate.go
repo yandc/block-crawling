@@ -5603,7 +5603,8 @@ func GetRecordL1Fee(chainName string, txHash string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return transactionReceipt.L1Fee, nil
+	l1FeeStr := utils.GetHexString(transactionReceipt.L1Fee)
+	return l1FeeStr, nil
 }
 
 var addressUid = make(map[string]string)
