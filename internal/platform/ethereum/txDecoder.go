@@ -597,45 +597,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		if len(log_.Topics) >= 2 {
 			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 		}
-
-		//判断合约 转账， 提现， 兑换。
-		if topic0 == TRANSFER_TOPIC || topic0 == WITHDRAWAL_TOPIC || topic0 == DEPOSIT_TOPIC {
-			if tokenAddress != "" {
-				if len(log_.Topics) == 4 {
-					tokenId = log_.Topics[3].Big().String()
-					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
-					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
-					}*/
-					token.TokenType = biz.ERC721
-					amount, _ = new(big.Int).SetString("1", 0)
-				} else if len(log_.Topics) == 1 {
-					//https://cn.etherscan.com/tx/0x2c355d0b5419ca267344ed6e19ceb8fc20d102f6e67c312b38e047f1031998ee
-					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
-					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
-					}*/
-					token.TokenType = biz.ERC721
-					amount, _ = new(big.Int).SetString("1", 0)
-					if len(log_.Data) >= 96 {
-						tokenId = new(big.Int).SetBytes(log_.Data[64:96]).String()
-						toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[32:64])).String()
-						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-					}
-				} else {
-					token, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, tokenAddress)
-					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-					}
-					if len(log_.Data) >= 32 {
-						amount = new(big.Int).SetBytes(log_.Data[:32])
-					}
-					if topic0 == TRANSFER_TOPIC && amount.String() == "0" {
-						continue
-					}
-				}
-				token.Amount = amount.String()
-			}
+		if len(log_.Topics) >= 3 {
+			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 		}
 
 		if topic0 == APPROVAL_TOPIC {
@@ -649,7 +612,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				continue
 			}
 
-			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			//toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			if toAddress == "0x0000000000000000000000000000000000000000" {
 				continue
 			}
@@ -674,7 +637,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Amount = amount.String()
 			}
 		} else if topic0 == APPROVALFORALL_TOPIC {
-			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			//toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			if toAddress == "0x0000000000000000000000000000000000000000" {
 				continue
 			}
@@ -687,13 +650,47 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Amount = amount.String()
 			}
 		} else if topic0 == TRANSFER_TOPIC {
-			if len(log_.Topics) >= 2 {
-				toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			if tokenAddress != "" {
+				if len(log_.Topics) == 4 {
+					tokenId = log_.Topics[3].Big().String()
+					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+					}*/
+					token.TokenType = biz.ERC721
+					amount, _ = new(big.Int).SetString("1", 0)
+				} else if len(log_.Topics) == 1 {
+					//https://cn.etherscan.com/tx/0x2c355d0b5419ca267344ed6e19ceb8fc20d102f6e67c312b38e047f1031998ee
+					/*token, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, tokenAddress, tokenId)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+					}*/
+					token.TokenType = biz.ERC721
+					amount, _ = new(big.Int).SetString("1", 0)
+					if len(log_.Data) >= 96 {
+						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+						toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[32:64])).String()
+						tokenId = new(big.Int).SetBytes(log_.Data[64:96]).String()
+					}
+				} else {
+					token, err = biz.GetTokenInfoRetryAlert(ctx, h.chainName, tokenAddress)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					}
+					if len(log_.Data) >= 32 {
+						amount = new(big.Int).SetBytes(log_.Data[:32])
+					}
+					if amount.String() == "0" {
+						continue
+					}
+				}
+				token.Amount = amount.String()
 			}
+
 			// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 			//uniswap v3 代币换主币 function 销毁 主币 再发送主币。
 			if toAddress == "0x0000000000000000000000000000000000000000" && common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" {
-				fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 				toAddress = common.HexToAddress(receipt.From).String()
 				amount = new(big.Int).SetBytes(log_.Data)
 				tokenAddress = ""
@@ -768,6 +765,31 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				toAddress = meta.ToAddress
 			}
 
+			if len(log_.Topics) == 1 {
+				//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
+				if len(log_.Data) >= 32 {
+					fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+				}
+				if len(log_.Data) >= 64 {
+					amount = new(big.Int).SetBytes(log_.Data[32:64])
+				}
+			}
+
+			if len(log_.Topics) >= 2 {
+				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				if len(log_.Data) >= 32 {
+					amount = new(big.Int).SetBytes(log_.Data[:32])
+				}
+			}
+
+			if tokenAddress != "" {
+				token, err = biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, tokenAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				token.Amount = amount.String()
+			}
+
 			if strings.HasPrefix(h.chainName, "BSC") {
 				//https://bscscan.com/tx/0x538168688bcdb857bb0fd00d586b79be0ef17e6188f68d50dfbc829e2b40e890
 				if len(eventLogs) > 0 {
@@ -794,49 +816,45 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 		} else if topic0 == DEPOSIT_TOPIC {
 			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
-			if h.chainName == "Ronin" && len(log_.Topics) == 1 {
-				//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
-				//兑换时判断 交易金额不能为 0
-				//判断 value是否为0 不为 0 则增加记录
-				if len(log_.Data) >= 32 {
-					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-				}
-				token, err = biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, tokenAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-				}
-				if len(log_.Data) >= 64 {
-					amount = new(big.Int).SetBytes(log_.Data[32:64])
-				}
-				token.Amount = amount.String()
-				token.TokenType = biz.ERC20
-				if meta.Value != "0" {
-					fromAddress = meta.FromAddress
-					/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-						token.Symbol = token.Symbol[1:]
-					}*/
-					tokenAddress = ""
-				} else {
-					fromAddress = meta.ToAddress
-				}
-			}
 			if strings.HasPrefix(h.chainName, "zkSync") {
 				continue
 			}
 
-			if len(log_.Topics) >= 2 {
-				//兑换时判断 交易金额不能为 0
-				//判断 value是否为0 不为 0 则增加记录
-				toAddress = common.HexToAddress(log_.Topics[1].String()).String()
-				if meta.Value != "0" {
-					fromAddress = meta.FromAddress
-					/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-						token.Symbol = token.Symbol[1:]
-					}*/
-					tokenAddress = ""
-				} else {
-					fromAddress = meta.ToAddress
+			//兑换时判断 交易金额不能为 0
+			//判断 value是否为0 不为 0 则增加记录
+			if meta.Value != "0" {
+				fromAddress = meta.FromAddress
+				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+					token.Symbol = token.Symbol[1:]
+				}*/
+				tokenAddress = ""
+			} else {
+				fromAddress = meta.ToAddress
+			}
+
+			if len(log_.Topics) == 1 {
+				//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
+				if len(log_.Data) >= 32 {
+					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
 				}
+				if len(log_.Data) >= 64 {
+					amount = new(big.Int).SetBytes(log_.Data[32:64])
+				}
+			}
+
+			if len(log_.Topics) >= 2 {
+				toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				if len(log_.Data) >= 32 {
+					amount = new(big.Int).SetBytes(log_.Data[:32])
+				}
+			}
+
+			if tokenAddress != "" {
+				token, err = biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, tokenAddress)
+				if err != nil {
+					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				}
+				token.Amount = amount.String()
 			}
 
 			if strings.HasPrefix(h.chainName, "BSC") {
@@ -856,9 +874,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 		} else if topic0 == BRIDGE_TRANSFERNATIVE {
 			//https://optimistic.etherscan.io/tx/0xc94501aeaf350dc5a5e4ecddc5f2d5dba090255a7057d60f16d9f115655f46cf
-			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			//toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data)
-			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			tokenAddress = ""
 		} else if topic0 == FANTOM_SWAPED {
 			fromAddress = common.HexToAddress(receipt.To).String()
@@ -989,8 +1007,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			tokenAddress = ""
 		} else if topic0 == ETH_BRIDGECALLTRIGGERED {
-			fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
-			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			//toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			if len(log_.Data) >= 32 {
 				amount = new(big.Int).SetBytes(log_.Data[:32])
 			}
@@ -1005,10 +1023,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				if err != nil {
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
+				token.Amount = amount.String()
 				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 					token.Symbol = token.Symbol[1:]
 				}*/
-				token.Amount = amount.String()
 				tokenAddress = ""
 			}
 		} else if topic0 == MATIC_BRIDGE {
@@ -1023,10 +1041,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
+			token.Amount = amount.String()
 			/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 				token.Symbol = token.Symbol[1:]
 			}*/
-			token.Amount = amount.String()
 			tokenAddress = ""
 		}
 
@@ -1047,10 +1065,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
+			token.Amount = amount.String()
 			/*if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
 				token.Symbol = token.Symbol[2:]
 			}*/
-			token.Amount = amount.String()
 			xDaiDapp = true
 			tokenAddress = ""
 		}
