@@ -131,7 +131,7 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	//	h.Bloom = *dec.Bloom
 	//}
 
-	if dec.Difficulty == nil && dec.TotalDifficulty == nil{
+	if dec.Difficulty == nil && dec.TotalDifficulty == nil {
 		return errors.New("missing required field 'difficulty' for Header")
 	}
 	if dec.Difficulty != nil {
@@ -139,7 +139,7 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		if e != nil {
 			return e
 		}
-	}else {
+	} else {
 		h.Difficulty, e = utils.HexStringToBigInt(*dec.TotalDifficulty)
 		if e != nil {
 			return e
@@ -903,7 +903,9 @@ type Receipt struct {
 	TxHash          string `json:"transactionHash" gencodec:"required"`
 	ContractAddress string `json:"contractAddress,omitempty"`
 	GasUsed         string `json:"gasUsed" gencodec:"required"`
-	L1Fee           string `json:"l1Fee,omitempty"` //Optimism totalFee=(Gas Price * Gas) + (l1GasUsed * l1GasPrice * l1FeeScalar)=(Gas Price * Gas) + l1Fee
+	//Optimism链为16进制string类型，ScrollL2TEST链为10进制int类型
+	//Optimism totalFee=(Gas Price * Gas) + (l1GasUsed * l1GasPrice * l1FeeScalar)=(Gas Price * Gas) + l1Fee
+	L1Fee interface{} `json:"l1Fee,omitempty"`
 
 	// Inclusion information: These fields provide information about the inclusion of the
 	// transaction corresponding to this receipt.

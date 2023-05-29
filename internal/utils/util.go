@@ -351,3 +351,13 @@ func GetString(value interface{}) string {
 	}
 	return result
 }
+
+func GetHexString(value interface{}) string {
+	var result string
+	if stringValue, ok := value.(string); ok {
+		result = stringValue
+	} else {
+		result = fmt.Sprintf("%x", value)
+	}
+	return result
+}
