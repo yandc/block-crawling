@@ -443,7 +443,7 @@ func customChainRun() {
 			}
 			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
 				//sccm.Stop()
-				//sccm.Conf.RpcURs = chainInfo.Urls
+				sccm.Conf.RpcURL = chainInfo.Urls
 				//sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
 				//sccm.Start()
 				nodeURL := chainInfo.Urls
