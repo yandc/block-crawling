@@ -34,7 +34,7 @@ import (
 )
 
 type Client struct {
-	*ethclient.Client
+	//*ethclient.Client
 	c *rpc.Client
 
 	*pcommon.NodeDefaultIn
@@ -43,16 +43,25 @@ type Client struct {
 	chainName string
 }
 
+func getETHClient(rawUrl string)(*ethclient.Client,error){
+	c, err := rpc.DialContext(context.Background(), rawUrl)
+	if err != nil {
+		log.Error("new client error:", zap.Any("url", rawUrl), zap.Error(err))
+		return nil, err
+	}
+	cli := ethclient.NewClient(c)
+	return cli,nil
+}
+
 func NewClient(rawUrl string, chainName string) (*Client, error) {
 	c, err := rpc.DialContext(context.Background(), rawUrl)
 	if err != nil {
 		log.Error("new client error:", zap.Any("url", rawUrl), zap.Error(err))
 		return nil, err
 	}
-	client := ethclient.NewClient(c)
-
+	//client := ethclient.NewClient(c)
 	return &Client{
-		Client: client,
+		//Client: client,
 		c:      c,
 		NodeDefaultIn: &pcommon.NodeDefaultIn{
 			ChainName: chainName,
@@ -496,7 +505,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	return c.BlockNumber(ctx)
+	cli,err := getETHClient(c.url)
+	defer cli.Close()
+	if err != nil {
+		return 0, err
+	}
+	return cli.BlockNumber(ctx)
 }
 
 func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
@@ -566,7 +580,12 @@ func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transactio
 	index uint) (common.Address, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	return c.TransactionSender(ctx, tx, block, index)
+	cli,err := getETHClient(c.url)
+	defer cli.Close()
+	if err != nil {
+		return [20]byte{}, err
+	}
+	return cli.TransactionSender(ctx, tx, block, index)
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
@@ -575,6 +594,11 @@ func (c *Client) GetBalance(address string) (string, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
 	account := common.HexToAddress(address)
 	if c.ChainName == "evm15" {
 		var result string
@@ -584,7 +608,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 		}
 		balance, err = utils.HexStringToBigInt(result)
 	} else {
-		balance, err = c.BalanceAt(ctx, account, nil)
+		balance, err = cli.BalanceAt(ctx, account, nil)
 
 	}
 	if err != nil {
@@ -700,11 +724,16 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
 	opts := &bind.CallOpts{
 		Context: ctx,
 	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
-	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
+	erc721Token, err := erc721.NewErc721(hexTokenAddress, cli)
 	if err != nil {
 		return "", err
 	}
@@ -732,11 +761,16 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
 	opts := &bind.CallOpts{
 		Context: ctx,
 	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
-	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
+	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, cli)
 	if err != nil {
 		return "", err
 	}
@@ -756,11 +790,16 @@ func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return false, err
+	}
+	defer cli.Close()
 	opts := &bind.CallOpts{
 		Context: ctx,
 	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
-	erc721Token, err := erc721.NewErc721(hexTokenAddress, c)
+	erc721Token, err := erc721.NewErc721(hexTokenAddress, cli)
 	if err != nil {
 		return false, err
 	}
@@ -776,11 +815,16 @@ func (c *Client) IsErc1155Contract(tokenAddress string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return false, err
+	}
+	defer cli.Close()
 	opts := &bind.CallOpts{
 		Context: ctx,
 	}
 	hexTokenAddress := common.HexToAddress(tokenAddress)
-	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, c)
+	erc1155Token, err := erc1155.NewErc1155(hexTokenAddress, cli)
 	if err != nil {
 		return false, err
 	}
@@ -815,8 +859,12 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	if ok {
 		return tokenInfo, nil
 	}
-
-	erc20Token, err := erc20.NewErc20(common.HexToAddress(tokenAddress), c)
+	cli,err := getETHClient(c.url)
+	if err != nil {
+		return tokenInfo, err
+	}
+	defer cli.Close()
+	erc20Token, err := erc20.NewErc20(common.HexToAddress(tokenAddress), cli)
 	if err != nil {
 		return tokenInfo, err
 	}

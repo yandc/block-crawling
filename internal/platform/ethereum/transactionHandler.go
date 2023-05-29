@@ -101,7 +101,9 @@ func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTrans
 		rets := strings.Split(k, ":")
 		if len(rets) >= 3 {
 			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-				return client.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
+				cli,_ := getETHClient(client.url)
+				defer cli.Close()
+				return cli.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
 			})
 			nonce := result.(uint64)
 			if nonce > 0 {

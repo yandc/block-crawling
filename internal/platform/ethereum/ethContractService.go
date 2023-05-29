@@ -31,7 +31,12 @@ func GetTokenType(client *Client, chainName, tokenAddress string, code []byte) (
 
 	var err error
 	if len(code) == 0 {
-		code, err = client.CodeAt(context.Background(), common.HexToAddress(tokenAddress), nil)
+		cli,err := getETHClient(client.url)
+		defer cli.Close()
+		if err != nil {
+			return "", err
+		}
+		code, err = cli.CodeAt(context.Background(), common.HexToAddress(tokenAddress), nil)
 		if err != nil {
 			return "", err
 		}

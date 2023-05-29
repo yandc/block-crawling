@@ -159,7 +159,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
-		codeAt, err := client.CodeAt(context.Background(), common.HexToAddress(toAddress), nil)
+		cli,_ := getETHClient(client.url)
+		defer cli.Close()
+		codeAt, err := cli.CodeAt(context.Background(), common.HexToAddress(toAddress), nil)
 		if err != nil {
 			return err
 		}
@@ -1316,7 +1318,9 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	}
 
 	result1, err := ExecuteRetry(h.chainName, func(client Client) (interface{}, error) {
-		return client.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
+		cli,_ := getETHClient(client.url)
+		defer cli.Close()
+		return cli.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
 	})
 	if err != nil {
 		return nil
