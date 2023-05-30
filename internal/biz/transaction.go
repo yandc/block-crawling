@@ -2407,6 +2407,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 				log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
 				return nil, err
 			}
+			tokenInfo.Address = newItem.TokenAddress
 			s.attemptFixZeroDecimals(ctx, req, &newItem, &tokenInfo)
 
 			needUpdateAssets = append(needUpdateAssets, &data.UserAsset{
