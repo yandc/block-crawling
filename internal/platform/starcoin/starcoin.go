@@ -19,7 +19,7 @@ type Platform struct {
 	spider    *chain.BlockSpider
 }
 
-const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
+const STC_CODE = biz.STC_CODE
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
 	chainType := value.Handler
