@@ -2289,7 +2289,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				utv[tokenAddress] = totalToken
 				userAssetTokenDecimalResult[addChainName] = utv
 
-			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, REGISTERTOKEN:
+			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, REGISTERTOKEN,DIRECTTRANSFERNFTSWITCH:
 				if record.FromAddress == add {
 					oldTotal := userAssetMap[addChainName]
 					totalAmount := oldTotal.Sub(feeAmount)
