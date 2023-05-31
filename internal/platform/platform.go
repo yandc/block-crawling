@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/platform/casper"
 	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/kaspa"
 	"block-crawling/internal/platform/nervos"
 	"block-crawling/internal/platform/polkadot"
 	"block-crawling/internal/platform/solana"
@@ -74,15 +75,18 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		bs[value.Chain] = bt
 		Platforms = append(Platforms, platform)
 		if p, ok := platform.(*nervos.Platform); ok {
-			spider := bt.Spider
 			biz.GetNervosUTXOTransaction = func(txHash string) (tx *types.TransactionWithStatus, err error) {
-				return p.GetUTXOByHash(spider, txHash)
+				return p.GetUTXOByHash(txHash)
 			}
 		}
 		if p, ok := platform.(*bitcoin.Platform); ok {
-			spider := bt.Spider
 			biz.GetUTXOByHash[value.Chain] = func(txHash string) (tx in.TX, err error) {
-				return p.GetUTXOByHash(spider, txHash)
+				return p.GetUTXOByHash(txHash)
+			}
+		}
+		if p, ok := platform.(*kaspa.Platform); ok {
+			biz.GetKaspaUTXOTransaction = func(txHash string) (tx *in.KaspaTransactionInfo, err error) {
+				return p.GetUTXOByHash(txHash)
 			}
 		}
 
@@ -143,6 +147,8 @@ func GetPlatform(value *conf.PlatInfo) biz.Platform {
 		return cosmos.Init(coins.Cosmos().Handle, value, nodeURL, height)
 	case biz.POLKADOT:
 		return polkadot.Init(coins.Polkadot().Handle, value, nodeURL, height)
+	case biz.KASPA:
+		return kaspa.Init(coins.Kaspa().Handle, value, nodeURL, height)
 	}
 	return nil
 }

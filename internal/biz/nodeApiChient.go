@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/bitcoin/btc"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"errors"
@@ -83,6 +84,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = NervosGetTxByAddress(chainName, address, urls)
 	case "SUI", "SUITEST":
 		err = SuiGetTxByAddress(chainName, address, urls)
+	case "Kaspa":
+		err = KaspaGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -1662,6 +1665,7 @@ func BTCGetTxByAddress(chainName string, address string, urls []string) (err err
 			return
 		}
 	}()
+
 	//角标
 	offset := 0
 	limit := 100
@@ -1714,13 +1718,6 @@ chainFlag:
 		for _, browserInfo := range out {
 			txHash := browserInfo.Txid
 			txHeight := browserInfo.Block.Height
-			if err != nil {
-				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常", chainName)
-				alarmOpts := WithMsgLevel("FATAL")
-				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", txHeight), zap.Any("txHash", txHash), zap.Any("error", err))
-				break chainFlag
-			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
 				break chainFlag
 			}
@@ -2323,4 +2320,122 @@ func SuiGetTransactionByHash(url, addressKey, address string, startAddress inter
 		_, err = httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, timeout)
 	}
 	return out, err
+}
+
+func KaspaGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("KaspaGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("KaspaGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	offset := 0
+	url := urls[0]
+	url = url + "/addresses/" + address + "/full-transactions?limit=" + strconv.Itoa(pageSize) + "&offset="
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "tx_time desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.KasTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbTxTime int64
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbTxTime = dbLastRecords[0].TxTime
+		dbLastRecordHash = dbLastRecords[0].TransactionHash
+	}
+
+	var chainRecords []*types.KaspaTransactionInfo
+chainFlag:
+	for {
+		var out []*types.KaspaTransactionInfo
+		reqUrl := url + strconv.Itoa(offset)
+
+		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out {
+			if !browserInfo.IsAccepted {
+				continue
+			}
+			txHash := browserInfo.TransactionId
+			txTime := browserInfo.BlockTime / 1000
+			if txTime < dbTxTime || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		offset += pageSize
+	}
+
+	var kasTransactionRecordList []*data.KasTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.TransactionId
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		blockHash := record.BlockHash
+		btcRecord := &data.KasTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			BlockHash:       blockHash[0],
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		kasTransactionRecordList = append(kasTransactionRecordList, btcRecord)
+	}
+
+	if len(kasTransactionRecordList) > 0 {
+		_, err = data.KasTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), kasTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
 }

@@ -1,52 +1,37 @@
-package nervos
+package kaspa
 
 import (
 	"block-crawling/internal/biz"
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/nervosnetwork/ckb-sdk-go/types"
-
 	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
-)
-
-const (
-	nervosDecimals = 8
 )
 
 type Platform struct {
 	biz.CommPlatform
+	client    Client
 	CoinIndex uint
 	spider    *chain.BlockSpider
 }
 
-type Config struct {
-	ProjectId []string
-}
-
-type KVPair struct {
-	Key string
-	Val int
-}
-
-func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
-	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
-	chainType := c.Handler
-	chainName := c.Chain
+func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+	chainType := value.Handler
+	chainName := value.Chain
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
+		client:    NewClient(nodeURL[0], chainName),
 		CommPlatform: biz.CommPlatform{
 			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
-			HeightAlarmThr: int(c.GetMonitorHeightAlarmThr()),
+			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
 		},
 	}
 }
@@ -60,11 +45,8 @@ func (p *Platform) CreateStateStore() chain.StateStore {
 }
 
 func (p *Platform) CreateClient(url string) chain.Clienter {
-	c, err := NewClient(p.ChainName, url)
-	if err != nil {
-		panic(err)
-	}
-	return c
+	c := NewClient(p.ChainName, url)
+	return &c
 }
 
 func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
@@ -79,18 +61,18 @@ func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
 	p.spider = blockSpider
 }
 
-func (p *Platform) GetUTXOByHash(txHash string) (tx *types.TransactionWithStatus, err error) {
+func (p *Platform) GetUTXOByHash(txHash string) (tx *types.KaspaTransactionInfo, err error) {
 	result, err := ExecuteRetry(p.ChainName, func(client Client) (interface{}, error) {
-		return client.GetUTXOByHash(txHash)
+		return client.GetTransactionByHash(txHash)
 	})
 	if err != nil {
 		return nil, err
 	}
-	tx = result.(*types.TransactionWithStatus)
+	tx = result.(*types.KaspaTransactionInfo)
 	return
 }
 
-func BatchSaveOrUpdate(txRecords []*data.CkbTransactionRecord, tableName string) error {
+func BatchSaveOrUpdate(txRecords []*data.KasTransactionRecord, table string) error {
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0
@@ -106,10 +88,10 @@ func BatchSaveOrUpdate(txRecords []*data.CkbTransactionRecord, tableName string)
 			stop = total
 		}
 
-		_, err := data.CkbTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
+		_, err := data.KasTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, table, subTxRecords)
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.CkbTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, tableName, subTxRecords)
+			_, err = data.KasTransactionRecordRepoClient.BatchSaveOrUpdateSelective(nil, table, subTxRecords)
 		}
 		if err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY) {
 			return err

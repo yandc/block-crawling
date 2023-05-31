@@ -60,14 +60,21 @@ func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHan
 	return newHandler(p.ChainName, liveInterval)
 }
 
-func (p *Platform) GetUTXOByHash(spider *chain.BlockSpider, txHash string) (tx in.TX, err error) {
-	spider.WithRetry(func(client chain.Clienter) error {
-		tx, err = client.(*Client).GetTransactionByHash(txHash)
-		if err != nil && err.Error() == "The requested resource has not been found" {
-			return chain.RetryStandby(err)
+func (p *Platform) GetUTXOByHash(txHash string) (tx in.TX, err error) {
+	result, err := ExecuteRetry(p.ChainName, func(client Client) (interface{}, error) {
+		tx, err = client.GetTransactionByHash(txHash)
+		if err != nil {
+			if err.Error() == "The requested resource has not been found" {
+				return tx, chain.RetryStandby(err)
+			}
+			return tx, ncommon.Retry(err)
 		}
-		return ncommon.Retry(err)
+		return tx, nil
 	})
+	if err != nil {
+		return tx, err
+	}
+	tx = result.(in.TX)
 	return
 }
 

@@ -30,5 +30,7 @@ func DynamicCreateTable(gormDb *gorm.DB, table string, chainType string) {
 		gormDb.Table(table).AutoMigrate(&data.AtomTransactionRecord{})
 	case POLKADOT:
 		gormDb.Table(table).AutoMigrate(&data.DotTransactionRecord{})
+	case KASPA:
+		gormDb.Table(table).AutoMigrate(&data.KasTransactionRecord{})
 	}
 }

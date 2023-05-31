@@ -144,7 +144,6 @@ func recordToTxResult(record interface{}) *txResult {
 			fromUID:       v.FromUid,
 		}
 	case *data.SolTransactionRecord:
-
 		return &txResult{
 			hash:          v.TransactionHash,
 			matchedFrom:   v.FromUid != "",
@@ -177,6 +176,15 @@ func recordToTxResult(record interface{}) *txResult {
 			matchedFrom:   v.FromUid != "",
 			matchedTo:     v.ToUid != "",
 			txType:        chain.TxType(v.TransactionType),
+			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
+		}
+	case *data.KasTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(biz.NATIVE),
 			failedOnChain: failedOnChain(v.Status),
 			fromUID:       v.FromUid,
 		}

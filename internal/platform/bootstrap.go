@@ -85,7 +85,7 @@ func (b *Bootstrap) Start() {
 		}
 	}()
 	go func() {
-		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" {
+		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" {
 			return
 		}
 		go b.GetTransactions()
