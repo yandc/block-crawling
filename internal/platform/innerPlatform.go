@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/cosmos"
 	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/kaspa"
 	"block-crawling/internal/platform/nervos"
 	"block-crawling/internal/platform/polkadot"
 	"block-crawling/internal/platform/solana"
@@ -69,6 +70,8 @@ func GetInnerPlatform(value *conf.PlatInfo) biz.Platform {
 		return cosmos.Init(coins.Cosmos().Handle, value, nodeURLS, height)
 	case biz.POLKADOT:
 		return polkadot.Init(coins.Polkadot().Handle, value, nodeURLS, height)
+	case biz.KASPA:
+		return kaspa.Init(coins.Kaspa().Handle, value, nodeURLS, height)
 	}
 	return nil
 }

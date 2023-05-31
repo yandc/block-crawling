@@ -59,6 +59,7 @@ const (
 	CASPER   = "CSPR"
 	COSMOS   = "COSMOS"
 	POLKADOT = "POLKADOT"
+	KASPA    = "KASPA"
 )
 
 const (
@@ -82,11 +83,11 @@ const (
 )
 
 const (
-	CANCEL      = "cancel"   //中心化操作 --- value CANCEL --success
-	SPEED_UP    = "speed_up" //success
-	GAS_FEE_LOW = "gasFeeLow"
-	NONCE_QUEUE = "nonceQueue"
-	NONCE_BREAK = "nonceBreak"
+	CANCEL        = "cancel"   //中心化操作 --- value CANCEL --success
+	SPEED_UP      = "speed_up" //success
+	GAS_FEE_LOW   = "gasFeeLow"
+	NONCE_QUEUE   = "nonceQueue"
+	NONCE_BREAK   = "nonceBreak"
 	GAS_LIMIT_LOW = "gasLimitLow"
 )
 

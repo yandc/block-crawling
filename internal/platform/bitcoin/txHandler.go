@@ -45,7 +45,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 	if len(tx.Inputs) > 0 {
 		fromAddress = tx.Inputs[0].PrevOut.Addr
 	} else {
-		log.Error(h.chainName+"扫块，txInputs为0", zap.Any("current", curHeight), zap.Any("new", height))
+		log.Error(h.chainName+"扫块，txInputs为0", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash))
 	}
 	if fromAddress != "" {
 		fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)

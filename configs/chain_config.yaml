@@ -788,6 +788,33 @@ platform:
     monitorHeightAlarmThr: 180
     httpURL:
 
+  Kaspa:
+#    blockExplorerAddrUrl: https://explorer.kaspa.org/address/
+#    blockExplorerTxUrl: https://explorer.kaspa.org/txs/
+#    blockExplorerUrl: https://explorer.kaspa.org/
+    blockExplorerAddrUrl: https://kas.fyi/address/
+    blockExplorerTxUrl: https://kas.fyi/transaction/
+    blockExplorerUrl: https://kas.fyi/
+    chain: Kaspa
+    chainId: ''
+    coinId: 111111
+    decimal: 8
+    fullName: Kaspa
+    getPriceKey: kaspa
+    handler: kaspa
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Kaspa.jpg
+    nativeCurrency: KAS
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://api.kaspa.org
+    httpURL:
+      - https://api.kaspa.org
+    symbol: KAS
+    type: KASPA
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 0
 
   Osmosis:
     blockExplorerUrl: https://www.mintscan.io/osmosis

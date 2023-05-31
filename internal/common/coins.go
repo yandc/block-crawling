@@ -77,6 +77,7 @@ const (
 	SUI          = 101012
 	NERVOS       = 309
 	CASPER       = 101013
+	KASPA        = 111111
 )
 
 var HandleMap = map[string]uint{
@@ -89,8 +90,9 @@ var HandleMap = map[string]uint{
 	"solana":   SOLANA,
 	"nervos":   NERVOS,
 	"casper":   CASPER,
+	"kaspa":    KASPA,
 	"cosmos":   COSMOS,
-	"polkadot" : POLKADOT,
+	"polkadot": POLKADOT,
 }
 
 var Coins = map[uint]Coin{
@@ -500,6 +502,14 @@ var Coins = map[uint]Coin{
 		Decimals:     9,
 		LiveInterval: 1000,
 	},
+	KASPA: {
+		ID:           111111,
+		Handle:       "kaspa",
+		Symbol:       "KAS",
+		Name:         "Kaspa",
+		Decimals:     8,
+		LiveInterval: 1000,
+	},
 	NEAR: {
 		ID:           397,
 		Handle:       "near",
@@ -719,6 +729,9 @@ func Nervos() Coin {
 }
 func Casper() Coin {
 	return Coins[CASPER]
+}
+func Kaspa() Coin {
+	return Coins[KASPA]
 }
 func Near() Coin {
 	return Coins[NEAR]

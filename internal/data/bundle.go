@@ -14,6 +14,7 @@ type Bundle struct {
 	SOL  SolTransactionRecordRepo
 	CKB  CkbTransactionRecordRepo
 	CSPR CsprTransactionRecordRepo
+	KAS  KasTransactionRecordRepo
 
 	UserNFT    UserNftAssetRepo
 	NFTHistory NftRecordHistoryRepo
@@ -41,6 +42,7 @@ func NewBundle(
 	sol SolTransactionRecordRepo,
 	ckb CkbTransactionRecordRepo,
 	cspr CsprTransactionRecordRepo,
+	kas KasTransactionRecordRepo,
 	userNFT UserNftAssetRepo,
 	nftHistory NftRecordHistoryRepo,
 	stat TransactionStatisticRepo,
@@ -65,6 +67,7 @@ func NewBundle(
 		SOL:        sol,
 		CKB:        ckb,
 		CSPR:       cspr,
+		KAS:        kas,
 		UserNFT:    userNFT,
 		NFTHistory: nftHistory,
 		Stat:       stat,

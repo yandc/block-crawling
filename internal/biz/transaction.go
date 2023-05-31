@@ -662,6 +662,29 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
+	case KASPA:
+		kasTransactionRecord := &data.KasTransactionRecord{
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ConfirmCount:    0,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+		result, err = data.KasTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), kasTransactionRecord)
+		if result > 0 {
+			//修改 未花费
+			go KaspaUpdateUtxo(pbb)
+		}
 	}
 
 	flag := result == 1
@@ -673,6 +696,22 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 }
 
 func UpdateUtxo(pbb *pb.TransactionReq) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("UpdateUtxo error, chainName:"+pbb.ChainName, e)
+			} else {
+				log.Errore("UpdateUtxo panic, chainName:"+pbb.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，txHash:%s, error：%s", pbb.ChainName, pbb.TransactionHash, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
 	//修改 未花费
 	time.Sleep(time.Duration(1) * time.Minute)
 	tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
@@ -689,6 +728,74 @@ func UpdateUtxo(pbb *pb.TransactionReq) {
 		if err != nil || ret == 0 {
 			log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
 		}
+	}
+}
+
+func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("KaspaUpdateUtxo error, chainName:"+pbb.ChainName, e)
+			} else {
+				log.Errore("KaspaUpdateUtxo panic, chainName:"+pbb.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，txHash:%s, error：%s", pbb.ChainName, pbb.TransactionHash, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	time.Sleep(time.Duration(1) * time.Minute)
+	tx, err := GetKaspaUTXOTransaction(pbb.TransactionHash)
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		tx, err = GetKaspaUTXOTransaction(pbb.TransactionHash)
+	}
+	if err != nil {
+		// 更新用户资产出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(pbb.ChainName+"链插入pending交易记录时更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败", zap.Any("txHash", pbb.TransactionHash),
+			zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
+		return
+	}
+
+	var utxoRecords []*data.UtxoUnspentRecord
+	inputs := tx.Inputs
+	for _, ci := range inputs {
+		index := ci.PreviousOutpointIndex
+		preIndex, _ := strconv.Atoi(index)
+		var utxoUnspentRecord = &data.UtxoUnspentRecord{
+			ChainName: pbb.ChainName,
+			Uid:       pbb.Uid,
+			Address:   pbb.FromAddress,
+			Hash:      ci.PreviousOutpointHash,
+			N:         preIndex,
+			//Script:    ci.SignatureScript,
+			Unspent: 4, //1 未花费 2 已花费 联合索引
+			//Amount:    ci.UtxoEntry.Amount,
+			//TxTime:    txTime,
+			UpdatedAt: time.Now().Unix(),
+		}
+		utxoRecords = append(utxoRecords, utxoUnspentRecord)
+	}
+
+	_, err = data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(nil, utxoRecords)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		_, err = data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(nil, utxoRecords)
+	}
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，将UTXO插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(pbb.ChainName+"链插入pending交易记录时更新用户UTXO状态，将UTXO插入到数据库中失败", zap.Any("txHash", pbb.TransactionHash),
+			zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
 	}
 }
 
@@ -800,6 +907,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	case COSMOS:
 		var recordList []*data.AtomTransactionRecord
 		recordList, total, err = data.AtomTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case KASPA:
+		var recordList []*data.KasTransactionRecord
+		recordList, total, err = data.KasTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
@@ -2230,6 +2343,14 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			if err != nil {
 				return nil, err
 			}
+		case KASPA:
+			recordList, err := data.KasTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// 主币 精度
@@ -2302,8 +2423,8 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			}
 		}
 	}
-	for key, userAsset := range userAssetMap {
 
+	for key, userAsset := range userAssetMap {
 		decimalAmount := userAssetDecimalResult[key]
 		flag := decimalAmount[0:1] == "-"
 
