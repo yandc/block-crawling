@@ -2421,14 +2421,16 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 				CreatedAt:    time.Now().Unix(),
 				UpdatedAt:    time.Now().Unix(),
 			})
-			needPush = append(needPush, UserTokenPush{
-				ChainName:    req.ChainName,
-				Uid:          uid,
-				Address:      req.Address,
-				TokenAddress: tokenAddress,
-				Decimals:     int32(tokenInfo.Decimals),
-				Symbol:       tokenInfo.Symbol,
-			})
+			if !IsNative(req.ChainName, tokenAddress) {
+				needPush = append(needPush, UserTokenPush{
+					ChainName:    req.ChainName,
+					Uid:          uid,
+					Address:      req.Address,
+					TokenAddress: tokenAddress,
+					Decimals:     int32(tokenInfo.Decimals),
+					Symbol:       tokenInfo.Symbol,
+				})
+			}
 			continue
 		}
 		s.attemptFixZeroDecimals(ctx, req, &newItem, nil)

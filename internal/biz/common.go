@@ -130,6 +130,8 @@ const (
 	SOLANANFT = "METAPLEX"
 )
 
+const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
+
 var rocketMsgLevels = map[string]int{
 	"DEBUG":   0,
 	"NOTICE":  1,
@@ -232,6 +234,7 @@ func CreateAddressPendingAmount(chainName, address, amount, DeciamlAmount string
 		TokenPendingAmountList: tokenPendingAmountList,
 	}
 }
+
 type UserAssetUpdateRequest struct {
 	ChainName string `json:"chainName"`
 	Address   string `json:"address"`
@@ -636,4 +639,22 @@ type RPCNodeBalancer interface {
 }
 type RPCAccountHash interface {
 	GetAccountHashByAddress(address string) (string, error)
+}
+
+func IsNative(chainName string, tokenAddress string) bool {
+	if v, ok := PlatInfoMap[chainName]; ok {
+		if v.Type == BTC {
+			return true
+		}
+	}
+
+	if tokenAddress == "" {
+		return true
+	}
+
+	if chainName == STC && tokenAddress == STC_CODE {
+		return true
+	}
+
+	return false
 }
