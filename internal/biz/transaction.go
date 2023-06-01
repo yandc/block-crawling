@@ -2685,7 +2685,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	userSendRawHistory.CreatedAt = time.Now().Unix()
 	userSendRawHistory.ErrMsg = req.ErrMsg
 	if req.ErrMsg != "" {
-		NotifyBroadcastTxFailed(ctx, req.SessionId, req.ErrMsg)
+		NotifyBroadcastTxFailed(ctx, req)
 	}
 
 	result, err := data.UserSendRawHistoryRepoInst.Save(ctx, userSendRawHistory)

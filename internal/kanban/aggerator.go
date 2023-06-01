@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/log"
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -36,6 +37,10 @@ func (a *Aggerator) Start(ctx context.Context) error {
 				a.options.AggerateTime = yesterdayStart
 				if err := a.run(ctx); err != nil {
 					log.Errore("KANBAN AGGERATING", err)
+					alarmMsg := fmt.Sprintf("请注意：%s链聚合数据看板失败", a.options.ChainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					alarmOpts = biz.WithAlarmChannel("kanban")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				}
 			}
 		}()
