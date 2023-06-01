@@ -364,7 +364,7 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 
 	chainType := ChainNameType[chainName]
 	switch chainType {
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		address = utils.AddressAdd0(address)
 	}
 

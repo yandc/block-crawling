@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -142,7 +143,7 @@ func (c *Client) GetBlockByHash(blockHash string) (*chain.Block, error) {
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 	if err != nil {
-		if err.Error() == "Transaction not found" {
+		if err.Error() == "Transaction not found" || strings.Contains(err.Error(), "string does not match regex \"[a-f0-9]{64}\"") {
 			return nil, common.TransactionNotFound
 		}
 		return nil, err
@@ -236,8 +237,8 @@ func (c *Client) GetTransactionByHash(txHash string) (*types.KaspaTransactionInf
 	if err != nil {
 		return nil, err
 	}
-	if out.Detail != "" {
-		return nil, errors.New(out.Detail)
+	if out.Detail != nil {
+		return nil, errors.New(utils.GetString(out.Detail))
 	}
 	return out, nil
 }

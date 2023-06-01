@@ -650,14 +650,16 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 		if tokenType != biz.APTOSNFT {
 			continue
 		}
-		itemName := tokenInfo.ItemName
-		tokenId := tokenInfo.TokenId
-		tokenAddress := tokenInfo.Address
-
 		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
 			continue
 		}
-		nftInfo, err := biz.GetRawNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, itemName)
+
+		tokenId := tokenInfo.TokenId
+		tokenAddress := tokenInfo.Address
+		if tokenAddress == "" || tokenId == "" {
+			continue
+		}
+		nftInfo, err := biz.GetRawNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
 		if err != nil {
 			log.Error(chainName+"更新用户资产，从nodeProxy中获取NFT信息失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
@@ -670,6 +672,7 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 			nftInfo = &v1.GetNftReply_NftInfoResp{
 				TokenAddress: tokenAddress,
 				TokenId:      tokenId,
+				NftName:      tokenInfo.ItemName,
 				TokenType:    tokenType,
 			}
 		}
@@ -753,6 +756,8 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 	var userAssets []*data.UserNftAsset
 	for tokenAddress, tokenIdMap := range tokenAddressIdMap {
 		tokenAddressSplit := strings.Split(tokenAddress, "::")
+		creatorAddress := tokenAddressSplit[0]
+		collectionName := tokenAddressSplit[1]
 		propertyVersion, err := strconv.Atoi(tokenAddressSplit[2])
 		if err != nil {
 			log.Error("get propertyVersion error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
@@ -760,7 +765,8 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 		}
 		for tokenId, nftInfo := range tokenIdMap {
 			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-				return client.Erc1155BalanceByTokenId(address, tokenId, propertyVersion)
+				return client.Erc1155BalanceByName(address, creatorAddress, collectionName, nftInfo.NftName, propertyVersion)
+				//return client.Erc1155BalanceByTokenId(address, tokenId, propertyVersion)
 			})
 			if err != nil {
 				log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))

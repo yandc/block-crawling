@@ -1,7 +1,7 @@
 package types
 
 type KaspaBadResp struct {
-	Detail string `json:"detail"`
+	Detail interface{} `json:"detail"`
 }
 
 type KaspaTransactionInfo struct {

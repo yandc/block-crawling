@@ -101,7 +101,7 @@ func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTrans
 		rets := strings.Split(k, ":")
 		if len(rets) >= 3 {
 			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-				cli,_ := getETHClient(client.url)
+				cli, _ := getETHClient(client.url)
 				defer cli.Close()
 				return cli.NonceAt(ctx, common.HexToAddress(rets[2]), nil)
 			})
@@ -593,6 +593,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			nftInfo = &v1.GetNftReply_NftInfoResp{
 				TokenAddress: tokenAddress,
 				TokenId:      tokenId,
+				NftName:      tokenInfo.ItemName,
 				TokenType:    tokenType,
 			}
 		}
