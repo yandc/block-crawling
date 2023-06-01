@@ -7,6 +7,8 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -16,6 +18,8 @@ import (
 var NotFound = errors.New("not found")
 var TransactionNotFound = errors.New("transaction not found")
 var BlockNotFound = errors.New("block not found")
+
+var forkedDelNotifiedAt = &sync.Map{}
 
 // NotifyForkedDelete notify lark when delete rows when forked.
 func NotifyForkedDelete(chainName string, blockNumber uint64, nRows int64) {
@@ -39,6 +43,18 @@ func NotifyForkedError(chainName string, err error) bool {
 	if err == chain.ErrForkedZeroBlockNumber {
 		alarmMsg = fmt.Sprintf("请注意： %s 链产生分叉，但是获取块高为 0", chainName)
 	} else if err, ok := err.(*chain.ForkDeltaOverflow); ok {
+		if err.SafelyDelta == 0 {
+			return true
+		}
+		if v, ok := forkedDelNotifiedAt.Load(chainName); ok {
+			notifiedAt := v.(int64)
+			if time.Since(time.Unix(notifiedAt, 0)) < time.Hour {
+				return true
+			}
+		}
+
+		forkedDelNotifiedAt.Store(chainName, time.Now().Unix())
+
 		alarmMsg = fmt.Sprintf("请注意： %s 链产生分叉，但是回滚到了安全块高以外，链上块高：%d，回滚到块高：%d，安全块高差：%d", chainName, err.ChainHeight, err.BlockNumber, err.SafelyDelta)
 	} else {
 		return false

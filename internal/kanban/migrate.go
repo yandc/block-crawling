@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/log"
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -63,6 +64,10 @@ func (s *MigrateScheduler) Start(ctx context.Context) error {
 				sleepUntilTomorrow()
 				if err := s.schudule(ctx); err != nil {
 					log.Errore("MIGRATE", err)
+					alarmMsg := fmt.Sprintf("请注意：%s链创建看板分表失败", s.options.ChainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					alarmOpts = biz.WithAlarmChannel("kanban")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 				}
 			}
 		}()

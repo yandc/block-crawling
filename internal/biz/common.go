@@ -147,6 +147,8 @@ type BroadcastRequest struct {
 	TxInput   string `json:"txInput"`
 	ChainName string `json:"chainName"`
 	ErrMsg    string `json:"errMsg"`
+	Stage     string `json:"stage"` // txParams：获取交易参数, broadcast：交易广播
+	NodeURL   string `json:"nodeUrl"`
 }
 
 type BroadcastResponse struct {
@@ -537,36 +539,50 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
-func NotifyBroadcastTxFailed(ctx context.Context, sessionID string, errMsg string) {
-	info, err := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, sessionID)
+func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest) {
 	var msg string
-	if err != nil {
-		log.Error(
-			"SEND ALARM OF BROADCATING TX FAILED",
-			zap.String("sessionId", sessionID),
-			zap.String("errMsg", errMsg),
-			zap.Error(err),
-		)
-		msg = fmt.Sprintf(
-			"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
-			sessionID,
-			"Unknown",
-			"Unknown",
-			errMsg,
-		)
+	alarmOpts := WithMsgLevel("FATAL")
+	if req.Stage == "" || req.Stage == "broadcast" {
+		sessionID := req.SessionId
+		errMsg := req.ErrMsg
+		info, err := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, sessionID)
+		if err != nil {
+			log.Error(
+				"SEND ALARM OF BROADCATING TX FAILED",
+				zap.String("sessionId", sessionID),
+				zap.String("errMsg", errMsg),
+				zap.Error(err),
+			)
+			msg = fmt.Sprintf(
+				"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
+				sessionID,
+				"Unknown",
+				"Unknown",
+				errMsg,
+			)
+		} else {
+			msg = fmt.Sprintf(
+				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
+				info.ChainName,
+				sessionID,
+				info.Address,
+				info.UserName,
+				errMsg,
+				info.TxInput,
+			)
+		}
+		alarmOpts = WithAlarmChannel("txinput")
 	} else {
 		msg = fmt.Sprintf(
-			"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
-			info.ChainName,
-			sessionID,
-			info.Address,
-			info.UserName,
-			errMsg,
-			info.TxInput,
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
+			req.ChainName,
+			req.NodeURL,
+			req.Address,
+			req.UserName,
+			req.ErrMsg,
 		)
+		alarmOpts = WithAlarmChannel("node-proxy")
 	}
-	alarmOpts := WithMsgLevel("FATAL")
-	alarmOpts = WithAlarmChannel("txinput")
 	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 }
 

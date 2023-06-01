@@ -132,6 +132,8 @@ lark:
       uids: [ dechen ]
     KASPA:
       uids: [ dongdong ]
+    kanban:
+      uids: [ wanghui ]
 
   lockNum: 64
 
