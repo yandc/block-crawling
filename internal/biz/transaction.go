@@ -285,6 +285,31 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
 	switch chainType {
+	case EVM:
+		if pbb.ContractAddress != "" {
+			pbb.ContractAddress = types2.HexToAddress(pbb.ContractAddress).Hex()
+		}
+		if pbb.FromAddress != "" {
+			pbb.FromAddress = types2.HexToAddress(pbb.FromAddress).Hex()
+			pendingNonceKey = ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
+		}
+		if strings.HasPrefix(pbb.ToAddress, "0x") {
+			pbb.ToAddress = types2.HexToAddress(pbb.ToAddress).Hex()
+		}
+	case /*APTOS, */ SUI:
+		if pbb.FromAddress != "" {
+			pbb.FromAddress = utils.AddressRemove0(pbb.FromAddress)
+		}
+		if pbb.ToAddress != "" {
+			pbb.ToAddress = utils.AddressRemove0(pbb.ToAddress)
+		}
+	case COSMOS:
+		if pbb.ContractAddress != "" {
+			pbb.ContractAddress = utils.AddressIbcToLower(pbb.ContractAddress)
+		}
+	}
+
+	switch chainType {
 	case CASPER:
 		casperRecord := &data.CsprTransactionRecord{
 			BlockHash:       pbb.BlockHash,
@@ -389,17 +414,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			nonce = int64(nonceInt)
 		}
 
-		if pbb.ContractAddress != "" {
-			pbb.ContractAddress = types2.HexToAddress(pbb.ContractAddress).Hex()
-		}
-		if pbb.FromAddress != "" {
-			pbb.FromAddress = types2.HexToAddress(pbb.FromAddress).Hex()
-			pendingNonceKey = ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
-		}
-		if strings.HasPrefix(pbb.ToAddress, "0x") {
-			pbb.ToAddress = types2.HexToAddress(pbb.ToAddress).Hex()
-		}
-
 		evmTransactionRecord := &data.EvmTransactionRecord{
 			BlockHash:            pbb.BlockHash,
 			BlockNumber:          int(pbb.BlockNumber),
@@ -491,16 +505,13 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			nonce = int64(nonceInt)
 		}
 
-		fromAddress := utils.AddressRemove0(pbb.FromAddress)
-		toAddress := utils.AddressRemove0(pbb.ToAddress)
-
 		aptRecord := &data.AptTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
 			Nonce:           nonce,
 			TransactionHash: pbb.TransactionHash,
-			FromAddress:     fromAddress,
-			ToAddress:       toAddress,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
 			FromUid:         pbb.Uid,
 			FeeAmount:       fa,
 			Amount:          a,
@@ -525,13 +536,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
-		fromAddress := utils.AddressRemove0(pbb.FromAddress)
-		toAddress := utils.AddressRemove0(pbb.ToAddress)
-
 		suiRecord := &data.SuiTransactionRecord{
 			TransactionHash: pbb.TransactionHash,
-			FromAddress:     fromAddress,
-			ToAddress:       toAddress,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
 			FromUid:         pbb.Uid,
 			FeeAmount:       fa,
 			Amount:          a,
@@ -627,10 +635,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["sequence_number"])
 			nonce = int64(nonceInt)
-		}
-
-		if pbb.ContractAddress != "" {
-			pbb.ContractAddress = utils.AddressIbcToLower(pbb.ContractAddress)
 		}
 
 		atomRecord := &data.AtomTransactionRecord{
@@ -819,7 +823,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
 		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
 		if req.Address != "" {
@@ -1042,7 +1046,7 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 	case EVM:
 		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
 		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
 		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
 	}
@@ -1079,6 +1083,10 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		}
 		if req.FromAddress != "" {
 			req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
+		}
+	case /*APTOS, */ SUI:
+		if req.FromAddress != "" {
+			req.FromAddress = utils.AddressRemove0(req.FromAddress)
 		}
 	}
 
@@ -1119,13 +1127,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case EVM:
-				if req.ContractAddress != "" {
-					req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
-				}
-				if req.FromAddress != "" {
-					req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
-				}
-
 				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && evm != nil {
 					var r *pb.TransactionRecord
@@ -1193,10 +1194,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case APTOS:
-				if req.FromAddress != "" {
-					req.FromAddress = utils.AddressRemove0(req.FromAddress)
-				}
-
 				apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && apt != nil {
 					var r *pb.TransactionRecord
@@ -1212,10 +1209,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case SUI:
-				if req.FromAddress != "" {
-					req.FromAddress = utils.AddressRemove0(req.FromAddress)
-				}
-
 				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && sui != nil {
 					var r *pb.TransactionRecord
@@ -1266,7 +1259,7 @@ func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
@@ -1321,7 +1314,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
@@ -1454,7 +1447,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
@@ -1638,7 +1631,7 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
@@ -1781,7 +1774,7 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
@@ -1852,7 +1845,7 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
@@ -1952,7 +1945,7 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 		if req.TokenAddress != "" {
 			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
 		}
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}
@@ -2249,6 +2242,17 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		chainType := ChainNameType[chainName]
 
 		switch chainType {
+		case EVM:
+			if add != "" {
+				add = types2.HexToAddress(add).Hex()
+			}
+		case /*APTOS, */ SUI:
+			if add != "" {
+				add = utils.AddressRemove0(add)
+			}
+		}
+
+		switch chainType {
 		case POLKADOT:
 			recordList, err := data.DotTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
 			if err == nil {
@@ -2282,9 +2286,6 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				return nil, err
 			}
 		case EVM:
-			if add != "" {
-				add = types2.HexToAddress(add).Hex()
-			}
 			recordList, err := data.EvmTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
 			if err == nil {
 				err = utils.CopyProperties(recordList, &list)
@@ -2309,9 +2310,6 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				return nil, err
 			}
 		case APTOS:
-			if add != "" {
-				add = utils.AddressRemove0(add)
-			}
 			recordList, err := data.AptTransactionRecordRepoClient.PendingByAddress(ctx, GetTableName(chainName), add)
 			if err == nil {
 				err = utils.CopyProperties(recordList, &list)
@@ -2410,7 +2408,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				utv[tokenAddress] = totalToken
 				userAssetTokenDecimalResult[addChainName] = utv
 
-			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, REGISTERTOKEN,DIRECTTRANSFERNFTSWITCH:
+			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH:
 				if record.FromAddress == add {
 					oldTotal := userAssetMap[addChainName]
 					totalAmount := oldTotal.Sub(feeAmount)
@@ -2477,7 +2475,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		for i := range req.Assets {
 			req.Assets[i].TokenAddress = types2.HexToAddress(req.Assets[i].TokenAddress).Hex()
 		}
-	case APTOS, SUI:
+	case /*APTOS, */ SUI:
 		if req.Address != "" {
 			req.Address = utils.AddressRemove0(req.Address)
 		}

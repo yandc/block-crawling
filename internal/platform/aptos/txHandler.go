@@ -106,6 +106,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
+			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -114,6 +115,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
+			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -291,6 +293,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		contractAddress = creatorAddress + "::" + collectionName + "::" + propertyVersion
 
 		if fromAddress != "" {
+			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -299,6 +302,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
+			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -354,6 +358,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			if tokenInfo.TokenId == "" {
 				tokenInfo.TokenId = itemName
+			}
+			if tokenInfo.ItemName == "" {
+				tokenInfo.ItemName = itemName
 			}
 		}
 		aptosMap := map[string]interface{}{
@@ -421,6 +428,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if fromAddress != "" {
+			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -429,6 +437,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if toAddress != "" {
+			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -633,6 +642,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if fromAddress != "" {
+				fromAddress = utils.AddressAdd0(fromAddress)
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 				if err != nil {
 					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -641,6 +651,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 
 			if toAddress != "" {
+				toAddress = utils.AddressAdd0(toAddress)
 				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 				if err != nil {
 					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -672,8 +683,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					if tokenInfo.TokenType == "" {
 						tokenInfo.TokenType = tokenType
 					}
-					if tokenType == biz.APTOSNFT && tokenInfo.TokenId == "" {
-						tokenInfo.TokenId = itemName
+					if tokenType == biz.APTOSNFT {
+						if tokenInfo.TokenId == "" {
+							tokenInfo.TokenId = itemName
+						}
+						if tokenInfo.ItemName == "" {
+							tokenInfo.ItemName = itemName
+						}
 					}
 				}
 			}

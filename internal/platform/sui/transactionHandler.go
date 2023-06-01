@@ -396,10 +396,13 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 		if tokenType != biz.SUINFT {
 			continue
 		}
+		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
+			continue
+		}
+
 		tokenId := tokenInfo.TokenId
 		tokenAddress := tokenInfo.Address
-
-		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {
+		if tokenAddress == "" || tokenId == "" {
 			continue
 		}
 		nftInfo, err := biz.GetRawNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
@@ -415,6 +418,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			nftInfo = &v1.GetNftReply_NftInfoResp{
 				TokenAddress: tokenAddress,
 				TokenId:      tokenId,
+				NftName:      tokenInfo.ItemName,
 				TokenType:    tokenType,
 			}
 		}
