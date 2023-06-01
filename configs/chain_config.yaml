@@ -566,7 +566,6 @@ platform:
       - https://apilist.tronscanapi.com/api/
 #      - https://apilist.tronscanapi.com/api/internal-transaction?limit=20&start=0&address=TSiZHxqMsbsDL5o63Czaf9DT71CEuxqv5R
 
-
   Solana:
     blockExplorerAddrUrl: https://solscan.io/account/
     blockExplorerTxUrl: https://solscan.io/tx/
@@ -616,6 +615,7 @@ platform:
       - https://solana-mainnet.g.alchemy.com/v2/wyuFXpGqrGkBFAuyWH8vlUUk_eUhXAFI
       - https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7
     httpURL:
+      - https://public-api.solanabeach.io
       - https://api.solscan.io
     symbol: Solana
     type: SOL
