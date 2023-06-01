@@ -412,10 +412,6 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		}
 	}()
 
-	var starIndex = 0
-	url := urls[0]
-	url = url + address + "/txs?"
-
 	req := &pb.PageListRequest{
 		Address:  address,
 		OrderBy:  "block_number desc",
@@ -436,6 +432,10 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
+
+	var starIndex = 0
+	url := urls[0]
+	url = url + address + "/txs?"
 
 	var chainRecords []*CosmosBrowserInfo
 chainFlag:
@@ -531,6 +531,15 @@ type SolanaBrowserInfo struct {
 	} `json:"parsedInstruction"`
 }
 
+type SolanaBeachBrowserInfo struct {
+	TransactionHash string `json:"transactionHash"`
+	BlockNumber     int    `json:"blockNumber"`
+	Blocktime       struct {
+		Absolute int `json:"absolute"`
+		Relative int `json:"relative"`
+	} `json:"blocktime"`
+}
+
 func SolanaGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -547,10 +556,6 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			return
 		}
 	}()
-
-	var beforeTxHash string
-	url := urls[0]
-	url = url + "/account/transaction?address=" + address
 
 	req := &pb.PageListRequest{
 		Address:  address,
@@ -573,23 +578,126 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
+	var solTransactionRecordList []*data.SolTransactionRecord
+	for _, url := range urls {
+		if url == "https://public-api.solanabeach.io" {
+			solTransactionRecordList, err = getRecordBySolanaBeach(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
+		} else if url == "https://api.solscan.io" {
+			solTransactionRecordList, err = getRecordBySolscan(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
+		}
+
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
+		return err
+	}
+
+	if len(solTransactionRecordList) > 0 {
+		_, err = data.SolTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), solTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+func getRecordBySolanaBeach(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
+	var cursor int
+	var beforeTxHash string
+	url = url + "/v1/account/" + address + "/transactions?"
+	var chainRecords []*SolanaBeachBrowserInfo
+chainFlag:
+	for {
+		var out []*SolanaBeachBrowserInfo
+		reqUrl := url + "cursor=" + strconv.Itoa(cursor) + "%2C0&before=" + beforeTxHash
+
+		err := httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out {
+			txHash := browserInfo.TransactionHash
+			txHeight := browserInfo.BlockNumber
+			if txHeight < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		cursor = out[dataLen-1].BlockNumber
+		beforeTxHash = out[dataLen-1].TransactionHash
+	}
+
+	var solTransactionRecordList []*data.SolTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.TransactionHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		solRecord := &data.SolTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		solTransactionRecordList = append(solTransactionRecordList, solRecord)
+	}
+
+	return solTransactionRecordList, nil
+}
+
+func getRecordBySolscan(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
+	var beforeTxHash string
+	url = url + "/account/transaction?address=" + address
+
 	var chainRecords []*SolanaBrowserInfo
 chainFlag:
 	for {
 		var out SolanaBrowserResponse
 		reqUrl := url + "&before=" + beforeTxHash
 
-		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		err := httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
-			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
 		}
 		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
-			break
+			break*/
 		}
 
 		dataLen := len(out.Data)
@@ -627,19 +735,7 @@ chainFlag:
 		}
 		solTransactionRecordList = append(solTransactionRecordList, solRecord)
 	}
-
-	if len(solTransactionRecordList) > 0 {
-		_, err = data.SolTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), solTransactionRecordList)
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
-			return err
-		}
-	}
-
-	return
+	return solTransactionRecordList, nil
 }
 
 type TokenRequest struct {
@@ -679,9 +775,6 @@ func AptosGetTxByAddress(chainName string, address string, urls []string) (err e
 		}
 	}()
 
-	var starIndex = 0
-	url := urls[0]
-
 	req := &pb.PageListRequest{
 		Address:  address,
 		OrderBy:  "block_number desc",
@@ -700,6 +793,9 @@ func AptosGetTxByAddress(chainName string, address string, urls []string) (err e
 	if len(dbLastRecords) > 0 {
 		dbLastRecordVersion = dbLastRecords[0].TransactionVersion
 	}
+
+	var starIndex = 0
+	url := urls[0]
 
 	var chainRecords []*AptosBrowserInfo
 chainFlag:
@@ -833,10 +929,6 @@ func StarcoinGetTxByAddress(chainName string, address string, urls []string) (er
 		}
 	}()
 
-	var pageNum = 1
-	url := urls[0]
-	url = url + "/transaction/address/main/" + address + "/page/"
-
 	req := &pb.PageListRequest{
 		Address:  address,
 		OrderBy:  "block_number desc",
@@ -857,6 +949,10 @@ func StarcoinGetTxByAddress(chainName string, address string, urls []string) (er
 		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
+
+	var pageNum = 1
+	url := urls[0]
+	url = url + "/transaction/address/main/" + address + "/page/"
 
 	var chainRecords []*StarcoinBrowserInfo
 chainFlag:
@@ -2165,8 +2261,6 @@ func SuiGetTxByAddress(chainName string, address string, urls []string) (err err
 		}
 	}()
 
-	url := urls[0]
-
 	req := &pb.PageListRequest{
 		Address:  address,
 		OrderBy:  "block_number desc",
@@ -2187,6 +2281,8 @@ func SuiGetTxByAddress(chainName string, address string, urls []string) (err err
 		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
+
+	url := urls[0]
 
 	var chainRecords []*SuiBrowserInfo
 	chainRecordMap := make(map[string]*SuiBrowserInfo)

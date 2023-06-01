@@ -167,9 +167,10 @@ func GetUseCloudscraper(url string, out interface{}, timeout *time.Duration) (er
 		return
 	}
 	options := cycletls.Options{
-		Headers: map[string]string{"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
+		Headers: map[string]string{"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
 			"Accept":       "application/json",
-			"Content-Type": "application/json"},
+			"Content-Type": "application/json",
+		},
 
 		//Proxy:           "http://127.0.0.1:7890",
 		Timeout:         timeoutInt,
