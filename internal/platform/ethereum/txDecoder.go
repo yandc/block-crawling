@@ -141,12 +141,16 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	meta := job.meta
 	receipt := job.receipt
 
+	if receipt.ContractAddress != "" && receipt.To == "" {
+		meta.TransactionType = biz.CREATECONTRACT
+	}
+
 	var feeAmount decimal.Decimal
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
 	var eventLogs []types.EventLogUid
 	var contractAddress, tokenId string
-	if meta.TransactionType != biz.NATIVE {
+	if meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CREATECONTRACT {
 		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
 	}
 	status := biz.PENDING
@@ -159,7 +163,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
-		cli,_ := getETHClient(client.url)
+		cli, _ := getETHClient(client.url)
 		defer cli.Close()
 		codeAt, err := cli.CodeAt(context.Background(), common.HexToAddress(toAddress), nil)
 		if err != nil {
@@ -1337,7 +1341,7 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	}
 
 	result1, err := ExecuteRetry(h.chainName, func(client Client) (interface{}, error) {
-		cli,_ := getETHClient(client.url)
+		cli, _ := getETHClient(client.url)
 		defer cli.Close()
 		return cli.NonceAt(ctx, common.HexToAddress(record.FromAddress), nil)
 	})

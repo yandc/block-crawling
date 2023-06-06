@@ -61,7 +61,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	}
 	for _, transactionType := range req.TransactionTypeList {
 		if transactionType == biz.OTHER {
-			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH)
+			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT)
 			break
 		}
 	}
