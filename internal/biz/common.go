@@ -96,6 +96,7 @@ const (
 	TRANSFERNFT             = "transferNFT"
 	APPROVENFT              = "approveNFT"
 	CONTRACT                = "contract"
+	CREATECONTRACT          = "createContract"
 	EVENTLOG                = "eventLog"
 	CREATEACCOUNT           = "createAccount"
 	REGISTERTOKEN           = "registerToken"
