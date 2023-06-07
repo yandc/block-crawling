@@ -58,6 +58,7 @@ func EVMRecordIntoTxRecord(item *data.EvmTransactionRecord) *TxRecord {
 		Status:          item.Status,
 		ContractAddress: item.ContractAddress,
 		TransactionType: item.TransactionType,
+		Data:            item.Data,
 	}
 }
 

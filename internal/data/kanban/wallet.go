@@ -112,6 +112,7 @@ type TxRecord struct {
 	Status          string
 	ContractAddress string
 	TransactionType string
+	Data            string
 }
 
 func (r *TxRecord) IntoContracts() []*WalletContractRecord {
@@ -178,13 +179,21 @@ func (r *TxRecord) IntoDaySummary() []*WalletDaySummaryRecord {
 			UpdatedAt:        time.Now().Unix(),
 		})
 	} else {
+		amount := decimal.Zero
+		if r.TransactionType == "contract" {
+			// Transfer without token info would set transaction type to contract.
+			// See: https://gitlab.bixin.com/mili/block-crawling/-/blob/d8b746a8e8b2fa0b0fd55a19706e5d05761b6aad/internal/platform/ethereum/txDecoder.go#L268-273
+			if !(len(r.Data) >= 128 && r.Data[:8] == "a9059cbb") {
+				amount = r.Amount
+			}
+		}
 		results = append(results, &WalletDaySummaryRecord{
 			Address:          r.FromAddress,
 			Sharding:         TimeSharding(r.TxTime),
 			FirstTradeTime:   r.TxTime,
 			TotalTxNum:       1,
 			TotalTxInAmount:  decimal.Zero,
-			TotalTxOutAmount: decimal.Zero,
+			TotalTxOutAmount: amount,
 			TotalTxContract:  1,
 			Denomination:     DenominationNative,
 			CreatedAt:        time.Now().Unix(),
