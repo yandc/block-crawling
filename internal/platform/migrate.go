@@ -4484,12 +4484,6 @@ func HandleTokenInfo() {
 					tokenParam.TokenAddress = types2.HexToAddress(tokenParam.TokenAddress).Hex()
 				}
 			}
-		case biz.APTOS:
-			for _, tokenParam := range tokenParams {
-				if tokenParam.TokenAddress != "" {
-					tokenParam.TokenAddress = utils.AddressRemove0(tokenParam.TokenAddress)
-				}
-			}
 		}
 		/*for _, tokenParam := range tokenParams {
 			fmt.Printf("('" + chainName + "', '" + tokenParam.TokenAddress + "', %v),\n", tokenParam.OldDecimals)
@@ -4832,7 +4826,7 @@ func DeleteAsset() {
 				case biz.APTOS:
 					address := userAsset.Address
 					if userAsset.Address != "" {
-						address = utils.AddressRemove0(address)
+						address = utils.AddressAdd0(address)
 					}
 					if address != userAsset.Address {
 						log.Info("DELETING USER ASSET", zap.String("chain", userAsset.ChainName), zap.String("address", userAsset.Address), zap.String("tokenAddress", userAsset.TokenAddress))

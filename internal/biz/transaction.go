@@ -296,13 +296,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		if strings.HasPrefix(pbb.ToAddress, "0x") {
 			pbb.ToAddress = types2.HexToAddress(pbb.ToAddress).Hex()
 		}
-	case /*APTOS, */ SUI:
-		if pbb.FromAddress != "" {
-			pbb.FromAddress = utils.AddressRemove0(pbb.FromAddress)
-		}
-		if pbb.ToAddress != "" {
-			pbb.ToAddress = utils.AddressRemove0(pbb.ToAddress)
-		}
 	case COSMOS:
 		if pbb.ContractAddress != "" {
 			pbb.ContractAddress = utils.AddressIbcToLower(pbb.ContractAddress)
@@ -823,12 +816,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-	case /*APTOS, */ SUI:
-		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
-		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
-		}
 	case COSMOS:
 		if req.ContractAddress != "" {
 			req.ContractAddress = utils.AddressIbcToLower(req.ContractAddress)
@@ -1046,9 +1033,6 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 	case EVM:
 		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
 		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
-	case /*APTOS, */ SUI:
-		req.FromAddressList = utils.AddressListRemove0(req.FromAddressList)
-		req.ToAddressList = utils.AddressListRemove0(req.ToAddressList)
 	}
 
 	switch chainType {
@@ -1083,10 +1067,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		}
 		if req.FromAddress != "" {
 			req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
-		}
-	case /*APTOS, */ SUI:
-		if req.FromAddress != "" {
-			req.FromAddress = utils.AddressRemove0(req.FromAddress)
 		}
 	}
 
@@ -1259,10 +1239,6 @@ func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-	case /*APTOS, */ SUI:
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
-		}
 	}
 
 	doneNonceKey := ADDRESS_DONE_NONCE + req.ChainName + ":" + req.Address
@@ -1314,8 +1290,6 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case /*APTOS, */ SUI:
-		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
@@ -1447,8 +1421,6 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case /*APTOS, */ SUI:
-		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
@@ -1631,10 +1603,6 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case /*APTOS, */ SUI:
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
-		}
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
@@ -1774,8 +1742,6 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case /*APTOS, */ SUI:
-		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
@@ -1845,8 +1811,6 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
 		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
-	case /*APTOS, */ SUI:
-		req.AddressList = utils.AddressListRemove0(req.AddressList)
 	case COSMOS:
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
@@ -1944,10 +1908,6 @@ func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAsset
 		}
 		if req.TokenAddress != "" {
 			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
-		}
-	case /*APTOS, */ SUI:
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
 		}
 	case COSMOS:
 		if req.TokenAddress != "" {
@@ -2246,10 +2206,6 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			if add != "" {
 				add = types2.HexToAddress(add).Hex()
 			}
-		case /*APTOS, */ SUI:
-			if add != "" {
-				add = utils.AddressRemove0(add)
-			}
 		}
 
 		switch chainType {
@@ -2474,10 +2430,6 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		}
 		for i := range req.Assets {
 			req.Assets[i].TokenAddress = types2.HexToAddress(req.Assets[i].TokenAddress).Hex()
-		}
-	case /*APTOS, */ SUI:
-		if req.Address != "" {
-			req.Address = utils.AddressRemove0(req.Address)
 		}
 	case COSMOS:
 		for i := range req.Assets {

@@ -363,12 +363,6 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 		return false, "", nil
 	}
 
-	chainType := ChainNameType[chainName]
-	switch chainType {
-	case /*APTOS, */ SUI:
-		address = utils.AddressAdd0(address)
-	}
-
 	enable, uid, err := UserAddressSwitch(address)
 	if err != nil {
 		// redis出错 接入lark报警
