@@ -298,8 +298,10 @@ func (p *txRecordParser) Save(ctx context.Context, chainName string, sharding st
 	batchSize := 100
 	counterBatch := make([]*kanban.WalletContractRecord, 0, batchSize)
 	saved := 0
-	for _, c := range p.contracts {
+	for k, c := range p.contracts {
 		counterBatch = append(counterBatch, c)
+
+		delete(p.contracts, k)
 		if len(counterBatch) >= batchSize {
 
 			if err := p.wallet.BatchSaveContract(ctx, chainName, counterBatch); err != nil {
@@ -343,8 +345,9 @@ func (p *txRecordParser) Save(ctx context.Context, chainName string, sharding st
 
 	saved = 0
 	summaryBatch := make([]*kanban.WalletDaySummaryRecord, 0, batchSize)
-	for _, s := range p.summaries {
+	for k, s := range p.summaries {
 		summaryBatch = append(summaryBatch, s)
+		delete(p.summaries, k)
 		if len(summaryBatch) >= batchSize {
 			if err := p.wallet.BatchSaveDaySummary(ctx, chainName, summaryBatch); err != nil {
 				log.Error("SAVE DAY SUMMARY FAILED WITH ERROR", zap.Error(err), zap.String("chainName", chainName))
