@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -49,6 +50,13 @@ func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) 
 
 	return unspents, err
 
+}
+func GetUnspentUtxoByBlockcypher(chainName string, address string) (types.BlockcypherUtxo, error) {
+	url := "https://api.blockcypher.com/v1/" + strings.ToLower(chainName) + "/main/addrs/" + address +"?unspentOnly=true"
+	var unspents types.BlockcypherUtxo
+	timeout := 10_000 * time.Millisecond
+	err := httpclient.HttpsGetForm(url, nil, &unspents, &timeout)
+	return unspents, err
 }
 
 func parseKeyFromNodeURL(nodeURL string) (key, restURL string) {

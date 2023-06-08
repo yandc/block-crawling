@@ -73,10 +73,13 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = StarcoinGetTxByAddress(chainName, address, urls)
 	case "DOGE":
 		err = DogeGetTxByAddress(chainName, address, urls)
+		err = UtxoByAddress(chainName, address)
 	case "Polkadot":
 		err = DotGetTxByAddress(chainName, address, urls)
 	case "BTC":
 		err = BTCGetTxByAddress(chainName, address, urls)
+		err = UtxoByAddress(chainName, address)
+	case "LTC":
 		err = UtxoByAddress(chainName, address)
 	case "TRX":
 		err = TrxGetTxByAddress(chainName, address, urls)
@@ -1877,7 +1880,6 @@ func UtxoByAddress(chainName string, address string) (err error) {
 			return
 		}
 	}()
-
 	var flag string
 	if chainName == "BTC" {
 		flag = "/bitcoin/mainnet/"
