@@ -2377,40 +2377,46 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			}
 		}
 	}
+	if len(userAssetMap) == 0 {
+		for _, apa := range req.ChainAndAddressList {
+			add := apa.Address
+			chainName := apa.ChainName
+			result[chainName+"-"+strings.ToLower(add)] = CreatePendingInfo("0", "0", "1", nil)
+		}
+	} else {
+		for key, userAsset := range userAssetMap {
+			decimalAmount := userAssetDecimalResult[key]
+			flag := decimalAmount[0:1] == "-"
 
-	for key, userAsset := range userAssetMap {
-		decimalAmount := userAssetDecimalResult[key]
-		flag := decimalAmount[0:1] == "-"
+			modes := strings.Split(key, "-")
+			chainName := modes[0]
+			address := strings.ToLower(modes[1])
 
-		modes := strings.Split(key, "-")
-		chainName := modes[0]
-		address := strings.ToLower(modes[1])
+			tokenMap := userAssetTokenMap[key]
+			var tokenList = make(map[string]PendingTokenInfo)
+			for tokenAddress, tokenAsset := range tokenMap {
+				decimalTokenAsset := userAssetTokenDecimalResult[key][tokenAddress]
 
-		tokenMap := userAssetTokenMap[key]
-		var tokenList = make(map[string]PendingTokenInfo)
-		for tokenAddress, tokenAsset := range tokenMap {
-			decimalTokenAsset := userAssetTokenDecimalResult[key][tokenAddress]
-
-			ft := "1"
-			tokenFlag := decimalTokenAsset[0:1] == "-"
-			tokenAmount := tokenAsset.String()
-			if tokenFlag {
-				tokenAmount = tokenAmount[1:]
-				decimalTokenAsset = decimalTokenAsset[1:]
-				ft = "0"
+				ft := "1"
+				tokenFlag := decimalTokenAsset[0:1] == "-"
+				tokenAmount := tokenAsset.String()
+				if tokenFlag {
+					tokenAmount = tokenAmount[1:]
+					decimalTokenAsset = decimalTokenAsset[1:]
+					ft = "0"
+				}
+				tokenList[strings.ToLower(tokenAddress)] = CreatePendingTokenInfo(tokenAmount, decimalTokenAsset, ft)
 			}
-			tokenList[strings.ToLower(tokenAddress)] = CreatePendingTokenInfo(tokenAmount, decimalTokenAsset, ft)
+			amount := userAsset.String()
+			fat := "1"
+			if flag {
+				amount = userAsset.String()[1:]
+				decimalAmount = decimalAmount[1:]
+				fat = "0"
+			}
+			result[chainName+"-"+address] = CreatePendingInfo(amount, decimalAmount, fat, tokenList)
 		}
-		amount := userAsset.String()
-		fat := "1"
-		if flag {
-			amount = userAsset.String()[1:]
-			decimalAmount = decimalAmount[1:]
-			fat = "0"
-		}
-		result[chainName+"-"+address] = CreatePendingInfo(amount, decimalAmount, fat, tokenList)
 	}
-
 	return &AddressPendingAmountResponse{
 		Result: result,
 	}, nil
