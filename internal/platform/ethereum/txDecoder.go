@@ -938,6 +938,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}*/
 			tokenAddress = ""
 		} else if topic0 == OPTIMISM_WITHDRAWETH {
+			//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb#eventlog
 			//无 转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()
 			amount = new(big.Int).SetBytes(log_.Data)
