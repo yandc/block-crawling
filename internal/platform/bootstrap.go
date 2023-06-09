@@ -159,7 +159,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Optimism", "Klaytn", "Aptos", "SUITEST"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
@@ -459,17 +459,16 @@ func customChainRun() {
 			var mc int32 = 2
 			var scbd int32 = 500
 			cp := &conf.PlatInfo{
-				Chain:          chainInfo.Chain,
-				Type:           chainInfo.Type,
-				RpcURL:         chainInfo.Urls,
-				ChainId:        chainInfo.ChainId,
-				Decimal:        int32(chainInfo.Decimals),
-				NativeCurrency: chainInfo.CurrencyName,
-				Source:         biz.SOURCE_REMOTE,
-				MonitorHeightAlarmThr: &mhat,
-				MaxConcurrency : &mc,
+				Chain:                      chainInfo.Chain,
+				Type:                       chainInfo.Type,
+				RpcURL:                     chainInfo.Urls,
+				ChainId:                    chainInfo.ChainId,
+				Decimal:                    int32(chainInfo.Decimals),
+				NativeCurrency:             chainInfo.CurrencyName,
+				Source:                     biz.SOURCE_REMOTE,
+				MonitorHeightAlarmThr:      &mhat,
+				MaxConcurrency:             &mc,
 				SafelyConcurrentBlockDelta: &scbd,
-
 			}
 			var PlatInfos []*conf.PlatInfo
 			PlatInfos = append(PlatInfos, cp)

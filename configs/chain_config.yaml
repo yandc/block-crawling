@@ -583,15 +583,17 @@ platform:
     proxyCacheTime: 15
     rpcURL:
       # - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c/
+      # - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678/
       # - https://sparkling-alien-spring.solana-mainnet.discover.quiknode.pro/78c69f217ad5f25bae7f6aa753f4985d826a0767/
       # - https://weathered-omniscient-shard.solana-mainnet.discover.quiknode.pro/da0ac540b7559edcb003d470af1c8c60d4dc0723/
-      # - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678/
       # - https://solana-mainnet.gateway.pokt.network/v1/lb/258bda9f3bb341d0eb211105
       # - https://solana-mainnet.gateway.pokt.network/v1/lb/9455d100ac9dbe2cbd786fc2
       # - https://solana-mainnet.gateway.pokt.network/v1/lb/9c7e3e56e3afc89dcbd3e9e9
 
       # - https://api.mainnet-beta.solana.com
       # - https://node.onekey.so/sol
+      # - https://docs-demo.solana-mainnet.quiknode.pro
+      # - https://try-rpc.mainnet.solana.blockdaemon.tech
       # - https://solana-api.projectserum.com
       # - https://solana-mainnet.phantom.tech/
       # - https://ssc-dao.genesysgo.net
@@ -788,41 +790,13 @@ platform:
     monitorHeightAlarmThr: 180
     httpURL:
 
-  Kaspa:
-#    blockExplorerAddrUrl: https://explorer.kaspa.org/address/
-#    blockExplorerTxUrl: https://explorer.kaspa.org/txs/
-#    blockExplorerUrl: https://explorer.kaspa.org/
-    blockExplorerAddrUrl: https://kas.fyi/address/
-    blockExplorerTxUrl: https://kas.fyi/transaction/
-    blockExplorerUrl: https://kas.fyi/
-    chain: Kaspa
-    chainId: ''
-    coinId: 111111
-    decimal: 8
-    fullName: Kaspa
-    getPriceKey: kaspa
-    handler: kaspa
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Kaspa.jpg
-    nativeCurrency: KAS
-    netType: main
-    proxyCacheTime: 0
-    rpcURL:
-      - https://api.kaspa.org
-    httpURL:
-      - https://api.kaspa.org
-    symbol: KAS
-    type: KASPA
-    safelyConcurrentBlockDelta: 50
-    maxConcurrency: 1
-    monitorHeightAlarmThr: 0
-
   Osmosis:
     blockExplorerUrl: https://www.mintscan.io/osmosis
     blockExplorerTxUrl: https://www.mintscan.io/osmosis/txs/
     blockExplorerAddrUrl: https://www.mintscan.io/osmosis/account/
     chain: Osmosis
     chainId: "osmosis-1"
-    coinId: 10000118
+    coinId: 118
     decimal: 6
     fullName: Cosmos
     getPriceKey: osmosis
@@ -1008,6 +982,34 @@ platform:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
     monitorHeightAlarmThr: 300
+
+  Kaspa:
+    #    blockExplorerAddrUrl: https://explorer.kaspa.org/address/
+    #    blockExplorerTxUrl: https://explorer.kaspa.org/txs/
+    #    blockExplorerUrl: https://explorer.kaspa.org/
+    blockExplorerAddrUrl: https://kas.fyi/address/
+    blockExplorerTxUrl: https://kas.fyi/transaction/
+    blockExplorerUrl: https://kas.fyi/
+    chain: Kaspa
+    chainId: ''
+    coinId: 111111
+    decimal: 8
+    fullName: Kaspa
+    getPriceKey: kaspa
+    handler: kaspa
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Kaspa.jpg
+    nativeCurrency: KAS
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://api.kaspa.org
+    httpURL:
+      - https://api.kaspa.org
+    symbol: KAS
+    type: KASPA
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 0
 
 platformTest:
   AptosTEST:
