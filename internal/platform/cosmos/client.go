@@ -40,6 +40,7 @@ type CosmosBadResp struct {
 	Code    int           `json:"code"`
 	Message string        `json:"message"`
 	Details []interface{} `json:"details"`
+	Error   string        `json:"error"`
 }
 
 type CosmosBalanceResp struct {
@@ -193,6 +194,7 @@ type Blockchain struct {
 		NotBondedTokens string `json:"not_bonded_tokens"`
 		BondedTokens    string `json:"bonded_tokens"`
 	} `json:"result"`
+	CosmosBadResp
 }
 
 func (c *Client) GetBlockNumber() (int, error) {
@@ -204,6 +206,12 @@ func (c *Client) GetBlockNumber() (int, error) {
 	err = c.getResponse(u, &chain)
 	if err != nil {
 		return 0, err
+	}
+	if chain.Message != "" {
+		return 0, errors.New(chain.Message)
+	}
+	if chain.Error != "" {
+		return 0, errors.New(chain.Error)
 	}
 	height, err := strconv.Atoi(chain.Height)
 	if err != nil {
