@@ -152,7 +152,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 	data := tx.Data()
 	if len(data) >= 68 && tx.To() != nil {
 		methodId := hex.EncodeToString(data[:4])
-		if methodId == "a9059cbb" || methodId == "095ea7b3" || methodId == "a22cb465" {
+		if methodId == "a9059cbb" || methodId == "095ea7b3" || methodId == "a22cb465" || methodId == "4782f779" {
 			toAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			amount := new(big.Int).SetBytes(data[36:])
 			if methodId == "a9059cbb" { // ERC20
@@ -161,6 +161,8 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				transactionType = biz.APPROVE
 			} else if methodId == "a22cb465" { // ERC721 or ERC1155
 				transactionType = biz.SETAPPROVALFORALL
+			}else if methodId =="4782f779"{
+				transactionType = biz.CONTRACT
 			}
 			value = amount.String()
 		} else if methodId == "23b872dd" { // ERC20 or ERC721
