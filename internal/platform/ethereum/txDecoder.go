@@ -687,6 +687,14 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					if amount.String() == "0" {
 						continue
 					}
+					//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d
+
+					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == receipt.To && strings.HasPrefix(h.chainName, "Fantom") {
+						log.Info("9999999",zap.Any(receipt.To,"0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == receipt.To),zap.Any(toAddress,toAddress == "0x0000000000000000000000000000000000000000"),zap.Any("",strings.HasPrefix(h.chainName, "Fantom")))
+						toAddress = common.HexToAddress(receipt.From).String()
+						log.Info("777777",zap.Any("li",toAddress))
+						//token.Address = ""
+					}
 				}
 				token.Amount = amount.String()
 			}
