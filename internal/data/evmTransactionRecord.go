@@ -928,7 +928,7 @@ func (r *EvmTransactionRecordRepoImpl) CursorListAll(ctx context.Context, tableN
 
 func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableName string, fromAddress string) (*EvmTransactionRecord, error) {
 	var evmTransactionRecord *EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in('success', 'fail') and from_address = ?", fromAddress).Order("nonce desc").Limit(1).Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in('success', 'fail') and transaction_type not in('transfer', 'eventLog') and from_address = ?", fromAddress).Order("nonce desc").Limit(1).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query last nonce from "+tableName+" failed", err)

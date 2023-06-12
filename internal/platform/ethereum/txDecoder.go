@@ -690,9 +690,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d
 
 					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == receipt.To && strings.HasPrefix(h.chainName, "Fantom") {
-						log.Info("9999999",zap.Any(receipt.To,"0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == receipt.To),zap.Any(toAddress,toAddress == "0x0000000000000000000000000000000000000000"),zap.Any("",strings.HasPrefix(h.chainName, "Fantom")))
+						log.Info("9999999", zap.Any(receipt.To, "0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == receipt.To), zap.Any(toAddress, toAddress == "0x0000000000000000000000000000000000000000"), zap.Any("", strings.HasPrefix(h.chainName, "Fantom")))
 						toAddress = common.HexToAddress(receipt.From).String()
-						log.Info("777777",zap.Any("li",toAddress))
+						log.Info("777777", zap.Any("li", toAddress))
 						//token.Address = ""
 					}
 				}
@@ -1325,17 +1325,14 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		zap.Int64("recordNonce", record.Nonce),
 	)
 
-	//判断nonce 是否小于 当前链上的nonce
+	//判断nonce 是否小于当前数据库中保存的nonce，需要排除掉transfer和eventLog类型的，transfer类型的有可能不是自己发送的，例如：https://etherscan.io/tx/0xfd16650aae9125b98c9dc9f78b2b04deed5279eeedabf72d254af3e9a881ffbf
 	result, err := data.EvmTransactionRecordRepoClient.FindLastNonce(nil, biz.GetTableName(h.chainName), record.FromAddress)
-	if err != nil {
-		return nil
-	}
-	if result != nil {
+	if err == nil && result != nil {
 		if record.TransactionHash == result.TransactionHash {
 			return nil
 		}
 		nonce := uint64(result.Nonce)
-		if uint64(record.Nonce) <= nonce {
+		if nonce > 0 && uint64(record.Nonce) <= nonce {
 			record.Status = biz.DROPPED_REPLACED
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
@@ -1349,6 +1346,7 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		}
 	}
 
+	//判断nonce 是否小于当前链上的nonce
 	result1, err := ExecuteRetry(h.chainName, func(client Client) (interface{}, error) {
 		cli, _ := getETHClient(client.url)
 		defer cli.Close()
