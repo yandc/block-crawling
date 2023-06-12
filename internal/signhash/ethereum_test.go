@@ -118,6 +118,57 @@ var (
 			},
 		},
 	}
+
+	signTypedDataV4IntChainId = map[string]interface{}{
+		"domain": map[string]interface{}{
+			"chainId":           5,
+			"name":              "Ether Mail",
+			"verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+			"version":           "1",
+		},
+		"message": map[string]interface{}{
+			"contents": "Hello, Bob!",
+			"from": map[string]interface{}{
+				"name": "Cow",
+				"wallets": []string{
+					"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+					"0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF",
+				},
+			},
+			"to": []map[string]interface{}{
+				{
+					"name": "Bob",
+					"wallets": []string{
+						"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+						"0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+						"0xB0B0b0b0b0b0B000000000000000000000000000",
+					},
+				},
+			},
+		},
+		"primaryType": "Mail",
+		"types": map[string]interface{}{
+			"EIP712Domain": []map[string]interface{}{
+				{"name": "name", "type": "string"},
+				{"name": "version", "type": "string"},
+				{"name": "chainId", "type": "uint256"},
+				{"name": "verifyingContract", "type": "address"},
+			},
+			"Group": []map[string]interface{}{
+				{"name": "name", "type": "string"},
+				{"name": "members", "type": "Person[]"},
+			},
+			"Mail": []map[string]interface{}{
+				{"name": "from", "type": "Person"},
+				{"name": "to", "type": "Person[]"},
+				{"name": "contents", "type": "string"},
+			},
+			"Person": []map[string]interface{}{
+				{"name": "name", "type": "string"},
+				{"name": "wallets", "type": "address[]"},
+			},
+		},
+	}
 )
 
 func TestEvmV1(t *testing.T) {
@@ -139,6 +190,7 @@ func TestEvmV1(t *testing.T) {
 func TestEvmV3(t *testing.T) {
 	byts, err := json.Marshal(signTypedDataV3)
 	assert.NoError(t, err)
+	sbyts, _ := json.Marshal(string(byts))
 	s := &evmSignHash{}
 	h, err := s.Hash(&SignMessageRequest{
 		SessionId:   "",
@@ -146,7 +198,7 @@ func TestEvmV3(t *testing.T) {
 		ChainName:   "",
 		ChainId:     chainId,
 		Application: "",
-		Message:     byts,
+		Message:     sbyts,
 	})
 	assert.NoError(t, err)
 	t.Log(h)
@@ -155,6 +207,7 @@ func TestEvmV3(t *testing.T) {
 func TestEvmV4(t *testing.T) {
 	byts, err := json.Marshal(signTypedDataV4)
 	assert.NoError(t, err)
+	sbyts, _ := json.Marshal(string(byts))
 	s := &evmSignHash{}
 	h, err := s.Hash(&SignMessageRequest{
 		SessionId:   "",
@@ -162,7 +215,24 @@ func TestEvmV4(t *testing.T) {
 		ChainName:   "",
 		ChainId:     chainId,
 		Application: "",
-		Message:     byts,
+		Message:     sbyts,
+	})
+	assert.NoError(t, err)
+	t.Log(h)
+}
+
+func TestEvmV4IntChainId(t *testing.T) {
+	byts, err := json.Marshal(signTypedDataV4IntChainId)
+	assert.NoError(t, err)
+	sbyts, _ := json.Marshal(string(byts))
+	s := &evmSignHash{}
+	h, err := s.Hash(&SignMessageRequest{
+		SessionId:   "",
+		Address:     "",
+		ChainName:   "",
+		ChainId:     chainId,
+		Application: "",
+		Message:     sbyts,
 	})
 	assert.NoError(t, err)
 	t.Log(h)
