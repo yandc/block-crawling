@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
@@ -191,12 +192,59 @@ func (s *evmSignHash) elementaryName(name string) string {
 	return name
 }
 
+type wrappedDataDomain struct {
+	apitypes.TypedDataDomain
+
+	ChainId json.RawMessage `json:"chainId"`
+}
+
+type wrappedTypedData struct {
+	TypedData
+
+	Domain wrappedDataDomain `json:"domain"`
+}
+
+func (w *wrappedTypedData) IntoTypedData() (TypedData, error) {
+	chainId, err := w.Domain.parseChainId()
+	if err != nil {
+		return apitypes.TypedData{}, err
+	}
+	return TypedData{
+		Types:       w.Types,
+		PrimaryType: w.PrimaryType,
+		Domain: apitypes.TypedDataDomain{
+			Name:              w.Domain.Name,
+			Version:           w.Domain.Version,
+			ChainId:           chainId,
+			VerifyingContract: w.Domain.VerifyingContract,
+			Salt:              w.Domain.Salt,
+		},
+		Message: w.Message,
+	}, nil
+}
+
+func (wd *wrappedDataDomain) parseChainId() (*math.HexOrDecimal256, error) {
+	var r *math.HexOrDecimal256
+	if err := json.Unmarshal(wd.ChainId, &r); err == nil {
+		return r, nil
+	}
+	var x int64
+	if err := json.Unmarshal(wd.ChainId, &x); err != nil {
+		return nil, err
+	}
+	return math.NewHexOrDecimal256(x), nil
+}
+
 func (s *evmSignHash) signTypedDataV3V4(v json.RawMessage) (string, error) {
-	var typedData TypedData
+	var typedData wrappedTypedData
 	if err := json.Unmarshal(v, &typedData); err != nil {
 		return "", err
 	}
-	hash, _, err := apitypes.TypedDataAndHash(typedData)
+	td, err := typedData.IntoTypedData()
+	if err != nil {
+		return "", err
+	}
+	hash, _, err := apitypes.TypedDataAndHash(td)
 	if err != nil {
 		return "", err
 	}
