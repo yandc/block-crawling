@@ -569,12 +569,13 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest) {
 		alarmOpts = WithAlarmChannel("txinput")
 	} else {
 		msg = fmt.Sprintf(
-			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
 			req.ChainName,
 			req.NodeURL,
 			req.Address,
 			req.UserName,
 			req.ErrMsg,
+			req.TxInput,
 		)
 		alarmOpts = WithAlarmChannel("node-proxy")
 	}
