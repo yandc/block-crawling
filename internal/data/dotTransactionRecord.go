@@ -156,6 +156,10 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"block_hash":       clause.Column{Table: "excluded", Name: "block_hash"},
 			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
 			"nonce":            clause.Column{Table: "excluded", Name: "nonce"},
 			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
@@ -600,6 +604,10 @@ func (r *DotTransactionRecordRepoImpl) UpdateStatus(ctx context.Context, tableNa
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
 			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
 			"status":           clause.Column{Table: "excluded", Name: "status"},
 			"updated_at":       gorm.Expr("excluded.updated_at"),

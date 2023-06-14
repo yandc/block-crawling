@@ -8,7 +8,6 @@ import (
 	"block-crawling/internal/types"
 	"fmt"
 	"github.com/shopspring/decimal"
-	"strconv"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -118,7 +117,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction) error {
 				BlockNumber: uint64(transaction.BlockNumber),
 				FromAddress: transfer.From,
 				ToAddress:   transfer.To,
-				Value:       strconv.Itoa(int(transfer.RawAmount)),
+				Value:       transfer.RawAmount.String(),
 				Raw:         transaction,
 			}
 			if transfer.Symbol == "DOT" {
@@ -140,7 +139,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction) error {
 			if transaction.Error != "" {
 				status = biz.FAIL
 			}
-			amount := strconv.Itoa(int(transfer.RawAmount))
+			amount := transfer.RawAmount.String()
 			a, _ := decimal.NewFromString(amount)
 			p1 := decimal.NewFromInt(10000000000)
 			f, _ := decimal.NewFromString(fmt.Sprintf("%f", transaction.Fee))
