@@ -113,7 +113,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 				BlockNumber: uint64(transaction.BlockNumber),
 				FromAddress: transfer.From,
 				ToAddress:   transfer.To,
-				Value:       strconv.Itoa(int(transfer.RawAmount)),
+				Value:       transfer.RawAmount.String(),
 				Raw:         transaction,
 			}
 			if transfer.Symbol == "DOT" {

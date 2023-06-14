@@ -1,5 +1,7 @@
 package types
 
+import "math/big"
+
 type PolkadotBlockInfo struct {
 	Error  string `json:"error"`
 	Header struct {
@@ -54,28 +56,15 @@ type NodeBlockInfo struct {
 
 type PolkadotTxInfo struct {
 	Error         string `json:"err"`
-	ChainID       int    `json:"chainID"`
-	Id            string `json:"id"`
-	ChainName     string `json:"chainName"`
 	ExtrinsicHash string `json:"extrinsicHash"`
 	ExtrinsicID   string `json:"extrinsicID"`
 	BlockNumber   int    `json:"blockNumber"`
 	Ts            int    `json:"ts"`
 	BlockHash     string `json:"blockHash"`
-	Signer        string `json:"signer"`
 	FromAddress   string `json:"fromAddress"`
-	Signature     struct {
-		Ed25519 string `json:"ed25519"`
-	} `json:"signature"`
-	Lifetime struct {
-		IsImmortal int `json:"isImmortal"`
-		Birth      int `json:"birth"`
-		Death      int `json:"death"`
-	} `json:"lifetime"`
 	Nonce     int     `json:"nonce"`
 	Tip       int     `json:"tip"`
 	Fee       float64 `json:"fee"`
-	Weight    int     `json:"weight"`
 	Transfers []struct {
 		EventID     string  `json:"eventID"`
 		Section     string  `json:"section"`
@@ -85,10 +74,8 @@ type PolkadotTxInfo struct {
 		FromAddress string  `json:"fromAddress"`
 		ToAddress   string  `json:"toAddress"`
 		Amount      float64 `json:"amount"`
-		RawAmount   int64   `json:"rawAmount"`
+		RawAmount   big.Int   `json:"rawAmount"`
 		Asset       string  `json:"asset"`
-		PriceUSD    float64 `json:"priceUSD"`
-		AmountUSD   float64 `json:"amountUSD"`
 		RawAsset    string  `json:"rawAsset"`
 		Symbol      string  `json:"symbol"`
 		Decimals    int     `json:"decimals"`
@@ -98,17 +85,9 @@ type PolkadotTxInfo struct {
 	FeeUSD          float64 `json:"feeUSD"`
 	TipUSD          int     `json:"tipUSD"`
 	PriceUSDCurrent float64 `json:"priceUSDCurrent"`
-	Result          int     `json:"result"`
 	Status          string  `json:"status"`
 	Section         string  `json:"section"`
 	Method          string  `json:"method"`
-	Params          struct {
-		Dest struct {
-			Id        string `json:"id"`
-			IdAddress string `json:"idAddress"`
-		} `json:"dest"`
-		Value int64 `json:"value"`
-	} `json:"params"`
 	Events []struct {
 		EventID  string        `json:"eventID"`
 		Docs     string        `json:"docs"`
@@ -180,6 +159,9 @@ type PolkadotAccountInfo struct {
 	} `json:"state"`
 }
 
+
+
+
 type ExtrinsicInfo struct {
 	ChainID       int    `json:"chainID"`
 	Id            string `json:"id"`
@@ -196,7 +178,6 @@ type ExtrinsicInfo struct {
 	} `json:"lifetime"`
 	Nonce     int     `json:"nonce"`
 	Fee       float64 `json:"fee"`
-	Weight    int64   `json:"weight"`
 	Transfers []struct {
 		EventID     string  `json:"eventID"`
 		Section     string  `json:"section"`
@@ -205,11 +186,8 @@ type ExtrinsicInfo struct {
 		To          string  `json:"to"`
 		FromAddress string  `json:"fromAddress"`
 		ToAddress   string  `json:"toAddress"`
-		Amount      float64 `json:"amount"`
-		RawAmount   int64   `json:"rawAmount"`
+		RawAmount   big.Int   `json:"rawAmount"`
 		Asset       string  `json:"asset"`
-		PriceUSD    float64 `json:"priceUSD"`
-		AmountUSD   float64 `json:"amountUSD"`
 		RawAsset    string  `json:"rawAsset"`
 		Symbol      string  `json:"symbol"`
 		Decimals    int     `json:"decimals"`
