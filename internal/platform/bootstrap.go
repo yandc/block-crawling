@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"context"
 	"errors"
 	"fmt"
@@ -84,27 +85,27 @@ func (b *Bootstrap) Start() {
 			log.Error("main panic:", zap.Any("", err))
 		}
 	}()
+
 	go func() {
 		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" {
 			return
 		}
-		go b.GetTransactions()
+		b.GetTransactions()
 	}()
 
 	// get inner memerypool
 	go func() {
-		go func(b *Bootstrap) {
-			log.Info("start main", zap.Any("platform", b))
-			// get result
-			go b.GetTransactionResultByTxhash()
+		time.Sleep(time.Duration(utils.RandInt32(0, 300)) * time.Second)
+		log.Info("start main", zap.Any("platform", b))
+		// get result
+		go b.GetTransactionResultByTxhash()
 
-			resultPlan := time.NewTicker(time.Duration(5) * time.Minute)
-			b.pending = resultPlan
-			for range resultPlan.C {
-				go b.GetTransactionResultByTxhash()
-				go b.Platform.MonitorHeight()
-			}
-		}(b)
+		resultPlan := time.NewTicker(time.Duration(5) * time.Minute)
+		b.pending = resultPlan
+		for range resultPlan.C {
+			go b.GetTransactionResultByTxhash()
+			go b.Platform.MonitorHeight()
+		}
 	}()
 }
 
@@ -159,7 +160,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
