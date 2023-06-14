@@ -114,6 +114,8 @@ platform:
     safelyConcurrentBlockDelta: 6
     maxConcurrency: 5
     monitorHeightAlarmThr: 12
+    httpURL:
+      - https://explorer.litecoin.net/api/address/
   Avalanche:
     blockExplorerAddrUrl: https://snowtrace.io/address/
     blockExplorerTxUrl: https://snowtrace.io/tx/

@@ -80,6 +80,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = BTCGetTxByAddress(chainName, address, urls)
 		err = UtxoByAddress(chainName, address)
 	case "LTC":
+		err = LtcGetTxByAddress(chainName, address, urls)
 		err = UtxoByAddress(chainName, address)
 	case "TRX":
 		err = TrxGetTxByAddress(chainName, address, urls)
@@ -1597,6 +1598,88 @@ chainFlag:
 			UpdatedAt:       now,
 		}
 		btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
+	}
+
+	if len(btcTransactionRecordList) > 0 {
+		_, err = data.BtcTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), btcTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+func LtcGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("LtcGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("LtcGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	url := urls[0]
+	url = url +  address + "/txs"
+
+	req := &pb.PageListRequest{
+		Address:  address,
+		OrderBy:  "tx_time desc",
+		PageNum:  1,
+		PageSize: 1,
+	}
+	dbLastRecords, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordHash = dbLastRecords[0].TransactionHash
+	}
+	var out []LtcApiRecord
+	err = httpclient.HttpsGetForm(url, nil, &out, &timeout)
+	var btcTransactionRecordList []*data.BtcTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	if len(out) > 0 {
+		for _, arg := range out {
+			txHash := arg.Txid
+				if txHash == dbLastRecordHash {
+					break
+				}
+				now := time.Now().Unix()
+
+				if _, ok := transactionRecordMap[txHash]; !ok {
+					transactionRecordMap[txHash] = ""
+
+					btcRecord := &data.BtcTransactionRecord{
+						TransactionHash: txHash,
+						Status:          PENDING,
+						DappData:        "",
+						ClientData:      "",
+						CreatedAt:       now,
+						UpdatedAt:       now,
+					}
+					btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
+				}
+
+		}
+
 	}
 
 	if len(btcTransactionRecordList) > 0 {
