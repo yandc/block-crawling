@@ -589,7 +589,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getRecordBySolscan(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
-		if err == nil {
+		if err == nil && len(solTransactionRecordList) > 0 {
 			break
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -360,4 +361,15 @@ func GetHexString(value interface{}) string {
 		result = fmt.Sprintf("%x", value)
 	}
 	return result
+}
+
+func RandInt32(min, max int32) int32 {
+	//创建随机种子
+	rand.Seed(time.Now().Unix())
+
+	//生成min到max之间的int32类型随机数
+	//参数max减min保证函数生成的随机数在0到min区间，
+	//生成的随机数再加min则落在min到max区间
+	rd := rand.Int31n(max-min) + min
+	return rd
 }
