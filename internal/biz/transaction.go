@@ -2172,7 +2172,8 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 
 func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictionary, error) {
 	var result = &DataDictionary{}
-	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT, CONTRACT, EVENTLOG, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, OTHER}
+	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT,
+		CONTRACT, CREATECONTRACT, EVENTLOG, CREATEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, OTHER, SETAPPROVALFORALL, TRANSFERFROM, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM}
 	var serviceStaus = []string{SUCCESS, FAIL, PENDING, NO_STATUS, DROPPED_REPLACED, DROPPED}
 	result.Ok = true
 	result.ServiceTransactionType = serviceTransactionType
