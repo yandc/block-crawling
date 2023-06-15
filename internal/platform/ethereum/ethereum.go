@@ -92,6 +92,7 @@ var BridgeWhiteMethodIdList = map[string][]string{
 	"Avalanche_MethodId":   {"Avalanche_0xef3c714c9425a8F3697A9C969Dc1af30ba82e5d4_cdd1b25d", "Avalanche_0xef3c714c9425a8F3697A9C969Dc1af30ba82e5d4_cdd1b25d"},
 	"PolygonTEST_MethodId": {"PolygonTEST_0x69015912AA33720b842dCD6aC059Ed623F28d9f7_41706c4e"},
 	"BSCTEST_MethodId":     {"BSCTEST_0x61456BF1715C1415730076BB79ae118E806E74d2_41706c4e"},
+	"ETHGoerliTEST_MethodId": {"ETHGoerliTEST_0xE041608922d06a4F26C0d4c27d8bCD01daf1f792_41706c4e"},
 }
 
 // dapp 白名单 chainName + contractAddress + topic
