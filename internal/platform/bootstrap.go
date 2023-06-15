@@ -2,6 +2,7 @@ package platform
 
 import (
 	"block-crawling/internal/biz"
+	v1 "block-crawling/internal/client"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -90,6 +91,7 @@ func (b *Bootstrap) Start() {
 		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" {
 			return
 		}
+		log.Info("我启动啦",zap.Any(b.ChainName,b))
 		b.GetTransactions()
 	}()
 
@@ -400,7 +402,7 @@ func InitCustomePlan() {
 		for true {
 			select {
 			case <-customChainPlan.C:
-				go customChainRun()
+				customChainRun()
 			}
 		}
 	}()
@@ -426,8 +428,9 @@ func customChainRun() {
 		if startChainMap[k] != nil {
 			continue
 		}
-		if sl, ok := startCustomChainMap.Load(k); ok {
+		if sl, ok := startCustomChainMap.LoadOrStore(k, GetBootStrap(chainInfo)); ok {
 			sccm := sl.(*Bootstrap)
+
 			//校验块高差 1000  停止爬块 更新块高
 			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + chainInfo.Chain).Result()
 			redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + chainInfo.Chain).Result()
@@ -440,6 +443,8 @@ func customChainRun() {
 				sccm.Stop()
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+chainInfo.Chain, height, 0).Err()
 				sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
+				log.Info("拉取配置启动bnb 重启", zap.Any("", sccm))
+
 				sccm.Start()
 			}
 			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
@@ -455,39 +460,43 @@ func customChainRun() {
 				sccm.Spider.ReplaceClients(cs...)
 				startCustomChainMap.Store(k, sccm)
 			}
-		} else {
-			var mhat int32 = 160
-			var mc int32 = 2
-			var scbd int32 = 500
-			cp := &conf.PlatInfo{
-				Chain:                      chainInfo.Chain,
-				Type:                       chainInfo.Type,
-				RpcURL:                     chainInfo.Urls,
-				ChainId:                    chainInfo.ChainId,
-				Decimal:                    int32(chainInfo.Decimals),
-				NativeCurrency:             chainInfo.CurrencyName,
-				Source:                     biz.SOURCE_REMOTE,
-				MonitorHeightAlarmThr:      &mhat,
-				MaxConcurrency:             &mc,
-				SafelyConcurrentBlockDelta: &scbd,
-			}
-			var PlatInfos []*conf.PlatInfo
-			PlatInfos = append(PlatInfos, cp)
-			platform := GetPlatform(cp)
-			bt := NewBootstrap(platform, cp)
-			startCustomChainMap.Store(k, bt)
-			DynamicCreateTable(data.BlockCreawlingDB, PlatInfos)
+		}else {
+			sccm := sl.(*Bootstrap)
+			sccm.Start()
+			log.Info("拉取配置启动bnb", zap.Any("", sccm))
 
-			biz.PlatInfos = PlatInfos
-			biz.ChainNameType[cp.Chain] = cp.Type
-			biz.PlatformMap[cp.Chain] = platform
-			biz.PlatInfoMap[cp.Chain] = cp
-			bt.Start()
-			log.Info("拉取配置启动bnb", zap.Any("", bt))
 		}
 	}
 }
+func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
+	var mhat int32 = 500
+	var mc int32 = 2
+	var scbd int32 = 500
+	cp := &conf.PlatInfo{
+		Chain:                      chainInfo.Chain,
+		Type:                       chainInfo.Type,
+		RpcURL:                     chainInfo.Urls,
+		ChainId:                    chainInfo.ChainId,
+		Decimal:                    int32(chainInfo.Decimals),
+		NativeCurrency:             chainInfo.CurrencyName,
+		Source:                     biz.SOURCE_REMOTE,
+		MonitorHeightAlarmThr:      &mhat,
+		MaxConcurrency:             &mc,
+		SafelyConcurrentBlockDelta: &scbd,
+	}
+	var PlatInfos []*conf.PlatInfo
+	PlatInfos = append(PlatInfos, cp)
+	platform := GetPlatform(cp)
+	bt := NewBootstrap(platform, cp)
+	DynamicCreateTable(data.BlockCreawlingDB, PlatInfos)
 
+	biz.PlatInfos = PlatInfos
+	biz.ChainNameType[cp.Chain] = cp.Type
+	biz.PlatformMap[cp.Chain] = platform
+	biz.PlatInfoMap[cp.Chain] = cp
+	//bt.Start()
+	return bt
+}
 func (bs Server) Stop(ctx context.Context) error {
 	return nil
 }
