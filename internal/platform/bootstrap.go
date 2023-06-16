@@ -162,7 +162,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST", "Solana"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
@@ -308,6 +308,53 @@ func FixNftInfo() {
 			}
 			if len(txRecords) > 0 {
 				_, err := data.SuiTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveByTransactionHash(nil, tableName, txRecords, biz.PAGE_SIZE)
+				if err != nil {
+					// postgres出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					return
+				}
+			}
+		case biz.SOLANA:
+			incompleteNfts, err := data.SolTransactionRecordRepoClient.ListIncompleteNft(nil, tableName, transactionRequest)
+			if err != nil {
+				// postgres出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				return
+			}
+			txHashMap := make(map[string]string)
+			for _, incompleteNft := range incompleteNfts {
+				parseData := incompleteNft.ParseData
+				tokenInfo, _ := biz.ParseTokenInfo(parseData)
+				tokenAddress := tokenInfo.Address
+				tokenId := tokenInfo.TokenId
+
+				txHash := incompleteNft.TransactionHash
+				txHash = strings.Split(txHash, "#")[0]
+				if _, ok := txHashMap[txHash]; !ok {
+					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
+					if err != nil {
+						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						continue
+					}
+					if token.Address == "" {
+						continue
+					}
+					txHashMap[txHash] = ""
+				}
+			}
+
+			var txRecords []*data.SolTransactionRecord
+			for txHash, _ := range txHashMap {
+				txRecords = append(txRecords, &data.SolTransactionRecord{TransactionHash: txHash, Status: biz.PENDING})
+			}
+			if len(txRecords) > 0 {
+				_, err := data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveByTransactionHash(nil, tableName, txRecords, biz.PAGE_SIZE)
 				if err != nil {
 					// postgres出错 接入lark报警
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)

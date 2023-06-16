@@ -522,10 +522,15 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	var userNftAssetList []*UserNftAssetGroup
 	var total, totalBalance int64
 
-	sqlStr := "with t as(" +
-		"select chain_name, uid, address, token_address, token_type, (array_agg(token_id))[1] as token_id, " +
-		"sum(cast(balance as numeric)) as balance, count(token_id) as token_id_amount " +
-		"from user_nft_asset " +
+	sqlStr := "with t as("
+	if strings.HasPrefix(req.ChainName, "Solana") {
+		sqlStr += "select chain_name, uid, address, token_id, token_type, (array_agg(token_address))[1] as token_address, " +
+			"sum(cast(balance as numeric)) as balance, count(token_address) as token_id_amount "
+	} else {
+		sqlStr += "select chain_name, uid, address, token_address, token_type, (array_agg(token_id))[1] as token_id, " +
+			"sum(cast(balance as numeric)) as balance, count(token_id) as token_id_amount "
+	}
+	sqlStr += "from user_nft_asset " +
 		"where 1=1 "
 	if req.ChainName != "" {
 		sqlStr += " and chain_name = '" + req.ChainName + "'"
@@ -558,8 +563,14 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	if req.CollectionNameLikeIgnoreCase != "" {
 		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
 	}
-	sqlStr += " group by chain_name, uid, address, token_address, token_type" +
-		")"
+
+	if strings.HasPrefix(req.ChainName, "Solana") {
+		//Solana链token_id字段保存的是集合id
+		sqlStr += " group by chain_name, uid, address, token_id, token_type"
+	} else {
+		sqlStr += " group by chain_name, uid, address, token_address, token_type"
+	}
+	sqlStr += ")"
 
 	sqlStr += " select t.* "
 	if req.Total {

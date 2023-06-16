@@ -439,6 +439,11 @@ func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress s
 		return nil, nil
 	}
 
+	nftInfoRequestList := []*v1.GetNftInfoRequest_NftInfo{{
+		TokenAddress: tokenAddress,
+		TokenId:      tokenId,
+	}}
+
 	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -452,11 +457,8 @@ func GetRawNftInfoDirectly(ctx context.Context, chainName string, tokenAddress s
 		defer cancel()
 	}
 	response, err := client.GetNftInfo(ctx, &v1.GetNftInfoRequest{
-		Chain: chainName,
-		NftInfo: []*v1.GetNftInfoRequest_NftInfo{{
-			TokenAddress: tokenAddress,
-			TokenId:      tokenId,
-		}},
+		Chain:   chainName,
+		NftInfo: nftInfoRequestList,
 	})
 	if err != nil {
 		return nil, err
@@ -542,6 +544,41 @@ func GetNftsInfo(ctx context.Context, chainName string, nftAddressMap map[string
 
 	data := response.Data
 	return data, nil
+}
+
+func GetTokenNftInfoRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	tokenInfo, err := GetTokenNftInfo(ctx, chainName, tokenAddress, tokenId)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		tokenInfo, err = GetTokenNftInfo(ctx, chainName, tokenAddress, tokenId)
+	}
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币或NFT信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return tokenInfo, err
+}
+
+func GetTokenNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
+	if err != nil {
+		nftInfo, nftErr := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+		if nftErr == nil && nftInfo.TokenType != "" {
+			return nftInfo, nftErr
+		}
+		return tokenInfo, err
+	}
+	if tokenInfo.TokenType == "" && tokenInfo.Decimals == 0 && (tokenInfo.Symbol == "" || tokenInfo.Symbol == "Unknown Token") {
+		tokenInfo, err = GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+		if tokenInfo.TokenType == "" {
+			if chainName == "Solana" {
+				tokenInfo.TokenType = SOLANANFT
+			}
+		}
+	}
+	return tokenInfo, err
 }
 
 func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, error) {

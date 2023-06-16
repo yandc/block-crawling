@@ -99,6 +99,7 @@ const (
 	CREATECONTRACT          = "createContract"
 	EVENTLOG                = "eventLog"
 	CREATEACCOUNT           = "createAccount"
+	CLOSEACCOUNT            = "closeAccount"
 	REGISTERTOKEN           = "registerToken"
 	DIRECTTRANSFERNFTSWITCH = "directTransferNFTSwitch"
 	OTHER                   = "other"
@@ -129,7 +130,7 @@ const (
 	ERC1155   = "ERC1155"
 	APTOSNFT  = "AptosNFT"
 	SUINFT    = "SuiNFT"
-	SOLANANFT = "METAPLEX"
+	SOLANANFT = "SolanaNFT"
 )
 
 const STC_CODE = "0x00000000000000000000000000000001::STC::STC"

@@ -251,20 +251,8 @@ type TransactionInfo struct {
 		Err                  interface{} `json:"err"`
 		Fee                  int64       `json:"fee"`
 		InnerInstructions    []struct {
-			Index        int `json:"index"`
-			Instructions []struct {
-				/*Parsed *struct {
-					Info map[string]interface{} `json:"info"`
-					Type string                 `json:"type"`
-				} `json:"parsed,omitempty"`*/
-				Parsed    interface{} `json:"parsed"`
-				Program   string      `json:"program"`
-				ProgramId string      `json:"programId"`
-
-				Accounts []string `json:"accounts,omitempty"`
-				Data     string   `json:"data"`
-				//ProgramId string `json:"programId"`
-			} `json:"instructions"`
+			Index        int           `json:"index"`
+			Instructions []Instruction `json:"instructions"`
 		} `json:"innerInstructions"`
 		LogMessages       []string   `json:"logMessages"`
 		PostBalances      []*big.Int `json:"postBalances"`
@@ -308,24 +296,26 @@ type TransactionInfo struct {
 				Source   string `json:"source"`
 				Writable bool   `json:"writable"`
 			} `json:"accountKeys"`
-			AddressTableLookups interface{} `json:"addressTableLookups"`
-			Instructions        []struct {
-				/*Parsed *struct {
-					Info map[string]interface{} `json:"info"`
-					Type string                 `json:"type"`
-				} `json:"parsed,omitempty"`*/
-				Parsed    interface{} `json:"parsed"`
-				Program   string      `json:"program"`
-				ProgramId string      `json:"programId"`
-
-				Accounts []string `json:"accounts,omitempty"`
-				Data     string   `json:"data"`
-				//ProgramId string `json:"programId"`
-			} `json:"instructions"`
-			RecentBlockhash string `json:"recentBlockhash"`
+			AddressTableLookups interface{}   `json:"addressTableLookups"`
+			Instructions        []Instruction `json:"instructions"`
+			RecentBlockhash     string        `json:"recentBlockhash"`
 		} `json:"message"`
 		Signatures []string `json:"signatures"`
 	} `json:"transaction"`
+}
+
+type Instruction struct {
+	/*Parsed *struct {
+		Info map[string]interface{} `json:"info"`
+		Type string                 `json:"type"`
+	} `json:"parsed,omitempty"`*/
+	Parsed    interface{} `json:"parsed"`
+	Program   string      `json:"program"`
+	ProgramId string      `json:"programId"`
+
+	Accounts []string `json:"accounts,omitempty"`
+	Data     string   `json:"data"`
+	//ProgramId string `json:"programId"`
 }
 
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {

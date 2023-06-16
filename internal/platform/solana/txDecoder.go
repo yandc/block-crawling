@@ -7,7 +7,9 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
 	"math/big"
 	"time"
 
@@ -17,11 +19,13 @@ import (
 )
 
 type txDecoder struct {
-	ChainName string
-	block     *chain.Block
-	txByHash  *chain.Transaction
-	now       time.Time
-	newTxs    bool
+	ChainName   string
+	block       *chain.Block
+	txByHash    *chain.Transaction
+	chainHeight uint64
+	curHeight   uint64
+	now         time.Time
+	newTxs      bool
 
 	txRecords []*data.SolTransactionRecord
 }
@@ -53,20 +57,6 @@ type AccountKey struct {
 	TransferAmount *big.Int `json:"transferAmount"`
 }
 
-type Instructions struct {
-	/*Parsed *struct {
-		Info map[string]interface{} `json:"info"`
-		Type string                 `json:"type"`
-	} `json:"parsed,omitempty"`*/
-	Parsed    interface{} `json:"parsed"`
-	Program   string      `json:"program"`
-	ProgramId string      `json:"programId"`
-
-	Accounts []string `json:"accounts,omitempty"`
-	Data     string   `json:"data"`
-	//ProgramId string `json:"programId"`
-}
-
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) (err error) {
 	transactionHash := tx.Hash
 	curSlot := block.Number
@@ -76,7 +66,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	txTime := block.Time
 
 	meta := transactionInfo.Meta
-	fee := meta.Fee
 	feeAmount := decimal.NewFromInt(meta.Fee)
 	var payload string
 	var status string
@@ -96,6 +85,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	transaction := transactionInfo.Transaction
 	accountKeys := transaction.Message.AccountKeys
 	accountKeyMap := make(map[string]AccountKey)
+	var signerAddressList []string
 	for i, accountKey := range accountKeys {
 		postBalancesAmount := new(big.Int)
 		preBalancesAmount := new(big.Int)
@@ -115,6 +105,9 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			TransferAmount: new(big.Int).Sub(postBalancesAmount, preBalancesAmount),
 		}
 		accountKeyMap[ak.Pubkey] = ak
+		if accountKey.Signer {
+			signerAddressList = append(signerAddressList, accountKey.Pubkey)
+		}
 	}
 
 	tokenBalanceMap := make(map[string]TokenBalance)
@@ -146,287 +139,279 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
+	var instructionList []Instruction
+	var innerInstructionList []Instruction
+	var innerTotal int
 	instructions := transaction.Message.Instructions
-
-	// 合并交易，例如txHash:51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
-	var instructionList []Instructions
-	var instructionMap = make(map[string]Instructions)
-	for _, instruction := range instructions {
-		var amount, newAmount, contractAddress string
-		var fromAddress, toAddress string
-
-		parsed, ok := instruction.Parsed.(map[string]interface{})
-		if !ok {
-			instructionList = append(instructionList, instruction)
-			continue
-		}
-		programId := instruction.ProgramId
-		instructionType := parsed["type"]
-		instructionInfo := parsed["info"].(map[string]interface{})
-
-		if instructionType == "transfer" {
-			if programId == "11111111111111111111111111111111" {
-				fromAddress = instructionInfo["source"].(string)
-				toAddress = instructionInfo["destination"].(string)
-
-				key := fromAddress + toAddress + contractAddress
-				newInstruction, ok := instructionMap[key]
-				if !ok {
-					newInstruction = Instructions{
-						Parsed:    instruction.Parsed,
-						Program:   instruction.Program,
-						ProgramId: instruction.ProgramId,
-						Accounts:  instruction.Accounts,
-						Data:      instruction.Data,
-					}
-					instructionMap[key] = newInstruction
-				} else {
-					amount = utils.GetString(instructionInfo["lamports"])
-
-					newParsed := newInstruction.Parsed.(map[string]interface{})
-					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					newAmount = utils.GetString(newInstructionInfo["lamports"])
-					amountInt, _ := new(big.Int).SetString(amount, 0)
-					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
-					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
-					newInstructionInfo["lamports"] = sumAmount
-				}
-			} else {
-				fromAddress, ok = instructionInfo["authority"].(string)
-				if !ok {
-					fromAddress = instructionInfo["multisigAuthority"].(string)
-				}
-				source := instructionInfo["source"].(string)
-				destination := instructionInfo["destination"].(string)
-				sourceTokenBalance := tokenBalanceMap[source]
-				destinationTokenBalance := tokenBalanceMap[destination]
-				toAddress = destinationTokenBalance.Owner
-				if sourceTokenBalance.Owner == "" {
-					sourceTokenBalance.Owner = fromAddress
-					tokenBalanceOwnerMap[sourceTokenBalance.Owner] = sourceTokenBalance
-				}
-				if sourceTokenBalance.Mint != "" {
-					contractAddress = sourceTokenBalance.Mint
-				} else if destinationTokenBalance.Mint != "" {
-					contractAddress = destinationTokenBalance.Mint
-				}
-
-				key := fromAddress + toAddress + contractAddress
-				newInstruction, ok := instructionMap[key]
-				if !ok {
-					newInstruction = Instructions{
-						Parsed:    instruction.Parsed,
-						Program:   instruction.Program,
-						ProgramId: instruction.ProgramId,
-						Accounts:  instruction.Accounts,
-						Data:      instruction.Data,
-					}
-					instructionMap[key] = newInstruction
-				} else {
-					amount = instructionInfo["amount"].(string)
-
-					newParsed := newInstruction.Parsed.(map[string]interface{})
-					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					newAmount = newInstructionInfo["amount"].(string)
-					amountInt, _ := new(big.Int).SetString(amount, 0)
-					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
-					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
-					newInstructionInfo["amount"] = sumAmount
-				}
-			}
-		} else if instructionType == "transferChecked" {
-			if programId == "11111111111111111111111111111111" {
-				fromAddress = instructionInfo["source"].(string)
-				toAddress = instructionInfo["destination"].(string)
-
-				key := fromAddress + toAddress + contractAddress
-				newInstruction, ok := instructionMap[key]
-				if !ok {
-					newInstruction = Instructions{
-						Parsed:    instruction.Parsed,
-						Program:   instruction.Program,
-						ProgramId: instruction.ProgramId,
-						Accounts:  instruction.Accounts,
-						Data:      instruction.Data,
-					}
-					instructionMap[key] = newInstruction
-				} else {
-					amount = utils.GetString(instructionInfo["lamports"])
-
-					newParsed := newInstruction.Parsed.(map[string]interface{})
-					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					newAmount = utils.GetString(newInstructionInfo["lamports"])
-					amountInt, _ := new(big.Int).SetString(amount, 0)
-					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
-					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
-					newInstructionInfo["lamports"] = sumAmount
-				}
-			} else {
-				fromAddress, ok = instructionInfo["authority"].(string)
-				if !ok {
-					fromAddress = instructionInfo["multisigAuthority"].(string)
-				}
-				source := instructionInfo["source"].(string)
-				destination := instructionInfo["destination"].(string)
-				sourceTokenBalance := tokenBalanceMap[source]
-				destinationTokenBalance := tokenBalanceMap[destination]
-				toAddress = destinationTokenBalance.Owner
-				if sourceTokenBalance.Owner == "" {
-					sourceTokenBalance.Owner = fromAddress
-					tokenBalanceOwnerMap[sourceTokenBalance.Owner] = sourceTokenBalance
-				}
-				contractAddress = instructionInfo["mint"].(string)
-
-				key := fromAddress + toAddress + contractAddress
-				newInstruction, ok := instructionMap[key]
-				if !ok {
-					newInstruction = Instructions{
-						Parsed:    instruction.Parsed,
-						Program:   instruction.Program,
-						ProgramId: instruction.ProgramId,
-						Accounts:  instruction.Accounts,
-						Data:      instruction.Data,
-					}
-					instructionMap[key] = newInstruction
-				} else {
-					tokenAmount := instructionInfo["tokenAmount"].(map[string]interface{})
-					amount = tokenAmount["amount"].(string)
-
-					newParsed := newInstruction.Parsed.(map[string]interface{})
-					newInstructionInfo := newParsed["info"].(map[string]interface{})
-					newTokenAmount := newInstructionInfo["tokenAmount"].(map[string]interface{})
-					newAmount = newTokenAmount["amount"].(string)
-					amountInt, _ := new(big.Int).SetString(amount, 0)
-					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
-					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
-					newTokenAmount["amount"] = sumAmount
-				}
-			}
-		} else {
-			instructionList = append(instructionList, instruction)
-		}
+	innerInstructions := transactionInfo.Meta.InnerInstructions
+	for _, instruction := range innerInstructions {
+		inInstructions := instruction.Instructions
+		innerInstructionList = append(innerInstructionList, inInstructions...)
 	}
-	for _, instruction := range instructionMap {
-		instructionList = append(instructionList, instruction)
-	}
+
+	// 合并交易
+	//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
+	instructionList, tokenBalanceOwnerMap, _ = mergeInstructions(instructions, tokenBalanceMap, tokenBalanceOwnerMap)
+	innerInstructionList, tokenBalanceOwnerMap, innerTotal = mergeInstructions(innerInstructionList, tokenBalanceMap, tokenBalanceOwnerMap)
 
 	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": tokenBalanceOwnerMap})
+	isContract := false
+	if innerTotal > 0 || len(instructionList) > 1 {
+		isContract = true
+	}
+
+	createIndex := 0
 	index := 0
-	for _, instruction := range instructionList {
-		txType := biz.NATIVE
+	if !isContract {
+		for _, instruction := range instructionList {
+			txType := biz.NATIVE
+			var tokenInfo types.TokenInfo
+			var amount, contractAddress string
+			var fromAddress, toAddress, fromUid, toUid string
+			var fromAddressExist, toAddressExist bool
+
+			parsed, ok := instruction.Parsed.(map[string]interface{})
+			if !ok {
+				//Unknown类型
+				//https://solscan.io/tx/SAfgWytZmTEpzQbkCLy2GgzdnVrSbeyGiFD1SHiRM5Gf7XzRAQEeU5gkUn5ic8ZG8UsF1w1MB72om9SoShHF9si
+				continue
+			}
+			programId := instruction.ProgramId
+			instructionType := parsed["type"]
+			instructionInfo := parsed["info"].(map[string]interface{})
+			if instructionType == "createAccount" {
+				txType = biz.CREATEACCOUNT
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["newAccount"].(string)
+				amount = utils.GetString(instructionInfo["lamports"])
+			} else if instructionType == "closeAccount" {
+				txType = biz.CLOSEACCOUNT
+				fromAddress = instructionInfo["account"].(string)
+				toAddress = instructionInfo["destination"].(string)
+				transferAmount := accountKeyMap[fromAddress].TransferAmount
+				bigAmount := new(big.Int).Abs(transferAmount)
+				amount = bigAmount.String()
+			} else if instructionType == "create" || instructionType == "createIdempotent" {
+				txType = biz.REGISTERTOKEN
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["account"].(string)
+				contractAddress = instructionInfo["mint"].(string)
+				for ; createIndex < len(innerInstructionList); createIndex++ {
+					innerInstruction := innerInstructionList[createIndex]
+					innerParsed, innerOk := innerInstruction.Parsed.(map[string]interface{})
+					if !innerOk {
+						createIndex++
+						break
+					}
+					innerInstructionType := innerParsed["type"]
+					innerInstructionInfo := innerParsed["info"].(map[string]interface{})
+					if innerInstructionType == "createAccount" {
+						amount = utils.GetString(innerInstructionInfo["lamports"])
+						createIndex++
+						break
+					}
+				}
+			} else if instructionType == "transfer" {
+				if programId == SOL_CODE {
+					txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					txType = biz.TRANSFER
+					fromAddress, ok = instructionInfo["authority"].(string)
+					if !ok {
+						fromAddress = instructionInfo["multisigAuthority"].(string)
+					}
+					destination := instructionInfo["destination"].(string)
+					toAddress = tokenBalanceMap[destination].Owner
+					if toAddress == "" {
+						toAddress = destination
+					}
+					amount = instructionInfo["amount"].(string)
+					contractAddress = tokenBalanceMap[destination].Mint
+				}
+			} else if instructionType == "transferChecked" {
+				if programId == SOL_CODE {
+					txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					txType = biz.TRANSFER
+					fromAddress, ok = instructionInfo["authority"].(string)
+					if !ok {
+						fromAddress = instructionInfo["multisigAuthority"].(string)
+					}
+					destination := instructionInfo["destination"].(string)
+					toAddress = tokenBalanceMap[destination].Owner
+					if toAddress == "" {
+						toAddress = destination
+					}
+					tokenAmount := instructionInfo["tokenAmount"].(map[string]interface{})
+					amount = tokenAmount["amount"].(string)
+					contractAddress = instructionInfo["mint"].(string)
+				}
+			} else if instructionType == "mintTo" {
+				if programId == SOL_CODE {
+					txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					txType = biz.TRANSFER
+					toAddress, ok = instructionInfo["mintAuthority"].(string)
+					if !ok {
+						toAddress = instructionInfo["multisigMintAuthority"].(string)
+					}
+					amount = instructionInfo["amount"].(string)
+					contractAddress = instructionInfo["mint"].(string)
+				}
+			} else {
+				continue
+			}
+
+			if fromAddress != "" {
+				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return
+				}
+			}
+
+			if toAddress != "" {
+				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return
+				}
+			}
+			if !fromAddressExist && !toAddressExist {
+				continue
+			}
+
+			index++
+			var txHash string
+			if index == 1 {
+				txHash = transactionHash
+			} else {
+				txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
+			}
+
+			if contractAddress != "" {
+				tokenInfo, err = biz.GetTokenNftInfoRetryAlert(nil, h.ChainName, contractAddress, programId)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("error", err))
+				}
+				if txType != biz.REGISTERTOKEN {
+					tokenInfo.Amount = amount
+				}
+				tokenInfo.Address = contractAddress
+			}
+			if tokenInfo.TokenType != "" && tokenInfo.TokenType != biz.ERC20 && txType == biz.TRANSFER {
+				txType = biz.TRANSFERNFT
+			}
+			solMap := map[string]interface{}{
+				"token": tokenInfo,
+			}
+			parseData, _ := utils.JsonEncode(solMap)
+			amountValue, _ := decimal.NewFromString(amount)
+
+			solTransactionRecord := &data.SolTransactionRecord{
+				SlotNumber:      int(block.Number),
+				BlockHash:       block.Hash,
+				BlockNumber:     curHeight,
+				TransactionHash: txHash,
+				FromAddress:     fromAddress,
+				ToAddress:       toAddress,
+				FromUid:         fromUid,
+				ToUid:           toUid,
+				FeeAmount:       feeAmount,
+				Amount:          amountValue,
+				Status:          status,
+				TxTime:          txTime,
+				ContractAddress: contractAddress,
+				ParseData:       parseData,
+				Data:            payload,
+				EventLog:        "",
+				TransactionType: txType,
+				DappData:        "",
+				ClientData:      "",
+				CreatedAt:       h.now.Unix(),
+				UpdatedAt:       h.now.Unix(),
+			}
+			h.txRecords = append(h.txRecords, solTransactionRecord)
+		}
+
+		if len(h.txRecords) == 0 {
+			solTransactionRecord := &data.SolTransactionRecord{
+				SlotNumber:      int(block.Number),
+				BlockHash:       block.Hash,
+				BlockNumber:     curHeight,
+				TransactionHash: transactionHash,
+				/*FromAddress:     fromAddress,
+				ToAddress:       toAddress,
+				FromUid:         fromUid,
+				ToUid:           toUid,*/
+				FeeAmount: feeAmount,
+				//Amount:          amountValue,
+				Status: status,
+				TxTime: txTime,
+				/*ContractAddress: contractAddress,
+				ParseData:       parseData,*/
+				Data:            payload,
+				EventLog:        "",
+				TransactionType: biz.CONTRACT,
+				DappData:        "",
+				ClientData:      "",
+				CreatedAt:       h.now.Unix(),
+				UpdatedAt:       h.now.Unix(),
+			}
+			h.txRecords = append(h.txRecords, solTransactionRecord)
+		}
+	} else {
+		instructionList = append(instructionList, innerInstructionList...)
+		var eventLogs []*types.EventLog
+		var solTransactionRecords []*data.SolTransactionRecord
+
+		txType := biz.CONTRACT
 		var tokenInfo types.TokenInfo
 		var amount, contractAddress string
 		var fromAddress, toAddress, fromUid, toUid string
 		var fromAddressExist, toAddressExist bool
 
-		parsed, ok := instruction.Parsed.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		programId := instruction.ProgramId
-		instructionType := parsed["type"]
-		instructionInfo := parsed["info"].(map[string]interface{})
-		if instructionType == "create" {
-			txType = biz.REGISTERTOKEN
-			fromAddress = instructionInfo["source"].(string)
-			toAddress = instructionInfo["account"].(string)
-			contractAddress = instructionInfo["mint"].(string)
-			index := accountKeyMap[toAddress].Index
-			bigAmount := new(big.Int).Sub(postBalances[index], preBalances[index])
-			if len(instructions) == 1 {
-				amount = bigAmount.String()
-			} else {
-				fee = fee + bigAmount.Int64()
-				feeAmount = decimal.NewFromInt(fee)
-				continue
-			}
-		} else if instructionType == "transfer" {
-			if programId == "11111111111111111111111111111111" {
-				txType = biz.NATIVE
-				fromAddress = instructionInfo["source"].(string)
-				toAddress = instructionInfo["destination"].(string)
-				amount = utils.GetString(instructionInfo["lamports"])
-			} else {
-				txType = biz.TRANSFER
-				fromAddress, ok = instructionInfo["authority"].(string)
-				if !ok {
-					fromAddress = instructionInfo["multisigAuthority"].(string)
-				}
-				destination := instructionInfo["destination"].(string)
-				toAddress = tokenBalanceMap[destination].Owner
-				amount = instructionInfo["amount"].(string)
-				contractAddress = tokenBalanceMap[destination].Mint
-			}
-		} else if instructionType == "transferChecked" {
-			if programId == "11111111111111111111111111111111" {
-				txType = biz.NATIVE
-				fromAddress = instructionInfo["source"].(string)
-				toAddress = instructionInfo["destination"].(string)
-				amount = utils.GetString(instructionInfo["lamports"])
-			} else {
-				txType = biz.TRANSFER
-				fromAddress, ok = instructionInfo["authority"].(string)
-				if !ok {
-					fromAddress = instructionInfo["multisigAuthority"].(string)
-				}
-				destination := instructionInfo["destination"].(string)
-				toAddress = tokenBalanceMap[destination].Owner
-				tokenAmount := instructionInfo["tokenAmount"].(map[string]interface{})
-				amount = tokenAmount["amount"].(string)
-				contractAddress = instructionInfo["mint"].(string)
-			}
-		} else {
-			continue
-		}
-
-		if fromAddress != "" {
+		for _, fromAddress = range signerAddressList {
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 			if err != nil {
-				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
+			}
+			if fromAddressExist {
+				break
 			}
 		}
 
-		if toAddress != "" {
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
-			if err != nil {
-				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
-				return
+		for _, instruction := range instructionList {
+			toAddress = instruction.ProgramId
+			if toAddress != SOL_CODE {
+				break
 			}
 		}
 		if !fromAddressExist && !toAddressExist {
-			continue
+			return
 		}
 
-		index++
-		var txHash string
-		if index == 1 {
-			txHash = transactionHash
-		} else {
-			txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
-		}
-
-		if contractAddress != "" {
-			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.ChainName, contractAddress)
-			if err != nil {
-				log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("error", err))
-			}
-			if txType != biz.REGISTERTOKEN {
-				tokenInfo.Amount = amount
-			}
-			tokenInfo.Address = contractAddress
-		}
-		stcMap := map[string]interface{}{
+		solMap := map[string]interface{}{
 			"token": tokenInfo,
 		}
-		parseData, _ := utils.JsonEncode(stcMap)
+		parseData, _ := utils.JsonEncode(solMap)
 		amountValue, _ := decimal.NewFromString(amount)
 
-		solTransactionRecord := &data.SolTransactionRecord{
+		solContractRecord := &data.SolTransactionRecord{
 			SlotNumber:      int(block.Number),
 			BlockHash:       block.Hash,
 			BlockNumber:     curHeight,
-			TransactionHash: txHash,
+			TransactionHash: transactionHash,
 			FromAddress:     fromAddress,
 			ToAddress:       toAddress,
 			FromUid:         fromUid,
@@ -445,7 +430,251 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			CreatedAt:       h.now.Unix(),
 			UpdatedAt:       h.now.Unix(),
 		}
-		h.txRecords = append(h.txRecords, solTransactionRecord)
+
+		txType = biz.EVENTLOG
+		for _, instruction := range instructionList {
+			//txType := biz.NATIVE
+			var tokenInfo types.TokenInfo
+			var amount, contractAddress string
+			var fromAddress, toAddress, fromUid, toUid string
+			var fromAddressExist, toAddressExist bool
+
+			parsed, ok := instruction.Parsed.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			programId := instruction.ProgramId
+			instructionType := parsed["type"]
+			instructionInfo := parsed["info"].(map[string]interface{})
+			if instructionType == "createAccount" {
+				//txType = biz.CREATEACCOUNT
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["newAccount"].(string)
+				amount = utils.GetString(instructionInfo["lamports"])
+			} else if instructionType == "closeAccount" {
+				//txType = biz.CLOSEACCOUNT
+				fromAddress = instructionInfo["account"].(string)
+				toAddress = instructionInfo["destination"].(string)
+				transferAmount := accountKeyMap[fromAddress].TransferAmount
+				bigAmount := new(big.Int).Abs(transferAmount)
+				amount = bigAmount.String()
+				/*} else if instructionType == "create" || instructionType == "createIdempotent" {
+				//txType = biz.REGISTERTOKEN
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["account"].(string)
+				//不能保存被激活的代币信息，否则就会变成发送改代币了
+				//contractAddress = instructionInfo["mint"].(string)
+				for ; createIndex < len(innerInstructionList); createIndex++ {
+					innerInstruction := innerInstructionList[createIndex]
+					innerParsed, innerOk := innerInstruction.Parsed.(map[string]interface{})
+					if !innerOk {
+						createIndex++
+						break
+					}
+					innerInstructionType := innerParsed["type"]
+					innerInstructionInfo := innerParsed["info"].(map[string]interface{})
+					if innerInstructionType == "createAccount" {
+						amount = utils.GetString(innerInstructionInfo["lamports"])
+						createIndex++
+						break
+					}
+				}*/
+			} else if instructionType == "transfer" {
+				if programId == SOL_CODE {
+					//txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					//txType = biz.TRANSFER
+					fromAddress, ok = instructionInfo["authority"].(string)
+					if !ok {
+						fromAddress = instructionInfo["multisigAuthority"].(string)
+					}
+					destination := instructionInfo["destination"].(string)
+					toAddress = tokenBalanceMap[destination].Owner
+					if toAddress == "" {
+						toAddress = destination
+					}
+					amount = instructionInfo["amount"].(string)
+					contractAddress = tokenBalanceMap[destination].Mint
+				}
+			} else if instructionType == "transferChecked" {
+				if programId == SOL_CODE {
+					//txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					//txType = biz.TRANSFER
+					fromAddress, ok = instructionInfo["authority"].(string)
+					if !ok {
+						fromAddress = instructionInfo["multisigAuthority"].(string)
+					}
+					destination := instructionInfo["destination"].(string)
+					toAddress = tokenBalanceMap[destination].Owner
+					if toAddress == "" {
+						toAddress = destination
+					}
+					tokenAmount := instructionInfo["tokenAmount"].(map[string]interface{})
+					amount = tokenAmount["amount"].(string)
+					contractAddress = instructionInfo["mint"].(string)
+				}
+			} else if instructionType == "mintTo" {
+				if programId == SOL_CODE {
+					//txType = biz.NATIVE
+					fromAddress = instructionInfo["source"].(string)
+					toAddress = instructionInfo["destination"].(string)
+					amount = utils.GetString(instructionInfo["lamports"])
+				} else {
+					//txType = biz.TRANSFER
+					toAddress, ok = instructionInfo["mintAuthority"].(string)
+					if !ok {
+						toAddress = instructionInfo["multisigMintAuthority"].(string)
+					}
+					amount = instructionInfo["amount"].(string)
+					contractAddress = instructionInfo["mint"].(string)
+				}
+			} else {
+				continue
+			}
+
+			if fromAddress != "" {
+				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return
+				}
+			}
+
+			if toAddress != "" {
+				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					return
+				}
+			}
+			if !fromAddressExist && !toAddressExist {
+				continue
+			}
+
+			index++
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
+
+			if contractAddress != "" {
+				tokenInfo, err = biz.GetTokenNftInfoRetryAlert(nil, h.ChainName, contractAddress, programId)
+				if err != nil {
+					log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("error", err))
+				}
+				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
+			}
+			solMap := map[string]interface{}{
+				"token": tokenInfo,
+			}
+			parseData, _ := utils.JsonEncode(solMap)
+			amountValue, _ := decimal.NewFromString(amount)
+			eventLogInfo := &types.EventLog{
+				From:   fromAddress,
+				To:     toAddress,
+				Amount: amountValue.BigInt(),
+				Token:  tokenInfo,
+			}
+
+			var isContinue bool
+			for i, eventLog := range eventLogs {
+				if eventLog == nil {
+					continue
+				}
+				if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+					eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+					cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+					if cmp == 1 {
+						isContinue = true
+						subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+						eventLogs[i].Amount = subAmount
+						solTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
+					} else if cmp == 0 {
+						isContinue = true
+						eventLogs[i] = nil
+						solTransactionRecords[i] = nil
+					} else if cmp == -1 {
+						eventLogs[i] = nil
+						solTransactionRecords[i] = nil
+					}
+					break
+				} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+					eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+					isContinue = true
+					addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+					eventLogs[i].Amount = addAmount
+					solTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
+					break
+				}
+			}
+			if isContinue {
+				continue
+			}
+			eventLogs = append(eventLogs, eventLogInfo)
+
+			solTransactionRecord := &data.SolTransactionRecord{
+				SlotNumber:      int(block.Number),
+				BlockHash:       block.Hash,
+				BlockNumber:     curHeight,
+				TransactionHash: txHash,
+				FromAddress:     fromAddress,
+				ToAddress:       toAddress,
+				FromUid:         fromUid,
+				ToUid:           toUid,
+				FeeAmount:       feeAmount,
+				Amount:          amountValue,
+				Status:          status,
+				TxTime:          txTime,
+				ContractAddress: contractAddress,
+				ParseData:       parseData,
+				Data:            payload,
+				EventLog:        "",
+				TransactionType: txType,
+				DappData:        "",
+				ClientData:      "",
+				CreatedAt:       h.now.Unix(),
+				UpdatedAt:       h.now.Unix(),
+			}
+			solTransactionRecords = append(solTransactionRecords, solTransactionRecord)
+		}
+
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, solContractRecord)
+		}
+		if len(eventLogs) > 0 {
+			for _, solTransactionRecord := range solTransactionRecords {
+				if solTransactionRecord != nil {
+					h.txRecords = append(h.txRecords, solTransactionRecord)
+				}
+			}
+
+			var eventLogList []*types.EventLog
+			for _, eventLog := range eventLogs {
+				if eventLog != nil {
+					eventLogList = append(eventLogList, eventLog)
+				}
+			}
+			if len(eventLogList) > 0 {
+				eventLog, _ := utils.JsonEncode(eventLogList)
+				solContractRecord.EventLog = eventLog
+
+				var logAddress datatypes.JSON
+				var logFromAddress []string
+				var logToAddress []string
+				for _, log := range eventLogList {
+					logFromAddress = append(logFromAddress, log.From)
+					logToAddress = append(logToAddress, log.To)
+				}
+				logAddressList := [][]string{logFromAddress, logToAddress}
+				logAddress, _ = json.Marshal(logAddressList)
+				solContractRecord.LogAddress = logAddress
+			}
+		}
 	}
 	return nil
 }
@@ -459,7 +688,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {
@@ -522,4 +751,199 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	}
 
 	return nil
+}
+
+func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]TokenBalance, tokenBalanceOwnerMap map[string]TokenBalance) ([]Instruction, map[string]TokenBalance, int) {
+	var instructionList []Instruction
+	var instructionMap = make(map[string]Instruction)
+	var innerTotal int
+	for _, instruction := range instructions {
+		var amount, newAmount, contractAddress string
+		var fromAddress, toAddress string
+
+		parsed, ok := instruction.Parsed.(map[string]interface{})
+		if !ok {
+			instructionList = append(instructionList, instruction)
+			continue
+		}
+		programId := instruction.ProgramId
+		instructionType := parsed["type"]
+		instructionInfo := parsed["info"].(map[string]interface{})
+
+		if instructionType == "transfer" {
+			innerTotal++
+			if programId == SOL_CODE {
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["destination"].(string)
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					amount = utils.GetString(instructionInfo["lamports"])
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newAmount = utils.GetString(newInstructionInfo["lamports"])
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newInstructionInfo["lamports"] = sumAmount
+				}
+			} else {
+				fromAddress, ok = instructionInfo["authority"].(string)
+				if !ok {
+					fromAddress = instructionInfo["multisigAuthority"].(string)
+				}
+				source := instructionInfo["source"].(string)
+				destination := instructionInfo["destination"].(string)
+				sourceTokenBalance := tokenBalanceMap[source]
+				destinationTokenBalance := tokenBalanceMap[destination]
+				toAddress = destinationTokenBalance.Owner
+				if toAddress == "" {
+					toAddress = destination
+				}
+				if sourceTokenBalance.Owner == "" {
+					sourceTokenBalance.Owner = fromAddress
+					tokenBalanceOwnerMap[sourceTokenBalance.Owner] = sourceTokenBalance
+				}
+				if sourceTokenBalance.Mint != "" {
+					contractAddress = sourceTokenBalance.Mint
+				} else if destinationTokenBalance.Mint != "" {
+					contractAddress = destinationTokenBalance.Mint
+				}
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					amount = instructionInfo["amount"].(string)
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newAmount = newInstructionInfo["amount"].(string)
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newInstructionInfo["amount"] = sumAmount
+				}
+			}
+		} else if instructionType == "transferChecked" {
+			innerTotal++
+			if programId == SOL_CODE {
+				fromAddress = instructionInfo["source"].(string)
+				toAddress = instructionInfo["destination"].(string)
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					amount = utils.GetString(instructionInfo["lamports"])
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newAmount = utils.GetString(newInstructionInfo["lamports"])
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newInstructionInfo["lamports"] = sumAmount
+				}
+			} else {
+				fromAddress, ok = instructionInfo["authority"].(string)
+				if !ok {
+					fromAddress = instructionInfo["multisigAuthority"].(string)
+				}
+				source := instructionInfo["source"].(string)
+				destination := instructionInfo["destination"].(string)
+				sourceTokenBalance := tokenBalanceMap[source]
+				destinationTokenBalance := tokenBalanceMap[destination]
+				toAddress = destinationTokenBalance.Owner
+				if toAddress == "" {
+					toAddress = destination
+				}
+				if sourceTokenBalance.Owner == "" {
+					sourceTokenBalance.Owner = fromAddress
+					tokenBalanceOwnerMap[sourceTokenBalance.Owner] = sourceTokenBalance
+				}
+				contractAddress = instructionInfo["mint"].(string)
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					tokenAmount := instructionInfo["tokenAmount"].(map[string]interface{})
+					amount = tokenAmount["amount"].(string)
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newTokenAmount := newInstructionInfo["tokenAmount"].(map[string]interface{})
+					newAmount = newTokenAmount["amount"].(string)
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newTokenAmount["amount"] = sumAmount
+				}
+			}
+		} else if instructionType == "mintTo" {
+			innerTotal++
+			if programId == SOL_CODE {
+				toAddress = instructionInfo["destination"].(string)
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					amount = utils.GetString(instructionInfo["lamports"])
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newAmount = utils.GetString(newInstructionInfo["lamports"])
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newInstructionInfo["lamports"] = sumAmount
+				}
+			} else {
+				toAddress, ok = instructionInfo["mintAuthority"].(string)
+				if !ok {
+					toAddress = instructionInfo["multisigMintAuthority"].(string)
+				}
+				contractAddress = instructionInfo["mint"].(string)
+
+				key := fromAddress + toAddress + contractAddress
+				newInstruction, ok := instructionMap[key]
+				if !ok {
+					newInstruction = instruction
+					instructionMap[key] = newInstruction
+				} else {
+					amount = instructionInfo["amount"].(string)
+
+					newParsed := newInstruction.Parsed.(map[string]interface{})
+					newInstructionInfo := newParsed["info"].(map[string]interface{})
+					newAmount = newInstructionInfo["amount"].(string)
+					amountInt, _ := new(big.Int).SetString(amount, 0)
+					newAmountInt, _ := new(big.Int).SetString(newAmount, 0)
+					sumAmount := new(big.Int).Add(amountInt, newAmountInt).String()
+					newInstructionInfo["amount"] = sumAmount
+				}
+			}
+		} else {
+			instructionList = append(instructionList, instruction)
+		}
+	}
+	for _, instruction := range instructionMap {
+		instructionList = append(instructionList, instruction)
+	}
+
+	return instructionList, tokenBalanceOwnerMap, innerTotal
 }
