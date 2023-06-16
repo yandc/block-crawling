@@ -397,8 +397,8 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				break
 			}
 		}
-		if !fromAddressExist && !toAddressExist {
-			return
+		if fromAddress == toAddress {
+			return nil
 		}
 
 		solMap := map[string]interface{}{
