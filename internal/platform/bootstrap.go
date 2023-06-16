@@ -88,7 +88,7 @@ func (b *Bootstrap) Start() {
 	}()
 
 	go func() {
-		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" {
+		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
 			return
 		}
 		log.Info("我启动啦",zap.Any(b.ChainName,b))

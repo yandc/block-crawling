@@ -252,7 +252,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
 		tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
 	}
-	realChainName := GetChainName(address)
+	realChainName := GetChainName(chainName, address)
 	if chainName != realChainName && tokenAddress == "" {
 		tokenAddress = tokenDenom
 	}
@@ -386,7 +386,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AtomTran
 		if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
 			tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
 		}
-		realChainName := GetChainName(address)
+		realChainName := GetChainName(chainName, address)
 		if chainName != realChainName && tokenAddress == "" {
 			tokenAddress = tokenDenom
 		}
@@ -413,8 +413,8 @@ func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error))
 	return result, err
 }
 
-func GetChainName(address string) string {
-	var chainName string
+func GetChainName(chainName string, address string) string {
+	var realChainName string
 	var chainNameIndex int
 	for i, val := range address {
 		if val == 49 {
@@ -424,9 +424,13 @@ func GetChainName(address string) string {
 	}
 	chain := address[:chainNameIndex]
 	if chain == "osmo" {
-		chainName = "Osmosis"
+		realChainName = "Osmosis"
 	} else {
-		chainName = strings.ToUpper(chain[:1]) + chain[1:]
+		realChainName = strings.ToUpper(chain[:1]) + chain[1:]
 	}
-	return chainName
+
+	if strings.HasSuffix(chainName, "TEST") {
+		realChainName += "TEST"
+	}
+	return realChainName
 }

@@ -38,7 +38,7 @@ data:
 app:
   # Possible values: "debug", "release"
   #  mode: "debug"
-  mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,zkSyncTEST,ScrollL2TEST"
+  mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,zkSyncTEST,ScrollL2TEST,SeiTEST"
   scanAll: false
   addr: 127.0.0.1:9001
   starScan: true

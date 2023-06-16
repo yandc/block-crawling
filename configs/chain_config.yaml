@@ -1475,3 +1475,30 @@ platformTest:
     enableKanban: true
     kanbanFullRPCURL:
       - http://54.255.179.2:8545
+
+  SeiTEST:
+    blockExplorerAddrUrl: https://sei.explorers.guru/account/
+    blockExplorerTxUrl: https://sei.explorers.guru/transaction/
+    blockExplorerUrl: https://sei.explorers.guru/
+    chain: SeiTEST
+    chainId: "atlantic-2"
+    coinId: 118
+    decimal: 6
+    fullName: Sei Test Net
+    getPriceKey: sei
+    handler: sei
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpg
+    nativeCurrency: SEI
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://rest.atlantic-2.seinetwork.io
+      - https://rest.atlantic-2.seinetwork.io
+      - https://rest.atlantic-2.seinetwork.io
+    httpURL:
+      - https://sei.api.explorers.guru
+    symbol: Sei
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 1
+    monitorHeightAlarmThr: 100

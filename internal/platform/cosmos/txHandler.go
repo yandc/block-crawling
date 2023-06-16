@@ -56,6 +56,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	messages := tx.TxResponse.Tx.Body.Messages
 
 	var isContract bool
+	var messageCount int
 	for _, messageStr := range messages {
 		message := messageStr.(map[string]interface{})
 		messageType := message["@type"].(string)
@@ -63,7 +64,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			messageType != "/ibc.applications.transfer.v1.MsgTransfer" {
 			isContract = true
 			break
+		} else {
+			messageCount++
 		}
+	}
+
+	if messageCount > 1 {
+		isContract = true
 	}
 
 	if !isContract {
@@ -419,7 +426,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 		for _, messageStr := range messages {
 			message := messageStr.(map[string]interface{})
-			if sender, ok := message["sender"].(string); ok {
+			sender, ok := message["sender"].(string)
+			if !ok {
+				sender, ok = message["delegator_address"].(string)
+			}
+			if ok {
 				if fromAddress == "" {
 					fromAddress = sender
 				} else if fromAddress != sender {
@@ -502,19 +513,51 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 			for _, event := range txLog.Events {
 				if event.Type == "transfer" {
+					var hasFromAddress, hasToAddress, hasAmount bool
+					var attributeValue string
 					for _, attribute := range event.Attributes {
 						key := attribute.Key
 						value := attribute.Value
 						if key == "sender" {
+							hasFromAddress = true
 							fromAddress = value
 						} else if key == "recipient" {
+							hasToAddress = true
 							toAddress = value
 						} else if key == "amount" {
-							if value == "" {
+							hasAmount = true
+							attributeValue = value
+						}
+
+						if hasFromAddress && hasToAddress && hasAmount {
+							hasFromAddress = false
+							hasToAddress = false
+							hasAmount = false
+							if attributeValue == "" {
 								//https://www.mintscan.io/osmosis/txs/834574CEC6C645637870D4EE5CC54C5C7523B4B03C29F21E5950367C6C3B17CF
 								continue
 							}
-							values := strings.Split(value, ",")
+
+							if fromAddress != "" {
+								fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+								if err != nil {
+									log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+									return
+								}
+							}
+
+							if toAddress != "" {
+								toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+								if err != nil {
+									log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+									return
+								}
+							}
+							if !fromAddressExist && !toAddressExist {
+								continue
+							}
+
+							values := strings.Split(attributeValue, ",")
 							for _, tvalue := range values {
 								var tokenInfo types.TokenInfo
 								var amount, contractAddress string
@@ -537,23 +580,177 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 									contractAddress = tokenDenom
 								}
 
-								if fromAddress != "" {
-									fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+								index++
+								txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
+
+								if contractAddress != "" {
+									tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 									if err != nil {
-										log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
-										return
+										log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 									}
+									tokenInfo.Amount = amount
+									tokenInfo.Address = contractAddress
+									if tokenInfo.Symbol == "Unknown Token" {
+										tokenInfo.Symbol = contractAddress
+									}
+								}
+								atomosMap := map[string]interface{}{
+									"cosmos": map[string]string{
+										"sequence_number": strconv.Itoa(int(nonce)),
+									},
+									"token": tokenInfo,
+								}
+								parseData, _ := utils.JsonEncode(atomosMap)
+								amountValue, _ := decimal.NewFromString(amount)
+								eventLogInfo := &types.EventLog{
+									From:   fromAddress,
+									To:     toAddress,
+									Amount: amountValue.BigInt(),
+									Token:  tokenInfo,
 								}
 
-								if toAddress != "" {
-									toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
-									if err != nil {
-										log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
-										return
+								var isContinue bool
+								for i, eventLog := range eventLogs {
+									if eventLog == nil {
+										continue
+									}
+									if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+										eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+										cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+										if cmp == 1 {
+											isContinue = true
+											subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+											eventLogs[i].Amount = subAmount
+											atomTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
+										} else if cmp == 0 {
+											isContinue = true
+											eventLogs[i] = nil
+											atomTransactionRecords[i] = nil
+										} else if cmp == -1 {
+											eventLogs[i] = nil
+											atomTransactionRecords[i] = nil
+										}
+										break
+									} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+										eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+										isContinue = true
+										addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+										eventLogs[i].Amount = addAmount
+										atomTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
+										break
 									}
 								}
-								if !fromAddressExist && !toAddressExist {
+								if isContinue {
 									continue
+								}
+								eventLogs = append(eventLogs, eventLogInfo)
+
+								atomTransactionRecord := &data.AtomTransactionRecord{
+									BlockHash:       chainBlock.Hash,
+									BlockNumber:     int(curHeight),
+									Nonce:           int64(nonce),
+									TransactionHash: txHash,
+									FromAddress:     fromAddress,
+									ToAddress:       toAddress,
+									FromUid:         fromUid,
+									ToUid:           toUid,
+									FeeAmount:       feeAmount,
+									Amount:          amountValue,
+									Status:          status,
+									TxTime:          txTime,
+									ContractAddress: contractAddress,
+									ParseData:       parseData,
+									GasLimit:        tx.TxResponse.GasWanted,
+									GasUsed:         tx.TxResponse.GasUsed,
+									GasPrice:        gasPrice,
+									Data:            payload,
+									EventLog:        "",
+									TransactionType: txType,
+									DappData:        "",
+									ClientData:      "",
+									CreatedAt:       h.now,
+									UpdatedAt:       h.now,
+								}
+								atomTransactionRecords = append(atomTransactionRecords, atomTransactionRecord)
+							}
+						}
+					}
+				} else if event.Type == "coin_spent" {
+					for _, attribute := range event.Attributes {
+						key := attribute.Key
+						value := attribute.Value
+						if key == "spender" {
+							fromAddress = value
+							break
+						}
+					}
+				} else if event.Type == "delegate" || event.Type == "withdraw_rewards" { //MsgDelegate(质押), MsgWithdrawDelegatorReward(收取质押奖励)
+					var hasAddress, hasAmount bool
+					var attributeValue string
+					for _, attribute := range event.Attributes {
+						key := attribute.Key
+						value := attribute.Value
+						if key == "validator" {
+							hasAddress = true
+							if event.Type == "delegate" {
+								toAddress = value
+							} else if event.Type == "withdraw_rewards" {
+								fromAddress = value
+								toAddress = atomContractRecord.FromAddress
+							}
+						} else if key == "amount" {
+							hasAmount = true
+							attributeValue = value
+						}
+
+						if hasAddress && hasAmount {
+							hasAddress = false
+							hasAmount = false
+							if attributeValue == "" {
+								//https://www.mintscan.io/osmosis/txs/834574CEC6C645637870D4EE5CC54C5C7523B4B03C29F21E5950367C6C3B17CF
+								continue
+							}
+
+							if fromAddress != "" {
+								fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+								if err != nil {
+									log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+									return
+								}
+							}
+
+							if toAddress != "" {
+								toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+								if err != nil {
+									log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+									return
+								}
+							}
+							if !fromAddressExist && !toAddressExist {
+								continue
+							}
+
+							values := strings.Split(attributeValue, ",")
+							for _, tvalue := range values {
+								var tokenInfo types.TokenInfo
+								var amount, contractAddress string
+
+								var tokenDenomIndex int
+								for i, val := range tvalue {
+									if val > 57 {
+										tokenDenomIndex = i
+										break
+									}
+								}
+								amount = tvalue[:tokenDenomIndex]
+								tokenDenom := tvalue[tokenDenomIndex:]
+								var denom string
+								if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+									denom = strings.ToLower(platInfo.NativeCurrency)
+								}
+								subTokenDenom := tokenDenom[1:]
+								if subTokenDenom != denom {
+									contractAddress = tokenDenom
 								}
 
 								index++

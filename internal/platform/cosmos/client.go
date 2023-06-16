@@ -256,9 +256,10 @@ type BlockerInfo struct {
 		Data struct {
 			Txs []string `json:"txs"`
 		} `json:"data"`
-		Evidence struct {
+		/*Evidence struct {
 			Evidence []interface{} `json:"evidence"`
-		} `json:"evidence"`
+		} `json:"evidence"`*/
+		Evidence   interface{} `json:"evidence"`
 		LastCommit struct {
 			Height  string `json:"height"`
 			Round   int    `json:"round"`
