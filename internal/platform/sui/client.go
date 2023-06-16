@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -92,19 +93,20 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 
 // GetTxByHash get transaction by given tx hash.
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
-	/*transaction, err := c.GetTransactionByHash(txHash)
+	transaction, err := c.GetTransactionByHash(txHash)
 	if err != nil {
-		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
-			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound")) {
+		if erro, ok := err.(*types.ErrorObject); ok && strings.HasPrefix(erro.Message, "Could not find the referenced transaction") {
+			return nil, common.TransactionNotFound
+		}
+		if strings.Contains(err.Error(), "Error checking transaction input objects: ObjectNotFound") {
 			return nil, common.TransactionNotFound
 		}
 		return nil, err
-	}*/
-	var transaction *TransactionInfo
+	}
+	/*var transaction *TransactionInfo
 	transactions, err := c.GetTransactionByHashs([]string{txHash})
 	if err != nil {
-		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") ||
-			strings.HasPrefix(erro.Message, "Error checking transaction input objects: ObjectNotFound")) {
+		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") {
 			return nil, common.TransactionNotFound
 		}
 		return nil, err
@@ -114,7 +116,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		} else {
 			return nil, common.TransactionNotFound
 		}
-	}
+	}*/
 	return &chain.Transaction{
 		Hash:   txHash,
 		Raw:    transaction,
@@ -441,6 +443,7 @@ type TransactionInfo struct {
 	} `json:"balanceChanges"`
 	TimestampMs string             `json:"timestampMs"`
 	Checkpoint  string             `json:"checkpoint"`
+	Errors      []string           `json:"errors,omitempty"`
 	Error       *types.ErrorObject `json:"error,omitempty"`
 }
 
@@ -506,7 +509,13 @@ func (c *Client) GetTransactionByHash(hash string) (*TransactionInfo, error) {
 	}}
 	timeoutMS := 10_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
-	return out, err
+	if err != nil {
+		return nil, err
+	}
+	if out.Errors != nil {
+		return nil, errors.New(utils.GetString(out.Errors))
+	}
+	return out, nil
 }
 
 func (c *Client) GetTransactionByHashs(hashs []string) ([]*TransactionInfo, error) {
