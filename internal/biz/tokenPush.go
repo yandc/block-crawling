@@ -19,6 +19,10 @@ type UserTokenPush struct {
 }
 
 func HandleTokenPush(chainName string, userTokenPushList []UserTokenPush) {
+	if chainName == "SeiTEST" {
+		return
+	}
+
 	if len(userTokenPushList) == 0 {
 		return
 	}
