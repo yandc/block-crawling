@@ -544,6 +544,20 @@ type SolanaBeachBrowserInfo struct {
 	} `json:"blocktime"`
 }
 
+type SolanaResponse struct {
+	Jsonrpc string        `json:"jsonrpc"`
+	Result  []*SolanaInfo `json:"result"`
+	Id      int           `json:"id"`
+}
+type SolanaInfo struct {
+	BlockTime          int         `json:"blockTime"`
+	ConfirmationStatus string      `json:"confirmationStatus"`
+	Err                interface{} `json:"err"`
+	Memo               interface{} `json:"memo"`
+	Signature          string      `json:"signature"`
+	Slot               int         `json:"slot"`
+}
+
 func SolanaGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -588,6 +602,8 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getRecordBySolanaBeach(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
 		} else if url == "https://api.solscan.io" {
 			solTransactionRecordList, err = getRecordBySolscan(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
+		} else {
+			solTransactionRecordList, err = getRecordByRpcNode(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
 		if err == nil && len(solTransactionRecordList) > 0 {
@@ -727,6 +743,72 @@ chainFlag:
 	now := time.Now().Unix()
 	for _, record := range chainRecords {
 		txHash := record.TxHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		solRecord := &data.SolTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		solTransactionRecordList = append(solTransactionRecordList, solRecord)
+	}
+	return solTransactionRecordList, nil
+}
+
+func getRecordByRpcNode(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
+	var beforeTxHash string
+	method := "getSignaturesForAddress"
+
+	var chainRecords []*SolanaInfo
+chainFlag:
+	for {
+		var out []*SolanaInfo
+		var params []interface{}
+		if beforeTxHash == "" {
+			params = []interface{}{address, map[string]interface{}{"limit": pageSize}}
+		} else {
+			params = []interface{}{address, map[string]interface{}{"before": beforeTxHash, "limit": pageSize}}
+		}
+		_, err := httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, &timeout)
+		for i := 0; i < 1 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			_, err = httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, &timeout)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out {
+			txHash := browserInfo.Signature
+			txSlot := browserInfo.Slot
+			if txSlot < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		beforeTxHash = out[dataLen-1].Signature
+	}
+
+	var solTransactionRecordList []*data.SolTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Signature
 		if _, ok := transactionRecordMap[txHash]; !ok {
 			transactionRecordMap[txHash] = ""
 		} else {
@@ -1632,7 +1714,7 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 	}()
 
 	url := urls[0]
-	url = url +  address + "/txs"
+	url = url + address + "/txs"
 
 	req := &pb.PageListRequest{
 		Address:  address,
@@ -1659,24 +1741,24 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 	if len(out) > 0 {
 		for _, arg := range out {
 			txHash := arg.Txid
-				if txHash == dbLastRecordHash {
-					break
-				}
-				now := time.Now().Unix()
+			if txHash == dbLastRecordHash {
+				break
+			}
+			now := time.Now().Unix()
 
-				if _, ok := transactionRecordMap[txHash]; !ok {
-					transactionRecordMap[txHash] = ""
+			if _, ok := transactionRecordMap[txHash]; !ok {
+				transactionRecordMap[txHash] = ""
 
-					btcRecord := &data.BtcTransactionRecord{
-						TransactionHash: txHash,
-						Status:          PENDING,
-						DappData:        "",
-						ClientData:      "",
-						CreatedAt:       now,
-						UpdatedAt:       now,
-					}
-					btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
+				btcRecord := &data.BtcTransactionRecord{
+					TransactionHash: txHash,
+					Status:          PENDING,
+					DappData:        "",
+					ClientData:      "",
+					CreatedAt:       now,
+					UpdatedAt:       now,
 				}
+				btcTransactionRecordList = append(btcTransactionRecordList, btcRecord)
+			}
 
 		}
 
