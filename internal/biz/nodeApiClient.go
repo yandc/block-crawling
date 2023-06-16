@@ -2473,7 +2473,13 @@ chainFlag:
 
 		dataLen := len(out.Data)
 		if dataLen == 0 {
-			break
+			if addressKey == "FromAddress" {
+				addressKey = "ToAddress"
+				startAddress = nil
+				continue
+			} else {
+				break
+			}
 		}
 		for _, browserInfo := range out.Data {
 			txHash := browserInfo.Digest
