@@ -950,7 +950,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
 					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
 
-					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 {
+					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
 						evm := make(map[string]interface{})
 						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
 							if record.Nonce == 0 {
