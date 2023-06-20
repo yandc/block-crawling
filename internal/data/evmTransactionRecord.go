@@ -62,7 +62,7 @@ type EvmTransactionRecordRepo interface {
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*EvmTransactionRecord, int) (int64, error)
 	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*EvmTransactionRecord, int) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByTransactionHash(context.Context, string, []*EvmTransactionRecord, int) (int64, error)
-	Update(context.Context, string, *EvmTransactionRecord) (int64, error)
+	UpdateNotSuccessNotFail(context.Context, string, *EvmTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*EvmTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*EvmTransactionRecord, error)
 	FindByNonceAndAddress(context.Context, string, string, int64) (*EvmTransactionRecord, error)
@@ -70,6 +70,7 @@ type EvmTransactionRecordRepo interface {
 	ListAll(context.Context, string) ([]*EvmTransactionRecord, error)
 	PageList(context.Context, string, *pb.PageListRequest) ([]*EvmTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*EvmTransactionRecord, error)
+	PendingByFromAddress(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -298,8 +299,8 @@ func (r *EvmTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByTransacti
 	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"transaction_hash"}, txRecords, pageSize)
 }
 
-func (r *EvmTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, evmTransactionRecord *EvmTransactionRecord) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("id = ?", evmTransactionRecord.Id).Updates(evmTransactionRecord)
+func (r *EvmTransactionRecordRepoImpl) UpdateNotSuccessNotFail(ctx context.Context, tableName string, evmTransactionRecord *EvmTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("id = ? and status not in('success', 'fail')", evmTransactionRecord.Id).Updates(evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+tableName+" failed", err)
@@ -861,11 +862,27 @@ func (r *EvmTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 	ret := db.Find(&evmTransactionRecordList)
 	err := ret.Error
 	if err != nil {
-		log.Errore("page query CsprTransactionRecord failed", err)
+		log.Errore("page query evmTransactionRecord failed", err)
 		return nil, err
 	}
 	return evmTransactionRecordList, nil
 }
+
+func (r *EvmTransactionRecordRepoImpl) PendingByFromAddress(ctx context.Context, tableName string, address string) ([]*EvmTransactionRecord, error) {
+	var evmTransactionRecordList []*EvmTransactionRecord
+	db := r.gormDB.Table(tableName).Where(" status in  ('pending','no_status')")
+	if address != "" {
+		db.Where("from_address = ? ", address)
+	}
+	ret := db.Find(&evmTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query evmTransactionRecord failed", err)
+		return nil, err
+	}
+	return evmTransactionRecordList, nil
+}
+
 func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
 

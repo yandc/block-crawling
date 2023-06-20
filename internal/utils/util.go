@@ -54,6 +54,11 @@ func StringDecimalsValue(amount string, decimals int) string {
 	return s
 }
 
+func StringSpiltByIndex(evmStr string, index int) string {
+	rawStrSlice := []byte(evmStr)
+	return string(rawStrSlice[:index])
+}
+
 func bigIntFloat(balance *big.Int, decimals int64) *big.Float {
 	if balance.Sign() == 0 {
 		return big.NewFloat(0)

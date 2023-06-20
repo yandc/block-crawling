@@ -142,6 +142,16 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type ClearNonceRequest struct {
+	Address   string `json:"address"`
+	ChainName string `json:"chainName"`
+}
+
+type ClearNonceResponse struct {
+	Ok      bool   `json:"ok,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type BroadcastRequest struct {
 	SessionId string `json:"sessionId"`
 	Address   string `json:"address"`
