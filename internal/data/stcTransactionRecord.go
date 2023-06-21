@@ -60,7 +60,7 @@ type StcTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*StcTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*StcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*StcTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*StcTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*StcTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
@@ -329,7 +329,7 @@ func (r *StcTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return stcTransactionRecordList, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*StcTransactionRecord, int64, error) {
+func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*StcTransactionRecord, int64, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -339,6 +339,12 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
+	}
+	if req.FromAddress != "" {
+		db = db.Where("(from_address = ? or (log_address is not null and log_address->0 ? '"+req.FromAddress+"'))", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("(to_address = ? or (log_address is not null and log_address->1 ? '"+req.ToAddress+"'))", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
@@ -358,11 +364,20 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.ContractAddress != "" {
 		db = db.Where("contract_address = ?", req.ContractAddress)
 	}
+	if len(req.ContractAddressList) > 0 {
+		db = db.Where("contract_address in(?)", req.ContractAddressList)
+	}
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -370,11 +385,23 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
-	if len(req.OperateTypeList) > 0 {
-		db = db.Where("operate_type in(?)", req.OperateTypeList)
+	if req.TransactionHash != "" {
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if req.Nonce >= 0 {
+		db = db.Where("nonce = ?", req.Nonce)
+	}
+	if req.DappDataEmpty {
+		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
@@ -439,10 +466,10 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 		db = db.Where("to_uid = ?", req.ToUid)
 	}
 	if req.FromAddress != "" {
-		db = db.Where("from_address = ?", req.FromAddress)
+		db = db.Where("(from_address = ? or (log_address is not null and log_address->0 ? '"+req.FromAddress+"'))", req.FromAddress)
 	}
 	if req.ToAddress != "" {
-		db = db.Where("to_address = ?", req.ToAddress)
+		db = db.Where("(to_address = ? or (log_address is not null and log_address->1 ? '"+req.ToAddress+"'))", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
@@ -471,6 +498,12 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
 	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
 	}
@@ -494,6 +527,19 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	}
 	if req.ClientDataNotEmpty {
 		db = db.Where("client_data is not null and client_data != ''")
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.TokenAddress != "" {
+		if req.TokenAddress == MAIN_ADDRESS_PARAM {
+			req.TokenAddress = ""
+		}
+		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
+		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
 	}
 
 	db = db.Order(req.OrderBy)
@@ -539,10 +585,10 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 		db = db.Where("to_uid = ?", req.ToUid)
 	}
 	if req.FromAddress != "" {
-		db = db.Where("from_address = ?", req.FromAddress)
+		db = db.Where("(from_address = ? or (log_address is not null and log_address->0 ? '"+req.FromAddress+"'))", req.FromAddress)
 	}
 	if req.ToAddress != "" {
-		db = db.Where("to_address = ?", req.ToAddress)
+		db = db.Where("(to_address = ? or (log_address is not null and log_address->1 ? '"+req.ToAddress+"'))", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
@@ -571,6 +617,12 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
 	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
 	}
@@ -594,6 +646,19 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	}
 	if req.ClientDataNotEmpty {
 		db = db.Where("client_data is not null and client_data != ''")
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.TokenAddress != "" {
+		if req.TokenAddress == MAIN_ADDRESS_PARAM {
+			req.TokenAddress = ""
+		}
+		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
+		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
 	}
 
 	ret := db.Delete(&StcTransactionRecord{})

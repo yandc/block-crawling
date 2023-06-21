@@ -55,7 +55,7 @@ type TrxTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*TrxTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*TrxTransactionRecord, error)
 	ListAll(context.Context, string) ([]*TrxTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*TrxTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*TrxTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*TrxTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -316,7 +316,7 @@ func (r *TrxTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return trxTransactionRecordList, nil
 }
 
-func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*TrxTransactionRecord, int64, error) {
+func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*TrxTransactionRecord, int64, error) {
 	var trxTransactionRecordList []*TrxTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -326,6 +326,12 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
+	}
+	if req.FromAddress != "" {
+		db = db.Where("from_address = ?", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("to_address = ?", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		db = db.Where("from_address in(?)", req.FromAddressList)
@@ -342,11 +348,20 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.ContractAddress != "" {
 		db = db.Where("contract_address = ?", req.ContractAddress)
 	}
+	if len(req.ContractAddressList) > 0 {
+		db = db.Where("contract_address in(?)", req.ContractAddressList)
+	}
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -354,8 +369,20 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
+	if req.TransactionHash != "" {
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
+	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if req.DappDataEmpty {
+		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
@@ -447,19 +474,16 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 		db = db.Where("to_address = ?", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
-		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
-		db = db.Where("(from_address in(?) or (log_address is not null and log_address->0 ?| array["+fromAddressList+"]))", req.FromAddressList)
+		db = db.Where("from_address in(?)", req.FromAddressList)
 	}
 	if len(req.ToAddressList) > 0 {
-		toAddressList := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
-		db = db.Where("(to_address in(?) or (log_address is not null and log_address->1 ?| array["+toAddressList+"]))", req.ToAddressList)
+		db = db.Where("to_address in(?)", req.ToAddressList)
 	}
 	if req.Uid != "" {
 		db = db.Where("(from_uid = ? or to_uid = ?)", req.Uid, req.Uid)
 	}
 	if req.Address != "" {
-		db = db.Where("(from_address = ? or to_address = ? or (log_address is not null and (log_address->0 ? '"+req.Address+"' or log_address->1 ? '"+req.Address+"')))",
-			req.Address, req.Address)
+		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
 	}
 	if req.ContractAddress != "" {
 		db = db.Where("contract_address = ?", req.ContractAddress)
@@ -472,6 +496,12 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -488,14 +518,24 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
-	/*if req.Nonce >= 0 {
-		db = db.Where("nonce = ?", req.Nonce)
-	}*/
 	if req.DappDataEmpty {
 		db = db.Where("(dapp_data is null or dapp_data = '')")
 	}
 	if req.ClientDataNotEmpty {
 		db = db.Where("client_data is not null and client_data != ''")
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.TokenAddress != "" {
+		if req.TokenAddress == MAIN_ADDRESS_PARAM {
+			req.TokenAddress = ""
+		}
+		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
+		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
 	}
 
 	ret := db.Delete(&TrxTransactionRecord{})

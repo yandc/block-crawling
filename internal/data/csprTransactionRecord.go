@@ -50,7 +50,7 @@ type CsprTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*CsprTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*CsprTransactionRecord, error)
 	ListAll(context.Context, string) ([]*CsprTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*CsprTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*CsprTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*CsprTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -298,7 +298,7 @@ func (r *CsprTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName s
 	return csprTransactionRecordList, nil
 }
 
-func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*CsprTransactionRecord, int64, error) {
+func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*CsprTransactionRecord, int64, error) {
 	var csprTransactionRecordList []*CsprTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -308,6 +308,12 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	}
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
+	}
+	if req.FromAddress != "" {
+		db = db.Where("from_address = ?", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("to_address = ?", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		db = db.Where("from_address in(?)", req.FromAddressList)
@@ -321,16 +327,38 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	if req.Address != "" {
 		db = db.Where("(from_address = ? or to_address = ?)", req.Address, req.Address)
 	}
-
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
 	}
-
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	}
+	if len(req.TransactionTypeList) > 0 {
+		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
+	}
+	if req.TransactionHash != "" {
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
+	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if req.DappDataEmpty {
+		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)

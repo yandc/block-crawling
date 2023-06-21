@@ -56,7 +56,7 @@ type DotTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*DotTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*DotTransactionRecord, error)
 	ListAll(context.Context, string) ([]*DotTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*DotTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*DotTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*DotTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -321,7 +321,7 @@ func (r *DotTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return dotTransactionRecordList, nil
 }
 
-func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*DotTransactionRecord, int64, error) {
+func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*DotTransactionRecord, int64, error) {
 	var dotTransactionRecordList []*DotTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -331,6 +331,12 @@ func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
+	}
+	if req.FromAddress != "" {
+		db = db.Where("(from_address = ? or (log_address is not null and log_address->0 ? '"+req.FromAddress+"'))", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("(to_address = ? or (log_address is not null and log_address->1 ? '"+req.ToAddress+"'))", req.ToAddress)
 	}
 	if len(req.FromAddressList) > 0 {
 		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
@@ -350,11 +356,20 @@ func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.ContractAddress != "" {
 		db = db.Where("contract_address = ?", req.ContractAddress)
 	}
+	if len(req.ContractAddressList) > 0 {
+		db = db.Where("contract_address in(?)", req.ContractAddressList)
+	}
 	if len(req.StatusList) > 0 {
 		db = db.Where("status in(?)", req.StatusList)
 	}
 	if len(req.StatusNotInList) > 0 {
 		db = db.Where("status not in(?)", req.StatusNotInList)
+	}
+	if req.TransactionType != "" {
+		db = db.Where("transaction_type = ?", req.TransactionType)
+	}
+	if req.TransactionTypeNotEqual != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -362,8 +377,23 @@ func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
+	if req.TransactionHash != "" {
+		db = db.Where("transaction_hash = ?", req.TransactionHash)
+	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if req.Nonce >= 0 {
+		db = db.Where("nonce = ?", req.Nonce)
+	}
+	if req.DappDataEmpty {
+		db = db.Where("(dapp_data is null or dapp_data = '')")
+	}
+	if req.ClientDataNotEmpty {
+		db = db.Where("client_data is not null and client_data != ''")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)

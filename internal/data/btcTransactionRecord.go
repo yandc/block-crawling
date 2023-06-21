@@ -50,7 +50,7 @@ type BtcTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*BtcTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*BtcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*BtcTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*BtcTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*BtcTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*BtcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -298,7 +298,7 @@ func (r *BtcTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return btcTransactionRecordList, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*BtcTransactionRecord, int64, error) {
+func (r *BtcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*BtcTransactionRecord, int64, error) {
 	var btcTransactionRecordList []*BtcTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -355,6 +355,12 @@ func (r *BtcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
 	}
+	if req.FromAddress != "" {
+		db = db.Where("from_address = ?", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("to_address = ?", req.ToAddress)
+	}
 	if len(req.FromAddressList) > 0 {
 		db = db.Where("from_address in(?)", req.FromAddressList)
 	}
@@ -384,6 +390,9 @@ func (r *BtcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}*/
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
