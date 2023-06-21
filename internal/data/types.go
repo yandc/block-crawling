@@ -15,19 +15,26 @@ type TransactionRequest struct {
 	ContractAddressList      []string
 	StatusList               []string
 	StatusNotInList          []string
+	TransactionType          string
+	TransactionTypeNotEqual  string
 	TransactionTypeList      []string
 	TransactionTypeNotInList []string
+	OperateTypeList          []string
 	TransactionHash          string
 	TransactionHashList      []string
 	TransactionHashLike      string
 	Nonce                    int64
 	DappDataEmpty            bool
 	ClientDataNotEmpty       bool
+	StartTime                int64
+	StopTime                 int64
+	TokenAddress             string
 	OrderBy                  string
 	DataDirection            int32
 	StartIndex               int64
 	PageNum                  int32
 	PageSize                 int32
+	Total                    bool
 }
 
 type TBTransactionRecord struct {

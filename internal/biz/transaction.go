@@ -797,11 +797,6 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 }
 
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
-	var result = &pb.PageListResponse{}
-	var total int64
-	var list []*pb.TransactionRecord
-	var err error
-
 	chainType := ChainNameType[req.ChainName]
 	switch chainType {
 	case EVM:
@@ -825,28 +820,37 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		}
 	}
 
+	var request *data.TransactionRequest
+	utils.CopyProperties(req, &request)
+	request.Nonce = -1
+
+	var result = &pb.PageListResponse{}
+	var total int64
+	var list []*pb.TransactionRecord
+	var err error
+
 	switch chainType {
 	case POLKADOT:
 		var recordList []*data.DotTransactionRecord
-		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case CASPER:
 		var recordList []*data.CsprTransactionRecord
-		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case NERVOS:
 		var recordList []*data.CkbTransactionRecord
-		recordList, total, err = data.CkbTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.CkbTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case BTC:
 		var recordList []*data.BtcTransactionRecord
-		recordList, total, err = data.BtcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.BtcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 			if len(list) > 0 {
@@ -861,49 +865,49 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		}
 	case EVM:
 		var recordList []*data.EvmTransactionRecord
-		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case STC:
 		var recordList []*data.StcTransactionRecord
-		recordList, total, err = data.StcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.StcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case TVM:
 		var recordList []*data.TrxTransactionRecord
-		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case APTOS:
 		var recordList []*data.AptTransactionRecord
-		recordList, total, err = data.AptTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.AptTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case SUI:
 		var recordList []*data.SuiTransactionRecord
-		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case SOLANA:
 		var recordList []*data.SolTransactionRecord
-		recordList, total, err = data.SolTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.SolTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case COSMOS:
 		var recordList []*data.AtomTransactionRecord
-		recordList, total, err = data.AtomTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.AtomTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
 	case KASPA:
 		var recordList []*data.KasTransactionRecord
-		recordList, total, err = data.KasTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), req)
+		recordList, total, err = data.KasTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}

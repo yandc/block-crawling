@@ -46,7 +46,7 @@ type KasTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*KasTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*KasTransactionRecord, error)
 	ListAll(context.Context, string) ([]*KasTransactionRecord, error)
-	PageList(context.Context, string, *pb.PageListRequest) ([]*KasTransactionRecord, int64, error)
+	PageList(context.Context, string, *TransactionRequest) ([]*KasTransactionRecord, int64, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*KasTransactionRecord, error)
@@ -213,7 +213,7 @@ func (r *KasTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return kasTransactionRecordList, nil
 }
 
-func (r *KasTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *pb.PageListRequest) ([]*KasTransactionRecord, int64, error) {
+func (r *KasTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*KasTransactionRecord, int64, error) {
 	var kasTransactionRecordList []*KasTransactionRecord
 	var total int64
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -270,6 +270,12 @@ func (r *KasTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.ToUid != "" {
 		db = db.Where("to_uid = ?", req.ToUid)
 	}
+	if req.FromAddress != "" {
+		db = db.Where("from_address = ?", req.FromAddress)
+	}
+	if req.ToAddress != "" {
+		db = db.Where("to_address = ?", req.ToAddress)
+	}
 	if len(req.FromAddressList) > 0 {
 		db = db.Where("from_address in(?)", req.FromAddressList)
 	}
@@ -299,6 +305,9 @@ func (r *KasTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	}*/
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
+	}
+	if req.TransactionHashLike != "" {
+		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)

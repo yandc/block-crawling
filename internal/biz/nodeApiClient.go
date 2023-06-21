@@ -1,7 +1,6 @@
 package biz
 
 import (
-	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
@@ -418,11 +417,12 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -577,11 +577,12 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.SolTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -866,11 +867,12 @@ func AptosGetTxByAddress(chainName string, address string, urls []string) (err e
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.AptTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1020,11 +1022,12 @@ func StarcoinGetTxByAddress(chainName string, address string, urls []string) (er
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.StcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1141,11 +1144,13 @@ func KlaytnGetTxByAddress(chainName string, address string, urls []string) (err 
 	url := urls[0]
 	//klaytn 浏览器只支持 25 的limit
 	url = url + address + "/txs?limit=25&page="
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1262,11 +1267,13 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 	//https://zksync2-mainnet-explorer.zksync.io/transactions?limit=50&direction=older&accountAddress=0xb7B4D65CB5a0c44cCB9019ca74745686188173Db
 	//只支持最新五十条
 	reqUrl := url + "?limit=50&direction=older&accountAddress=" + address
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1355,11 +1362,13 @@ func RoninGetTxByAddress(chainName string, address string, urls []string) (err e
 	//- https://explorerv3-api.roninchain.com/txs/
 	//- https://explorerv3-api.roninchain.com/txs/0xb7B4D65CB5a0c44cCB9019ca74745686188173Db?from=0&size=100
 	url = url + address + "?size=100&from="
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1471,11 +1480,12 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 
 	var chainRecords []*CasperApiRecord
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "tx_time desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.CsprTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1603,11 +1613,12 @@ func DogeGetTxByAddress(chainName string, address string, urls []string) (err er
 	// https://dogechain.info/api/v1/address/transactions/D5Mn3Xkmre74v6Z1xG6cpzHyTv1EATY5Ee/1
 	url = url + address + "/"
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "tx_time desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1718,11 +1729,12 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 	url := urls[0]
 	url = url + address + "/txs"
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "tx_time desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1799,11 +1811,13 @@ func DotGetTxByAddress(chainName string, address string, urls []string) (err err
 
 	pageNum := 0
 	url := urls[0]
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "tx_time desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.DotTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -1819,6 +1833,7 @@ func DotGetTxByAddress(chainName string, address string, urls []string) (err err
 		dbLastRecordHash = dbLastRecords[0].TransactionHash
 		txTime = dbLastRecords[0].TxTime
 	}
+
 	var chainRecords []*PolkadotApiRecord
 chainFlag:
 	for {
@@ -1940,11 +1955,13 @@ func BTCGetTxByAddress(chainName string, address string, urls []string) (err err
 	limit := 100
 	url := urls[0]
 	url = url + address + "/transactions?limit=" + strconv.Itoa(limit) + "&offset="
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -2129,11 +2146,13 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 	}()
 
 	url := urls[0]
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.TrxTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -2319,11 +2338,12 @@ func NervosGetTxByAddress(chainName string, address string, urls []string) (err 
 	url := urls[0]
 	url = url + "/address_transactions/" + address + "?page_size=" + strconv.Itoa(pageSize) + "&page="
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.CkbTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -2433,11 +2453,12 @@ func SuiGetTxByAddress(chainName string, address string, urls []string) (err err
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "block_number desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.SuiTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -2613,11 +2634,12 @@ func KaspaGetTxByAddress(chainName string, address string, urls []string) (err e
 		}
 	}()
 
-	req := &pb.PageListRequest{
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "tx_time desc",
+		PageNum:     1,
+		PageSize:    1,
 	}
 	dbLastRecords, _, err := data.KasTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
@@ -2744,7 +2766,8 @@ func SeiGetTxByAddress(chainName string, address string, urls []string) (err err
 		}
 	}()
 
-	req := &pb.PageListRequest{
+	req := &data.TransactionRequest{
+		Nonce:    -1,
 		Address:  address,
 		OrderBy:  "tx_time desc",
 		PageNum:  1,

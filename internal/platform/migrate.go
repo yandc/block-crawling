@@ -1,7 +1,6 @@
 package platform
 
 import (
-	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -455,6 +454,7 @@ func DeleteRecordData() {
 			total += size
 			for i, record := range txRecords {
 				transactionRequest := &data.TransactionRequest{
+					Nonce:               -1,
 					TransactionHashLike: record.TransactionHash,
 				}
 				count, err := data.EvmTransactionRecordRepoClient.Delete(nil, tableName, transactionRequest)
@@ -5888,7 +5888,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.BTC:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.BtcTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -5963,7 +5964,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.EVM:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.EvmTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6038,7 +6040,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.APTOS:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.AptTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6115,7 +6118,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.SUI:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.SuiTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6192,7 +6196,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.COSMOS:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.AtomTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6267,7 +6272,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.NERVOS:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.CkbTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6342,7 +6348,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.CASPER:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.CsprTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6417,7 +6424,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.POLKADOT:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.DotTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6492,7 +6500,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.SOLANA:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.SolTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6567,7 +6576,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.STC:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.StcTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
@@ -6642,7 +6652,8 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		case biz.TVM:
 			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.TrxTransactionRecord
-			var request = &pb.PageListRequest{
+			var request = &data.TransactionRequest{
+				Nonce:     -1,
 				StartTime: startTime,
 				StopTime:  stopTime,
 				OrderBy:   "id asc",
