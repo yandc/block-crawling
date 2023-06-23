@@ -36,6 +36,7 @@ type Bootstrap struct {
 
 var startChainMap = make(map[string]*Bootstrap)
 var startCustomChainMap = &sync.Map{}
+var chainLock sync.RWMutex
 
 func NewBootstrap(p biz.Platform, value *conf.PlatInfo) *Bootstrap {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -477,7 +478,7 @@ func customChainRun() {
 		}
 		if sl, ok := startCustomChainMap.LoadOrStore(k, GetBootStrap(chainInfo)); ok {
 			sccm := sl.(*Bootstrap)
-
+			chainLock.Lock()
 			//校验块高差 1000  停止爬块 更新块高
 			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + chainInfo.Chain).Result()
 			redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + chainInfo.Chain).Result()
@@ -494,6 +495,7 @@ func customChainRun() {
 
 				sccm.Start()
 			}
+			chainLock.Unlock()
 			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
 				//sccm.Stop()
 				sccm.Conf.RpcURL = chainInfo.Urls
@@ -516,8 +518,8 @@ func customChainRun() {
 	}
 }
 func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
-	var mhat int32 = 500
-	var mc int32 = 2
+	var mhat int32 = 1000
+	var mc int32 = 1
 	var scbd int32 = 500
 	cp := &conf.PlatInfo{
 		Chain:                      chainInfo.Chain,
