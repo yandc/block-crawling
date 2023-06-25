@@ -8,13 +8,11 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
-	"math/big"
-	"strconv"
-	"strings"
-
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
+	"math/big"
+	"strconv"
 )
 
 const TRANSFER_TOPIC = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -80,77 +78,118 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		tokenInfo.Address = rawTx.contractAddress
 	}
 
-	platformUserEventlog := false
 	//获取eventlog
-	var eventLogs []types.EventLog
+	var eventLogs []*types.EventLogUid
 	if tx.TxType != biz.NATIVE {
 		for _, log_ := range txInfo.Log {
-			if len(log_.Topics) > 1 && (log_.Topics[0] == TRANSFER_TOPIC ||
-				log_.Topics[0] == WITHDRAWAL_TOPIC) {
-				contranctAddress := log_.Address
-				tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contranctAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
-				}
-				amount := big.NewInt(0)
+			if len(log_.Topics) < 1 {
+				continue
+			}
+			topic0 := log_.Topics[0]
+
+			var token types.TokenInfo
+			var tokenAddress string
+			amount := big.NewInt(0)
+			var fromAddress, toAddress, fromUid, toUid string
+			var fromAddressExist, toAddressExist bool
+
+			if topic0 == TRANSFER_TOPIC || topic0 == WITHDRAWAL_TOPIC {
 				banInt, b := new(big.Int).SetString(log_.Data, 16)
 				if b {
 					amount = banInt
 				}
-				tokenInfo.Amount = amount.String()
 
-				if log_.Topics[0] == TRANSFER_TOPIC {
-					eventLogInfo := types.EventLog{
-						From:   utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64]),
-						To:     utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[2][24:64]),
-						Amount: amount,
-						Token:  tokenInfo,
-					}
-					eventLogs = append(eventLogs, eventLogInfo)
-				}
+				tokenAddress = log_.Address
 
-				if log_.Topics[0] == WITHDRAWAL_TOPIC {
-					if strings.HasPrefix(tokenInfo.Symbol, "W") || strings.HasPrefix(tokenInfo.Symbol, "w") {
-						tokenInfo.Symbol = tokenInfo.Symbol[1:]
-					}
-					eventLogInfo := types.EventLog{
-						From:   utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64]),
-						To:     tx.FromAddress,
-						Amount: amount,
-						Token:  tokenInfo,
-					}
-					eventLogs = append(eventLogs, eventLogInfo)
+				if topic0 == TRANSFER_TOPIC {
+					fromAddress = utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64])
+					toAddress = utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[2][24:64])
 
-				}
-			}
-		}
-		if len(eventLogs) > 0 {
-			for _, eventLog := range eventLogs {
-				var fromAddressExist, toAddressExist bool
-				fromAddress := eventLog.From
-				toAddress := eventLog.To
-				if fromAddress != "" {
-					fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+					token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					}
+					token.Amount = amount.String()
+				} else if topic0 == WITHDRAWAL_TOPIC {
+					//https://tronscan.org/#/transaction/59eb44f3c4a51f65a6555a57f73c7d68d192b6d32b896e3ac88a1376d81259e4
+					//https://tronscan.org/#/transaction/ead0b8be0f242dbb891a274003e53f875825e3964b004c5dfe05b77bc8f7e9b7
+					/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
+						token.Symbol = token.Symbol[1:]
+					}*/
+					fromAddress = utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[1][24:64])
+					toAddress = tx.FromAddress
+					tokenAddress = ""
+				}
+
+				if tokenAddress != "" {
+					token.Address = tokenAddress
+				} else {
+					token = types.TokenInfo{}
+				}
+
+				if fromAddress != "" {
+					fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+					if err != nil {
+						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 						return err
 					}
 				}
 
 				if toAddress != "" {
-					toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+					toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 						return err
 					}
 				}
-				if fromAddressExist || toAddressExist {
-					platformUserEventlog = true
-					break
+				if !fromAddressExist && !toAddressExist {
+					continue
 				}
+
+				eventLogInfo := &types.EventLogUid{
+					EventLog: types.EventLog{
+						From:   fromAddress,
+						To:     toAddress,
+						Amount: amount,
+						Token:  token,
+					},
+					FromUid: fromUid,
+					ToUid:   toUid,
+				}
+
+				var isContinue bool
+				for i, eventLog := range eventLogs {
+					if eventLog == nil {
+						continue
+					}
+					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+						if cmp == 1 {
+							isContinue = true
+							subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+							eventLogs[i].Amount = subAmount
+						} else if cmp == 0 {
+							isContinue = true
+							eventLogs[i] = nil
+						} else if cmp == -1 {
+							eventLogs[i] = nil
+						}
+						break
+					} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						isContinue = true
+						addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+						eventLogs[i].Amount = addAmount
+						break
+					}
+				}
+				if isContinue {
+					continue
+				}
+				eventLogs = append(eventLogs, eventLogInfo)
 			}
 		}
-
 	}
 
 	feeData := map[string]interface{}{
@@ -185,7 +224,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return nil
 	}
 
-	if platformUserEventlog && meta.TransactionType != biz.CONTRACT {
+	isPlatformUser := false
+	if len(eventLogs) > 0 {
+		isPlatformUser = true
+	}
+
+	if isPlatformUser && meta.TransactionType != biz.CONTRACT {
 		meta.TransactionType = biz.CONTRACT
 	}
 	if tx.TxType == biz.CONTRACT {
@@ -207,7 +251,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		eventLog, _ = utils.JsonEncode(eventLogs)
 	}
 	rawBlock := block.Raw.(*types.BlockResponse)
-	trxRecord := &data.TrxTransactionRecord{
+	trxContractRecord := &data.TrxTransactionRecord{
 		BlockHash:       block.Hash,
 		BlockNumber:     rawBlock.BlockHeader.RawData.Number,
 		TransactionHash: transactionHash,
@@ -232,10 +276,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		UpdatedAt:       h.now,
 	}
 
-	if meta.User.MatchFrom || meta.User.MatchTo || platformUserEventlog {
-		h.txRecords = append(h.txRecords, trxRecord)
+	if meta.User.MatchFrom || meta.User.MatchTo || isPlatformUser {
+		h.txRecords = append(h.txRecords, trxContractRecord)
 	}
-	if platformUserEventlog && meta.TransactionType == biz.CONTRACT {
+
+	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
 		for index, eventLog := range eventLogs {
 			eventMap := map[string]interface{}{
 				"token": eventLog.Token,
@@ -245,21 +290,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
 			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
-			var eventFromUid, eventToUid string
 
-			userMeta, err := common.MatchUser(eventLog.From, eventLog.To, h.chainName)
-			if err == nil {
-				eventFromUid = userMeta.FromUid
-				eventToUid = userMeta.ToUid
-			}
 			trxLogRecord := &data.TrxTransactionRecord{
 				BlockHash:       block.Hash,
 				BlockNumber:     rawBlock.BlockHeader.RawData.Number,
 				TransactionHash: txHash,
 				FromAddress:     eventLog.From,
 				ToAddress:       eventLog.To,
-				FromUid:         eventFromUid,
-				ToUid:           eventToUid,
+				FromUid:         eventLog.FromUid,
+				ToUid:           eventLog.ToUid,
 				FeeAmount:       decimal.NewFromInt(int64(feeAmount)),
 				Amount:          amountValue,
 				Status:          status,
