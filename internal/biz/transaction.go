@@ -2472,7 +2472,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	needPush := make([]UserTokenPush, 0, len(assets))
 	for _, newItem := range uniqAssets {
 		tokenAddress := newItem.TokenAddress
-		if tokenAddress == req.Address {
+		if req.Address == "0x0000000000000000000000000000000000000000" || req.Address == tokenAddress {
 			tokenAddress = ""
 		}
 
@@ -2664,7 +2664,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	}, nil
 }
 func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequest) (*ClearNonceResponse, error) {
-	if req == nil || req.Address == "" || req.ChainName == ""{
+	if req == nil || req.Address == "" || req.ChainName == "" {
 		return &ClearNonceResponse{
 			Ok:      false,
 			Message: "Illegal parameter, address and chainName must not nil",
@@ -2692,20 +2692,20 @@ func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequ
 			Message: err.Error(),
 		}, err
 	}
-	log.Info("++++++++++++++++++++=",zap.Any("",recordList))
+	log.Info("++++++++++++++++++++=", zap.Any("", recordList))
 
 	if len(recordList) > 0 {
 		//查询 所有 处于pending 和 no_status 的交易记录，并更新 from to 地址 及 from_uid (不用考虑to_uid) 切割字符，然后  把交易状态改成drrop_replace
 		//删除所有 该地址 的所有 redis pending的 key
 		//更新数据库时注意 如果 状态时 success 或者 fail 不更新
-		for _ , record := range recordList {
+		for _, record := range recordList {
 			pn := record.Nonce
-			record.FromAddress = utils.StringSpiltByIndex(record.FromAddress,20)
-			record.ToAddress = utils.StringSpiltByIndex(record.ToAddress,20)
-			record.FromUid = utils.StringSpiltByIndex(record.FromUid,20)
+			record.FromAddress = utils.StringSpiltByIndex(record.FromAddress, 20)
+			record.ToAddress = utils.StringSpiltByIndex(record.ToAddress, 20)
+			record.FromUid = utils.StringSpiltByIndex(record.FromUid, 20)
 			record.Status = DROPPED_REPLACED
-			res , err :=data.EvmTransactionRecordRepoClient.UpdateNotSuccessNotFail(ctx, GetTableName(req.ChainName),record)
-			log.Info("++++++++++++++++++++=",zap.Any("更新对象",record),zap.Any("更新结果",res))
+			res, err := data.EvmTransactionRecordRepoClient.UpdateNotSuccessNotFail(ctx, GetTableName(req.ChainName), record)
+			log.Info("++++++++++++++++++++=", zap.Any("更新对象", record), zap.Any("更新结果", res))
 
 			if err != nil {
 				return &ClearNonceResponse{
@@ -2726,8 +2726,6 @@ func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequ
 		Message: "",
 	}, nil
 }
-
-
 
 func (s *TransactionUsecase) SigningMessage(ctx context.Context, req *signhash.SignMessageRequest) (string, error) {
 	return HashSignMessage(req.ChainName, req)
