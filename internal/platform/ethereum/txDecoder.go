@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,8 +48,36 @@ type txDecoder struct {
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
 	transaction := tx.Raw.(*Transaction)
+	txhash := transaction.Hash().String()
 	client := c.(*Client)
+	maxFeePerGasNode := ""
+	maxPriorityFeePerGasNode := ""
+	gpi := transaction.GasPrice()
+	gasPriceNode := gpi.String()
+	//小费 + basefee
 
+	if transaction.GasFeeCap() != nil {
+		maxFeePerGasNode = transaction.GasFeeCap().String()
+	}
+	if transaction.GasTipCap() != nil {
+		maxPriorityFeePerGasNode = transaction.GasTipCap().String()
+	}
+
+	if transaction.Type() == types2.DynamicFeeTxType {
+		bf, _ := strconv.Atoi(block.BaseFee)
+		mpfpg, _ := strconv.Atoi(maxPriorityFeePerGasNode)
+		maxFee, _ := strconv.Atoi(maxFeePerGasNode)
+		totalFee := bf + mpfpg
+		if totalFee >= maxFee {
+			gasPriceNode = strconv.Itoa(maxFee)
+		} else {
+			gasPriceNode = strconv.Itoa(totalFee)
+		}
+	}
+
+	if h.chainName == "ETH" || h.chainName == "Polygon" || h.chainName == "ScrollL2TEST" {
+		go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode, block.Number, txhash)
+	}
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err

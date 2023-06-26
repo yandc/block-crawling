@@ -131,6 +131,47 @@ func main() {
 		fmt.Println(f > 0.9)
 	}
 
+	var br []biz.BatchRpcRequest
+	//req := pb.NonceReq{
+	//	ChainName: "ETH",
+	//	Address:"0x000000000035B5e5ad9019092C665357240f594e",
+	//}
+	//ng := utils.GetString(req)
+	b := biz.BatchRpcRequest{
+		MethodName : "GetNonce",
+		Params    : "{\"chainName\":\"ETH\",\"address\":\"0x000000000035B5e5ad9019092C665357240f594e\"}",
+	}
+	c := biz.BatchRpcRequest{
+		MethodName : "GetFeeInfoByChainName",
+		Params    : "{\"chainName\":\"ETH\"}",
+	}
+	br = append(br,b)
+	br = append(br,c)
+	hh :=biz.BatchRpcParams{
+		BatchReq : br,
+	}
+	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	defer conn.Close()
+	p := pb.NewTransactionClient(conn)
+	ddv , _ := utils.JsonEncode(hh)
+	fmt.Println(ddv)
+	xxxxx := &pb.JsonReq{
+		Method    :"BatchRouteRpc",
+		Uid : "88888",
+		Params    :ddv,
+	}
+
+	lt , e := p.JsonRpc(context.Background(),xxxxx)
+	fmt.Println("error:", e)
+	fmt.Println("res:", lt)
+
+
+
+
+
 }
 
 func Dec2HexStr(v []byte) []string {

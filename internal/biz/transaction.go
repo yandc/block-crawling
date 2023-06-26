@@ -2143,13 +2143,15 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	args = append(args, reflect.ValueOf(ctx))
 
 	if len(req.Params) > 0 {
+
 		u := mv.Type.NumIn()
 		paseJson := reflect.New(mv.Type.In(u - 1).Elem())
-		//reqKey := strings.ReplaceAll(utils.ListToString(req.Params), "\\", "")
 
 		jsonErr := json.Unmarshal([]byte(req.Params), paseJson.Interface())
+
 		if jsonErr == nil {
 			args = append(args, reflect.ValueOf(paseJson.Interface()))
+
 		} else {
 			return &pb.JsonResponse{
 				Ok:       false,
@@ -2174,6 +2176,45 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	return &pb.JsonResponse{
 		Ok:       true,
 		Response: ret,
+	}, nil
+}
+
+func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcParams) (*pb.JsonResponse, error) {
+	//log.Info("==4",zap.Any("4",req))
+
+	if req != nil && len(req.BatchReq) > 0 {
+		var rr []RpcResponse
+		for _, r := range req.BatchReq {
+			jsonrpcReq := &pb.JsonReq{
+				Method: r.MethodName,
+				Params: r.Params,
+			}
+			jsonResp, e := s.JsonRpc(ctx, jsonrpcReq)
+			if e != nil {
+				return &pb.JsonResponse{
+					Ok:       false,
+					ErrorMsg: e.Error(),
+				}, e
+			}
+			brr := RpcResponse{
+				MethodName : r.MethodName,
+				Result : jsonResp.Response,
+			}
+			if !jsonResp.Ok {
+				brr.Result = jsonResp.ErrorMsg
+			}
+			rr = append(rr,brr)
+		}
+		ret, _ := utils.JsonEncode(rr)
+		return &pb.JsonResponse{
+			Ok:       true,
+			Response: ret,
+
+		}, nil
+	}
+	return &pb.JsonResponse{
+		Ok:       false,
+		ErrorMsg: "param error",
 	}, nil
 }
 
@@ -2426,6 +2467,25 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 	}
 	return &AddressPendingAmountResponse{
 		Result: result,
+	}, nil
+}
+
+func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *ChainFeeInfoReq) (*ChainFeeInfoResp, error) {
+	chainName := req.ChainName
+	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST"){
+		return nil, nil
+	}
+	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
+	maxFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_FEE_PER_GAS + chainName).Result()
+	maxPriorityFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName).Result()
+	if err != nil {
+		return nil, err
+	}
+	return &ChainFeeInfoResp{
+		ChainName:            chainName,
+		GasPrice:             gasPrice,
+		MaxFeePerGas:         maxFeePerGas,
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 	}, nil
 }
 
