@@ -47,15 +47,18 @@ func (h *minHeap) Pop() interface{} {
 	*h = (*h)[:len(*h)-1]
 	return res
 }
-func GetMinHeap(gas []int, i int) []int {
+func GetMaxHeap(gas []int, i int) []int {
 	var result []int
 	h := minHeap{}
 	heap.Init(&h)
-
-	for _, v := range gas {
-		heap.Push(&h, v)
+	for index, v := range gas {
+		if index  < i {
+			heap.Push(&h, v)
+		}else {
+			heap.Push(&h, v)
+			heap.Pop(&h)
+		}
 	}
-
 	if len(h) > i {
 		for n := 1; n <= i; n++ {
 			result = append(result, heap.Pop(&h).(int))
@@ -65,18 +68,22 @@ func GetMinHeap(gas []int, i int) []int {
 			result = append(result, heap.Pop(&h).(int))
 		}
 	}
+
 	return result
 }
 
-func GetMaxHeap(gas []int, i int) []int {
+func GetMinHeap(gas []int, i int) []int {
 	var result []int
 	h := maxHeap{}
 	heap.Init(&h)
-
-	for _, v := range gas {
-		heap.Push(&h, v)
+	for index, v := range gas {
+		if index  < i {
+			heap.Push(&h, v)
+		}else {
+			heap.Push(&h, v)
+			heap.Pop(&h)
+		}
 	}
-
 	if len(h) > i {
 		for n := 1; n <= i; n++ {
 			result = append(result, heap.Pop(&h).(int))
@@ -86,6 +93,7 @@ func GetMaxHeap(gas []int, i int) []int {
 			result = append(result, heap.Pop(&h).(int))
 		}
 	}
+
 	return result
 }
 
