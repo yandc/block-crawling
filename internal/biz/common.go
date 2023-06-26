@@ -12,7 +12,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -32,8 +34,13 @@ const (
 
 	PAGE_SIZE = 200
 
-	REDIS_NIL_KEY             = "redis: nil"
-	BLOCK_HEIGHT_KEY          = "block:height:"
+	REDIS_NIL_KEY                   = "redis: nil"
+	BLOCK_HEIGHT_KEY                = "block:height:"
+	TX_FEE_GAS_PRICE                = "tx:fee:gasprice:"
+	TX_FEE_GAS_LIMIT                = "tx:fee:gaslimit:"
+	TX_FEE_MAX_FEE_PER_GAS          = "tx:fee:maxfeepergas:"
+	TX_FEE_MAX_PRIORITY_FEE_PER_GAS = "tx:fee:maxpriorityfeepergas:"
+
 	BLOCK_NODE_HEIGHT_KEY     = "block:height:node:"
 	BLOCK_HASH_KEY            = "block:hash:"
 	USER_ADDRESS_KEY          = "usercore:"
@@ -142,6 +149,23 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type BatchRpcParams struct{
+	BatchReq []BatchRpcRequest `json:"batchReq,omitempty"`
+}
+
+type BatchRpcRequest struct {
+	MethodName string `json:"methodName"`
+	//Params    interface{} ` json:"params"`
+	Params    string ` json:"params"`
+}
+type BatchRpcResponse struct {
+	RpcResponse []RpcResponse `json:"rpcResponse,omitempty"`
+}
+
+type RpcResponse struct {
+	MethodName string `json:"methodName"`
+	Result     string ` json:"result"`
+}	
 type ClearNonceRequest struct {
 	Address   string `json:"address"`
 	ChainName string `json:"chainName"`
@@ -213,6 +237,17 @@ type TokenPendingAmount struct {
 	TokenAmount        string `json:"tokenAmount,omitempty"`        //带小数点的
 	DeciamlTokenAmount string `json:"deciamlTokenAmount,omitempty"` //不带小数点的
 
+}
+
+type ChainFeeInfoReq struct {
+	ChainName string `json:"chainName,omitempty"`
+}
+
+type ChainFeeInfoResp struct {
+	ChainName            string `json:"chainName,omitempty"`
+	GasPrice             string `json:"gasPrice,omitempty"`
+	MaxFeePerGas         string `json:"maxFeePerGas,omitempty"`
+	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas,omitempty"`
 }
 
 func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
@@ -404,6 +439,193 @@ func UserAddressSwitch(address string) (bool, string, error) {
 		}
 	}
 	return enable, uid, nil
+}
+
+var chainGasPriceMap = &sync.Map{}
+var chainBlockTxInfoMap = &sync.Map{}
+var chainMaxFeePerGasMap = &sync.Map{}
+var chainMaxPriorityFeePerGasMap = &sync.Map{}
+var gasPriceSell = &sync.Map{}
+var chainGasPriceLock sync.RWMutex
+var chainMaxPriority = &sync.Map{}
+
+
+
+func ChainFeeSwitchRetryAlert(chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode string, blockNumber uint64, txhash string) {
+	//日志打印 详情 chainBlockTxInfoMap
+	//key := chainName + "_" + strconv.Itoa(int(blockNumber)) + "_" + txhash
+	//value := gasPriceNode
+
+	//log.Info("记录每笔交易", zap.Any(key, value))
+
+	//tx:fee:gasprice:ETH
+	gpk := TX_FEE_GAS_PRICE + chainName
+	UpdateMap(chainName, gasPriceNode, blockNumber, chainGasPriceMap, gpk)
+
+	//glk := TX_FEE_GAS_LIMIT + chainName
+	//UpdateMap(chainName, gasLimitNode, blockNumber, chainGasLimitMap, glk)
+
+	mfpgk := TX_FEE_MAX_FEE_PER_GAS + chainName
+	UpdateMap(chainName, maxFeePerGasNode, blockNumber, chainMaxFeePerGasMap, mfpgk)
+	//
+	mpfpgk := TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName
+	UpdateMap(chainName, maxPriorityFeePerGasNode, blockNumber, chainMaxPriority, mpfpgk)
+}
+
+func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *sync.Map, bizRedisKey string) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("UpdateMap error, chainName:"+chainName, e)
+			} else {
+				log.Errore("UpdateMap panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理fee失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	if value == "" {
+		return
+	}
+	var err error
+	_, def4442 := chainMaxPriorityFeePerGasMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber)), blockNumber)
+	sl, ok := businessMap.LoadOrStore(chainName, &sync.Map{})
+
+	if !def4442 {
+		preBlockNumber := blockNumber - 100
+		//清楚本地缓存
+		if ok {
+			sccm := sl.(*sync.Map)
+			sccm.Delete(preBlockNumber)
+			var priceValues []int
+
+			//计算一次
+			_, def := chainMaxPriorityFeePerGasMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber))+"calculate", blockNumber)
+			if !def {
+				chainMaxPriorityFeePerGasMap.Delete(chainName + strconv.Itoa(int(blockNumber)-10) + "calculate")
+				for n := blockNumber - 10; n < blockNumber; n++ {
+					sn := sl.(*sync.Map)
+					dd, f := sn.Load(n)
+					//log.Info(chainName+"1", zap.Any("块高333", n), zap.Any("value", dd), zap.Any("有无", f))
+					if f && len(dd.([]int)) > 0 {
+						dr := utils.GetMinHeap(dd.([]int), 10)
+						sum := 0
+						//求平均值
+						for _, val := range dr {
+							sum += val
+						}
+						//8 9 10
+						//log.Info(chainName+"2", zap.Any("最小十个值", dr), zap.Any("sum", sum), zap.Any("块高333", n))
+
+						avg := math.Ceil(float64(sum) / float64(len(dr)))
+						//log.Info(chainName+"3", zap.Any("avg", int(math.Ceil(avg))), zap.Any("块高333", n))
+						//这个是一个块里面最小十笔 平均值
+						priceValues = append(priceValues, int(math.Ceil(avg)))
+					}
+				}
+				//log.Info(chainName + "4", zap.Any("priceValues", priceValues))
+
+				if len(priceValues) >= 1 {
+					dr := utils.GetMaxHeap(priceValues, 1)
+					gasPriceSell.LoadOrStore(chainName, dr[0])
+					val := strconv.Itoa(dr[0])
+					//log.Info(chainName + "5", zap.Any("最终推荐值", val))
+					sn := sl.(*sync.Map)
+					ddd, ff := sn.LoadOrStore(blockNumber-1, make([]int, 0))
+					if ff && len(ddd.([]int)) > 0 {
+						//drr := utils.GetMinHeap(ddd.([]int), 1)
+						//log.Info("最近一个块的最小值", zap.Any("集合", ddd.([]int)), zap.Any("min", drr), zap.Any("块高", blockNumber-1))
+						//res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(dr[0])/float64(drr[0])), 64)
+						//if drr[0] > dr[0] {
+						//	log.Info("最新推荐price低于正常上链price", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//} else {
+						//	log.Info("最新推荐priceheihei", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	if res >= 1 && res <= 1.2 {
+						//		log.Info("最新推荐price高于正常上链price 20%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.2 && res <= 1.3 {
+						//		log.Info("最新推荐price高于正常上链price 30%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.3 && res <= 1.4 {
+						//		log.Info("最新推荐price高于正常上链price 40%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.4 && res <= 1.5 {
+						//		log.Info("最新推荐price高于正常上链price 50%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.5 && res <= 1.6 {
+						//		log.Info("最新推荐price高于正常上链price 60%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.6 && res <= 1.7 {
+						//		log.Info("最新推荐price高于正常上链price 70%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.7 && res <= 1.8 {
+						//		log.Info("最新推荐price高于正常上链price 80%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else if res > 1.8 && res <= 1.9 {
+						//		log.Info("最新推荐price高于正常上链price 90%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//	} else {
+						//		log.Info("最新推荐price高于正常上链price 特高", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+						//
+						//	}
+						//}
+
+					}
+					err = data.RedisClient.Set(bizRedisKey, val, 0).Err()
+				}
+			}
+		}
+	}
+
+	// 最小一笔 剔除 高于上一个推荐的2倍以上交易
+	//sn := sl.(*sync.Map)
+	//ddd1, _ := sn.Load(blockNumber - 1)
+	gpn, _ := strconv.Atoi(value)
+
+	//if ddd1 != nil && len(ddd1.([]int)) > 0 {
+	//	drr := utils.GetMinHeap(ddd1.([]int), 1)
+	//	fps, _ := gasPriceSell.Load(chainName)
+	//	fpsi := fps.(int)
+	//	res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(drr[0])/float64(fpsi)), 64)
+	//	log.Info("看看最新块和上一个块的最小", zap.Any("推荐", fpsi), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+	//
+	//	if res > 5  {
+	//		return
+	//	}
+	//}
+
+	fps, _ := gasPriceSell.Load(chainName)
+	if fps != nil {
+		fpsi := fps.(int)
+		res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(gpn)/float64(fpsi)), 64)
+		//log.Info("看看最新块和上一个块的最小", zap.Any("推荐", fpsi), zap.Any("上链最小值", gpn), zap.Any(chainName, blockNumber), zap.Any("res", res))
+
+		if res > 3 {
+			return
+		}
+	}
+	busMap := sl.(*sync.Map)
+	chainGasPriceLock.Lock()
+	vv, _ := busMap.LoadOrStore(blockNumber, make([]int, 0))
+
+	v := vv.([]int)
+	v = append(v, gpn)
+	//log.Info("=================", zap.Any("未转化", value), zap.Any("转化后", gpn), zap.Any("", strconv.Itoa(int(blockNumber))+"kkk"),zap.Any("v",v))
+
+	busMap.Store(blockNumber, v)
+	businessMap.Store(chainName, busMap)
+
+	//sl2, _ := businessMap.LoadOrStore(chainName, &sync.Map{})
+	//busMap2 := sl2.(*sync.Map)
+	//vv2, _ := busMap2.LoadOrStore(blockNumber, make([]int,0))
+	//
+	//log.Info(chainName + "6", zap.Any("vv", vv2),zap.Any("vvo",blockNumber))
+	chainGasPriceLock.Unlock()
+
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：手续费相关 %s链,key: %s 插入redis失败", chainName, bizRedisKey)
+		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("fee")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+
 }
 
 // MD5 对字符串做 MD5

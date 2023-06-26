@@ -3,6 +3,7 @@ package utils
 import (
 	"block-crawling/internal/types"
 	"bytes"
+	"container/heap"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,96 @@ import (
 var recordRPCUrl sync.Map
 var dayFormat = "2006-01-02"
 var local, _ = time.LoadLocation("Asia/Shanghai")
+
+type minHeap []int
+
+func (h minHeap) Len() int {
+	return len(h)
+}
+
+//小根堆
+func (h minHeap) Less(i, j int) bool {
+	return h[i] < h[j]
+}
+
+func (h *minHeap) Swap(i, j int) {
+	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
+}
+
+func (h *minHeap) Push(x interface{}) {
+	*h = append(*h, x.(int))
+}
+func (h *minHeap) Pop() interface{} {
+	res := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return res
+}
+func GetMinHeap(gas []int, i int) []int {
+	var result []int
+	h := minHeap{}
+	heap.Init(&h)
+
+	for _, v := range gas {
+		heap.Push(&h, v)
+	}
+
+	if len(h) > i {
+		for n := 1; n <= i; n++ {
+			result = append(result, heap.Pop(&h).(int))
+		}
+	} else {
+		for len(h) != 0 {
+			result = append(result, heap.Pop(&h).(int))
+		}
+	}
+	return result
+}
+
+func GetMaxHeap(gas []int, i int) []int {
+	var result []int
+	h := maxHeap{}
+	heap.Init(&h)
+
+	for _, v := range gas {
+		heap.Push(&h, v)
+	}
+
+	if len(h) > i {
+		for n := 1; n <= i; n++ {
+			result = append(result, heap.Pop(&h).(int))
+		}
+	} else {
+		for len(h) != 0 {
+			result = append(result, heap.Pop(&h).(int))
+		}
+	}
+	return result
+}
+
+
+type maxHeap []int
+
+func (h maxHeap) Len() int {
+	return len(h)
+}
+
+//大根堆
+func (h maxHeap) Less(i, j int) bool {
+	return h[i] > h[j]
+}
+
+func (h *maxHeap) Swap(i, j int) {
+	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
+}
+
+func (h *maxHeap) Push(x interface{}) {
+	*h = append(*h, x.(int))
+}
+func (h *maxHeap) Pop() interface{} {
+	res := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return res
+}
 
 func BigIntString(balance *big.Int, decimals int) string {
 	amount := balance.String()
