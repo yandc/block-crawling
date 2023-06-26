@@ -149,14 +149,14 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
-type BatchRpcParams struct{
+type BatchRpcParams struct {
 	BatchReq []BatchRpcRequest `json:"batchReq,omitempty"`
 }
 
 type BatchRpcRequest struct {
 	MethodName string `json:"methodName"`
 	//Params    interface{} ` json:"params"`
-	Params    string ` json:"params"`
+	Params string ` json:"params"`
 }
 type BatchRpcResponse struct {
 	RpcResponse []RpcResponse `json:"rpcResponse,omitempty"`
@@ -165,7 +165,7 @@ type BatchRpcResponse struct {
 type RpcResponse struct {
 	MethodName string `json:"methodName"`
 	Result     string ` json:"result"`
-}	
+}
 type ClearNonceRequest struct {
 	Address   string `json:"address"`
 	ChainName string `json:"chainName"`
@@ -442,14 +442,22 @@ func UserAddressSwitch(address string) (bool, string, error) {
 }
 
 var chainGasPriceMap = &sync.Map{}
-var chainBlockTxInfoMap = &sync.Map{}
 var chainMaxFeePerGasMap = &sync.Map{}
-var chainMaxPriorityFeePerGasMap = &sync.Map{}
-var gasPriceSell = &sync.Map{}
-var chainGasPriceLock sync.RWMutex
 var chainMaxPriority = &sync.Map{}
+var chainGasPriceLock sync.RWMutex
 
 
+var chainBlockNumberPrice = &sync.Map{}
+var chainBlockNumberMaxFee = &sync.Map{}
+var chainBlockNumberPriceMaxPriority = &sync.Map{}
+
+var priceSell = &sync.Map{}
+var MaxFeeSell = &sync.Map{}
+var MaxPrioritySell = &sync.Map{}
+
+var chainBlockGasPrice = &sync.Map{}
+var chainBlockMaxFee = &sync.Map{}
+var chainBlockMaxPriority = &sync.Map{}
 
 func ChainFeeSwitchRetryAlert(chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode string, blockNumber uint64, txhash string) {
 	//日志打印 详情 chainBlockTxInfoMap
@@ -460,19 +468,16 @@ func ChainFeeSwitchRetryAlert(chainName, maxFeePerGasNode, maxPriorityFeePerGasN
 
 	//tx:fee:gasprice:ETH
 	gpk := TX_FEE_GAS_PRICE + chainName
-	UpdateMap(chainName, gasPriceNode, blockNumber, chainGasPriceMap, gpk)
-
-	//glk := TX_FEE_GAS_LIMIT + chainName
-	//UpdateMap(chainName, gasLimitNode, blockNumber, chainGasLimitMap, glk)
+	UpdateMap(chainName, gasPriceNode, blockNumber, chainGasPriceMap, gpk, chainBlockNumberPrice, priceSell, chainBlockGasPrice)
 
 	mfpgk := TX_FEE_MAX_FEE_PER_GAS + chainName
-	UpdateMap(chainName, maxFeePerGasNode, blockNumber, chainMaxFeePerGasMap, mfpgk)
+	UpdateMap(chainName, maxFeePerGasNode, blockNumber, chainMaxFeePerGasMap, mfpgk, chainBlockNumberMaxFee, MaxFeeSell, chainBlockMaxFee)
 	//
 	mpfpgk := TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName
-	UpdateMap(chainName, maxPriorityFeePerGasNode, blockNumber, chainMaxPriority, mpfpgk)
+	UpdateMap(chainName, maxPriorityFeePerGasNode, blockNumber, chainMaxPriority, mpfpgk, chainBlockNumberPriceMaxPriority, MaxPrioritySell, chainBlockMaxPriority)
 }
 
-func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *sync.Map, bizRedisKey string) {
+func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *sync.Map, bizRedisKey string, chainBlockNumberMap *sync.Map, sell *sync.Map, chainBlock *sync.Map) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -493,7 +498,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 		return
 	}
 	var err error
-	_, def4442 := chainMaxPriorityFeePerGasMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber)), blockNumber)
+	_, def4442 := chainBlockNumberMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber)), blockNumber)
 	sl, ok := businessMap.LoadOrStore(chainName, &sync.Map{})
 
 	if !def4442 {
@@ -505,70 +510,79 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 			var priceValues []int
 
 			//计算一次
-			_, def := chainMaxPriorityFeePerGasMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber))+"calculate", blockNumber)
+			_, def := chainBlockNumberMap.LoadOrStore(chainName+strconv.Itoa(int(blockNumber))+"calculate", blockNumber)
 			if !def {
-				chainMaxPriorityFeePerGasMap.Delete(chainName + strconv.Itoa(int(blockNumber)-10) + "calculate")
+				chainBlockNumberMap.Delete(chainName + strconv.Itoa(int(blockNumber)-10) + "calculate")
 				for n := blockNumber - 10; n < blockNumber; n++ {
-					sn := sl.(*sync.Map)
-					dd, f := sn.Load(n)
 					//log.Info(chainName+"1", zap.Any("块高333", n), zap.Any("value", dd), zap.Any("有无", f))
-					if f && len(dd.([]int)) > 0 {
-						dr := utils.GetMinHeap(dd.([]int), 10)
-						sum := 0
-						//求平均值
-						for _, val := range dr {
-							sum += val
-						}
-						//8 9 10
-						//log.Info(chainName+"2", zap.Any("最小十个值", dr), zap.Any("sum", sum), zap.Any("块高333", n))
+					//先获取 块高缓存里面的
+					if vb, okb := chainBlock.Load(chainName + strconv.Itoa(int(n)) + "price"); okb {
+						priceValues = append(priceValues, vb.(int))
+					} else {
+						sn := sl.(*sync.Map)
+						dd, f := sn.Load(n)
+						if f && len(dd.([]int)) > 0 {
+							dr := utils.GetMinHeap(dd.([]int), 10)
+							sum := 0
+							//求平均值
+							for _, val := range dr {
+								sum += val
+							}
+							//8 9 10
+							//log.Info(chainName+"2", zap.Any("最小十个值", dr), zap.Any("sum", sum), zap.Any("块高333", n))
 
-						avg := math.Ceil(float64(sum) / float64(len(dr)))
-						//log.Info(chainName+"3", zap.Any("avg", int(math.Ceil(avg))), zap.Any("块高333", n))
-						//这个是一个块里面最小十笔 平均值
-						priceValues = append(priceValues, int(math.Ceil(avg)))
+							avg := math.Ceil(float64(sum) / float64(len(dr)))
+							//log.Info(chainName+"3", zap.Any("avg", int(math.Ceil(avg))), zap.Any("块高333", n))
+							//这个是一个块里面最小十笔 平均值
+							priceValues = append(priceValues, int(math.Ceil(avg)))
+							chainBlock.LoadOrStore(chainName+strconv.Itoa(int(blockNumber))+"price", int(math.Ceil(avg)))
+
+						}
 					}
+					chainBlock.Delete(chainName + strconv.Itoa(int(n)-50) + "price")
 				}
 				//log.Info(chainName + "4", zap.Any("priceValues", priceValues))
 
 				if len(priceValues) >= 1 {
 					dr := utils.GetMaxHeap(priceValues, 1)
-					gasPriceSell.LoadOrStore(chainName, dr[0])
+					sell.LoadOrStore(chainName, dr[0])
 					val := strconv.Itoa(dr[0])
 					//log.Info(chainName + "5", zap.Any("最终推荐值", val))
-					sn := sl.(*sync.Map)
-					ddd, ff := sn.LoadOrStore(blockNumber-1, make([]int, 0))
-					if ff && len(ddd.([]int)) > 0 {
-						//drr := utils.GetMinHeap(ddd.([]int), 1)
-						//log.Info("最近一个块的最小值", zap.Any("集合", ddd.([]int)), zap.Any("min", drr), zap.Any("块高", blockNumber-1))
-						//res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(dr[0])/float64(drr[0])), 64)
-						//if drr[0] > dr[0] {
-						//	log.Info("最新推荐price低于正常上链price", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//} else {
-						//	log.Info("最新推荐priceheihei", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	if res >= 1 && res <= 1.2 {
-						//		log.Info("最新推荐price高于正常上链price 20%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.2 && res <= 1.3 {
-						//		log.Info("最新推荐price高于正常上链price 30%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.3 && res <= 1.4 {
-						//		log.Info("最新推荐price高于正常上链price 40%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.4 && res <= 1.5 {
-						//		log.Info("最新推荐price高于正常上链price 50%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.5 && res <= 1.6 {
-						//		log.Info("最新推荐price高于正常上链price 60%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.6 && res <= 1.7 {
-						//		log.Info("最新推荐price高于正常上链price 70%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.7 && res <= 1.8 {
-						//		log.Info("最新推荐price高于正常上链price 80%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else if res > 1.8 && res <= 1.9 {
-						//		log.Info("最新推荐price高于正常上链price 90%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//	} else {
-						//		log.Info("最新推荐price高于正常上链price 特高", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
-						//
-						//	}
-						//}
+					//sn := sl.(*sync.Map)
+					//ddd, ff := sn.LoadOrStore(blockNumber-1, make([]int, 0))
+					//if ff && len(ddd.([]int)) > 0 {
+					//drr := utils.GetMinHeap(ddd.([]int), 1)
+					//log.Info("最近一个块的最小值", zap.Any("集合", ddd.([]int)), zap.Any("min", drr), zap.Any("块高", blockNumber-1))
+					//res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(dr[0])/float64(drr[0])), 64)
+					//if drr[0] > dr[0] {
+					//	log.Info("最新推荐price低于正常上链price", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//} else {
+					//	log.Info("最新推荐priceheihei", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	if res >= 1 && res <= 1.2 {
+					//		log.Info("最新推荐price高于正常上链price 20%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.2 && res <= 1.3 {
+					//		log.Info("最新推荐price高于正常上链price 30%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.3 && res <= 1.4 {
+					//		log.Info("最新推荐price高于正常上链price 40%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.4 && res <= 1.5 {
+					//		log.Info("最新推荐price高于正常上链price 50%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.5 && res <= 1.6 {
+					//		log.Info("最新推荐price高于正常上链price 60%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.6 && res <= 1.7 {
+					//		log.Info("最新推荐price高于正常上链price 70%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.7 && res <= 1.8 {
+					//		log.Info("最新推荐price高于正常上链price 80%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else if res > 1.8 && res <= 1.9 {
+					//		log.Info("最新推荐price高于正常上链price 90%", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//	} else {
+					//		log.Info("最新推荐price高于正常上链price 特高", zap.Any("推荐", dr[0]), zap.Any("上链最小值", drr[0]), zap.Any(chainName, blockNumber), zap.Any("res", res))
+					//
+					//	}
+					//}
 
-					}
+					//}
 					err = data.RedisClient.Set(bizRedisKey, val, 0).Err()
+					log.Info(bizRedisKey + "推荐值",zap.Any("推荐", val),zap.Any(chainName, blockNumber))
 				}
 			}
 		}
@@ -591,7 +605,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 	//	}
 	//}
 
-	fps, _ := gasPriceSell.Load(chainName)
+	fps, _ := sell.Load(chainName)
 	if fps != nil {
 		fpsi := fps.(int)
 		res, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(gpn)/float64(fpsi)), 64)
