@@ -66,7 +66,7 @@ func (p *CommPlatform) MonitorHeight() {
 	oldHeight, _ := strconv.Atoi(redisHeight)
 	height, _ := strconv.Atoi(nodeRedisHeight)
 
-	if strings.Contains(p.ChainName, "TEST") {
+	if strings.Contains(p.ChainName, "TEST") || strings.Contains(p.ChainName, "evm") {
 		if p.HeightAlarmThr <= 0 {
 			// Ignore for TEST chain when its threshold set to 0.
 			return
