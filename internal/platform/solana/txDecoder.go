@@ -141,7 +141,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	var instructionList []Instruction
 	var innerInstructionList []Instruction
-	var innerTotal int
+	var total, innerTotal int
 	instructions := transaction.Message.Instructions
 	innerInstructions := transactionInfo.Meta.InnerInstructions
 	for _, instruction := range innerInstructions {
@@ -151,7 +151,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// 合并交易
 	//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
-	instructionList, tokenBalanceOwnerMap, _ = mergeInstructions(instructions, tokenBalanceMap, tokenBalanceOwnerMap)
+	instructionList, tokenBalanceOwnerMap, total = mergeInstructions(instructions, tokenBalanceMap, tokenBalanceOwnerMap)
 	innerInstructionList, tokenBalanceOwnerMap, innerTotal = mergeInstructions(innerInstructionList, tokenBalanceMap, tokenBalanceOwnerMap)
 
 	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": tokenBalanceOwnerMap})
@@ -343,16 +343,36 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			h.txRecords = append(h.txRecords, solTransactionRecord)
 		}
 
-		if len(h.txRecords) == 0 {
+		if len(h.txRecords) == 0 && total == 0 {
+			var fromAddress, fromUid string
+			var fromAddressExist bool
+
+			for key, _ := range accountKeyMap {
+				fromAddress = key
+				if fromAddress != "" {
+					fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
+					if err != nil {
+						log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+						return
+					}
+				}
+				if fromAddressExist {
+					break
+				}
+			}
+			if !fromAddressExist {
+				return
+			}
+
 			solTransactionRecord := &data.SolTransactionRecord{
 				SlotNumber:      int(block.Number),
 				BlockHash:       block.Hash,
 				BlockNumber:     curHeight,
 				TransactionHash: transactionHash,
-				/*FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,*/
+				FromAddress:     fromAddress,
+				//ToAddress:       toAddress,
+				FromUid: fromUid,
+				//ToUid:           toUid,
 				FeeAmount: feeAmount,
 				//Amount:          amountValue,
 				Status: status,
@@ -758,7 +778,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 	var instructionMap = make(map[string]Instruction)
 	var createInstructionMap = make(map[string]Instruction)
 	var closeInstructionMap = make(map[string]Instruction)
-	var innerTotal int
+	var total int
 	for _, instruction := range instructions {
 		var amount, newAmount, contractAddress string
 		var fromAddress, toAddress string
@@ -773,7 +793,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 		instructionInfo := parsed["info"].(map[string]interface{})
 
 		if instructionType == "transfer" {
-			innerTotal++
+			total++
 			if programId == SOL_CODE {
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
@@ -835,7 +855,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "transferChecked" {
-			innerTotal++
+			total++
 			if programId == SOL_CODE {
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
@@ -895,7 +915,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "mintTo" {
-			innerTotal++
+			total++
 			if programId == SOL_CODE {
 				toAddress = instructionInfo["destination"].(string)
 
@@ -940,6 +960,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "createAccount" {
+			total++
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["newAccount"].(string)
 			key := fromAddress + toAddress
@@ -949,6 +970,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				createInstructionMap[key] = instruction
 			}
 		} else if instructionType == "closeAccount" {
+			total++
 			fromAddress = instructionInfo["account"].(string)
 			toAddress = instructionInfo["destination"].(string)
 			key := toAddress + fromAddress
@@ -971,5 +993,5 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 		instructionList = append(instructionList, instruction)
 	}
 
-	return instructionList, tokenBalanceOwnerMap, innerTotal
+	return instructionList, tokenBalanceOwnerMap, total
 }
