@@ -756,6 +756,8 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]TokenBalance, tokenBalanceOwnerMap map[string]TokenBalance) ([]Instruction, map[string]TokenBalance, int) {
 	var instructionList []Instruction
 	var instructionMap = make(map[string]Instruction)
+	var createInstructionMap = make(map[string]Instruction)
+	var closeInstructionMap = make(map[string]Instruction)
 	var innerTotal int
 	for _, instruction := range instructions {
 		var amount, newAmount, contractAddress string
@@ -937,11 +939,35 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 					newInstructionInfo["amount"] = sumAmount
 				}
 			}
+		} else if instructionType == "createAccount" {
+			fromAddress = instructionInfo["source"].(string)
+			toAddress = instructionInfo["newAccount"].(string)
+			key := fromAddress + toAddress
+			if _, closeOk := closeInstructionMap[key]; closeOk {
+				delete(closeInstructionMap, key)
+			} else {
+				createInstructionMap[key] = instruction
+			}
+		} else if instructionType == "closeAccount" {
+			fromAddress = instructionInfo["account"].(string)
+			toAddress = instructionInfo["destination"].(string)
+			key := toAddress + fromAddress
+			if _, createOk := createInstructionMap[key]; createOk {
+				delete(createInstructionMap, key)
+			} else {
+				closeInstructionMap[key] = instruction
+			}
 		} else {
 			instructionList = append(instructionList, instruction)
 		}
 	}
 	for _, instruction := range instructionMap {
+		instructionList = append(instructionList, instruction)
+	}
+	for _, instruction := range createInstructionMap {
+		instructionList = append(instructionList, instruction)
+	}
+	for _, instruction := range closeInstructionMap {
 		instructionList = append(instructionList, instruction)
 	}
 
