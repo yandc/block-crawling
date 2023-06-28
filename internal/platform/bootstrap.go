@@ -92,7 +92,7 @@ func (b *Bootstrap) Start() {
 		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
 			return
 		}
-		log.Info("我启动啦",zap.Any(b.ChainName,b))
+		log.Info("我启动啦", zap.Any(b.ChainName, b))
 		b.GetTransactions()
 	}()
 
@@ -163,7 +163,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "Aptos", "SUI", "SUITEST", "Solana"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Aptos", "SUI", "SUITEST", "Solana"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
@@ -509,7 +509,7 @@ func customChainRun() {
 				sccm.Spider.ReplaceClients(cs...)
 				startCustomChainMap.Store(k, sccm)
 			}
-		}else {
+		} else {
 			sccm := sl.(*Bootstrap)
 			sccm.Start()
 			log.Info("拉取配置启动bnb", zap.Any("", sccm))

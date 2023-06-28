@@ -416,11 +416,15 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
 			//continue
 			nftInfo = &v1.GetNftReply_NftInfoResp{
-				TokenAddress: tokenAddress,
-				TokenId:      tokenId,
-				NftName:      tokenInfo.ItemName,
-				TokenType:    tokenType,
+				TokenAddress:   tokenAddress,
+				TokenId:        tokenId,
+				CollectionName: tokenInfo.CollectionName,
+				NftName:        tokenInfo.ItemName,
+				TokenType:      tokenType,
 			}
+		}
+		if nftInfo.TokenType == "" {
+			nftInfo.TokenType = tokenType
 		}
 
 		if !isPending {

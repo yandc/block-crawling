@@ -670,11 +670,15 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 				zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId))
 			//continue
 			nftInfo = &v1.GetNftReply_NftInfoResp{
-				TokenAddress: tokenAddress,
-				TokenId:      tokenId,
-				NftName:      tokenInfo.ItemName,
-				TokenType:    tokenType,
+				TokenAddress:   tokenAddress,
+				TokenId:        tokenId,
+				CollectionName: tokenInfo.CollectionName,
+				NftName:        tokenInfo.ItemName,
+				TokenType:      tokenType,
 			}
+		}
+		if nftInfo.TokenType == "" {
+			nftInfo.TokenType = tokenType
 		}
 
 		if record.FromAddress != "" && record.FromUid != "" {
