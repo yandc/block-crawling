@@ -142,7 +142,7 @@ func (r *NervosCellRecordRepoImpl) FindAddressGroup(ctx context.Context) ([]stri
 	ret := r.gormDB.Table("nervos_cell_record").Select("address").Where("address != '' ").Group("address").Find(&ncr)
 	err := ret.Error
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 	return ncr, nil
 

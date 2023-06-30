@@ -7,9 +7,10 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
-	"gorm.io/datatypes"
 	"strconv"
 	"strings"
+
+	"gorm.io/datatypes"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -44,6 +45,8 @@ type SolTransactionRecord struct {
 
 // SolTransactionRecordRepo is a Greater repo.
 type SolTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *SolTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SolTransactionRecord) (int64, error)
@@ -826,4 +829,9 @@ func (r *SolTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return solTransactionRecords, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *SolTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

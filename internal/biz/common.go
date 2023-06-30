@@ -250,6 +250,17 @@ type ChainFeeInfoResp struct {
 	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas,omitempty"`
 }
 
+type CountOutTxRequest struct {
+	ChainName string `json:"chainName"`
+	SessionId string `json:"sessionId"`
+	Address   string `json:"address"`
+	ToAddress string `json:"toAddress"`
+}
+
+type CountOutTxResponse struct {
+	Count int64 `json:"count"`
+}
+
 func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
 	return PendingInfo{
 		Amount:        amount,
@@ -446,7 +457,6 @@ var chainMaxFeePerGasMap = &sync.Map{}
 var chainMaxPriority = &sync.Map{}
 var chainGasPriceLock sync.RWMutex
 
-
 var chainBlockNumberPrice = &sync.Map{}
 var chainBlockNumberMaxFee = &sync.Map{}
 var chainBlockNumberPriceMaxPriority = &sync.Map{}
@@ -582,7 +592,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 
 					//}
 					err = data.RedisClient.Set(bizRedisKey, val, 0).Err()
-					log.Info(bizRedisKey + "推荐值",zap.Any("推荐", val),zap.Any(chainName, blockNumber))
+					log.Info(bizRedisKey+"推荐值", zap.Any("推荐", val), zap.Any(chainName, blockNumber))
 				}
 			}
 		}

@@ -53,6 +53,8 @@ type EvmTransactionRecord struct {
 
 // EvmTransactionRecordRepo is a Greater repo.
 type EvmTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *EvmTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*EvmTransactionRecord) (int64, error)
@@ -1022,4 +1024,8 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableN
 			return evmTransactionRecord, nil
 		}
 	}
+}
+
+func (r *EvmTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

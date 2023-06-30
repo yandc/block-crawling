@@ -7,12 +7,13 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 type AptTransactionRecord struct {
@@ -50,6 +51,8 @@ type AptTransactionRecord struct {
 
 // AptTransactionRecordRepo is a Greater repo.
 type AptTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *AptTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AptTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*AptTransactionRecord) (int64, error)
@@ -857,4 +860,9 @@ func (r *AptTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return aptTransactionRecords, nil
+}
+
+// CountOut implements AptTransactionRecordRepo
+func (r *AptTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

@@ -7,11 +7,12 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 type TrxTransactionRecord struct {
@@ -42,6 +43,8 @@ type TrxTransactionRecord struct {
 
 // TrxTransactionRecordRepo is a Greater repo.
 type TrxTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
@@ -672,4 +675,9 @@ func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 			return trxTransactionRecord, nil
 		}
 	}
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *TrxTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

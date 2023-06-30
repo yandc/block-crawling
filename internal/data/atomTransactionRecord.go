@@ -7,12 +7,13 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 // AtomTransactionRecord is a AtomTransactionRecord model.
@@ -47,6 +48,8 @@ type AtomTransactionRecord struct {
 
 // AtomTransactionRecordRepo is a Greater repo.
 type AtomTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *AtomTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*AtomTransactionRecord) (int64, error)
@@ -725,4 +728,9 @@ func (r *AtomTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, ta
 		return nil, err
 	}
 	return atomTransactionRecordList, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *AtomTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

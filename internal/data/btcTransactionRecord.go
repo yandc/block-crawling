@@ -7,11 +7,12 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 // BtcTransactionRecord is a BtcTransactionRecord model.
@@ -37,6 +38,8 @@ type BtcTransactionRecord struct {
 
 // BtcTransactionRecordRepo is a Greater repo.
 type BtcTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *BtcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*BtcTransactionRecord) (int64, error)
@@ -597,4 +600,9 @@ func (r *BtcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return btcTransactionRecordList, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *BtcTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

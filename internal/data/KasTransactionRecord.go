@@ -7,11 +7,12 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 // KasTransactionRecord is a KasTransactionRecord model.
@@ -37,6 +38,8 @@ type KasTransactionRecord struct {
 
 // KasTransactionRecordRepo is a Greater repo.
 type KasTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *KasTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*KasTransactionRecord) (int64, error)
@@ -512,4 +515,9 @@ func (r *KasTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return kasTransactionRecordList, nil
+}
+
+// CountOut implements KasTransactionRecordRepo
+func (r *KasTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }
