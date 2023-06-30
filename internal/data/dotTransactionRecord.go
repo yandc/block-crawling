@@ -7,12 +7,13 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 type DotTransactionRecord struct {
@@ -43,6 +44,8 @@ type DotTransactionRecord struct {
 }
 
 type DotTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *DotTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*DotTransactionRecord) (int64, error)
@@ -665,4 +668,9 @@ func (r *DotTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return dotTransactionRecordList, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *DotTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

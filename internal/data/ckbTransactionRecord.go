@@ -42,6 +42,8 @@ type CkbTransactionRecord struct {
 
 // CkbTransactionRecordRepo is a Greater repo.
 type CkbTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *CkbTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CkbTransactionRecord) (int64, error)
@@ -572,4 +574,9 @@ func (r *CkbTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return ckbTransactionRecord, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *CkbTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

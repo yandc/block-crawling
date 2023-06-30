@@ -7,12 +7,13 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 type SuiTransactionRecord struct {
@@ -44,6 +45,8 @@ type SuiTransactionRecord struct {
 
 // SuiTransactionRecordRepo is a Greater repo.
 type SuiTransactionRecordRepo interface {
+	OutTxCounter
+
 	Save(context.Context, string, *SuiTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SuiTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SuiTransactionRecord) (int64, error)
@@ -640,4 +643,9 @@ func (r *SuiTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return suiTransactionRecords, nil
+}
+
+// CountOut implements AtomTransactionRecordRepo
+func (r *SuiTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

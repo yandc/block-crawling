@@ -2925,3 +2925,44 @@ func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChar
 	}
 	return result, nil
 }
+
+func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequest) (*CountOutTxResponse, error) {
+	chainType := ChainNameType[req.ChainName]
+	var counter data.OutTxCounter
+	switch chainType {
+	case STC:
+		counter = data.StcTransactionRecordRepoClient
+	case BTC:
+		counter = data.BtcTransactionRecordRepoClient
+	case EVM:
+		counter = data.EvmTransactionRecordRepoClient
+	case TVM:
+		counter = data.TrxTransactionRecordRepoClient
+	case APTOS:
+		counter = data.AptTransactionRecordRepoClient
+	case SUI:
+		counter = data.SuiTransactionRecordRepoClient
+	case SOLANA:
+		counter = data.SolTransactionRecordRepoClient
+	case NERVOS:
+		counter = data.CkbTransactionRecordRepoClient
+	case CASPER:
+		counter = data.CsprTransactionRecordRepoClient
+	case COSMOS:
+		counter = data.AtomTransactionRecordRepoClient
+	case POLKADOT:
+		counter = data.DotTransactionRecordRepoClient
+	case KASPA:
+		counter = data.KasTransactionRecordRepoClient
+	}
+	if counter == nil {
+		return nil, errors.New("Unsupported chain type")
+	}
+	count, err := counter.CountOut(ctx, data.GetTableName(req.ChainName), req.Address, req.ToAddress)
+	if err != nil {
+		return nil, err
+	}
+	return &CountOutTxResponse{
+		Count: count,
+	}, nil
+}
