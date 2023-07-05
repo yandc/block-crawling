@@ -2197,19 +2197,18 @@ func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcPar
 				}, e
 			}
 			brr := RpcResponse{
-				MethodName : r.MethodName,
-				Result : jsonResp.Response,
+				MethodName: r.MethodName,
+				Result:     jsonResp.Response,
 			}
 			if !jsonResp.Ok {
 				brr.Result = jsonResp.ErrorMsg
 			}
-			rr = append(rr,brr)
+			rr = append(rr, brr)
 		}
 		ret, _ := utils.JsonEncode(rr)
 		return &pb.JsonResponse{
 			Ok:       true,
 			Response: ret,
-
 		}, nil
 	}
 	return &pb.JsonResponse{
@@ -2472,7 +2471,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 
 func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *ChainFeeInfoReq) (*ChainFeeInfoResp, error) {
 	chainName := req.ChainName
-	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST"){
+	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST") {
 		return nil, nil
 	}
 	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
@@ -2538,6 +2537,9 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 
 		oldItem, ok := assetsGroupByToken[tokenAddress]
 		if !ok {
+			if newItem.Balance == "0" {
+				continue
+			}
 			uidOk, uid, err := UserAddressSwitchRetryAlert(req.ChainName, req.Address)
 			if err != nil {
 				return nil, err
