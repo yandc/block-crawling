@@ -280,7 +280,7 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	data := response.Data
 	if len(data) > 0 {
 		respData := data[0]
-		tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(respData.Decimals), Symbol: respData.Symbol}
+		tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(respData.Decimals), Symbol: respData.Symbol, TokenUri: respData.LogoURI}
 		mutex.Lock()
 		TokenInfoMap.Store(key, &tokenInfo)
 		mutex.Unlock()
