@@ -72,8 +72,9 @@ func main() {
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
 	//platform.HandleTokenInfo()
+	platform.HandleTokenUri()
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
-	platform.FixAddressToUid()
+	//platform.FixAddressToUid()
 	//biz.GetTxByAddress("osmo1hrvmdzflvfnkpjtrpsvfhvxqdrvv8td3sy8spy","https://api.mintscan.io/v1/osmosis/account/","Osmosis")
 }

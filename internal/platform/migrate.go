@@ -4475,6 +4475,13 @@ func HandleTokenInfo() {
 	tokenParamMap["Solana"] = solanaTokenParam
 	tokenParamMap["ETH"] = ethTokenParam
 
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+	limit := biz.PAGE_SIZE
+
 	for chainName, tokenParams := range tokenParamMap {
 		chainType := biz.ChainNameType[chainName]
 		switch chainType {
@@ -4488,24 +4495,20 @@ func HandleTokenInfo() {
 		/*for _, tokenParam := range tokenParams {
 			fmt.Printf("('" + chainName + "', '" + tokenParam.TokenAddress + "', %v),\n", tokenParam.OldDecimals)
 		}*/
-		doHandleTokenInfo(chainName, tokenParams)
+		log.Info("处理交易记录TokenInfo中", zap.Any("chainName", chainName))
+		doHandleTokenInfo(dbSource, chainName, tokenParams, limit)
+		log.Info("处理交易记录TokenInfo完成", zap.Any("chainName", chainName))
 	}
 	log.Info("处理交易记录TokenInfo完成", zap.Any("chain size", len(tokenParamMap)))
 }
 
-func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
+func doHandleTokenInfo(dbSource *gorm.DB, chainName string, tokenParams []*TokenParam, limit int) {
 	log.Info("处理交易记录TokenInfo开始", zap.Any("chainName", chainName))
-	source := biz.AppConfig.Target
-	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
-	if err != nil {
-		log.Errore("source DB error", err)
-	}
-
 	tokenParamMap := make(map[string]*TokenParam)
 	var txRecords []*TxRecord
 	for _, tokenParam := range tokenParams {
 		tokenParamMap[tokenParam.TokenAddress] = tokenParam
-		txRecordList, err := getTxRecord(dbSource, chainName, tokenParam, biz.PAGE_SIZE)
+		txRecordList, err := getTxRecord(dbSource, chainName, tokenParam, limit)
 		if err != nil {
 			log.Errore("migrate page query txRecord failed", err)
 			return
@@ -4540,7 +4543,7 @@ func doHandleTokenInfo(chainName string, tokenParams []*TokenParam) {
 		eventLogStr := txRecord.EventLog
 		if eventLogStr != "" {
 			var eventLogs []*types.EventLog
-			err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+			err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
 			if err != nil {
 				log.Error("parse EventLog failed", zap.Any("eventLog", eventLogStr), zap.Any("error", err))
 				continue
@@ -4579,7 +4582,7 @@ func getTxRecord(dbSource *gorm.DB, chainName string, tokenParam *TokenParam, li
 	id := 0
 	total := limit
 	for total == limit {
-		if chainType == biz.BTC || chainType == biz.TVM || chainType == biz.CASPER {
+		if chainType == biz.BTC || chainType == biz.KASPA || chainType == biz.CASPER {
 			sqlStr = getSqlNoEventLog(tableName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
 		} else {
 			sqlStr = getSql(tableName, tokenParam.TokenAddress, tokenParam.OldDecimals, tokenParam.OldSymbol, id, limit)
@@ -4620,6 +4623,142 @@ func getSqlNoEventLog(tableName string, tokenAdress string, decimals int, symbol
 	return s
 }
 
+func HandleTokenUri() {
+	log.Info("处理交易记录TokenInfo中tokenUri开始")
+	source := biz.AppConfig.Target
+	dbSource, err := gorm.Open(postgres.Open(source), &gorm.Config{})
+	if err != nil {
+		log.Errore("source DB error", err)
+	}
+	limit := biz.PAGE_SIZE
+
+	for chainName, _ := range biz.ChainNameType {
+		log.Info("处理交易记录TokenInfo中tokenUri中", zap.Any("chainName", chainName))
+		doHandleTokenUri(dbSource, chainName, limit)
+		log.Info("处理交易记录TokenInfo中tokenUri完成", zap.Any("chainName", chainName))
+	}
+	log.Info("处理交易记录TokenInfo中tokenUri结束")
+}
+
+func doHandleTokenUri(dbSource *gorm.DB, chainName string, limit int) {
+	log.Info("处理交易记录TokenInfo中tokenUri开始", zap.Any("chainName", chainName))
+	txRecords, err := tokenUriGetTxRecord(dbSource, chainName, limit)
+	if err != nil {
+		log.Errore("migrate page query txRecord failed", err)
+		return
+	}
+	if len(txRecords) == 0 {
+		log.Info("没有查到要处理的交易记录TokenInfo中tokenUri，处理结束")
+		return
+	}
+
+	for _, txRecord := range txRecords {
+		parseDataStr := txRecord.ParseData
+		if parseDataStr != "" {
+			tokenInfo, err := biz.ParseTokenInfo(parseDataStr)
+			if err != nil {
+				log.Error("parse TokenInfo failed", zap.Any("parseData", parseDataStr), zap.Any("error", err))
+				continue
+			}
+			tokenAddress := tokenInfo.Address
+			if tokenAddress != "" && tokenInfo.TokenType == "" && tokenInfo.TokenUri == "" {
+				token, err := biz.GetTokenInfoRetryAlert(nil, chainName, tokenAddress)
+				if err != nil {
+					log.Error(chainName+"链处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					continue
+				}
+				oldParseData := "\"}}"
+				newParseData := "\",\"token_uri\":\"" + token.TokenUri + "\"}}"
+				parseDataStr = strings.ReplaceAll(parseDataStr, oldParseData, newParseData)
+				txRecord.ParseData = parseDataStr
+			}
+		}
+
+		eventLogStr := txRecord.EventLog
+		if eventLogStr != "" {
+			var eventLogs []*types.EventLog
+			err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
+			if err != nil {
+				log.Error("parse EventLog failed", zap.Any("eventLog", eventLogStr), zap.Any("error", err))
+				continue
+			}
+			for _, eventLog := range eventLogs {
+				tokenAddress := eventLog.Token.Address
+				if tokenAddress != "" && eventLog.Token.TokenType == "" && eventLog.Token.TokenUri == "" {
+					token, err := biz.GetTokenInfoRetryAlert(nil, chainName, tokenAddress)
+					if err != nil {
+						log.Error(chainName+"链处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						continue
+					}
+					eventLog.Token.TokenUri = token.TokenUri
+				}
+			}
+			eventLogJson, _ := utils.JsonEncode(eventLogs)
+			txRecord.EventLog = eventLogJson
+		}
+	}
+
+	count, err := pageBatchUpdateSelectiveById(chainName, txRecords, biz.PAGE_SIZE)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		count, err = pageBatchUpdateSelectiveById(chainName, txRecords, biz.PAGE_SIZE)
+	}
+	if err != nil {
+		log.Error("处理交易记录TokenInfo中tokenUri，更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
+	}
+	log.Info("处理交易记录TokenInfo中tokenUri结束", zap.Any("query size", len(txRecords)), zap.Any("affected count", count))
+}
+
+func tokenUriGetTxRecord(dbSource *gorm.DB, chainName string, limit int) ([]*TxRecord, error) {
+	tableName := biz.GetTableName(chainName)
+	chainType := biz.ChainNameType[chainName]
+	var sqlStr string
+
+	var txRecords []*TxRecord
+	var txRecordList []*TxRecord
+	id := 0
+	total := limit
+	for total == limit {
+		if chainType == biz.BTC || chainType == biz.KASPA || chainType == biz.CASPER {
+			sqlStr = tokenUriGetSqlNoEventLog(tableName, id, limit)
+		} else {
+			sqlStr = tokenUriGetSql(tableName, id, limit)
+		}
+		ret := dbSource.Raw(sqlStr).Find(&txRecordList)
+		err := ret.Error
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			ret = dbSource.Raw(sqlStr).Find(&txRecordList)
+			err = ret.Error
+		}
+		if err != nil {
+			log.Error("migrate page query txRecord failed", zap.Any("chainName", chainName), zap.Any("error", err))
+			return nil, err
+		}
+		total = len(txRecordList)
+		if total > 0 {
+			txRecord := txRecordList[total-1]
+			id = int(txRecord.Id)
+			txRecords = append(txRecords, txRecordList...)
+		}
+	}
+	return txRecords, nil
+}
+
+func tokenUriGetSql(tableName string, id, limit int) string {
+	s := "SELECT id, parse_data, event_log from " + tableName +
+		" where transaction_type not in('native', 'directTransferNFTSwitch', 'createAccount', 'closeAccount') " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
+}
+
+func tokenUriGetSqlNoEventLog(tableName string, id, limit int) string {
+	s := "SELECT id, parse_data from " + tableName +
+		" where transaction_type not in('native', 'directTransferNFTSwitch', 'createAccount', 'closeAccount') " +
+		"and id > " + strconv.Itoa(id) + " order by id asc limit " + strconv.Itoa(limit) + ";"
+	return s
+}
+
 func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageSize int) (int64, error) {
 	tableName := biz.GetTableName(chainName)
 	chainType := biz.ChainNameType[chainName]
@@ -4638,6 +4777,16 @@ func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageS
 			txRecordList = append(txRecordList, txRecord)
 		}
 		count, err = data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.STC:
+		var txRecordList []*data.StcTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.StcTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.StcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
 	case biz.TVM:
 		var txRecordList []*data.TrxTransactionRecord
 		for _, record := range txRecords {
@@ -4648,6 +4797,28 @@ func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageS
 			txRecordList = append(txRecordList, txRecord)
 		}
 		count, err = data.TrxTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.APTOS:
+		var txRecordList []*data.AptTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.AptTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.AptTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.SUI:
+		var txRecordList []*data.SuiTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.SuiTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.SuiTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
 	case biz.SOLANA:
 		var txRecordList []*data.SolTransactionRecord
 		for _, record := range txRecords {
@@ -4659,6 +4830,49 @@ func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageS
 			txRecordList = append(txRecordList, txRecord)
 		}
 		count, err = data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.COSMOS:
+		var txRecordList []*data.AtomTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.AtomTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.AtomTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.NERVOS:
+		var txRecordList []*data.CkbTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.CkbTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.CkbTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.POLKADOT:
+		var txRecordList []*data.DotTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.DotTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+				EventLog:  record.EventLog,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.DotTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
+	case biz.CASPER:
+		var txRecordList []*data.CsprTransactionRecord
+		for _, record := range txRecords {
+			txRecord := &data.CsprTransactionRecord{
+				Id:        record.Id,
+				ParseData: record.ParseData,
+			}
+			txRecordList = append(txRecordList, txRecord)
+		}
+		count, err = data.CsprTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, txRecordList, pageSize)
 	}
 	return count, err
 }

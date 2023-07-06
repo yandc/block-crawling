@@ -2550,7 +2550,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			}
 			tokenInfo, err := s.getTokenInfo(ctx, req.ChainName, req.Address, &newItem)
 			if err != nil {
-				log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
+				log.Error(req.ChainName+"链资产变更，从nodeProxy中获取代币精度失败", zap.Any("address", req.Address), zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
 				return nil, err
 			}
 			tokenInfo.Address = newItem.TokenAddress
@@ -2612,10 +2612,10 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		}
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s 链更新用户资产数据失败", req.ChainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链资产变更，将数据插入到数据库中失败", req.ChainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(req.ChainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("error", err))
+			log.Error(req.ChainName+"链资产变更，将数据插入到数据库中失败", zap.Any("error", err))
 			return nil, err
 		}
 
@@ -2638,7 +2638,7 @@ func (s *TransactionUsecase) attemptFixZeroDecimals(ctx context.Context, req *Us
 	if tokenInfo == nil {
 		token, err := s.getTokenInfo(ctx, req.ChainName, req.Address, asset)
 		if err != nil {
-			log.Error(req.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", asset.TokenAddress), zap.Any("error", err))
+			log.Error(req.ChainName+"链资产变更，从nodeProxy中获取代币精度失败", zap.Any("address", req.Address), zap.Any("tokenAddress", asset.TokenAddress), zap.Any("error", err))
 			return
 		}
 		tokenInfo = &token
