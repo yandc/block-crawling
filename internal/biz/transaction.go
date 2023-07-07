@@ -2138,12 +2138,16 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 			ErrorMsg: "not support " + req.Method,
 		}, nil
 	}
+	jsonRpcCtx := &JsonRpcContext{
+		Context: ctx,
+		Device:  req.Device,
+	}
+
 	args := make([]reflect.Value, 0)
 	args = append(args, reflect.ValueOf(s))
-	args = append(args, reflect.ValueOf(ctx))
+	args = append(args, reflect.ValueOf(jsonRpcCtx))
 
 	if len(req.Params) > 0 {
-
 		u := mv.Type.NumIn()
 		paseJson := reflect.New(mv.Type.In(u - 1).Elem())
 
@@ -2700,7 +2704,8 @@ func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, addres
 	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
 }
 
-func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *BroadcastRequest) (*BroadcastResponse, error) {
+func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
+	device := ctx.ParseDevice()
 	var userSendRawHistory = &data.UserSendRawHistory{}
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
@@ -2709,8 +2714,14 @@ func (s *TransactionUsecase) CreateBroadcast(ctx context.Context, req *Broadcast
 	userSendRawHistory.TxInput = req.TxInput
 	userSendRawHistory.CreatedAt = time.Now().Unix()
 	userSendRawHistory.ErrMsg = req.ErrMsg
+	userSendRawHistory.DeviceId = device.Id
+	if len(device.UserAgent) > 200 {
+		userSendRawHistory.UserAgent = device.UserAgent[:200]
+	} else {
+		userSendRawHistory.UserAgent = device.UserAgent
+	}
 	if req.ErrMsg != "" {
-		NotifyBroadcastTxFailed(ctx, req)
+		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
 	}
 
 	result, err := data.UserSendRawHistoryRepoInst.Save(ctx, userSendRawHistory)

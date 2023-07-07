@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -791,9 +792,13 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
-func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest) {
+func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device Device) {
 	var msg string
 	alarmOpts := WithMsgLevel("FATAL")
+
+	deviceId := device.Id
+	userAgent := device.UserAgent
+
 	if req.Stage == "" || req.Stage == "broadcast" {
 		sessionID := req.SessionId
 		errMsg := req.ErrMsg
@@ -806,33 +811,39 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest) {
 				zap.Error(err),
 			)
 			msg = fmt.Sprintf(
-				"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s",
+				"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\nUser-Agent: %s\nDevice-Id: %s",
 				sessionID,
 				"Unknown",
 				"Unknown",
 				errMsg,
+				userAgent,
+				deviceId,
 			)
 		} else {
 			msg = fmt.Sprintf(
-				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
+				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s\nUser-Agent: %s\nDevice-Id: %s",
 				info.ChainName,
 				sessionID,
 				info.Address,
 				info.UserName,
 				errMsg,
 				info.TxInput,
+				userAgent,
+				deviceId,
 			)
 		}
 		alarmOpts = WithAlarmChannel("txinput")
 	} else {
 		msg = fmt.Sprintf(
-			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s",
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s\nUser-Agent: %s\nDevice-Id: %s",
 			req.ChainName,
 			req.NodeURL,
 			req.Address,
 			req.UserName,
 			req.ErrMsg,
 			req.TxInput,
+			deviceId,
+			userAgent,
 		)
 		alarmOpts = WithAlarmChannel("node-proxy")
 	}
@@ -927,4 +938,35 @@ func IsNative(chainName string, tokenAddress string) bool {
 	}
 
 	return false
+}
+
+type Device struct {
+	Id        string `json:"id"`
+	UserAgent string `json:"userAgent"`
+}
+
+type JsonRpcContext struct {
+	context.Context
+
+	Device string
+}
+
+func (ctx *JsonRpcContext) ParseDevice() Device {
+	return ParseDevice(ctx.Device)
+}
+
+var userAgentRegex = regexp.MustCompile(
+	`openblock[-_](ios|android|linux|mac|windows)/([0-9]*) \(Channel/(.*)[; ] UUID/(.*)[; ] Version/(.*)[; ] Device/(.*)[; ] System/(.*)[;]\)`,
+)
+
+func ParseDevice(s string) Device {
+	submatches := userAgentRegex.FindStringSubmatch(s)
+	var deviceId string
+	if len(submatches) > 4 {
+		deviceId = submatches[4]
+	}
+	return Device{
+		Id:        deviceId,
+		UserAgent: s,
+	}
 }
