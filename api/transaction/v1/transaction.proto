@@ -54,13 +54,12 @@ service Transaction {
   rpc KanbanContractChart(KanbanChartRequest) returns (KanbanChartResponse);
 }
 
-message JsonReq{
+message JsonReq {
   string method = 1 [(validate.rules).string = {min_len: 1}];
   string uid = 2 [(validate.rules).string = {min_len: 1}];
   string chainName = 3 ;
   string params = 4 ;
-
-
+  string device = 5;
 }
 
 message JsonResponse{

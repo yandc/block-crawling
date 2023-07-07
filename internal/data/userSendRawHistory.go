@@ -23,6 +23,8 @@ type UserSendRawHistory struct {
 	TxInput   string `json:"txInput" form:"txInput"`
 	ErrMsg    string `json:"errMsg" form:"errMsg"`
 	ChainName string `json:"chainName"  form:"chainName" gorm:"type:character varying(16)"`
+	DeviceId  string `json:"deviceId" form:"deviceId" gorm:"type: character varying(36)"`
+	UserAgent string `json:"userAgent" form:"userAgent" gorm:"type: character varying(200)"`
 	CreatedAt int64  `json:"createdAt" form:"createdAt" gorm:"type:bigint"`
 }
 

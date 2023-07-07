@@ -359,6 +359,7 @@ func (s *TransactionService) GetNftRecord(ctx context.Context, req *pb.NftRecord
 }
 
 func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.JsonResponse, error) {
+	started := time.Now()
 	subctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	result, err := s.ts.JsonRpc(subctx, req)
@@ -368,6 +369,8 @@ func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 		zap.String("uid", req.Uid),
 		zap.String("chainName", req.ChainName),
 		zap.String("params", req.Params),
+		zap.String("device", req.Device),
+		zap.Duration("elapsed", time.Now().Sub(started)),
 		zap.Any("response", result),
 		zap.Error(err),
 	)
