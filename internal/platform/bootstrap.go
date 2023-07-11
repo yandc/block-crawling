@@ -532,6 +532,7 @@ func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
 		MonitorHeightAlarmThr:      &mhat,
 		MaxConcurrency:             &mc,
 		SafelyConcurrentBlockDelta: &scbd,
+		Handler:                    chainInfo.Chain,
 	}
 	var PlatInfos []*conf.PlatInfo
 	PlatInfos = append(PlatInfos, cp)
