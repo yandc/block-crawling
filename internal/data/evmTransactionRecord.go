@@ -68,6 +68,7 @@ type EvmTransactionRecordRepo interface {
 	FindByID(context.Context, string, int64) (*EvmTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*EvmTransactionRecord, error)
 	FindByNonceAndAddress(context.Context, string, string, int64) (*EvmTransactionRecord, error)
+	UpdateByNonceAndAddressAndStatus(context.Context, string, string, int64, string) (int64, error)
 	ListByID(context.Context, string, int64) ([]*EvmTransactionRecord, error)
 	ListAll(context.Context, string) ([]*EvmTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, int64, error)
@@ -373,6 +374,15 @@ func (r *EvmTransactionRecordRepoImpl) FindByNonceAndAddress(ctx context.Context
 	} else {
 		return nil, err
 	}
+}
+func (r *EvmTransactionRecordRepoImpl) UpdateByNonceAndAddressAndStatus(ctx context.Context, tableName string, fromAddress string, nonce int64, status string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where(" status in  ('pending','no_status') and nonce >=0 and nonce <= ? and from_address = ? and client_data is not null and client_data != ''", nonce, fromAddress).Update("status", status)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" failed", err)
+		return 0, err
+	}
+	return ret.RowsAffected, nil
 }
 
 func (r *EvmTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*EvmTransactionRecord, error) {
