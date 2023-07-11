@@ -45,6 +45,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	go HandleUserNonce(chainName, client, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(false, chainName, client, txRecords)
+	go HandleUserStatus(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -70,8 +71,49 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	}()
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(true, chainName, client, txRecords)
+	go HandleUserStatus(chainName, client, txRecords)
 }
+func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleUserStatus error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleUserStatus panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
 
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户交易状态失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	//1. nonce = 0 时 跨链时，交易已经时终结状态不会查出来。
+	//2.用户 根据api 插入的pending交易时，这个nonce 是 -1 不做处理.
+	for _, record := range txRecords {
+
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		if record.TransactionType == biz.EVENTLOG || record.TransactionType == biz.TRANSFER{
+			continue
+		}
+		if record.FromUid == ""{
+			continue
+		}
+		//查询所有交易记录
+		ets , e := data.EvmTransactionRecordRepoClient.UpdateByNonceAndAddressAndStatus(nil,biz.GetTableName(chainName), record.FromAddress, record.Nonce,biz.DROPPED_REPLACED)
+		if e != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户交易状态失败, error：%s", chainName, fmt.Sprintf("%s", e))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+		log.Info("根据交易nonce，更新交易状态",zap.Any(record.FromAddress,chainName),zap.Any("nonce",record.Nonce),zap.Any("受影响条数",ets))
+	}
+}
 func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
 	doneNonceTotal := make(map[string]int)

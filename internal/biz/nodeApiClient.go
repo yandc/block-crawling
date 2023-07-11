@@ -174,6 +174,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 				FromAddress:     types2.HexToAddress(record.From).Hex(),
 				ToAddress:       types2.HexToAddress(record.To).Hex(),
 				Status:          PENDING,
+				Nonce:           -1,
 				DappData:        "",
 				ClientData:      "",
 				CreatedAt:       now,
