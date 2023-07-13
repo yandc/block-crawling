@@ -43,14 +43,14 @@ type Client struct {
 	chainName string
 }
 
-func getETHClient(rawUrl string)(*ethclient.Client,error){
+func getETHClient(rawUrl string) (*ethclient.Client, error) {
 	c, err := rpc.DialContext(context.Background(), rawUrl)
 	if err != nil {
 		log.Error("new client error:", zap.Any("url", rawUrl), zap.Error(err))
 		return nil, err
 	}
 	cli := ethclient.NewClient(c)
-	return cli,nil
+	return cli, nil
 }
 
 func NewClient(rawUrl string, chainName string) (*Client, error) {
@@ -62,7 +62,7 @@ func NewClient(rawUrl string, chainName string) (*Client, error) {
 	//client := ethclient.NewClient(c)
 	return &Client{
 		//Client: client,
-		c:      c,
+		c: c,
 		NodeDefaultIn: &pcommon.NodeDefaultIn{
 			ChainName: chainName,
 		},
@@ -161,7 +161,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				transactionType = biz.APPROVE
 			} else if methodId == "a22cb465" { // ERC721 or ERC1155
 				transactionType = biz.SETAPPROVALFORALL
-			}else if methodId =="4782f779"{
+			} else if methodId == "4782f779" {
 				transactionType = biz.CONTRACT
 			}
 			value = amount.String()
@@ -493,6 +493,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "23c452cd" { //ETH链 Hop Protocol: Ethereum or MATIC Bridge
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
@@ -507,7 +513,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	defer cli.Close()
 	if err != nil {
 		return 0, err
@@ -582,7 +588,7 @@ func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transactio
 	index uint) (common.Address, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	defer cli.Close()
 	if err != nil {
 		return [20]byte{}, err
@@ -596,7 +602,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return "", err
 	}
@@ -726,7 +732,7 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return "", err
 	}
@@ -763,7 +769,7 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return "", err
 	}
@@ -792,7 +798,7 @@ func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return false, err
 	}
@@ -817,7 +823,7 @@ func (c *Client) IsErc1155Contract(tokenAddress string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return false, err
 	}
@@ -861,7 +867,7 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	if ok {
 		return tokenInfo, nil
 	}
-	cli,err := getETHClient(c.url)
+	cli, err := getETHClient(c.url)
 	if err != nil {
 		return tokenInfo, err
 	}
