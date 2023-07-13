@@ -868,7 +868,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 					token.Symbol = token.Symbol[1:]
 				}*/
-				tokenAddress = ""
+				if len(receipt.Logs) == 1 {
+					//https://www.oklink.com/cn/oktc/tx/0xc98b6d13535bbad27978b1c09185c32641604d6c580dfc1df894f6449f075c81
+					fromAddress = meta.ToAddress
+				} else {
+					tokenAddress = ""
+				}
 			} else {
 				fromAddress = meta.ToAddress
 			}
