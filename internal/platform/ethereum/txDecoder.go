@@ -736,6 +736,22 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				amount = new(big.Int).SetBytes(log_.Data)
 				tokenAddress = ""
 			}
+
+			//https://arbiscan.io/tx/0x63c5cdddecd584f25eae98be154fa588380f2ebe3a42d0f6f704c080c00b31c0
+			if toAddress == "0x0000000000000000000000000000000000000000" && receipt.To == "0xe05dd51e4eb5636f4f0e8e7fbe82ea31a2ecef16" && hex.EncodeToString(transaction.Data()[:4]) == "a8676443" {
+				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				toAddress = common.HexToAddress(receipt.From).String()
+				amount = new(big.Int).SetBytes(log_.Data)
+				tokenAddress = ""
+			}
+
+			//https://nova.arbiscan.io/tx/0x9db5e750af7dd1cfcd9b74f2ae72cb8fec180ae3b660dbde5a9a6ffb3c57e2e3
+			if toAddress == "0x0000000000000000000000000000000000000000" && receipt.To == "0x67844f0f0dd3d770ff29b0ace50e35a853e4655e" && hex.EncodeToString(transaction.Data()[:4]) == "a6cbf417" {
+				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				toAddress = common.HexToAddress(receipt.From).String()
+				amount = new(big.Int).SetBytes(log_.Data)
+				tokenAddress = ""
+			}
 		} else if topic0 == TRANSFERSINGLE_TOPIC {
 			tokenId = new(big.Int).SetBytes(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
@@ -1093,6 +1109,22 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Symbol = token.Symbol[1:]
 			}*/
 			tokenAddress = ""
+		} else if topic0 == WITHDRAWALBONDED_TOPIC {
+			//https://etherscan.io/tx/0xf929807379db7a1b2c9827a00e51d512b992b4b85130ec4b0be4f53faf292742
+			//https://etherscan.io/tx/0xc231255bec37807b2a124ed86a89b6c74bf5a8cfc8f1b77a7d880ae22de3e3e7
+			if len(receipt.Logs) > 1 {
+				continue
+			}
+			if hex.EncodeToString(transaction.Data()[:4]) != "23c452cd" {
+				continue
+			}
+
+			fromAddress = transaction.To().String()
+			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
@@ -1104,15 +1136,13 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
 			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
-
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
-
-			tokenAddress = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"
+			/*tokenAddress = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"
 			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
-			token.Amount = amount.String()
+			token.Amount = amount.String()*/
 			/*if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
 				token.Symbol = token.Symbol[2:]
 			}*/
