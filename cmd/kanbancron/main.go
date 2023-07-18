@@ -105,6 +105,5 @@ func main() {
 	case <-sc:
 		options.Cancel()
 	}
-
 	app.Stop()
 }

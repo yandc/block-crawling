@@ -28,10 +28,11 @@ func NewAggerator(bc *conf.Bootstrap, bundle *kanban.Bundle, options *Options) *
 }
 
 func (a *Aggerator) Start(ctx context.Context) error {
+	channel := "aggerator"
 	if a.options.RunPeriodically {
 		go func() {
 			for {
-				sleepUntilTomorrow()
+				sleepUntilTomorrow(a.options.ChainName, channel)
 				yesterday := time.Now().Unix() - (24 * 3600)
 				yesterdayStart := yesterday - yesterday%(24*3600)
 				a.options.AggerateTime = yesterdayStart
@@ -41,13 +42,19 @@ func (a *Aggerator) Start(ctx context.Context) error {
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					alarmOpts = biz.WithAlarmChannel("kanban")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				} else {
+					setJobsDone(a.options.ChainName, channel)
 				}
 			}
+
 		}()
 		return nil
 	} else {
 		defer a.options.Cancel()
-		return a.run(ctx)
+		if err := a.run(ctx); err != nil {
+			return err
+		}
+		return nil
 	}
 
 }

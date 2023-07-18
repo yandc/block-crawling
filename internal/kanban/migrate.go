@@ -59,15 +59,18 @@ func (s *MigrateScheduler) Start(ctx context.Context) error {
 		return err
 	}
 	if s.options.RunPeriodically {
+		channel := "migrate-scheduler"
 		go func() {
 			for {
-				sleepUntilTomorrow()
+				sleepUntilTomorrow(s.options.ChainName, channel)
 				if err := s.schudule(ctx); err != nil {
 					log.Errore("MIGRATE", err)
 					alarmMsg := fmt.Sprintf("请注意：%s链创建看板分表失败", s.options.ChainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					alarmOpts = biz.WithAlarmChannel("kanban")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				} else {
+					setJobsDone(s.options.ChainName, channel)
 				}
 			}
 		}()
@@ -166,17 +169,49 @@ func (s *RecordSync) Stop(ctx context.Context) error {
 	return nil
 }
 
-func sleepUntilTomorrow() {
+func sleepUntilTomorrow(chainName, channel string) int {
+	for {
+		now := time.Now().Unix()
+		dayStart := kanban.TimeSharding(now)
+		if now-dayStart >= 3600 {
+			key := redisKey(chainName, channel)
+			exists, err := data.RedisClient.Exists(key).Result()
+			log.Info(
+				"KANBAN JOBS ARE READY TO START",
+				zap.String("chainName", chainName),
+				zap.String("channel", channel),
+				zap.String("redisKey", key),
+				zap.Int64("redisRet", exists),
+			)
+			if err != nil {
+				log.Error(
+					"KANBAN JOBS REDIS ERROR",
+					zap.Error(err),
+					zap.String("chainName", chainName),
+					zap.String("channel", channel),
+				)
+			} else if exists != 1 {
+				return int(dayStart)
+			}
+		}
+		sleepSces := 3600 - now%3600
+		log.Info(
+			"KANBAN JOBS MIGHT DONE",
+			zap.String("chainName", chainName),
+			zap.String("channel", channel),
+			zap.Int64("sleepSecs", sleepSces),
+		)
+		time.Sleep(time.Second * time.Duration(sleepSces+1))
+	}
+}
+
+func redisKey(chainName, channel string) string {
 	now := time.Now().Unix()
 	dayStart := kanban.TimeSharding(now)
-	nextDay1AM := dayStart + 25*3600
-	sleepSecs := nextDay1AM - now
-	log.Info(
-		"GOING TO SLEEP UNTIL NEXT DAY 1 am.",
-		zap.Int64("now", now),
-		zap.Int64("dayStart", dayStart),
-		zap.Int64("nextDay1AM", nextDay1AM),
-		zap.Int64("sleepSecs", sleepSecs),
-	)
-	time.Sleep((time.Duration(sleepSecs)) * time.Second)
+	key := fmt.Sprintf("kanban:done:%s:%s:%d", chainName, channel, dayStart)
+	return key
+}
+
+func setJobsDone(chainName, channel string) error {
+	return data.RedisClient.Set(redisKey(chainName, channel), "1", time.Hour*24).Err()
 }
