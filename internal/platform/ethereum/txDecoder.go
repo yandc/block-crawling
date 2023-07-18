@@ -728,25 +728,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Amount = amount.String()
 			}
 
-			// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
-			//uniswap v3 代币换主币 function 销毁 主币 再发送主币。
-			if toAddress == "0x0000000000000000000000000000000000000000" && common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" {
-				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
-				toAddress = common.HexToAddress(receipt.From).String()
-				amount = new(big.Int).SetBytes(log_.Data)
-				tokenAddress = ""
-			}
-
-			//https://arbiscan.io/tx/0x63c5cdddecd584f25eae98be154fa588380f2ebe3a42d0f6f704c080c00b31c0
-			if toAddress == "0x0000000000000000000000000000000000000000" && receipt.To == "0xe05dd51e4eb5636f4f0e8e7fbe82ea31a2ecef16" && hex.EncodeToString(transaction.Data()[:4]) == "a8676443" {
-				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
-				toAddress = common.HexToAddress(receipt.From).String()
-				amount = new(big.Int).SetBytes(log_.Data)
-				tokenAddress = ""
-			}
-
-			//https://nova.arbiscan.io/tx/0x9db5e750af7dd1cfcd9b74f2ae72cb8fec180ae3b660dbde5a9a6ffb3c57e2e3
-			if toAddress == "0x0000000000000000000000000000000000000000" && receipt.To == "0x67844f0f0dd3d770ff29b0ace50e35a853e4655e" && hex.EncodeToString(transaction.Data()[:4]) == "a6cbf417" {
+			//代币换主币function销毁主币再发送主币
+			if toAddress == "0x0000000000000000000000000000000000000000" && (common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ||
+				//https://arbiscan.io/tx/0x63c5cdddecd584f25eae98be154fa588380f2ebe3a42d0f6f704c080c00b31c0
+				(receipt.To == "0xe05dd51e4eb5636f4f0e8e7fbe82ea31a2ecef16" && hex.EncodeToString(transaction.Data()[:4]) == "a8676443") ||
+				//https://nova.arbiscan.io/tx/0x9db5e750af7dd1cfcd9b74f2ae72cb8fec180ae3b660dbde5a9a6ffb3c57e2e3
+				(receipt.To == "0x67844f0f0dd3d770ff29b0ace50e35a853e4655e" && hex.EncodeToString(transaction.Data()[:4]) == "a6cbf417")) {
 				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 				toAddress = common.HexToAddress(receipt.From).String()
 				amount = new(big.Int).SetBytes(log_.Data)

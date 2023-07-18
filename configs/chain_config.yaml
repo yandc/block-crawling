@@ -1496,6 +1496,7 @@ platformTest:
       - https://rest.atlantic-2.seinetwork.io
       - https://rest.atlantic-2.seinetwork.io
     httpURL:
+      - https://atlantic-2-graphql.alleslabs.dev/v1/graphql
       - https://sei.api.explorers.guru
     symbol: Sei
     type: COSMOS
