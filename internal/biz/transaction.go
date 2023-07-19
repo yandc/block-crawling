@@ -910,6 +910,11 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		recordList, total, err = data.KasTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
+			if len(list) > 0 {
+				for _, record := range list {
+					record.TransactionType = NATIVE
+				}
+			}
 		}
 	}
 	if err == nil {
