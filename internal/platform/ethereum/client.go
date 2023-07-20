@@ -499,6 +499,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "a4d73041" { //zkSync链 NFT
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
 			}
 		}
 	}
