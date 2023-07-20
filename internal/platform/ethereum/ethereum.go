@@ -54,6 +54,7 @@ const ETH_BRIDGECALLTRIGGERED = "0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d
 const ARBITRUM_GMX_SWAP_V2 = "0xcd3829a3813dc3cdd188fd3d01dcf3268c16be2fdd2dd21d0665418816e46062"
 const MATIC_BRIDGE = "0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4"
 const WITHDRAWALBONDED_TOPIC = "0x0c3d250c7831051e78aa6a56679e590374c7c424415ffe4aa474491def2fe705"
+const REDEEM_TOPIC = "0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d"
 
 // dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
@@ -133,6 +134,7 @@ var BridgeWhiteTopicList = map[string][]string{
 		"ArbitrumNova_0x639a647fbe20b6c8ac19e48e2de44ea792c62c5c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"ETC_Topic":     {"ETC_0x5d9ab5522c64e1f6ef5e3627eccc093f56167818_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"Conflux_Topic": {"Conflux_0x0dcb0cb0120d355cde1ce56040be57add0185baa_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
+	"BSC_Topic":     {"BSC_0x33a32f0ad4aa704e28c93ed8ffa61d50d51622a7_0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d"},
 }
 
 type Platform struct {

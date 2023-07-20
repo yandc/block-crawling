@@ -1068,12 +1068,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(log_.Data) >= 160 {
 				toAddress = common.BytesToAddress(log_.Data[:32]).String()
 				amount = new(big.Int).SetBytes(log_.Data[128:160])
-				tokenAddress = common.BytesToAddress(log_.Data[64:96]).String()
+				/*tokenAddress = common.BytesToAddress(log_.Data[64:96]).String()
 				token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
 				if err != nil {
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
-				token.Amount = amount.String()
+				token.Amount = amount.String()*/
 				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 					token.Symbol = token.Symbol[1:]
 				}*/
@@ -1087,11 +1087,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(log_.Data) >= 160 {
 				amount = new(big.Int).SetBytes(log_.Data[:32])
 			}
-			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+			/*token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
 			if err != nil {
 				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
-			token.Amount = amount.String()
+			token.Amount = amount.String()*/
 			/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
 				token.Symbol = token.Symbol[1:]
 			}*/
@@ -1111,6 +1111,19 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
+			tokenAddress = ""
+		} else if topic0 == REDEEM_TOPIC {
+			//https://bscscan.com/tx/0xd0b6d155be809d384dffe89e8d50e2284bb7dbfa79a5934beeed8efe7680550c
+			if hex.EncodeToString(transaction.Data()[:4]) != "db006a75" {
+				continue
+			}
+			if len(log_.Data) != 160 {
+				continue
+			}
+
+			fromAddress = transaction.To().String()
+			toAddress = common.BytesToAddress(log_.Data[:32]).String()
+			amount = new(big.Int).SetBytes(log_.Data[32:64])
 			tokenAddress = ""
 		}
 
