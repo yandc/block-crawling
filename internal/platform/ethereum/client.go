@@ -762,6 +762,11 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 				return "1", nil
 			}
 			return "0", nil
+		} else if strings.HasSuffix(err.Error(), "ERC721: invalid token ID") {
+			if address == "0x0000000000000000000000000000000000000000" {
+				return "1", nil
+			}
+			return "0", nil
 		}
 		return "", err
 	}
