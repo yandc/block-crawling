@@ -20,6 +20,32 @@ platform:
 #    safelyConcurrentBlockDelta: 20
 #    maxConcurrency: 5
 #    monitorHeightAlarmThr: 21
+  Linea:
+    blockExplorerUrl: https://explorer.linea.build/
+    blockExplorerTxUrl: https://explorer.linea.build/tx/
+    blockExplorerAddrUrl: https://explorer.linea.build/address/
+    chain: Linea
+    chainId: "59144"
+    coinId: 60
+    decimal: 18
+    fullName: Linea
+    getPriceKey: ethereum
+    handler: linea
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 15
+    rpcURL:
+      - https://linea-mainnet.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8
+    symbol: Linea
+    type: EVM
+    safelyConcurrentBlockDelta: 100
+    maxConcurrency: 8
+    monitorHeightAlarmThr: 160
+    httpURL:
+      - https://api.lineascan.build/api?apikey=GPHCZWBE2AWNWXX2KJ8RY5Q4ZF63QVEQYY
+      - https://api.lineascan.build/api?apikey=SJ1BXKB4YW3GBK5X3MU7GNWVBHE8E3GCIC
+      - https://api.lineascan.build/api?apikey=N1UGPYADRMEFS89IPVGNIZ6X57I2ZP62XE
+
   Arbitrum:
     blockExplorerAddrUrl: https://arbiscan.io/address/
     blockExplorerTxUrl: https://arbiscan.io/tx/
