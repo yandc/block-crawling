@@ -56,7 +56,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
-	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux":
+	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea":
 		err = EvmNormalAndInternalGetTxByAddress(chainName, address, urls)
 	case "zkSync":
 		err = ZkSyncGetTxByAddress(chainName, address, urls)
