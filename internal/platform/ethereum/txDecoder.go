@@ -233,8 +233,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 						meta.TransactionType = biz.TRANSFER
 					}
 					//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
-					if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
-						(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+					//zkSync链的主币地址为空或0x000000000000000000000000000000000000800A
+					if meta.TransactionType == biz.TRANSFER &&
+						((strings.HasPrefix(h.chainName, "Polygon") && (contractAddress == POLYGON_CODE || len(eventLogs) == 0)) ||
+							(strings.HasPrefix(h.chainName, "zkSync") && (contractAddress == ZKSYNC_CODE || len(eventLogs) == 0))) {
 						meta.TransactionType = biz.NATIVE
 						contractAddress = ""
 					} else {
@@ -307,8 +309,10 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			}
 		} else {
 			//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
-			if strings.HasPrefix(h.chainName, "Polygon") && meta.TransactionType == biz.TRANSFER &&
-				(contractAddress == POLYGON_CODE || len(eventLogs) == 0) {
+			//zkSync链的主币地址为空或0x000000000000000000000000000000000000800A
+			if meta.TransactionType == biz.TRANSFER &&
+				((strings.HasPrefix(h.chainName, "Polygon") && (contractAddress == POLYGON_CODE || len(eventLogs) == 0)) ||
+					(strings.HasPrefix(h.chainName, "zkSync") && (contractAddress == ZKSYNC_CODE || len(eventLogs) == 0))) {
 				meta.TransactionType = biz.NATIVE
 				contractAddress = ""
 			}
@@ -1177,8 +1181,14 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		}
 
-		if strings.HasPrefix(h.chainName, "zkSync") && (fromAddress == ZKSYNC_ADDRESS || toAddress == ZKSYNC_ADDRESS) {
-			continue
+		if strings.HasPrefix(h.chainName, "zkSync") {
+			if fromAddress == ZKSYNC_ADDRESS || toAddress == ZKSYNC_ADDRESS {
+				continue
+			}
+			//https://explorer.zksync.io/tx/0x7cd3f94cf26c8d7fa18509dae6a8021916945a0f117a1d17af73171338095024
+			if tokenAddress == ZKSYNC_CODE {
+				tokenAddress = ""
+			}
 		}
 
 		if fromAddress != "" {
