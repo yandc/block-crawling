@@ -97,21 +97,21 @@ func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTran
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		if record.TransactionType == biz.EVENTLOG || record.TransactionType == biz.TRANSFER{
+		if record.TransactionType == biz.EVENTLOG || record.TransactionType == biz.TRANSFER {
 			continue
 		}
-		if record.FromUid == ""{
+		if record.FromUid == "" {
 			continue
 		}
 		//查询所有交易记录
-		ets , e := data.EvmTransactionRecordRepoClient.UpdateByNonceAndAddressAndStatus(nil,biz.GetTableName(chainName), record.FromAddress, record.Nonce,biz.DROPPED_REPLACED)
+		ets, e := data.EvmTransactionRecordRepoClient.UpdateByNonceAndAddressAndStatus(nil, biz.GetTableName(chainName), record.FromAddress, record.Nonce, biz.DROPPED_REPLACED)
 		if e != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链更新用户交易状态失败, error：%s", chainName, fmt.Sprintf("%s", e))
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			return
 		}
-		log.Info("根据交易nonce，更新交易状态",zap.Any(record.FromAddress,chainName),zap.Any("nonce",record.Nonce),zap.Any("受影响条数",ets))
+		log.Info("根据交易nonce，更新交易状态", zap.Any(record.FromAddress, chainName), zap.Any("nonce", record.Nonce), zap.Any("受影响条数", ets))
 	}
 }
 func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
@@ -190,6 +190,9 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 		var tokenAddress = record.ContractAddress
 		if strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE {
+			tokenAddress = ""
+		}
+		if strings.HasPrefix(chainName, "zkSync") && tokenAddress == ZKSYNC_CODE {
 			tokenAddress = ""
 		}
 
@@ -429,6 +432,9 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 		if strings.HasPrefix(chainName, "Polygon") && record.ContractAddress == POLYGON_CODE {
 			tokenAddress = ""
 		}
+		if strings.HasPrefix(chainName, "zkSync") && record.ContractAddress == ZKSYNC_CODE {
+			tokenAddress = ""
+		}
 
 		decimals, _, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
@@ -500,7 +506,9 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		if !(strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE) && tokenAddress != "" && address != "" && uid != "" {
+		if !(strings.HasPrefix(chainName, "Polygon") && tokenAddress == POLYGON_CODE) &&
+			!(strings.HasPrefix(chainName, "zkSync") && tokenAddress == ZKSYNC_CODE) &&
+			tokenAddress != "" && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
