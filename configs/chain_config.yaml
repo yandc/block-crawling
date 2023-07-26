@@ -240,7 +240,7 @@ platform:
 #    - http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332
 #    - https://chain.so
 #    - https://blockstream.info
-    - https://Bearer:9VpB0M4Al-RNmiOvFHwOMvNNetBfZY2mDepbbXT2ygBJ2-AG@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/
+#    - https://Bearer:9VpB0M4Al-RNmiOvFHwOMvNNetBfZY2mDepbbXT2ygBJ2-AG@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/
     standbyRPCURL:
     - https://chain.so/
     symbol: BTC
