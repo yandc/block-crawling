@@ -21,6 +21,7 @@ import (
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type Bootstrap struct {
@@ -32,13 +33,15 @@ type Bootstrap struct {
 	ctx         context.Context
 	pending     *time.Ticker
 	inerPending *time.Ticker
+
+	db *gorm.DB
 }
 
-var startChainMap = make(map[string]*Bootstrap)
+var startChainMap = &sync.Map{}
 var startCustomChainMap = &sync.Map{}
 var chainLock sync.RWMutex
 
-func NewBootstrap(p biz.Platform, value *conf.PlatInfo) *Bootstrap {
+func NewBootstrap(p biz.Platform, value *conf.PlatInfo, db *gorm.DB) *Bootstrap {
 	ctx, cancel := context.WithCancel(context.Background())
 	nodeURL := value.RpcURL
 	clients := make([]chain.Clienter, 0, len(nodeURL))
@@ -68,6 +71,7 @@ func NewBootstrap(p biz.Platform, value *conf.PlatInfo) *Bootstrap {
 		Conf:      value,
 		cancel:    cancel,
 		ctx:       ctx,
+		db:        db,
 	}
 }
 
@@ -87,6 +91,9 @@ func (b *Bootstrap) Start() {
 			log.Error("main panic:", zap.Any("", err))
 		}
 	}()
+
+	table := strings.ToLower(b.Conf.Chain) + biz.TABLE_POSTFIX
+	biz.DynamicCreateTable(b.db, table, b.Conf.Type)
 
 	go func() {
 		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
@@ -386,13 +393,21 @@ func (bs Server) Start(ctx context.Context) error {
 	quit := make(chan int)
 
 	//本地配置 链的爬取
+	log.Info("BOOTSTRAP CHAINS", zap.String("stage", "before"))
+	var wg sync.WaitGroup
 	for _, b := range bs {
-		b.Start()
-		//记录 已启动chain
-		ci := b.Conf.Type + b.Conf.ChainId
-		startChainMap[ci] = b
-		log.Info("本地配置启动bnb", zap.Any("", b))
+		wg.Add(1)
+		go func(b *Bootstrap) {
+			defer wg.Done()
+			b.Start()
+			//记录 已启动chain
+			ci := b.Conf.Type + b.Conf.ChainId
+			startChainMap.Store(ci, b)
+			log.Info("本地配置启动bnb", zap.Any("", b))
+		}(b)
 	}
+	wg.Wait()
+	log.Info("BOOTSTRAP CHAINS", zap.String("stage", "after"))
 
 	go func() {
 		platforms := InnerPlatforms
@@ -473,7 +488,7 @@ func customChainRun() {
 
 		//已启动 本地爬块
 		k := chainInfo.Type + chainInfo.ChainId
-		if startChainMap[k] != nil {
+		if v, loaded := startChainMap.Load(k); loaded && v != nil {
 			continue
 		}
 		if sl, ok := startCustomChainMap.LoadOrStore(k, GetBootStrap(chainInfo)); ok {
@@ -537,8 +552,7 @@ func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
 	var PlatInfos []*conf.PlatInfo
 	PlatInfos = append(PlatInfos, cp)
 	platform := GetPlatform(cp)
-	bt := NewBootstrap(platform, cp)
-	DynamicCreateTable(data.BlockCreawlingDB, PlatInfos)
+	bt := NewBootstrap(platform, cp, data.BlockCreawlingDB)
 
 	biz.PlatInfos = PlatInfos
 	biz.ChainNameType[cp.Chain] = cp.Type
