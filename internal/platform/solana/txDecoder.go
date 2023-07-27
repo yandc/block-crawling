@@ -141,7 +141,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	var instructionList []Instruction
 	var innerInstructionList []Instruction
-	var total, innerTotal int
+	var transferTotal, accountTotal, innerTransferTotal, innerAccountTotal int
 	instructions := transaction.Message.Instructions
 	innerInstructions := transactionInfo.Meta.InnerInstructions
 	for _, instruction := range innerInstructions {
@@ -151,12 +151,12 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// 合并交易
 	//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
-	instructionList, tokenBalanceOwnerMap, total = mergeInstructions(instructions, tokenBalanceMap, tokenBalanceOwnerMap)
-	innerInstructionList, tokenBalanceOwnerMap, innerTotal = mergeInstructions(innerInstructionList, tokenBalanceMap, tokenBalanceOwnerMap)
+	instructionList, tokenBalanceOwnerMap, transferTotal, accountTotal = mergeInstructions(instructions, tokenBalanceMap, tokenBalanceOwnerMap)
+	innerInstructionList, tokenBalanceOwnerMap, innerTransferTotal, innerAccountTotal = mergeInstructions(innerInstructionList, tokenBalanceMap, tokenBalanceOwnerMap)
 
 	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": tokenBalanceOwnerMap})
 	isContract := false
-	if innerTotal > 0 || len(instructionList) > 1 {
+	if innerTransferTotal > 0 || innerAccountTotal > 1 || len(instructionList) > 1 {
 		isContract = true
 	}
 
@@ -343,7 +343,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			h.txRecords = append(h.txRecords, solTransactionRecord)
 		}
 
-		if len(h.txRecords) == 0 && total == 0 {
+		if len(h.txRecords) == 0 && transferTotal == 0 && accountTotal == 0 {
 			var fromAddress, fromUid string
 			var fromAddressExist bool
 
@@ -391,6 +391,8 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	} else {
 		instructionList = append(instructionList, innerInstructionList...)
+		//如果集合中同时包含createAccount和closeAccount，需要将这两笔抵消掉
+		instructionList = reduceInstructions(instructionList)
 		var eventLogs []*types.EventLog
 		var solTransactionRecords []*data.SolTransactionRecord
 
@@ -663,6 +665,111 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			solTransactionRecords = append(solTransactionRecords, solTransactionRecord)
 		}
 
+		//发送方主币实际变更的金额可能不等于eventLog中发送方主币转账的金额之和，需要给发送方再补一条主币转账的记录
+		if len(eventLogs) > 0 {
+			transferAmount := accountKeyMap[fromAddress].TransferAmount
+			transferAmount = transferAmount.Add(transferAmount, feeAmount.BigInt())
+			fromAmount := new(big.Int)
+			for _, eventLog := range eventLogs {
+				if eventLog != nil && eventLog.From != eventLog.To && eventLog.Token.Address == "" {
+					if fromAddress == eventLog.From {
+						fromAmount = fromAmount.Sub(fromAmount, eventLog.Amount)
+					} else if fromAddress == eventLog.To {
+						fromAmount = fromAmount.Add(fromAmount, eventLog.Amount)
+					}
+				}
+			}
+			transferAmount = transferAmount.Sub(transferAmount, fromAmount)
+			cmp := transferAmount.Cmp(new(big.Int))
+			if cmp != 0 {
+				if cmp < 0 {
+					toAddress = ""
+					toUid = ""
+				} else if cmp > 0 {
+					toAddress = fromAddress
+					toUid = fromUid
+					fromAddress = ""
+					fromUid = ""
+				}
+				amount := transferAmount.Abs(transferAmount).String()
+
+				index++
+				txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
+
+				solMap := map[string]interface{}{
+					"token": tokenInfo,
+				}
+				parseData, _ := utils.JsonEncode(solMap)
+				amountValue, _ := decimal.NewFromString(amount)
+				eventLogInfo := &types.EventLog{
+					From:   fromAddress,
+					To:     toAddress,
+					Amount: amountValue.BigInt(),
+					Token:  tokenInfo,
+				}
+
+				var isContinue bool
+				for i, eventLog := range eventLogs {
+					if eventLog == nil {
+						continue
+					}
+					if eventLog.From == eventLogInfo.To && eventLog.To == eventLogInfo.From && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						cmp := eventLog.Amount.Cmp(eventLogInfo.Amount)
+						if cmp == 1 {
+							isContinue = true
+							subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
+							eventLogs[i].Amount = subAmount
+							solTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
+						} else if cmp == 0 {
+							isContinue = true
+							eventLogs[i] = nil
+							solTransactionRecords[i] = nil
+						} else if cmp == -1 {
+							eventLogs[i] = nil
+							solTransactionRecords[i] = nil
+						}
+						break
+					} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
+						eventLog.Token.TokenId == eventLogInfo.Token.TokenId {
+						isContinue = true
+						addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
+						eventLogs[i].Amount = addAmount
+						solTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
+						break
+					}
+				}
+				if !isContinue {
+					eventLogs = append(eventLogs, eventLogInfo)
+
+					solTransactionRecord := &data.SolTransactionRecord{
+						SlotNumber:      int(block.Number),
+						BlockHash:       block.Hash,
+						BlockNumber:     curHeight,
+						TransactionHash: txHash,
+						FromAddress:     fromAddress,
+						ToAddress:       toAddress,
+						FromUid:         fromUid,
+						ToUid:           toUid,
+						FeeAmount:       feeAmount,
+						Amount:          amountValue,
+						Status:          status,
+						TxTime:          txTime,
+						//ContractAddress: contractAddress,
+						ParseData:       parseData,
+						Data:            payload,
+						EventLog:        "",
+						TransactionType: txType,
+						DappData:        "",
+						ClientData:      "",
+						CreatedAt:       h.now.Unix(),
+						UpdatedAt:       h.now.Unix(),
+					}
+					solTransactionRecords = append(solTransactionRecords, solTransactionRecord)
+				}
+			}
+		}
+
 		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, solContractRecord)
 		}
@@ -773,12 +880,12 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	return nil
 }
 
-func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]TokenBalance, tokenBalanceOwnerMap map[string]TokenBalance) ([]Instruction, map[string]TokenBalance, int) {
+func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]TokenBalance, tokenBalanceOwnerMap map[string]TokenBalance) ([]Instruction, map[string]TokenBalance, int, int) {
 	var instructionList []Instruction
 	var instructionMap = make(map[string]Instruction)
 	var createInstructionMap = make(map[string]Instruction)
 	var closeInstructionMap = make(map[string]Instruction)
-	var total int
+	var transferTotal, accountTotal int
 	for _, instruction := range instructions {
 		var amount, newAmount, contractAddress string
 		var fromAddress, toAddress string
@@ -793,7 +900,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 		instructionInfo := parsed["info"].(map[string]interface{})
 
 		if instructionType == "transfer" {
-			total++
+			transferTotal++
 			if programId == SOL_CODE {
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
@@ -855,7 +962,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "transferChecked" {
-			total++
+			transferTotal++
 			if programId == SOL_CODE {
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
@@ -915,7 +1022,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "mintTo" {
-			total++
+			transferTotal++
 			if programId == SOL_CODE {
 				toAddress = instructionInfo["destination"].(string)
 
@@ -960,7 +1067,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				}
 			}
 		} else if instructionType == "createAccount" {
-			total++
+			accountTotal++
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["newAccount"].(string)
 			key := fromAddress + toAddress
@@ -970,7 +1077,7 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 				createInstructionMap[key] = instruction
 			}
 		} else if instructionType == "closeAccount" {
-			total++
+			accountTotal++
 			fromAddress = instructionInfo["account"].(string)
 			toAddress = instructionInfo["destination"].(string)
 			key := toAddress + fromAddress
@@ -993,5 +1100,52 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 		instructionList = append(instructionList, instruction)
 	}
 
-	return instructionList, tokenBalanceOwnerMap, total
+	return instructionList, tokenBalanceOwnerMap, transferTotal, accountTotal
+}
+
+func reduceInstructions(instructions []Instruction) []Instruction {
+	var instructionList []Instruction
+	var createInstructionMap = make(map[string]Instruction)
+	var closeInstructionMap = make(map[string]Instruction)
+	for _, instruction := range instructions {
+		var fromAddress, toAddress string
+
+		parsed, ok := instruction.Parsed.(map[string]interface{})
+		if !ok {
+			instructionList = append(instructionList, instruction)
+			continue
+		}
+		instructionType := parsed["type"]
+		instructionInfo := parsed["info"].(map[string]interface{})
+
+		if instructionType == "createAccount" {
+			fromAddress = instructionInfo["source"].(string)
+			toAddress = instructionInfo["newAccount"].(string)
+			key := fromAddress + toAddress
+			if _, closeOk := closeInstructionMap[key]; closeOk {
+				delete(closeInstructionMap, key)
+			} else {
+				createInstructionMap[key] = instruction
+			}
+		} else if instructionType == "closeAccount" {
+			fromAddress = instructionInfo["account"].(string)
+			toAddress = instructionInfo["destination"].(string)
+			key := toAddress + fromAddress
+			if _, createOk := createInstructionMap[key]; createOk {
+				delete(createInstructionMap, key)
+			} else {
+				closeInstructionMap[key] = instruction
+			}
+		} else {
+			instructionList = append(instructionList, instruction)
+		}
+	}
+	for _, instruction := range createInstructionMap {
+		instructionList = append(instructionList, instruction)
+	}
+	for _, instruction := range closeInstructionMap {
+		instructionList = append(instructionList, instruction)
+	}
+
+	return instructionList
 }
