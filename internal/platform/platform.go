@@ -5,6 +5,7 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/casper"
@@ -20,9 +21,9 @@ import (
 	in "block-crawling/internal/types"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/nervosnetwork/ckb-sdk-go/types"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -31,6 +32,8 @@ var Platforms []biz.Platform
 type PlatformContainer []biz.Platform
 
 func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker) Server {
+	log.Info("BOOTSTRAP", zap.String("stage", "before"))
+	defer log.Info("BOOTSTRAP", zap.String("stage", "after"))
 	c := bc.Platform
 	if c == nil {
 		c = map[string]*conf.PlatInfo{}
@@ -71,7 +74,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		PlatInfos = append(PlatInfos, value)
 
 		platform := GetPlatform(value)
-		bt := NewBootstrap(platform, value)
+		bt := NewBootstrap(platform, value, db)
 		bs[value.Chain] = bt
 		Platforms = append(Platforms, platform)
 		if p, ok := platform.(*nervos.Platform); ok {
@@ -97,21 +100,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
 	biz.PlatformMap = platformMap
-	DynamicCreateTable(db, PlatInfos)
 	return bs
-}
-
-var migrated sync.Map
-
-func DynamicCreateTable(gormDb *gorm.DB, platInfos []*conf.PlatInfo) {
-	for _, platInfo := range platInfos {
-		chain := strings.ToLower(platInfo.Chain) + biz.TABLE_POSTFIX
-		_, loaded := migrated.LoadOrStore(chain, true)
-		if loaded {
-			continue
-		}
-		biz.DynamicCreateTable(gormDb, chain, platInfo.Type)
-	}
 }
 
 func GetPlatform(value *conf.PlatInfo) biz.Platform {
