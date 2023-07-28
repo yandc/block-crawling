@@ -153,6 +153,7 @@ func (b *Bootstrap) GetTransactionResultByTxhash() {
 	b.Spider.SealPendingTransactions(b.Platform.CreateBlockHandler(liveInterval))
 }
 
+
 func FixNftInfo() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -453,6 +454,7 @@ func (bs Server) Start(ctx context.Context) error {
 			}
 		}
 	}()
+
 	//定时  已启动的 ==  拉取内存 配置
 	InitCustomePlan()
 	//他那边的链配置
@@ -460,6 +462,12 @@ func (bs Server) Start(ctx context.Context) error {
 }
 
 func InitCustomePlan() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("main panic:", zap.Any("", err))
+		}
+	}()
+
 	go func() {
 		customChainPlan := time.NewTicker(time.Duration(10) * time.Second)
 		for true {

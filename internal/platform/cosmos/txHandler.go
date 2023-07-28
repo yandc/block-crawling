@@ -955,6 +955,9 @@ func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		nonce := uint64(result.Nonce)
 		if uint64(record.Nonce) <= nonce {
 			record.Status = biz.DROPPED_REPLACED
+			//updateMap := map[string]interface{}{}
+			//updateMap["sign_status"] = "3"
+			//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil,record.TransactionHash,updateMap,-1,"")
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
 			log.Info(

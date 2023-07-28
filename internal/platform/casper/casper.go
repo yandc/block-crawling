@@ -96,5 +96,16 @@ func BatchSaveOrUpdate(txRecords []*data.CsprTransactionRecord, tableName string
 			return err
 		}
 	}
+
+	var ssr []biz.SignStatusRequest
+	for _ , r := range txRecords {
+		ssr = append(ssr,biz.SignStatusRequest{
+			TransactionHash :r.TransactionHash,
+			Status          :r.Status,
+			TransactionType :r.TransactionType,
+			TxTime          :r.TxTime,
+		})
+	}
+	go biz.SyncStatus(ssr)
 	return nil
 }
