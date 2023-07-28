@@ -167,3 +167,15 @@ type BlockcypherUtxo struct {
 		SpentBy       string    `json:"spent_by,omitempty"`
 	} `json:"txrefs"`
 }
+
+type EvmTxInput struct {
+	ChainId               string `json:"chainId"`
+	Nonce                 string `json:"nonce"`
+	ToAddress             string `json:"toAddress"`
+	Transaction           struct {
+		Transfer struct {
+			Data string `json:"data"`
+		} `json:"transfer"`
+	} `json:"transaction"`
+}
+

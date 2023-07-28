@@ -69,6 +69,7 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.CkbT
 	}()
 }
 
+
 func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresses []string) {
 	defer func() {
 		if err := recover(); err != nil {

@@ -53,7 +53,6 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.KasT
 	go HandleUserAsset(chainName, client, txRecords)
 	go HandleUserUtxo(chainName, client, txRecords)
 }
-
 func HandleUserAsset(chainName string, client Client, txRecords []*data.KasTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {

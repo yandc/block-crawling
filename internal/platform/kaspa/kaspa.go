@@ -97,5 +97,14 @@ func BatchSaveOrUpdate(txRecords []*data.KasTransactionRecord, table string) err
 			return err
 		}
 	}
+	var ssr []biz.SignStatusRequest
+	for _ , r := range txRecords {
+		ssr = append(ssr,biz.SignStatusRequest{
+			TransactionHash :r.TransactionHash,
+			Status          :r.Status,
+			TxTime          :r.TxTime,
+		})
+	}
+	go biz.SyncStatus(ssr)
 	return nil
 }

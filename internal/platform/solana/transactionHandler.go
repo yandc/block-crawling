@@ -63,7 +63,6 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.SolT
 	}()
 	go HandleUserNftAsset(chainName, client, txRecords)
 }
-
 func HandleUserAsset(isPending bool, chainName string, client Client, txRecords []*data.SolTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {

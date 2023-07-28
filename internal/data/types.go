@@ -42,6 +42,17 @@ type TransactionRequest struct {
 	OrParamList              []TransactionRequest
 }
 
+type SignReqPage struct {
+	Address             string   `json:"address"`
+	ChainName           string   `json:"chainName"`
+	SignType            string   `json:"signType"`
+	SignStatus          []string `json:"signStatus"`
+	PageNum             int      `json:"pageNum"`
+	PageSize            int      `json:"pageSize"`
+	TradeTime           int      `json:"tradeTime"`
+	TransactionTypeList []string `json:"transactionTypeList"`
+}
+
 type TBTransactionRecord struct {
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`

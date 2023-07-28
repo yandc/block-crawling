@@ -35,6 +35,8 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
 	go biz.TronDappApproveFilter(chainName, txRecords)
+	go HandleSignStatus(chainName, txRecords)
+
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
@@ -57,9 +59,41 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxT
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
 		HandleUserAsset(chainName, client, txRecords)
+		go HandleSignStatus(chainName, txRecords)
+
 	}()
 }
+func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord){
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleSignStatus error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleSignStatus panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
 
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理签名记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
+			continue
+		}
+		if record.FromUid == ""{
+			continue
+		}
+		//更新签约记录状态
+		//updateMap := map[string]interface{}{}
+		//updateMap["sign_status"] = "2"
+		//updateMap["tx_time"] = record.TxTime
+		//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil,record.TransactionHash,updateMap,-1,"")
+	}
+}
 func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {

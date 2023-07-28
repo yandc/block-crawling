@@ -1467,11 +1467,18 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	result, err := data.EvmTransactionRecordRepoClient.FindLastNonce(nil, biz.GetTableName(h.chainName), record.FromAddress)
 	if err == nil && result != nil {
 		if record.TransactionHash == result.TransactionHash {
+			//updateMap := map[string]interface{}{}
+			//updateMap["sign_status"] = "2"
+			//updateMap["tx_time"] = record.TxTime
+			//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil, record.TransactionHash, updateMap, -1, "")
 			return nil
 		}
 		nonce := uint64(result.Nonce)
 		if nonce > 0 && uint64(record.Nonce) <= nonce {
 			record.Status = biz.DROPPED_REPLACED
+			//updateMap1 := map[string]interface{}{}
+			//updateMap1["sign_status"] = "4"
+			//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil, record.TransactionHash, updateMap1, -1, "")
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
 			log.Info(

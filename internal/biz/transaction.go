@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	types2 "github.com/ethereum/go-ethereum/common"
@@ -33,6 +34,8 @@ type TransactionUsecase struct {
 	lark    Larker
 	kBundle *kanban.Bundle
 }
+
+var sendLock sync.RWMutex
 
 func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle) *TransactionUsecase {
 	return &TransactionUsecase{
@@ -3349,12 +3352,14 @@ func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, addres
 
 func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
 	device := ctx.ParseDevice()
+	var usrhs []*data.UserSendRawHistory
+
 	var userSendRawHistory = &data.UserSendRawHistory{}
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
 	userSendRawHistory.ChainName = req.ChainName
 	userSendRawHistory.SessionId = req.SessionId
-	userSendRawHistory.TxInput = req.TxInput
+	userSendRawHistory.BaseTxInput = req.TxInput
 	userSendRawHistory.CreatedAt = time.Now().Unix()
 	userSendRawHistory.ErrMsg = req.ErrMsg
 	userSendRawHistory.DeviceId = device.Id
@@ -3366,8 +3371,8 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 	if req.ErrMsg != "" {
 		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
 	}
-
-	result, err := data.UserSendRawHistoryRepoInst.Save(ctx, userSendRawHistory)
+	usrhs = append(usrhs, userSendRawHistory)
+	result, err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(ctx, usrhs)
 	if err != nil {
 		return &BroadcastResponse{
 			Ok:      false,
@@ -3378,6 +3383,99 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 	return &BroadcastResponse{
 		Ok: result == 1,
 	}, nil
+}
+
+func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
+	sendLock.Lock()
+	defer sendLock.Unlock()
+
+	device := ctx.ParseDevice()
+	now := time.Now().Unix()
+	var usrhs []*data.UserSendRawHistory
+
+	chainType := ChainNameType[req.ChainName]
+	var userSendRawHistory = &data.UserSendRawHistory{}
+	userSendRawHistory.UserName = req.UserName
+	userSendRawHistory.Address = req.Address
+	userSendRawHistory.ChainName = req.ChainName
+	userSendRawHistory.SessionId = req.SessionId
+	userSendRawHistory.CreatedAt = now
+	userSendRawHistory.UpdatedAt = now
+	userSendRawHistory.ErrMsg = req.ErrMsg
+	userSendRawHistory.DeviceId = device.Id
+	if chainType == BTC {
+		userSendRawHistory.TransactionType = NATIVE
+	} else {
+		userSendRawHistory.TransactionType = req.TransactionType
+	}
+
+	userSendRawHistory.SignType = req.SignType
+	userSendRawHistory.SignStatus = req.SignStatus
+	if req.TransactionHashList != nil && len(req.TransactionHashList) > 0 {
+		userSendRawHistory.TransactionHash = strings.Join(req.TransactionHashList, ",")
+		info, _ := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, req.SessionId)
+		if info != nil {
+			if ChainNameType[info.ChainName] == COSMOS {
+				userSendRawHistory.TransactionHash = strings.ToUpper(userSendRawHistory.TransactionHash)
+			}
+
+		}
+	}
+	if len(device.UserAgent) > 200 {
+		userSendRawHistory.UserAgent = device.UserAgent[:200]
+	} else {
+		userSendRawHistory.UserAgent = device.UserAgent
+	}
+	if req.ErrMsg != "" {
+		userSendRawHistory.SignStatus = "3"
+		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
+	}
+	if req.SignStatus == "" {
+		userSendRawHistory.SignStatus = "3"
+	}
+	if req.TxInputList != nil && len(req.TxInputList) > 0 {
+		userSendRawHistory.TxInput = strings.Join(req.TxInputList, ",")
+		if chainType == EVM && req.SignType == "1" {
+			for _, txInput := range req.TxInputList {
+				var dec types.EvmTxInput
+				if err := json.Unmarshal([]byte(txInput), &dec); err != nil {
+					n, _ := strconv.Atoi(dec.Nonce)
+					userSendRawHistory.Nonce = int64(n)
+				}
+
+			}
+		}
+	}
+	if userSendRawHistory.TransactionHash != "" {
+		tt := ""
+		if chainType == COSMOS {
+			tt = strings.ToUpper(req.TransactionHashList[0])
+		} else {
+			tt = req.TransactionHashList[0]
+		}
+
+		r, _ := data.UserSendRawHistoryRepoInst.SelectByTxHash(nil, tt)
+		if r != nil && r.TransactionHash != "" {
+			return &BroadcastResponse{
+				Ok:      false,
+				Message: "duplicate txhash",
+			}, nil
+		}
+	}
+	usrhs = append(usrhs, userSendRawHistory)
+	result, err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(ctx, usrhs)
+
+	if err != nil {
+		return &BroadcastResponse{
+			Ok:      false,
+			Message: err.Error(),
+		}, err
+	}
+
+	return &BroadcastResponse{
+		Ok: result > 0,
+	}, nil
+
 }
 func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequest) (*ClearNonceResponse, error) {
 	if req == nil || req.Address == "" || req.ChainName == "" {
@@ -3620,5 +3718,190 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 	}
 	return &CountOutTxResponse{
 		Count: count,
+	}, nil
+}
+
+func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
+
+	chainType := ChainNameType[req.ChainName]
+	switch chainType {
+	case EVM:
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+	}
+
+	r := data.SignReqPage{
+		Address:    req.Address,
+		ChainName:  req.ChainName,
+		SignType:   req.SignType,
+		SignStatus: req.SignStatus,
+		PageNum:    req.Page,
+		PageSize:   req.Limit,
+		TradeTime:  req.TradeTime,
+	}
+
+	if req.TransactionType != "" {
+		txType := strings.Split(req.TransactionType, ",")
+		for _, transactionType := range txType {
+			if transactionType == OTHER {
+				txType = append(txType, CONTRACT, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, CREATECONTRACT, MINT, SWAP)
+				break
+			}
+		}
+		r.TransactionTypeList = txType
+	}
+	result, total, err := data.UserSendRawHistoryRepoInst.PageList(ctx, r)
+
+	if err != nil {
+		return &SignRecordResponse{
+			Ok:           false,
+			ErrorMessage: err.Error(),
+			Total:        0,
+			Page:         0,
+			Limit:        0,
+		}, err
+	}
+	var sis []SignInfo
+	for _, v := range result {
+		if v.SignType == "1" && v.TransactionHash == "" {
+			continue
+		}
+		var record *pb.TransactionRecord
+		var err error
+		if v.TransactionType == APPROVE || v.TransactionType == APPROVENFT {
+			switch chainType {
+			case POLKADOT:
+				var oldRecord *data.DotTransactionRecord
+				oldRecord, err = data.DotTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case CASPER:
+				var oldRecord *data.CsprTransactionRecord
+				oldRecord, err = data.CsprTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case NERVOS:
+				var oldRecord *data.CkbTransactionRecord
+				oldRecord, err = data.CkbTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case BTC:
+				var oldRecord *data.BtcTransactionRecord
+				oldRecord, err = data.BtcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case EVM:
+				var oldRecord *data.EvmTransactionRecord
+				oldRecord, err = data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case STC:
+				var oldRecord *data.StcTransactionRecord
+				oldRecord, err = data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case TVM:
+				var oldRecord *data.TrxTransactionRecord
+				oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case APTOS:
+				var oldRecord *data.AptTransactionRecord
+				oldRecord, err = data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case SUI:
+				var oldRecord *data.SuiTransactionRecord
+				oldRecord, err = data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case SOLANA:
+				var oldRecord *data.SolTransactionRecord
+				oldRecord, err = data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case COSMOS:
+				var oldRecord *data.AtomTransactionRecord
+				oldRecord, err = data.AtomTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case KASPA:
+				var oldRecord *data.KasTransactionRecord
+				oldRecord, err = data.KasTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			}
+			if err == nil && (record.Amount == "" || record.Amount == "0") {
+				var data = record.Data
+				if data == "" {
+					if record.ClientData != "" {
+						clientData := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
+							dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+							if dok {
+								data, _ = dappTxinfoMap["data"].(string)
+							}
+						}
+					}
+				}
+
+				if data == "" {
+					if record.TransactionType == APPROVE {
+						v.TransactionType = "cancelApprove"
+					} else if record.TransactionType == APPROVENFT {
+						v.TransactionType = "cancelApproveNFT"
+					}
+				} else {
+					switch chainType {
+					case EVM, TVM:
+						if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+							if record.TransactionType == APPROVE {
+								v.TransactionType = "cancelApprove"
+							} else if record.TransactionType == APPROVENFT {
+								v.TransactionType = "cancelApproveNFT"
+							}
+						}
+					}
+				}
+			}
+		}
+		if v.TransactionHash != "" {
+			txhash := strings.Split(v.TransactionHash, ",")
+			if len(txhash) >= 1{
+				v.TransactionHash = txhash[0]
+			}
+		}
+		sis = append(sis, SignInfo{
+			Address:         v.Address,
+			ChainName:       v.ChainName,
+			SignType:        v.SignType,
+			SignStatus:      v.SignStatus,
+			SignTxInput:     v.TxInput,
+			SignUser:        v.UserName,
+			SignTime:        int(v.CreatedAt),
+			ConfirmTime:     int(v.TxTime),
+			TransactionType: v.TransactionType,
+			TransactionHash: v.TransactionHash,
+		})
+	}
+	return &SignRecordResponse{
+		Ok:        true,
+		SignInfos: sis,
+		Total:     int(total),
+		Page:      req.Page,
+		Limit:     req.Limit,
 	}, nil
 }

@@ -154,6 +154,39 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type SignRecordReq struct {
+	Address         string   `json:"address"`
+	ChainName       string   `json:"chainName"`
+	SignType        string   `json:"signType"`
+	SignStatus      []string `json:"signStatus"`
+	TradeTime       int      `json:"tradeTime"`
+	TransactionType string   `json:"transactionType"`
+	Page            int      `json:"page"`
+	Limit           int      `json:"limit"`
+}
+
+type SignRecordResponse struct {
+	Ok           bool       `json:"ok,omitempty"`
+	ErrorMessage string     `json:"errorMessage,omitempty"`
+	Total        int        `json:"total"`
+	Page         int        `json:"page"`
+	Limit        int        `json:"limit"`
+	SignInfos    []SignInfo `json:"signInfos,omitempty"`
+}
+
+type SignInfo struct {
+	Address         string `json:"address"`
+	ChainName       string `json:"chainName"`
+	SignType        string `json:"signType"`
+	SignStatus      string `json:"signStatus"`
+	SignTxInput     string `json:"signTxInput"`
+	SignUser        string `json:"signUser"`
+	SignTime        int    `json:"signTime"`
+	ConfirmTime     int    `json:"confirmTime"`
+	TransactionType string `json:"transactionType"`
+	TransactionHash string `json:"transactionHash"`
+}
+
 type BatchRpcParams struct {
 	BatchReq []BatchRpcRequest `json:"batchReq,omitempty"`
 }
@@ -182,14 +215,20 @@ type ClearNonceResponse struct {
 }
 
 type BroadcastRequest struct {
-	SessionId string `json:"sessionId"`
-	Address   string `json:"address"`
-	UserName  string `json:"userName"`
-	TxInput   string `json:"txInput"`
-	ChainName string `json:"chainName"`
-	ErrMsg    string `json:"errMsg"`
-	Stage     string `json:"stage"` // txParams：获取交易参数, broadcast：交易广播
-	NodeURL   string `json:"nodeUrl"`
+	SessionId           string   `json:"sessionId"`
+	Address             string   `json:"address"`
+	UserName            string   `json:"userName"`
+	TxInput             string   `json:"txInput"`
+	TxInputList         []string `json:"txInputList"`
+	ChainName           string   `json:"chainName"`
+	ErrMsg              string   `json:"errMsg"`
+	Stage               string   `json:"stage"` // txParams：获取交易参数, broadcast：交易广播
+	NodeURL             string   `json:"nodeUrl"`
+	TransactionHashList []string `json:"transactionHashList"`
+	TransactionHash     string   `json:"transactionHash"`
+	SignStatus          string   `json:"signStatus"`
+	SignType            string   `json:"signType"`
+	TransactionType     string   `json:"transactionType"`
 }
 
 type BroadcastResponse struct {
@@ -831,7 +870,7 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device 
 				info.Address,
 				info.UserName,
 				errMsg,
-				info.TxInput,
+				info.BaseTxInput,
 				userAgent,
 				deviceId,
 			)

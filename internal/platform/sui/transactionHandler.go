@@ -40,6 +40,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.SuiTransact
 	go HandleUserStatistic(chainName, client, txRecords)
 	go HandleUserNftAsset(false, chainName, client, txRecords)
 	go HandleNftRecord(chainName, client, txRecords)
+
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.SuiTransactionRecord) {
