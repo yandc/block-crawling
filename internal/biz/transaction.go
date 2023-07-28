@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"sort"
 	"strconv"
@@ -304,6 +305,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 	switch chainType {
 	case CASPER:
+		parseDataMap := make(map[string]interface{})
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
 		casperRecord := &data.CsprTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -325,19 +347,79 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.CsprTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), casperRecord)
 	case STC:
-		stc := make(map[string]interface{})
+		parseDataMap := make(map[string]interface{})
 		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &stc); jsonErr == nil {
-			evmMap := stc["stc"]
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			evmMap := parseDataMap["stc"]
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["sequence_number"])
 			nonce = int64(nonceInt)
+
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
+		transactionType := pbb.TransactionType
+		if transactionType == CONTRACT {
+			data := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.Data), &data); jsonErr == nil {
+				var function string
+				var ok bool
+				payloadMap, pok := data["ScriptFunction"].(map[string]interface{})
+				if pok {
+					function, ok = payloadMap["function"].(string)
+				}
+				if !ok {
+					clientData := make(map[string]interface{})
+					if jsonErr = json.Unmarshal([]byte(pbb.ClientData), &clientData); jsonErr == nil {
+						dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+						if dok {
+							payloadMap, pok := dappTxinfoMap["txPayload"].(map[string]interface{})
+							if pok {
+								valueMap, vok := payloadMap["value"].(map[string]interface{})
+								if vok {
+									funcMap, fok := valueMap["func"].(map[string]interface{})
+									if fok {
+										function, ok = funcMap["value"].(string)
+									}
+								}
+							}
+						}
+					}
+				}
+				if ok {
+					methodName := function
+					if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
+						transactionType = MINT
+					}
+
+					if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
+						transactionType = SWAP
+					}
+				}
+			}
 		}
 
 		stcRecord := &data.StcTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
+			OriginalHash:    pbb.OriginalHash,
 			Nonce:           nonce,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -352,7 +434,8 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			GasUsed:         paseJson["gas_used"],
 			GasPrice:        paseJson["gas_price"],
 			Data:            pbb.Data,
-			TransactionType: pbb.TransactionType,
+			EventLog:        pbb.EventLog,
+			TransactionType: transactionType,
 			OperateType:     pbb.OperateType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -365,13 +448,31 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case POLKADOT:
-		evm := make(map[string]interface{})
+		parseDataMap := make(map[string]interface{})
 		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &evm); jsonErr == nil {
-			evmMap := evm["polkadot"]
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			evmMap := parseDataMap["polkadot"]
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["nonce"])
 			nonce = int64(nonceInt)
+
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
 		}
 
 		dotTransactionRecord := &data.DotTransactionRecord{
@@ -398,13 +499,57 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
 	case EVM:
-		evm := make(map[string]interface{})
+		parseDataMap := make(map[string]interface{})
 		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &evm); jsonErr == nil {
-			evmMap := evm["evm"]
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			evmMap := parseDataMap["evm"]
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["nonce"])
 			nonce = int64(nonceInt)
+
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" || tokenType == "ERC20" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
+		transactionType := pbb.TransactionType
+		if transactionType == CONTRACT && ((len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x"))) {
+			contractAddress := pbb.ContractAddress
+			if contractAddress == "" {
+				contractAddress = pbb.ToAddress
+			}
+			var methodId string
+			if strings.HasPrefix(pbb.Data, "0x") {
+				methodId = pbb.Data[2:10]
+			} else {
+				methodId = pbb.Data[:8]
+			}
+			methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
+			if err != nil {
+				log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
+			}
+
+			if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
+				transactionType = MINT
+			}
+
+			if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
+				transactionType = SWAP
+			}
 		}
 
 		evmTransactionRecord := &data.EvmTransactionRecord{
@@ -412,6 +557,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			BlockNumber:          int(pbb.BlockNumber),
 			Nonce:                nonce,
 			TransactionHash:      pbb.TransactionHash,
+			OriginalHash:         pbb.OriginalHash,
 			FromAddress:          pbb.FromAddress,
 			ToAddress:            pbb.ToAddress,
 			FromUid:              pbb.Uid,
@@ -429,7 +575,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			MaxPriorityFeePerGas: paseJson["max_priority_fee_per_gas"],
 			Data:                 pbb.Data,
 			EventLog:             pbb.EventLog,
-			TransactionType:      pbb.TransactionType,
+			TransactionType:      transactionType,
 			OperateType:          pbb.OperateType,
 			DappData:             pbb.DappData,
 			ClientData:           pbb.ClientData,
@@ -438,6 +584,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
+		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			result, err = data.EvmTransactionRecordRepoClient.Save(nil, GetTableName(pbb.ChainName), evmTransactionRecord)
+		}
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -465,6 +615,53 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			go UpdateUtxo(pbb)
 		}
 	case TVM:
+		parseDataMap := make(map[string]interface{})
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
+		transactionType := pbb.TransactionType
+		if transactionType == CONTRACT && ((len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x"))) {
+			contractAddress := pbb.ContractAddress
+			if contractAddress == "" {
+				contractAddress = pbb.ToAddress
+			}
+			var methodId string
+			if strings.HasPrefix(pbb.Data, "0x") {
+				methodId = pbb.Data[2:10]
+			} else {
+				methodId = pbb.Data[:8]
+			}
+			methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
+			if err != nil {
+				log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
+			}
+
+			if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
+				transactionType = MINT
+			}
+
+			if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
+				transactionType = SWAP
+			}
+		}
+
 		trxRecord := &data.TrxTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -481,21 +678,81 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			NetUsage:        paseJson["net_usage"],
 			FeeLimit:        paseJson["fee_limit"],
 			EnergyUsage:     paseJson["energy_usage"],
-			TransactionType: pbb.TransactionType,
+			Data:            pbb.Data,
+			EventLog:        pbb.EventLog,
+			TransactionType: transactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.TrxTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), trxRecord)
+		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			result, err = data.TrxTransactionRecordRepoClient.Save(nil, GetTableName(pbb.ChainName), trxRecord)
+		}
 	case APTOS:
-		apt := make(map[string]interface{})
+		parseDataMap := make(map[string]interface{})
 		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &apt); jsonErr == nil {
-			evmMap := apt["aptos"]
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			evmMap := parseDataMap["aptos"]
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["sequence_number"])
 			nonce = int64(nonceInt)
+
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
+		transactionType := pbb.TransactionType
+		if transactionType == CONTRACT {
+			data := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.Data), &data); jsonErr == nil {
+				var function string
+				var ok bool
+				payloadMap, pok := data["payload"].(map[string]interface{})
+				if pok {
+					function, ok = payloadMap["function"].(string)
+				}
+				if !ok {
+					clientData := make(map[string]interface{})
+					if jsonErr = json.Unmarshal([]byte(pbb.ClientData), &clientData); jsonErr == nil {
+						dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+						if dok {
+							payloadMap, pok := dappTxinfoMap["payload"].(map[string]interface{})
+							if pok {
+								function, ok = payloadMap["function"].(string)
+							}
+						}
+					}
+				}
+				if ok {
+					mode := strings.Split(function, "::")
+					methodName := mode[len(mode)-1]
+					if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
+						transactionType = MINT
+					}
+
+					if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
+						transactionType = SWAP
+					}
+				}
+			}
 		}
 
 		aptRecord := &data.AptTransactionRecord{
@@ -516,7 +773,8 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			GasUsed:         paseJson["gas_used"],
 			GasPrice:        paseJson["gas_price"],
 			Data:            pbb.Data,
-			TransactionType: pbb.TransactionType,
+			EventLog:        pbb.EventLog,
+			TransactionType: transactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
 			CreatedAt:       pbb.CreatedAt,
@@ -529,6 +787,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
+		parseDataMap := make(map[string]interface{})
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
 		suiRecord := &data.SuiTransactionRecord{
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
@@ -543,6 +822,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			GasLimit:        paseJson["gas_limit"],
 			GasUsed:         paseJson["gas_used"],
 			Data:            pbb.Data,
+			EventLog:        pbb.EventLog,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -551,6 +831,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), suiRecord)
 	case SOLANA:
+		parseDataMap := make(map[string]interface{})
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
 		solRecord := &data.SolTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -565,6 +866,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
 			Data:            pbb.Data,
+			EventLog:        pbb.EventLog,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -574,6 +876,27 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.SolTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), solRecord)
 	case NERVOS:
+		parseDataMap := make(map[string]interface{})
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
+		}
+
 		ckbTransactionRecord := &data.CkbTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -621,13 +944,31 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 		}
 	case COSMOS:
-		cosmos := make(map[string]interface{})
+		parseDataMap := make(map[string]interface{})
 		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &cosmos); jsonErr == nil {
-			evmMap := cosmos["cosmos"]
+		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+			evmMap := parseDataMap["cosmos"]
 			ret := evmMap.(map[string]interface{})
 			nonceInt, _ := utils.GetInt(ret["sequence_number"])
 			nonce = int64(nonceInt)
+
+			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+			if ok {
+				tokenAddress, _ := tokenMap["address"].(string)
+				if tokenAddress != "" {
+					tokenType, _ := tokenMap["token_type"].(string)
+					if tokenType == "" {
+						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+						if err != nil {
+							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						} else {
+							tokenMap["token_uri"] = tokenInfo.TokenUri
+							parseData, _ := utils.JsonEncode(parseDataMap)
+							pbb.ParseData = parseData
+						}
+					}
+				}
+			}
 		}
 
 		atomRecord := &data.AtomTransactionRecord{
@@ -648,6 +989,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			GasUsed:         paseJson["gas_used"],
 			GasPrice:        paseJson["gas_price"],
 			Data:            pbb.Data,
+			EventLog:        pbb.EventLog,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -682,6 +1024,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			//修改 未花费
 			go KaspaUpdateUtxo(pbb)
 		}
+	}
+
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，将数据插入到数据库中失败", pbb.ChainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(pbb.ChainName+"链插入pending记录，将数据插入到数据库中失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("error", err))
 	}
 
 	flag := result == 1
@@ -820,6 +1170,10 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		}
 	}
 
+	orderBys := strings.Split(req.OrderBy, " ")
+	orderByColumn := orderBys[0]
+	orderByDirection := orderBys[1]
+
 	var request *data.TransactionRequest
 	utils.CopyProperties(req, &request)
 	request.Nonce = -1
@@ -864,22 +1218,241 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 			}
 		}
 	case EVM:
-		var recordList []*data.EvmTransactionRecord
-		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		var recordList []*data.EvmTransactionRecordWrapper
+		recordList, total, err = data.EvmTransactionRecordRepoClient.PageListRecord(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
 		}
+
+		if len(list) > 0 {
+			var records []*data.EvmTransactionRecord
+			var originalHashList, transactionHashList, transactionHashNotInList []string
+			for _, record := range list {
+				if record.OriginalHash == "" {
+					originalHashList = append(originalHashList, record.TransactionHash)
+				} else {
+					originalHashList = append(originalHashList, record.OriginalHash)
+					transactionHashList = append(transactionHashList, record.OriginalHash)
+					transactionHashNotInList = append(transactionHashNotInList, record.TransactionHash)
+				}
+
+				//将发送给合约的主币转成一条eventLog
+				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
+					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
+					record.EventLog = eventLogStr
+				}
+			}
+			operateRequest := &data.TransactionRequest{
+				Nonce:                    -1,
+				TransactionHashNotInList: transactionHashNotInList,
+				OrParamList: []data.TransactionRequest{
+					{
+						TransactionHashList: transactionHashList,
+						OriginalHashList:    originalHashList,
+					},
+				},
+				OrderBy: req.OrderBy,
+			}
+
+			records, err = data.EvmTransactionRecordRepoClient.List(ctx, GetTableName(req.ChainName), operateRequest)
+			if err == nil && len(records) > 0 {
+				recordMap := make(map[string][]*pb.TransactionRecord)
+				for _, record := range records {
+					var hash string
+					if record.OriginalHash == "" {
+						hash = record.TransactionHash
+					} else {
+						hash = record.OriginalHash
+					}
+					operateRecordList, ok := recordMap[hash]
+					if !ok {
+						operateRecordList = make([]*pb.TransactionRecord, 0)
+					}
+
+					//将发送给合约的主币转成一条eventLog
+					if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount.String() != "" && record.Amount.String() != "0" {
+						eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount.String(), record.EventLog)
+						record.EventLog = eventLogStr
+					}
+
+					var pbRecord *pb.TransactionRecord
+					err = utils.CopyProperties(record, &pbRecord)
+					operateRecordList = append(operateRecordList, pbRecord)
+					recordMap[hash] = operateRecordList
+				}
+
+				for i, record := range list {
+					var hash string
+					if record.OriginalHash == "" {
+						hash = record.TransactionHash
+					} else {
+						hash = record.OriginalHash
+					}
+					operateRecordList, ok := recordMap[hash]
+					if ok {
+						operateRecordList = append(operateRecordList, record)
+						sort.SliceStable(operateRecordList, func(i, j int) bool {
+							iTxTime := operateRecordList[i].TxTime
+							jTxTime := operateRecordList[j].TxTime
+							return iTxTime > jTxTime
+						})
+						record = operateRecordList[0]
+
+						operateRecordList = operateRecordList[1:]
+						sort.SliceStable(operateRecordList, func(i, j int) bool {
+							var iValue, jValue int64
+
+							if orderByColumn == "id" {
+								iValue = operateRecordList[i].Id
+								jValue = operateRecordList[j].Id
+							} else if orderByColumn == "block_number" {
+								iValue = operateRecordList[i].BlockNumber
+								jValue = operateRecordList[j].BlockNumber
+							} else if orderByColumn == "nonce" {
+								iValue = operateRecordList[i].Nonce
+								jValue = operateRecordList[j].Nonce
+							} else if orderByColumn == "tx_time" {
+								iValue = operateRecordList[i].TxTime
+								jValue = operateRecordList[j].TxTime
+							} else if orderByColumn == "created_at" {
+								iValue = operateRecordList[i].CreatedAt
+								jValue = operateRecordList[j].CreatedAt
+							} else if orderByColumn == "updated_at" {
+								iValue = operateRecordList[i].UpdatedAt
+								jValue = operateRecordList[j].UpdatedAt
+							}
+
+							if strings.EqualFold(orderByDirection, "asc") {
+								return iValue < jValue
+							} else {
+								return iValue > jValue
+							}
+						})
+						record.OperateRecordList = operateRecordList
+						list[i] = record
+					}
+				}
+			}
+		}
 	case STC:
-		var recordList []*data.StcTransactionRecord
-		recordList, total, err = data.StcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		var recordList []*data.StcTransactionRecordWrapper
+		recordList, total, err = data.StcTransactionRecordRepoClient.PageListRecord(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
+		}
+
+		if len(list) > 0 {
+			var records []*data.StcTransactionRecord
+			var originalHashList, transactionHashList, transactionHashNotInList []string
+			for _, record := range list {
+				if record.OriginalHash == "" {
+					originalHashList = append(originalHashList, record.TransactionHash)
+				} else {
+					originalHashList = append(originalHashList, record.OriginalHash)
+					transactionHashList = append(transactionHashList, record.OriginalHash)
+					transactionHashNotInList = append(transactionHashNotInList, record.TransactionHash)
+				}
+			}
+			operateRequest := &data.TransactionRequest{
+				Nonce:                    -1,
+				TransactionHashNotInList: transactionHashNotInList,
+				OrParamList: []data.TransactionRequest{
+					{
+						TransactionHashList: transactionHashList,
+						OriginalHashList:    originalHashList,
+					},
+				},
+				OrderBy: req.OrderBy,
+			}
+
+			records, err = data.StcTransactionRecordRepoClient.List(ctx, GetTableName(req.ChainName), operateRequest)
+			if err == nil && len(records) > 0 {
+				recordMap := make(map[string][]*pb.TransactionRecord)
+				for _, record := range records {
+					var hash string
+					if record.OriginalHash == "" {
+						hash = record.TransactionHash
+					} else {
+						hash = record.OriginalHash
+					}
+					operateRecordList, ok := recordMap[hash]
+					if !ok {
+						operateRecordList = make([]*pb.TransactionRecord, 0)
+					}
+
+					var pbRecord *pb.TransactionRecord
+					err = utils.CopyProperties(record, &pbRecord)
+					operateRecordList = append(operateRecordList, pbRecord)
+					recordMap[hash] = operateRecordList
+				}
+
+				for i, record := range list {
+					var hash string
+					if record.OriginalHash == "" {
+						hash = record.TransactionHash
+					} else {
+						hash = record.OriginalHash
+					}
+					operateRecordList, ok := recordMap[hash]
+					if ok {
+						operateRecordList = append(operateRecordList, record)
+						sort.SliceStable(operateRecordList, func(i, j int) bool {
+							iTxTime := operateRecordList[i].TxTime
+							jTxTime := operateRecordList[j].TxTime
+							return iTxTime > jTxTime
+						})
+						record = operateRecordList[0]
+
+						operateRecordList = operateRecordList[1:]
+						sort.SliceStable(operateRecordList, func(i, j int) bool {
+							var iValue, jValue int64
+
+							if orderByColumn == "id" {
+								iValue = operateRecordList[i].Id
+								jValue = operateRecordList[j].Id
+							} else if orderByColumn == "block_number" {
+								iValue = operateRecordList[i].BlockNumber
+								jValue = operateRecordList[j].BlockNumber
+							} else if orderByColumn == "nonce" {
+								iValue = operateRecordList[i].Nonce
+								jValue = operateRecordList[j].Nonce
+							} else if orderByColumn == "tx_time" {
+								iValue = operateRecordList[i].TxTime
+								jValue = operateRecordList[j].TxTime
+							} else if orderByColumn == "created_at" {
+								iValue = operateRecordList[i].CreatedAt
+								jValue = operateRecordList[j].CreatedAt
+							} else if orderByColumn == "updated_at" {
+								iValue = operateRecordList[i].UpdatedAt
+								jValue = operateRecordList[j].UpdatedAt
+							}
+
+							if strings.EqualFold(orderByDirection, "asc") {
+								return iValue < jValue
+							} else {
+								return iValue > jValue
+							}
+						})
+						record.OperateRecordList = operateRecordList
+						list[i] = record
+					}
+				}
+			}
 		}
 	case TVM:
 		var recordList []*data.TrxTransactionRecord
 		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
 			err = utils.CopyProperties(recordList, &list)
+		}
+		if len(list) > 0 {
+			for _, record := range list {
+				//将发送给合约的主币转成一条eventLog
+				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
+					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
+					record.EventLog = eventLogStr
+				}
+			}
 		}
 	case APTOS:
 		var recordList []*data.AptTransactionRecord
@@ -928,17 +1501,17 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 				}
 
 				record.ChainName = req.ChainName
-				if strings.Contains(req.OrderBy, "id ") {
+				if orderByColumn == "id" {
 					record.Cursor = record.Id
-				} else if strings.Contains(req.OrderBy, "block_number ") {
+				} else if orderByColumn == "block_number" {
 					record.Cursor = record.BlockNumber
-				} else if strings.Contains(req.OrderBy, "nonce ") {
+				} else if orderByColumn == "nonce" {
 					record.Cursor = record.Nonce
-				} else if strings.Contains(req.OrderBy, "tx_time ") {
+				} else if orderByColumn == "tx_time" {
 					record.Cursor = record.TxTime
-				} else if strings.Contains(req.OrderBy, "created_at ") {
+				} else if orderByColumn == "created_at" {
 					record.Cursor = record.CreatedAt
-				} else if strings.Contains(req.OrderBy, "updated_at ") {
+				} else if orderByColumn == "updated_at" {
 					record.Cursor = record.UpdatedAt
 				}
 
@@ -1030,6 +1603,70 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		}
 	}
 	return result, err
+}
+
+func handleEventLog(chainName, recordFromAddress, recordToAddress, recordAmount, recordEventLog string) string {
+	if recordAmount == "" || recordAmount == "0" {
+		return recordEventLog
+	}
+
+	eventLogStr := recordEventLog
+	var eventLogs []*types.EventLog
+	if eventLogStr != "" {
+		err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
+		if err != nil {
+			log.Error("parse EventLog failed", zap.Any("eventLog", eventLogStr), zap.Any("error", err))
+			return eventLogStr
+		}
+
+		var hasMain bool
+		var mainTotal int
+		for _, eventLog := range eventLogs {
+			if recordFromAddress == eventLog.From {
+				if eventLog.Token.Address == "" {
+					mainTotal++
+					if recordToAddress == eventLog.To || recordAmount == eventLog.Amount.String() {
+						hasMain = true
+						break
+					}
+				} else {
+					var mainSymbol string
+					if platInfo, ok := PlatInfoMap[chainName]; ok {
+						mainSymbol = platInfo.NativeCurrency
+					}
+					if recordToAddress == eventLog.To && recordAmount == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
+						hasMain = true
+						break
+					}
+				}
+			}
+		}
+		if !hasMain && mainTotal == 1 {
+			hasMain = true
+		}
+		if !hasMain {
+			amount, _ := new(big.Int).SetString(recordAmount, 0)
+			eventLog := &types.EventLog{
+				From:   recordFromAddress,
+				To:     recordToAddress,
+				Amount: amount,
+			}
+			eventLogs = append(eventLogs, eventLog)
+			eventLogJson, _ := utils.JsonEncode(eventLogs)
+			eventLogStr = eventLogJson
+		}
+	} else {
+		amount, _ := new(big.Int).SetString(recordAmount, 0)
+		eventLog := &types.EventLog{
+			From:   recordFromAddress,
+			To:     recordToAddress,
+			Amount: amount,
+		}
+		eventLogs = append(eventLogs, eventLog)
+		eventLogJson, _ := utils.JsonEncode(eventLogs)
+		eventLogStr = eventLogJson
+	}
+	return eventLogStr
 }
 
 func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountRequest) (*pb.AmountResponse, error) {
@@ -2229,7 +2866,8 @@ func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcPar
 func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictionary, error) {
 	var result = &DataDictionary{}
 	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT,
-		CONTRACT, CREATECONTRACT, EVENTLOG, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, OTHER, SETAPPROVALFORALL, TRANSFERFROM, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM}
+		CONTRACT, CREATECONTRACT, EVENTLOG, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH,
+		OTHER, SETAPPROVALFORALL, TRANSFERFROM, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, MINT, SWAP}
 	var serviceStaus = []string{SUCCESS, FAIL, PENDING, NO_STATUS, DROPPED_REPLACED, DROPPED}
 	result.Ok = true
 	result.ServiceTransactionType = serviceTransactionType
@@ -2420,7 +3058,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				var utv = make(map[string]string)
 				utv[tokenAddress] = totalToken
 				userAssetTokenDecimalResult[addChainName] = utv
-			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH:
+			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, MINT, SWAP:
 				if record.FromAddress == add {
 					oldTotal := userAssetMap[addChainName]
 					totalAmount := oldTotal.Sub(feeAmount)

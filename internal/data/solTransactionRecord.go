@@ -176,7 +176,7 @@ func (r *SolTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"data":             clause.Column{Table: "excluded", Name: "data"},
 			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
 			"log_address":      clause.Column{Table: "excluded", Name: "log_address"},
-			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
+			"transaction_type": gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
@@ -393,6 +393,9 @@ func (r *SolTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
@@ -413,7 +416,14 @@ func (r *SolTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
 	}
 
 	if req.Total {
@@ -515,6 +525,9 @@ func (r *SolTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
@@ -535,7 +548,14 @@ func (r *SolTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
 	}
 
 	db = db.Order(req.OrderBy)
@@ -633,6 +653,9 @@ func (r *SolTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
@@ -653,7 +676,14 @@ func (r *SolTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
 	}
 
 	ret := db.Delete(&SolTransactionRecord{})

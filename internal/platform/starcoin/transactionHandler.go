@@ -135,7 +135,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.StcTrans
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.CONTRACT {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT {
 			decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -287,7 +287,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.StcT
 
 	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -342,7 +342,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.StcTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {

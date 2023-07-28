@@ -139,7 +139,9 @@ func (s *RecordSync) Start(ctx context.Context) error {
 				println("Sync", nrows, "items for", tableName)
 
 				for _, item := range records {
-					txRecords = append(txRecords, kanban.EVMRecordIntoTxRecord(item))
+					txRecords = append(txRecords, kanban.EVMRecordIntoTxRecord(&kanban.KanbanEvmTransactionRecord{
+						EvmTransactionRecord: *item,
+					}))
 				}
 				if err := agger.parser.Parse(txRecords); err != nil {
 					return err

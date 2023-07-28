@@ -196,7 +196,8 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.APPROVE && record.TransactionType != biz.APPROVENFT {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT &&
+			record.TransactionType != biz.APPROVE && record.TransactionType != biz.APPROVENFT {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -421,7 +422,8 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 
 	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -479,7 +481,8 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -541,7 +544,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 	}()
 
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
@@ -600,7 +603,8 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {

@@ -619,3 +619,82 @@ func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, er
 
 	return client.GetChainNodeInUsedList(ctx, &emptypb.Empty{})
 }
+
+func GetMethodNameRetryAlert(ctx context.Context, chainName string, contractAddress string, methodId string) (string, error) {
+	var methodName string
+	contractAbiList, err := GetContractAbi(ctx, chainName, contractAddress, methodId)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		contractAbiList, err = GetContractAbi(ctx, chainName, contractAddress, methodId)
+	}
+	if err != nil {
+		// 调用nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中合约ABI失败，contractAddress:%s，methodId:%s", chainName, contractAddress, methodId)
+		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	} else if len(contractAbiList) > 0 {
+		contractAbi := contractAbiList[0]
+		methodName = contractAbi.Name
+	}
+	return methodName, err
+}
+
+type ContractAbi struct {
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	StateMutability string `json:"stateMutability"`
+	Inputs          []struct {
+		InternalType string `json:"internalType"`
+		Name         string `json:"name"`
+		Type         string `json:"type"`
+	} `json:"inputs"`
+	Outputs []struct {
+		InternalType string `json:"internalType"`
+		Name         string `json:"name"`
+		Type         string `json:"type"`
+	} `json:"outputs"`
+}
+
+func GetContractAbi(ctx context.Context, chainName string, contractAddress string, methodId string) ([]*ContractAbi, error) {
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewCommRPCClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+		ctx = context
+		defer cancel()
+	}
+
+	var paramMap = make(map[string]interface{})
+	paramMap["chain"] = chainName
+	paramMap["contract"] = contractAddress
+	paramMap["method_id"] = methodId
+	params, err := utils.JsonEncode(paramMap)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.ExecNodeProxyRPC(ctx, &v1.ExecNodeProxyRPCRequest{
+		Id:      ID,
+		Jsonrpc: JSONRPC,
+		Method:  "GetContractABI",
+		Params:  params,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !response.Ok {
+		return nil, errors.New(response.ErrMsg)
+	}
+
+	var resultList []*ContractAbi
+	err = json.Unmarshal([]byte(response.Result), &resultList)
+	if err != nil {
+		return nil, err
+	}
+	return resultList, nil
+}

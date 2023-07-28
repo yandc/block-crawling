@@ -82,6 +82,8 @@ func (m *JsonReq) validate(all bool) error {
 
 	// no validation rules for Params
 
+	// no validation rules for Device
+
 	if len(errors) > 0 {
 		return JsonReqMultiError(errors)
 	}
@@ -3053,6 +3055,8 @@ func (m *TransactionReq) validate(all bool) error {
 
 	// no validation rules for OperateType
 
+	// no validation rules for OriginalHash
+
 	if len(errors) > 0 {
 		return TransactionReqMultiError(errors)
 	}
@@ -3249,6 +3253,8 @@ func (m *PageListRequest) validate(all bool) error {
 	// no validation rules for OsVersion
 
 	// no validation rules for TokenAddress
+
+	// no validation rules for AssetType
 
 	if len(errors) > 0 {
 		return PageListRequestMultiError(errors)
@@ -3561,6 +3567,42 @@ func (m *TransactionRecord) validate(all bool) error {
 	// no validation rules for Cursor
 
 	// no validation rules for OperateType
+
+	// no validation rules for OriginalHash
+
+	for idx, item := range m.GetOperateRecordList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TransactionRecordValidationError{
+						field:  fmt.Sprintf("OperateRecordList[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TransactionRecordValidationError{
+						field:  fmt.Sprintf("OperateRecordList[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TransactionRecordValidationError{
+					field:  fmt.Sprintf("OperateRecordList[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
 
 	if len(errors) > 0 {
 		return TransactionRecordMultiError(errors)

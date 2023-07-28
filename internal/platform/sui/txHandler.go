@@ -569,6 +569,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				logAddressList := [][]string{logFromAddress, logToAddress}
 				logAddress, _ = json.Marshal(logAddressList)
 				suiContractRecord.LogAddress = logAddress
+
+				if len(eventLogList) == 2 && ((suiContractRecord.FromAddress == eventLogList[0].From && suiContractRecord.FromAddress == eventLogList[1].To) ||
+					(suiContractRecord.FromAddress == eventLogList[0].To && suiContractRecord.FromAddress == eventLogList[1].From)) {
+					suiContractRecord.TransactionType = biz.SWAP
+				}
 			}
 		}
 	}

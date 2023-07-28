@@ -671,6 +671,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					if err != nil {
 						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
 					}
+					functionName := mode[len(mode)-1]
+					if strings.Contains(functionName, "Mint") || strings.Contains(functionName, "_mint") || strings.HasPrefix(functionName, "mint") {
+						aptContractRecord.TransactionType = biz.MINT
+					}
 				} else {
 					tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 					if err != nil {
@@ -807,6 +811,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				logAddressList := [][]string{logFromAddress, logToAddress}
 				logAddress, _ = json.Marshal(logAddressList)
 				aptContractRecord.LogAddress = logAddress
+
+				if len(eventLogList) == 2 && ((aptContractRecord.FromAddress == eventLogList[0].From && aptContractRecord.FromAddress == eventLogList[1].To) ||
+					(aptContractRecord.FromAddress == eventLogList[0].To && aptContractRecord.FromAddress == eventLogList[1].From)) {
+					aptContractRecord.TransactionType = biz.SWAP
+				}
 			}
 		}
 	}

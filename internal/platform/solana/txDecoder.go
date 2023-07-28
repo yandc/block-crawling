@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"gorm.io/datatypes"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -590,6 +591,9 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				}
 				tokenInfo.Amount = amount
 				tokenInfo.Address = contractAddress
+				if instructionType == "mintTo" && tokenInfo.TokenType == biz.SOLANANFT {
+					solContractRecord.TransactionType = biz.MINT
+				}
 			}
 			solMap := map[string]interface{}{
 				"token": tokenInfo,
@@ -800,6 +804,19 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				logAddressList := [][]string{logFromAddress, logToAddress}
 				logAddress, _ = json.Marshal(logAddressList)
 				solContractRecord.LogAddress = logAddress
+
+				if len(eventLogList) == 2 && ((solContractRecord.FromAddress == eventLogList[0].From && solContractRecord.FromAddress == eventLogList[1].To) ||
+					(solContractRecord.FromAddress == eventLogList[0].To && solContractRecord.FromAddress == eventLogList[1].From)) {
+					solContractRecord.TransactionType = biz.SWAP
+				} else if len(eventLogList) > 2 {
+					logMessages := meta.LogMessages
+					for _, logMessage := range logMessages {
+						if strings.Contains(logMessage, "Swap") || strings.Contains(logMessage, "_swap") || strings.Contains(logMessage, " swap") {
+							solContractRecord.TransactionType = biz.SWAP
+							break
+						}
+					}
+				}
 			}
 		}
 	}

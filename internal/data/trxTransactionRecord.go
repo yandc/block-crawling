@@ -30,10 +30,11 @@ type TrxTransactionRecord struct {
 	TxTime          int64           `json:"txTime" form:"txTime"`
 	ContractAddress string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
 	ParseData       string          `json:"parseData" form:"parseData"`
-	EventLog        string          `json:"eventLog" form:"eventLog"`
 	FeeLimit        string          `json:"feeLimit" form:"feeLimit" gorm:"type:character varying(30)"`
 	NetUsage        string          `json:"netUsage" form:"netUsage" gorm:"type:character varying(30)"`
 	EnergyUsage     string          `json:"energyUsage" form:"energyUsage" gorm:"type:character varying(20)"`
+	Data            string          `json:"data" form:"data"`
+	EventLog        string          `json:"eventLog" form:"eventLog"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
@@ -170,8 +171,9 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"fee_limit":        clause.Column{Table: "excluded", Name: "fee_limit"},
 			"net_usage":        clause.Column{Table: "excluded", Name: "net_usage"},
 			"energy_usage":     clause.Column{Table: "excluded", Name: "energy_usage"},
-			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
+			"data":             clause.Column{Table: "excluded", Name: "data"},
 			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
+			"transaction_type": gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
@@ -212,6 +214,7 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"fee_limit":        gorm.Expr("case when excluded.fee_limit != '' then excluded.fee_limit else " + tableName + ".fee_limit end"),
 			"net_usage":        gorm.Expr("case when excluded.net_usage != '' then excluded.net_usage else " + tableName + ".net_usage end"),
 			"energy_usage":     gorm.Expr("case when excluded.energy_usage != '' then excluded.energy_usage else " + tableName + ".energy_usage end"),
+			"data":             gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
 			"event_log":        gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
@@ -378,6 +381,9 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
@@ -398,7 +404,14 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
 	}
 
 	if req.Total {
@@ -518,6 +531,9 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}
@@ -538,7 +554,14 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
 	}
 
 	ret := db.Delete(&TrxTransactionRecord{})

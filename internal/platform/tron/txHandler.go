@@ -317,6 +317,45 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			h.txRecords = append(h.txRecords, trxLogRecord)
 		}
 	}
+
+	eventLogLen := len(eventLogs)
+	if eventLogLen == 1 && trxContractRecord.FromAddress == eventLogs[0].To && trxContractRecord.Amount.String() != "0" && eventLogs[0].Token.Address != "" {
+		trxContractRecord.TransactionType = biz.SWAP
+	} else if eventLogLen == 2 && ((trxContractRecord.FromAddress == eventLogs[0].From && trxContractRecord.FromAddress == eventLogs[1].To) ||
+		(trxContractRecord.FromAddress == eventLogs[0].To && trxContractRecord.FromAddress == eventLogs[1].From)) {
+		if trxContractRecord.Amount.String() == "0" {
+			trxContractRecord.TransactionType = biz.SWAP
+		} else {
+			var hasMain bool
+			var mainTotal int
+			for _, eventLog := range eventLogs {
+				if trxContractRecord.FromAddress == eventLog.From {
+					if eventLog.Token.Address == "" {
+						mainTotal++
+						if trxContractRecord.ToAddress == eventLog.To || trxContractRecord.Amount.String() == eventLog.Amount.String() {
+							hasMain = true
+							break
+						}
+					} else {
+						var mainSymbol string
+						if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+							mainSymbol = platInfo.NativeCurrency
+						}
+						if trxContractRecord.ToAddress == eventLog.To && trxContractRecord.Amount.String() == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
+							hasMain = true
+							break
+						}
+					}
+				}
+			}
+			if !hasMain && mainTotal == 1 {
+				hasMain = true
+			}
+			if hasMain {
+				trxContractRecord.TransactionType = biz.SWAP
+			}
+		}
+	}
 	return nil
 }
 
