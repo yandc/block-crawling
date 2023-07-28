@@ -9,6 +9,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+type KanbanEvmTransactionRecord struct {
+	data.EvmTransactionRecord
+
+	OriginalHash string `json:"originalHash" form:"originalHash" gorm:"-"`
+}
+
 // EvmTransactionRecordRepo is a repo for kanban.
 type EvmTransactionRecordRepo interface {
 	TxRecordCursor
@@ -36,7 +42,7 @@ func (r *evmTransactionRecordRepoImpl) CursorList(ctx context.Context, txTime in
 	if cursor != nil && *cursor > 0 {
 		db = db.Where("id > ?", *cursor)
 	}
-	var evmTransactionRecords []*data.EvmTransactionRecord
+	var evmTransactionRecords []*KanbanEvmTransactionRecord
 	ret := db.Order("id ASC").Limit(limit).Find(&evmTransactionRecords)
 	if ret.Error != nil {
 		return nil, ret.Error
@@ -49,7 +55,7 @@ func (r *evmTransactionRecordRepoImpl) CursorList(ctx context.Context, txTime in
 	return results, nil
 }
 
-func EVMRecordIntoTxRecord(item *data.EvmTransactionRecord) *TxRecord {
+func EVMRecordIntoTxRecord(item *KanbanEvmTransactionRecord) *TxRecord {
 	return &TxRecord{
 		FromAddress:     item.FromAddress,
 		ToAddress:       item.ToAddress,
@@ -63,13 +69,15 @@ func EVMRecordIntoTxRecord(item *data.EvmTransactionRecord) *TxRecord {
 }
 
 func (r *evmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Context, tableName string, evmTransactionRecords []*data.EvmTransactionRecord) (int64, error) {
-	byTables := make(map[string][]*data.EvmTransactionRecord)
+	byTables := make(map[string][]*KanbanEvmTransactionRecord)
 	for _, item := range evmTransactionRecords {
 		shardingTable := GetShardingTable(tableName, item.TxTime)
 		if _, ok := byTables[shardingTable]; !ok {
 			byTables[shardingTable] = nil
 		}
-		byTables[shardingTable] = append(byTables[shardingTable], item)
+		byTables[shardingTable] = append(byTables[shardingTable], &KanbanEvmTransactionRecord{
+			EvmTransactionRecord: *item,
+		})
 	}
 	var rows int64
 	for table, records := range byTables {
@@ -82,7 +90,7 @@ func (r *evmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 	return rows, nil
 }
 
-func (r *evmTransactionRecordRepoImpl) doBatchSaveOrUpdateSelective(ctx context.Context, tableName string, evmTransactionRecords []*data.EvmTransactionRecord) (int64, error) {
+func (r *evmTransactionRecordRepoImpl) doBatchSaveOrUpdateSelective(ctx context.Context, tableName string, evmTransactionRecords []*KanbanEvmTransactionRecord) (int64, error) {
 	ret := r.db.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
@@ -117,6 +125,11 @@ func (r *evmTransactionRecordRepoImpl) doBatchSaveOrUpdateSelective(ctx context.
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
+	}, clause.Returning{
+		Columns: []clause.Column{
+			{Name: "id"},
+			{Name: "transaction_hash"},
+		},
 	}).Create(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {

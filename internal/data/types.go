@@ -19,22 +19,27 @@ type TransactionRequest struct {
 	TransactionTypeNotEqual  string
 	TransactionTypeList      []string
 	TransactionTypeNotInList []string
+	OperateTypeEmpty         bool
 	OperateTypeList          []string
 	TransactionHash          string
 	TransactionHashList      []string
+	TransactionHashNotInList []string
 	TransactionHashLike      string
+	OriginalHashList         []string
 	Nonce                    int64
 	DappDataEmpty            bool
 	ClientDataNotEmpty       bool
 	StartTime                int64
 	StopTime                 int64
 	TokenAddress             string
+	AssetType                string
 	OrderBy                  string
 	DataDirection            int32
 	StartIndex               int64
 	PageNum                  int32
 	PageSize                 int32
 	Total                    bool
+	OrParamList              []TransactionRequest
 }
 
 type TBTransactionRecord struct {

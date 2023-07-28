@@ -354,6 +354,9 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
 	}

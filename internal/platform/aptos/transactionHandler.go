@@ -89,7 +89,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 	tokenIdMap := make(map[string]string)
 	var nftRecords []*data.NftRecordHistory
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
@@ -284,7 +284,8 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.REGISTERTOKEN &&
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT &&
+			record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.REGISTERTOKEN &&
 			record.TransactionType != biz.DIRECTTRANSFERNFTSWITCH && record.TransactionType != biz.APPROVENFT {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
@@ -507,7 +508,8 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.AptT
 
 	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
 			record.TransactionType == biz.DIRECTTRANSFERNFTSWITCH || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
@@ -563,7 +565,8 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AptTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
 			record.TransactionType == biz.DIRECTTRANSFERNFTSWITCH || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
@@ -628,7 +631,8 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.REGISTERTOKEN ||
 			record.TransactionType == biz.DIRECTTRANSFERNFTSWITCH || record.TransactionType == biz.APPROVENFT {
 			continue
 		}

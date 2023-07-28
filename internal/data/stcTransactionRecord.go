@@ -22,6 +22,7 @@ type StcTransactionRecord struct {
 	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
 	Nonce           int64           `json:"nonce" form:"nonce"`
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	OriginalHash    string          `json:"originalHash" form:"originalHash" gorm:"type:character varying(80);default:null;index"`
 	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
 	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(42);index"`
 	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
@@ -46,6 +47,11 @@ type StcTransactionRecord struct {
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
+type StcTransactionRecordWrapper struct {
+	StcTransactionRecord
+	Total int64 `json:"total,omitempty"`
+}
+
 // StcTransactionRecordRepo is a Greater repo.
 type StcTransactionRecordRepo interface {
 	OutTxCounter
@@ -63,6 +69,7 @@ type StcTransactionRecordRepo interface {
 	FindByStatus(context.Context, string, string, string) ([]*StcTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*StcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*StcTransactionRecord, error)
+	PageListRecord(context.Context, string, *TransactionRequest) ([]*StcTransactionRecordWrapper, int64, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, int64, error)
 	PendingByAddress(context.Context, string, string) ([]*StcTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, error)
@@ -164,6 +171,7 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"block_number":     clause.Column{Table: "excluded", Name: "block_number"},
 			"nonce":            clause.Column{Table: "excluded", Name: "nonce"},
 			"transaction_hash": clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"original_hash":    gorm.Expr("case when excluded.original_hash != '' then excluded.original_hash else " + tableName + ".original_hash end"),
 			"from_address":     clause.Column{Table: "excluded", Name: "from_address"},
 			"to_address":       clause.Column{Table: "excluded", Name: "to_address"},
 			"from_uid":         clause.Column{Table: "excluded", Name: "from_uid"},
@@ -179,7 +187,7 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"gas_price":        clause.Column{Table: "excluded", Name: "gas_price"},
 			"data":             clause.Column{Table: "excluded", Name: "data"},
 			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
-			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
+			"transaction_type": gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"operate_type":     gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
@@ -209,6 +217,7 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"block_number":     gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
 			"nonce":            gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
 			"transaction_hash": gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
+			"original_hash":    gorm.Expr("case when excluded.original_hash != '' then excluded.original_hash else " + tableName + ".original_hash end"),
 			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
 			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
 			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
@@ -332,6 +341,203 @@ func (r *StcTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName st
 	return stcTransactionRecordList, nil
 }
 
+func (r *StcTransactionRecordRepoImpl) PageListRecord(ctx context.Context, tableName string, req *TransactionRequest) ([]*StcTransactionRecordWrapper, int64, error) {
+	var stcTransactionRecordList []*StcTransactionRecordWrapper
+	var total int64
+	db := r.gormDB.WithContext(ctx).Table(tableName)
+
+	if req.OrderBy == "" {
+		req.OrderBy = "id asc"
+	}
+
+	sqlStr := "with t as("
+	sqlStr += "select * from (" +
+		"select row_number() over (partition by (case when original_hash != '' then original_hash else transaction_hash end) order by tx_time desc), * " +
+		"from " + tableName +
+		" where 1=1 "
+	if req.FromUid != "" {
+		sqlStr += " and from_uid = '" + req.FromUid + "'"
+	}
+	if req.ToUid != "" {
+		sqlStr += " and to_uid = '" + req.ToUid + "'"
+	}
+	if req.FromAddress != "" {
+		sqlStr += " and (from_address = '" + req.FromAddress + "' or (log_address is not null and log_address->0 ? '" + req.FromAddress + "'))"
+	}
+	if req.ToAddress != "" {
+		sqlStr += " and (to_address = '" + req.ToAddress + "' or (log_address is not null and log_address->1 ? '" + req.ToAddress + "'))"
+	}
+	if len(req.FromAddressList) > 0 {
+		fromAddressList := strings.ReplaceAll(utils.ListToString(req.FromAddressList), "\"", "'")
+		sqlStr += " and (from_address in(" + fromAddressList + ") or (log_address is not null and log_address->0 ?| array[" + fromAddressList + "]))"
+	}
+	if len(req.ToAddressList) > 0 {
+		toAddressList := strings.ReplaceAll(utils.ListToString(req.ToAddressList), "\"", "'")
+		sqlStr += " and (to_address in(" + toAddressList + ") or (log_address is not null and log_address->1 ?| array[" + toAddressList + "]))"
+	}
+	if req.Uid != "" {
+		sqlStr += " and (from_uid = '" + req.Uid + "' or to_uid = '" + req.Uid + "')"
+	}
+	if req.Address != "" {
+		sqlStr += " and (from_address = '" + req.Address + "' or to_address = '" + req.Address + "' or (log_address is not null and (log_address->0 ? '" + req.Address + "' or log_address->1 ? '" + req.Address + "')))"
+	}
+	if req.ContractAddress != "" {
+		sqlStr += " and contract_address = '" + req.ContractAddress + "'"
+	}
+	if len(req.ContractAddressList) > 0 {
+		contractAddressList := strings.ReplaceAll(utils.ListToString(req.ContractAddressList), "\"", "'")
+		sqlStr += " and contract_address in(" + contractAddressList + ")"
+	}
+	if len(req.StatusList) > 0 {
+		statusList := strings.ReplaceAll(utils.ListToString(req.StatusList), "\"", "'")
+		sqlStr += " and status in(" + statusList + ")"
+	}
+	if len(req.StatusNotInList) > 0 {
+		statusNotInList := strings.ReplaceAll(utils.ListToString(req.StatusNotInList), "\"", "'")
+		sqlStr += " and status not in(" + statusNotInList + ")"
+	}
+	if req.TransactionType != "" {
+		sqlStr += " and transaction_type = '" + req.TransactionType + "'"
+	}
+	if req.TransactionTypeNotEqual != "" {
+		sqlStr += " and transaction_type != '" + req.TransactionTypeNotEqual + "'"
+	}
+	if len(req.TransactionTypeList) > 0 {
+		transactionTypeList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeList), "\"", "'")
+		sqlStr += " and transaction_type in(" + transactionTypeList + ")"
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		transactionTypeNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeNotInList), "\"", "'")
+		sqlStr += " and transaction_type not in(" + transactionTypeNotInList + ")"
+	}
+	if req.OperateTypeEmpty {
+		sqlStr += " and (operate_type is null or operate_type = '')"
+	}
+	if req.TransactionHash != "" {
+		sqlStr += " and transaction_hash = '" + req.TransactionHash + "'"
+	}
+	if len(req.TransactionHashList) > 0 {
+		transactionHashList := strings.ReplaceAll(utils.ListToString(req.TransactionHashList), "\"", "'")
+		sqlStr += " and transaction_hash in(" + transactionHashList + ")"
+	}
+	if len(req.TransactionHashNotInList) > 0 {
+		transactionHashNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionHashNotInList), "\"", "'")
+		sqlStr += " and transaction_hash not in(" + transactionHashNotInList + ")"
+	}
+	if req.TransactionHashLike != "" {
+		sqlStr += " and transaction_hash like '" + req.TransactionHashLike + "%'"
+	}
+	if len(req.OriginalHashList) > 0 {
+		originalHashList := strings.ReplaceAll(utils.ListToString(req.OriginalHashList), "\"", "'")
+		sqlStr += " and original_hash in(" + originalHashList + ")"
+	}
+	if req.Nonce >= 0 {
+		sqlStr += " and nonce = " + strconv.Itoa(int(req.Nonce))
+	}
+	if req.DappDataEmpty {
+		sqlStr += " and (dapp_data is null or dapp_data = '')"
+	}
+	if req.ClientDataNotEmpty {
+		sqlStr += " and client_data is not null and client_data != ''"
+	}
+	if req.StartTime > 0 {
+		sqlStr += " and created_at >= " + strconv.Itoa(int(req.StartTime))
+	}
+	if req.StopTime > 0 {
+		sqlStr += " and created_at < " + strconv.Itoa(int(req.StopTime))
+	}
+	if req.TokenAddress != "" {
+		if req.TokenAddress == MAIN_ADDRESS_PARAM {
+			req.TokenAddress = ""
+		}
+		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
+		sqlStr += " and ((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))"
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			sqlStr += " and (transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))"
+		} else if req.AssetType == NFT {
+			sqlStr += " and (transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))"
+		}
+	}
+
+	for _, req := range req.OrParamList {
+		orSql := ""
+		if req.TransactionHash != "" {
+			orSql += " or transaction_hash = '" + req.TransactionHash + "'"
+		}
+		if len(req.TransactionHashList) > 0 {
+			transactionHashList := strings.ReplaceAll(utils.ListToString(req.TransactionHashList), "\"", "'")
+			orSql += " or transaction_hash in(" + transactionHashList + ")"
+		}
+		if len(req.TransactionHashNotInList) > 0 {
+			transactionHashNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionHashNotInList), "\"", "'")
+			orSql += " or transaction_hash not in(" + transactionHashNotInList + ")"
+		}
+		if req.TransactionHashLike != "" {
+			orSql += " or transaction_hash like '" + req.TransactionHashLike + "%'"
+		}
+		if len(req.OriginalHashList) > 0 {
+			originalHashList := strings.ReplaceAll(utils.ListToString(req.OriginalHashList), "\"", "'")
+			orSql += " or original_hash in(" + originalHashList + ")"
+		}
+		if orSql != "" {
+			orSql = "(" + orSql[4:len(orSql)] + ")"
+			sqlStr += " and " + orSql
+		}
+	}
+
+	sqlStr += ") as t1 where row_number = 1" +
+		")"
+
+	sqlStr += " select t.* "
+	if req.Total {
+		sqlStr += ", t1.* "
+	}
+	sqlStr += " from t "
+	if req.Total {
+		sqlStr += " inner join (select count(*) as total from t) as t1 on 1=1 "
+	}
+
+	sqlStr += " where 1=1 "
+	if req.DataDirection > 0 {
+		dataDirection := ">"
+		if req.DataDirection == 1 {
+			dataDirection = "<"
+		}
+		if req.OrderBy == "" {
+			sqlStr += " and t.id " + dataDirection + " " + strconv.Itoa(int(req.StartIndex))
+		} else {
+			orderBys := strings.Split(req.OrderBy, " ")
+			sqlStr += " and t." + orderBys[0] + " " + dataDirection + " " + strconv.Itoa(int(req.StartIndex))
+		}
+	}
+
+	if req.OrderBy != "" {
+		sqlStr += " order by t." + req.OrderBy
+	}
+
+	if req.DataDirection == 0 {
+		if req.PageNum > 0 {
+			sqlStr += " offset " + strconv.Itoa(int(req.PageNum-1)*int(req.PageSize))
+		} else {
+			sqlStr += " offset 0 "
+		}
+	}
+	sqlStr += " limit " + strconv.Itoa(int(req.PageSize))
+
+	ret := db.Raw(sqlStr).Find(&stcTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query "+tableName+" failed", err)
+		return nil, 0, err
+	}
+	if len(stcTransactionRecordList) > 0 {
+		total = stcTransactionRecordList[0].Total
+	}
+	return stcTransactionRecordList, total, nil
+}
+
 func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName string, req *TransactionRequest) ([]*StcTransactionRecord, int64, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
 	var total int64
@@ -388,14 +594,23 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
+	if req.OperateTypeEmpty {
+		db = db.Where("(operate_type is null or operate_type = '')")
+	}
 	if req.TransactionHash != "" {
 		db = db.Where("transaction_hash = ?", req.TransactionHash)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if len(req.OriginalHashList) > 0 {
+		db = db.Where("original_hash in(?)", req.OriginalHashList)
 	}
 	if req.Nonce >= 0 {
 		db = db.Where("nonce = ?", req.Nonce)
@@ -417,7 +632,40 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
+	}
+
+	for _, req := range req.OrParamList {
+		orSql := ""
+		if req.TransactionHash != "" {
+			orSql += " or transaction_hash = '" + req.TransactionHash + "'"
+		}
+		if len(req.TransactionHashList) > 0 {
+			transactionHashList := strings.ReplaceAll(utils.ListToString(req.TransactionHashList), "\"", "'")
+			orSql += " or transaction_hash in(" + transactionHashList + ")"
+		}
+		if len(req.TransactionHashNotInList) > 0 {
+			transactionHashNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionHashNotInList), "\"", "'")
+			orSql += " or transaction_hash not in(" + transactionHashNotInList + ")"
+		}
+		if req.TransactionHashLike != "" {
+			orSql += " or transaction_hash like '" + req.TransactionHashLike + "%'"
+		}
+		if len(req.OriginalHashList) > 0 {
+			originalHashList := strings.ReplaceAll(utils.ListToString(req.OriginalHashList), "\"", "'")
+			orSql += " or original_hash in(" + originalHashList + ")"
+		}
+		if orSql != "" {
+			orSql = "(" + orSql[4:len(orSql)] + ")"
+			db = db.Where(orSql)
+		}
 	}
 
 	if req.Total {
@@ -513,14 +761,23 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
+	if req.OperateTypeEmpty {
+		db = db.Where("(operate_type is null or operate_type = '')")
+	}
 	if req.TransactionHash != "" {
 		db = db.Where("transaction_hash = ?", req.TransactionHash)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if len(req.OriginalHashList) > 0 {
+		db = db.Where("original_hash in(?)", req.OriginalHashList)
 	}
 	if req.Nonce >= 0 {
 		db = db.Where("nonce = ?", req.Nonce)
@@ -542,7 +799,40 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
+	}
+
+	for _, req := range req.OrParamList {
+		orSql := ""
+		if req.TransactionHash != "" {
+			orSql += " or transaction_hash = '" + req.TransactionHash + "'"
+		}
+		if len(req.TransactionHashList) > 0 {
+			transactionHashList := strings.ReplaceAll(utils.ListToString(req.TransactionHashList), "\"", "'")
+			orSql += " or transaction_hash in(" + transactionHashList + ")"
+		}
+		if len(req.TransactionHashNotInList) > 0 {
+			transactionHashNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionHashNotInList), "\"", "'")
+			orSql += " or transaction_hash not in(" + transactionHashNotInList + ")"
+		}
+		if req.TransactionHashLike != "" {
+			orSql += " or transaction_hash like '" + req.TransactionHashLike + "%'"
+		}
+		if len(req.OriginalHashList) > 0 {
+			originalHashList := strings.ReplaceAll(utils.ListToString(req.OriginalHashList), "\"", "'")
+			orSql += " or original_hash in(" + originalHashList + ")"
+		}
+		if orSql != "" {
+			orSql = "(" + orSql[4:len(orSql)] + ")"
+			db = db.Where(orSql)
+		}
 	}
 
 	db = db.Order(req.OrderBy)
@@ -632,14 +922,23 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if len(req.TransactionTypeNotInList) > 0 {
 		db = db.Where("transaction_type not in(?)", req.TransactionTypeNotInList)
 	}
+	if req.OperateTypeEmpty {
+		db = db.Where("(operate_type is null or operate_type = '')")
+	}
 	if req.TransactionHash != "" {
 		db = db.Where("transaction_hash = ?", req.TransactionHash)
 	}
 	if len(req.TransactionHashList) > 0 {
 		db = db.Where("transaction_hash in(?)", req.TransactionHashList)
 	}
+	if len(req.TransactionHashNotInList) > 0 {
+		db = db.Where("transaction_hash not in(?)", req.TransactionHashNotInList)
+	}
 	if req.TransactionHashLike != "" {
 		db = db.Where("transaction_hash like ?", req.TransactionHashLike+"%")
+	}
+	if len(req.OriginalHashList) > 0 {
+		db = db.Where("original_hash in(?)", req.OriginalHashList)
 	}
 	if req.Nonce >= 0 {
 		db = db.Where("nonce = ?", req.Nonce)
@@ -661,7 +960,40 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type != 'contract' and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type = 'contract' and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+	}
+	if req.AssetType != "" {
+		if req.AssetType == FT {
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+		} else if req.AssetType == NFT {
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+		}
+	}
+
+	for _, req := range req.OrParamList {
+		orSql := ""
+		if req.TransactionHash != "" {
+			orSql += " or transaction_hash = '" + req.TransactionHash + "'"
+		}
+		if len(req.TransactionHashList) > 0 {
+			transactionHashList := strings.ReplaceAll(utils.ListToString(req.TransactionHashList), "\"", "'")
+			orSql += " or transaction_hash in(" + transactionHashList + ")"
+		}
+		if len(req.TransactionHashNotInList) > 0 {
+			transactionHashNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionHashNotInList), "\"", "'")
+			orSql += " or transaction_hash not in(" + transactionHashNotInList + ")"
+		}
+		if req.TransactionHashLike != "" {
+			orSql += " or transaction_hash like '" + req.TransactionHashLike + "%'"
+		}
+		if len(req.OriginalHashList) > 0 {
+			originalHashList := strings.ReplaceAll(utils.ListToString(req.OriginalHashList), "\"", "'")
+			orSql += " or original_hash in(" + originalHashList + ")"
+		}
+		if orSql != "" {
+			orSql = "(" + orSql[4:len(orSql)] + ")"
+			db = db.Where(orSql)
+		}
 	}
 
 	ret := db.Delete(&StcTransactionRecord{})

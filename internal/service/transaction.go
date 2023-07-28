@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -27,7 +28,7 @@ func NewTransactionService(ts *biz.TransactionUsecase, p platform.Server, ip pla
 
 func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb.TransactionReq) (*pb.CreateResponse, error) {
 	log.Info("request", zap.Any("request", req))
-	subctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	result, err := s.ts.CreateRecordFromWallet(subctx, req)
 	return result, err
@@ -36,6 +37,9 @@ func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb
 func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+
+	chainType := biz.ChainNameType[req.ChainName]
+
 	if req.Platform == biz.WEB {
 		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
 	} else if req.Platform == biz.ANDROID {
@@ -61,7 +65,8 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	}
 	for _, transactionType := range req.TransactionTypeList {
 		if transactionType == biz.OTHER {
-			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT)
+			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN,
+				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP)
 			break
 		}
 	}
@@ -98,6 +103,87 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			}
 			if record.Status == biz.NO_STATUS {
 				record.Status = biz.PENDING
+			}
+			for _, operateRecord := range record.OperateRecordList {
+				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
+					operateRecord.Status = biz.FAIL
+				}
+				if operateRecord.Status == biz.NO_STATUS {
+					operateRecord.Status = biz.PENDING
+				}
+			}
+
+			if record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+				if record.Amount == "" || record.Amount == "0" {
+					var data = record.Data
+					if data == "" {
+						if record.ClientData != "" {
+							clientData := make(map[string]interface{})
+							if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
+								dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+								if dok {
+									data, _ = dappTxinfoMap["data"].(string)
+								}
+							}
+						}
+					}
+
+					if data == "" {
+						if record.TransactionType == biz.APPROVE {
+							record.TransactionType = biz.CANCELAPPROVE
+						} else if record.TransactionType == biz.APPROVENFT {
+							record.TransactionType = biz.CANCELAPPROVENFT
+						}
+					} else {
+						switch chainType {
+						case biz.EVM, biz.TVM:
+							if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+								if record.TransactionType == biz.APPROVE {
+									record.TransactionType = biz.CANCELAPPROVE
+								} else if record.TransactionType == biz.APPROVENFT {
+									record.TransactionType = biz.CANCELAPPROVENFT
+								}
+							}
+						}
+					}
+				}
+			}
+			for _, operateRecord := range record.OperateRecordList {
+				if operateRecord.TransactionType == biz.APPROVE || operateRecord.TransactionType == biz.APPROVENFT {
+					if operateRecord.Amount == "" || operateRecord.Amount == "0" {
+						var data = operateRecord.Data
+						if data == "" {
+							if operateRecord.ClientData != "" {
+								clientData := make(map[string]interface{})
+								if jsonErr := json.Unmarshal([]byte(operateRecord.ClientData), &clientData); jsonErr == nil {
+									dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+									if dok {
+										data, _ = dappTxinfoMap["data"].(string)
+									}
+								}
+							}
+						}
+
+						if data == "" {
+							if operateRecord.TransactionType == biz.APPROVE {
+								operateRecord.TransactionType = biz.CANCELAPPROVE
+							} else if operateRecord.TransactionType == biz.APPROVENFT {
+								operateRecord.TransactionType = biz.CANCELAPPROVENFT
+							}
+						} else {
+							switch chainType {
+							case biz.EVM, biz.TVM:
+								if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+									if operateRecord.TransactionType == biz.APPROVE {
+										operateRecord.TransactionType = biz.CANCELAPPROVE
+									} else if operateRecord.TransactionType == biz.APPROVENFT {
+										operateRecord.TransactionType = biz.CANCELAPPROVENFT
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 
 			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {

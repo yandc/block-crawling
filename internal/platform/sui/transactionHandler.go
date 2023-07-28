@@ -99,7 +99,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 			tokenAddress = ""
 		}
 
-		if record.TransactionType != biz.CONTRACT {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -256,7 +256,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.SuiT
 
 	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -311,7 +311,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -375,7 +375,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -618,7 +618,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTrans
 	tokenIdMap := make(map[string]string)
 	var nftRecords []*data.NftRecordHistory
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
 			continue
 		}
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {

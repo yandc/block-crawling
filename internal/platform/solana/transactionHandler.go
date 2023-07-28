@@ -93,7 +93,8 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 
 		var tokenAddress = record.ContractAddress
 
-		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.CLOSEACCOUNT && record.TransactionType != biz.REGISTERTOKEN {
+		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT &&
+			record.TransactionType != biz.CREATEACCOUNT && record.TransactionType != biz.CLOSEACCOUNT && record.TransactionType != biz.REGISTERTOKEN {
 			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -359,7 +360,8 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.SolT
 
 	var userAssetStatisticList []biz.UserAssetStatistic
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -409,7 +411,8 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SolTrans
 
 	var userAssetList []biz.UserTokenPush
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
 			continue
 		}
 		if record.Status != biz.SUCCESS {
@@ -473,7 +476,8 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.SolTr
 	userAssetMap := make(map[string]*data.UserNftAsset)
 	addressTokenMap := make(map[string]map[string]map[string]*v1.GetNftReply_NftInfoResp)
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.CREATEACCOUNT || record.TransactionType == biz.CLOSEACCOUNT || record.TransactionType == biz.REGISTERTOKEN {
 			continue
 		}
 		if record.Status != biz.SUCCESS {

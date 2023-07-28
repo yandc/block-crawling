@@ -483,6 +483,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		h.kanbanRecords = append(h.kanbanRecords, evmTransactionRecord)
 	}
 
+	var isMint bool
 	for index, eventLog := range eventLogs {
 		eventMap := map[string]interface{}{
 			"evm": map[string]string{
@@ -536,6 +537,53 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 		if h.kanbanEnabled {
 			h.kanbanRecords = append(h.kanbanRecords, evmlogTransactionRecord)
+		}
+
+		if (eventLog.From == "" || eventLog.From == "0x0000000000000000000000000000000000000000") && evmTransactionRecord.FromAddress == eventLog.To && (eventLog.Token.TokenType == biz.ERC721 || eventLog.Token.TokenType == biz.ERC1155) {
+			isMint = true
+		}
+	}
+
+	if isMint {
+		evmTransactionRecord.TransactionType = biz.MINT
+	} else {
+		eventLogLen := len(eventLogs)
+		if eventLogLen == 1 && evmTransactionRecord.FromAddress == eventLogs[0].To && evmTransactionRecord.Amount.String() != "0" && eventLogs[0].Token.Address != "" {
+			evmTransactionRecord.TransactionType = biz.SWAP
+		} else if eventLogLen == 2 && ((evmTransactionRecord.FromAddress == eventLogs[0].From && evmTransactionRecord.FromAddress == eventLogs[1].To) ||
+			(evmTransactionRecord.FromAddress == eventLogs[0].To && evmTransactionRecord.FromAddress == eventLogs[1].From)) {
+			if evmTransactionRecord.Amount.String() == "0" {
+				evmTransactionRecord.TransactionType = biz.SWAP
+			} else {
+				var hasMain bool
+				var mainTotal int
+				for _, eventLog := range eventLogs {
+					if evmTransactionRecord.FromAddress == eventLog.From {
+						if eventLog.Token.Address == "" {
+							mainTotal++
+							if evmTransactionRecord.ToAddress == eventLog.To || evmTransactionRecord.Amount.String() == eventLog.Amount.String() {
+								hasMain = true
+								break
+							}
+						} else {
+							var mainSymbol string
+							if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+								mainSymbol = platInfo.NativeCurrency
+							}
+							if evmTransactionRecord.ToAddress == eventLog.To && evmTransactionRecord.Amount.String() == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
+								hasMain = true
+								break
+							}
+						}
+					}
+				}
+				if !hasMain && mainTotal == 1 {
+					hasMain = true
+				}
+				if hasMain {
+					evmTransactionRecord.TransactionType = biz.SWAP
+				}
+			}
 		}
 	}
 	return nil

@@ -9,6 +9,8 @@ const (
 	MAX_PAGE_SIZE          = 500
 	TABLE_POSTFIX          = "_transaction_record"
 	MAIN_ADDRESS_PARAM     = "0x"
+	FT                     = "ft"
+	NFT                    = "nft"
 )
 
 func GetTableName(chainName string) string {

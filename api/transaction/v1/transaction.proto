@@ -274,6 +274,7 @@ message TransactionReq {
   string maxPriorityFeePerGas = 30;
   string feeData = 31;
   string operateType = 32;
+  string originalHash = 33;
 }
 
 message PageListRequest {
@@ -302,6 +303,7 @@ message PageListRequest {
   int32 osVersion = 23;
   repeated string operateTypeList = 24;
   string tokenAddress = 25;
+  string assetType = 26;
 }
 
 message PageListResponse {
@@ -345,6 +347,8 @@ message TransactionRecord {
   string feeData = 33;
   int64 cursor = 34;
   string operateType = 35;
+  string originalHash = 36;
+  repeated TransactionRecord operateRecordList = 37;
 }
 
 message AmountRequest {
