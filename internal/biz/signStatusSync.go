@@ -33,6 +33,9 @@ func SyncStatus(request []SignStatusRequest) {
 
 	for _ ,record := range request {
 		r, _ := data.UserSendRawHistoryRepoInst.SelectByTxHash(nil,record.TransactionHash)
+		if r == nil {
+			continue
+		}
 		if record.Status == SUCCESS || record.Status == FAIL {
 			r.SignStatus = "2"
 		}
