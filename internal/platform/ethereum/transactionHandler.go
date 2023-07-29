@@ -112,18 +112,18 @@ func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTran
 			return
 		}
 		if ets > 0 {
-			r, _ := data.EvmTransactionRecordRepoClient.FindNonceAndAddressAndStatus(nil, biz.GetTableName(chainName), record.FromAddress, record.Nonce)
-			var ssr []biz.SignStatusRequest
-			ssr = append(ssr, biz.SignStatusRequest{
-				TransactionHash: r.TransactionHash,
-				Status:          r.Status,
-				TransactionType: r.TransactionType,
-				Nonce:           r.Nonce,
-			})
-			go biz.SyncStatus(ssr)
+			rs, _ := data.EvmTransactionRecordRepoClient.FindNonceAndAddressAndStatus(nil, biz.GetTableName(chainName), record.FromAddress, record.Nonce)
+			for _ , r := range rs {
+				var ssr []biz.SignStatusRequest
+				ssr = append(ssr, biz.SignStatusRequest{
+					TransactionHash: r.TransactionHash,
+					Status:          r.Status,
+					TransactionType: r.TransactionType,
+					Nonce:           r.Nonce,
+				})
+				go biz.SyncStatus(ssr)
+			}
 		}
-
-		log.Info("根据交易nonce，更新交易状态", zap.Any(record.FromAddress, chainName), zap.Any("nonce", record.Nonce), zap.Any("受影响条数", ets))
 	}
 }
 func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
