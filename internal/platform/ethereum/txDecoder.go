@@ -1476,9 +1476,17 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		nonce := uint64(result.Nonce)
 		if nonce > 0 && uint64(record.Nonce) <= nonce {
 			record.Status = biz.DROPPED_REPLACED
-			//updateMap1 := map[string]interface{}{}
-			//updateMap1["sign_status"] = "4"
-			//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil, record.TransactionHash, updateMap1, -1, "")
+
+			var ssr []biz.SignStatusRequest
+			ssr = append(ssr, biz.SignStatusRequest{
+				TransactionHash: record.TransactionHash,
+				Status:          record.Status,
+				TransactionType: record.TransactionType,
+				Nonce:           record.Nonce,
+				TxTime:          record.TxTime,
+			})
+			go biz.SyncStatus(ssr)
+
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
 			log.Info(
@@ -1503,6 +1511,15 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	nonce := result1.(uint64)
 	if uint64(record.Nonce) < nonce {
 		record.Status = biz.DROPPED_REPLACED
+		var ssr []biz.SignStatusRequest
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: record.TransactionHash,
+			Status:          record.Status,
+			TransactionType: record.TransactionType,
+			Nonce:           record.Nonce,
+			TxTime:          record.TxTime,
+		})
+		go biz.SyncStatus(ssr)
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
 		log.Info(
@@ -1532,6 +1549,15 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	} else {
 		//更新抛弃状态
 		record.Status = biz.DROPPED
+		var ssr []biz.SignStatusRequest
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: record.TransactionHash,
+			Status:          record.Status,
+			TransactionType: record.TransactionType,
+			Nonce:           record.Nonce,
+			TxTime:          record.TxTime,
+		})
+		go biz.SyncStatus(ssr)
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
 		log.Info(
