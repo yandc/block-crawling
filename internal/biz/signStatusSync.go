@@ -38,6 +38,7 @@ func SyncStatus(request []SignStatusRequest) {
 		}
 		if record.Status == SUCCESS || record.Status == FAIL {
 			r.SignStatus = "2"
+			r.TxTime = record.TxTime
 		}
 		if record.Status == PENDING || record.Status == NO_STATUS {
 			r.SignStatus = "1"
@@ -51,7 +52,6 @@ func SyncStatus(request []SignStatusRequest) {
 		}
 
 		r.TransactionType = record.TransactionType
-		r.TxTime = record.TxTime
 		var rr []*data.UserSendRawHistory
 		rr = append(rr, r)
 		data.UserSendRawHistoryRepoInst.SaveOrUpdate(nil, rr)
