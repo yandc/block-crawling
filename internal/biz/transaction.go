@@ -1624,10 +1624,13 @@ func handleEventLog(chainName, recordFromAddress, recordToAddress, recordAmount,
 
 		var hasMain bool
 		var mainTotal int
+		//https://polygonscan.com/tx/0x8b455005112a9e744ec143ccfa81d4185fbc936162367eb33d8e9f6f704a6ec2
+		mainAmount := new(big.Int)
 		for _, eventLog := range eventLogs {
 			if recordFromAddress == eventLog.From {
 				if eventLog.Token.Address == "" {
 					mainTotal++
+					mainAmount = mainAmount.Add(mainAmount, eventLog.Amount)
 					if recordToAddress == eventLog.To || recordAmount == eventLog.Amount.String() {
 						hasMain = true
 						break
@@ -1644,7 +1647,7 @@ func handleEventLog(chainName, recordFromAddress, recordToAddress, recordAmount,
 				}
 			}
 		}
-		if !hasMain && mainTotal == 1 {
+		if !hasMain && (mainTotal == 1 || recordAmount == mainAmount.String()) {
 			hasMain = true
 		}
 		if !hasMain {
@@ -3880,7 +3883,7 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		}
 		if v.TransactionHash != "" {
 			txhash := strings.Split(v.TransactionHash, ",")
-			if len(txhash) >= 1{
+			if len(txhash) >= 1 {
 				v.TransactionHash = txhash[0]
 			}
 		}
