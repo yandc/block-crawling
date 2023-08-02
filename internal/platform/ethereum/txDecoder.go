@@ -648,6 +648,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 	gmxFromAddress := ""
 	gmxAmount := big.NewInt(0)
 	xDaiDapp := false
+	contractAddress := receipt.To
+	methodId := hex.EncodeToString(transaction.Data()[:4])
 	// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
@@ -656,16 +658,51 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		topic0 := log_.Topics[0].String()
 		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC && topic0 != TRANSFERSINGLE_TOPIC &&
 			topic0 != TRANSFERBATCH_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
-			whiteTopics := BridgeWhiteTopicList[h.chainName+"_Topic"]
-			flag := true
-			s := h.chainName + "_" + receipt.To + "_" + topic0
-			for _, whiteTopic := range whiteTopics {
-				if whiteTopic == s {
-					flag = false
-					break
+			inWhiteList := false
+			if whiteTopics, ok := BridgeWhiteTopicList[h.chainName+"_Topic"]; ok {
+				topicKey := h.chainName + "_" + contractAddress + "_" + topic0
+				for _, whiteTopic := range whiteTopics {
+					if topicKey == whiteTopic {
+						inWhiteList = true
+						break
+					}
 				}
 			}
-			if flag {
+
+			if !inWhiteList {
+				if whiteTopics, ok := BridgeWhiteTopicList[h.chainName+"_Contract_Method_Topic"]; ok {
+					topicKey := contractAddress + "_" + methodId + "_" + topic0
+					for _, whiteTopic := range whiteTopics {
+						if topicKey == whiteTopic {
+							inWhiteList = true
+							break
+						}
+					}
+				}
+			}
+			if !inWhiteList {
+				if whiteTopics, ok := BridgeWhiteTopicList["Contract_Method_Topic"]; ok {
+					topicKey := contractAddress + "_" + methodId + "_" + topic0
+					for _, whiteTopic := range whiteTopics {
+						if topicKey == whiteTopic {
+							inWhiteList = true
+							break
+						}
+					}
+				}
+			}
+			if !inWhiteList {
+				if whiteTopics, ok := BridgeWhiteTopicList["Method_Topic"]; ok {
+					topicKey := methodId + "_" + topic0
+					for _, whiteTopic := range whiteTopics {
+						if topicKey == whiteTopic {
+							inWhiteList = true
+							break
+						}
+					}
+				}
+			}
+			if !inWhiteList {
 				continue
 			}
 		}
@@ -770,8 +807,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					}
 					//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d
 
-					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == receipt.To && strings.HasPrefix(h.chainName, "Fantom") {
-						log.Info("9999999", zap.Any(receipt.To, "0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == receipt.To), zap.Any(toAddress, toAddress == "0x0000000000000000000000000000000000000000"), zap.Any("", strings.HasPrefix(h.chainName, "Fantom")))
+					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == contractAddress && strings.HasPrefix(h.chainName, "Fantom") {
+						log.Info("9999999", zap.Any(contractAddress, "0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == contractAddress), zap.Any(toAddress, toAddress == "0x0000000000000000000000000000000000000000"), zap.Any("", strings.HasPrefix(h.chainName, "Fantom")))
 						toAddress = common.HexToAddress(receipt.From).String()
 						log.Info("777777", zap.Any("li", toAddress))
 						//token.Address = ""
@@ -783,9 +820,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//代币换主币function销毁主币再发送主币
 			if toAddress == "0x0000000000000000000000000000000000000000" && (common.HexToAddress(log_.Topics[1].String()).String() == "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ||
 				//https://arbiscan.io/tx/0x63c5cdddecd584f25eae98be154fa588380f2ebe3a42d0f6f704c080c00b31c0
-				(receipt.To == "0xe05dd51e4eb5636f4f0e8e7fbe82ea31a2ecef16" && hex.EncodeToString(transaction.Data()[:4]) == "a8676443") ||
+				(contractAddress == "0xe05dd51e4eb5636f4f0e8e7fbe82ea31a2ecef16" && methodId == "a8676443") ||
 				//https://nova.arbiscan.io/tx/0x9db5e750af7dd1cfcd9b74f2ae72cb8fec180ae3b660dbde5a9a6ffb3c57e2e3
-				(receipt.To == "0x67844f0f0dd3d770ff29b0ace50e35a853e4655e" && hex.EncodeToString(transaction.Data()[:4]) == "a6cbf417")) {
+				(contractAddress == "0x67844f0f0dd3d770ff29b0ace50e35a853e4655e" && methodId == "a6cbf417")) {
 				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 				toAddress = common.HexToAddress(receipt.From).String()
 				amount = new(big.Int).SetBytes(log_.Data)
@@ -904,7 +941,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 			if strings.HasPrefix(h.chainName, "Polygon") {
 				//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
-				if transaction.To().String() == "0xc1DCb196BA862B337Aa23eDA1Cb9503C0801b955" && hex.EncodeToString(transaction.Data()[:4]) == "439dff06" {
+				if contractAddress == "0xc1dcb196ba862b337aa23eda1cb9503c0801b955" && methodId == "439dff06" {
 					if len(transaction.Data()) >= 100 {
 						toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[68:100])).String()
 					}
@@ -1034,9 +1071,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Symbol = token.Symbol[1:]
 			}*/
 			tokenAddress = ""
-		} else if topic0 == OPTIMISM_WITHDRAWETH {
-			//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb#eventlog
-			//无 转出地址
+		} else if topic0 == WITHDRAWETH_TOPIC {
+			//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb
+			//https://optimistic.etherscan.io/tx/0x1de553537b19e29619da0112c688ce4ecc5e185c2e289d757084148f6d4c6d6c
+			//https://ftmscan.com/tx/0xce25179db51f9ee48fbdc518b96d2cf584af655a34b95bc535544c1a653be9a8
+			//https://bscscan.com/tx/0x076501069df7ab50acb5244bcefcfe8940d970095a93a5287b75ae8fb3d9269b
+			if len(receipt.Logs) > 1 {
+				continue
+			}
+			if methodId != "4782f779" {
+				continue
+			}
+			//无转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()
 			amount = new(big.Int).SetBytes(log_.Data)
 			toAddress = common.BytesToAddress(transaction.Data()[4:36]).String()
@@ -1069,9 +1115,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			tokenAddress = ""
 		} else if topic0 == TOKENSWAP_TOPIC {
-			if receipt.To == "0x3749c4f034022c39ecaffaba182555d4508caccc" {
+			if contractAddress == "0x3749c4f034022c39ecaffaba182555d4508caccc" {
 				//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
-				if hex.EncodeToString(transaction.Data()[:4]) != "cc29a306" {
+				if methodId != "cc29a306" {
 					continue
 				}
 
@@ -1166,7 +1212,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(receipt.Logs) > 1 {
 				continue
 			}
-			if hex.EncodeToString(transaction.Data()[:4]) != "23c452cd" {
+			if methodId != "23c452cd" {
 				continue
 			}
 
@@ -1178,7 +1224,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		} else if topic0 == REDEEM_TOPIC {
 			//https://bscscan.com/tx/0xd0b6d155be809d384dffe89e8d50e2284bb7dbfa79a5934beeed8efe7680550c
-			if hex.EncodeToString(transaction.Data()[:4]) != "db006a75" {
+			if methodId != "db006a75" {
 				continue
 			}
 			if len(log_.Data) != 160 {
@@ -1194,7 +1240,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(receipt.Logs) > 1 {
 				continue
 			}
-			if hex.EncodeToString(transaction.Data()[:4]) != "df70baa3" {
+			if methodId != "df70baa3" {
 				continue
 			}
 			if len(log_.Data) != 192 {
@@ -1210,8 +1256,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		if xDaiDapp {
 			break
 		}
-		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过  log获取
-		if transaction.To().String() == "0x0460352b91D7CF42B0E1C1c30f06B602D9ef2238" && hex.EncodeToString(transaction.Data()[:4]) == "3d12a85a" {
+		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过log获取
+		if contractAddress == "0x0460352b91d7cf42b0e1c1c30f06b602d9ef2238" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
 			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
 			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
@@ -1231,7 +1277,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		}
 
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
-		if transaction.To().String() == "0x83f6244Bd87662118d96D9a6D44f09dffF14b30E" && hex.EncodeToString(transaction.Data()[:4]) == "3d12a85a" {
+		if contractAddress == "0x83f6244bd87662118d96d9a6d44f09dfff14b30e" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
 			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
 			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
@@ -1281,7 +1327,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//不展示event log中的授权记录
 		//https://polygonscan.com/tx/0xdd8635bfce70c989487eea4403826e691efbf230887e92cc958d53e79281b7b9#eventlog
 		if topic0 == APPROVAL_TOPIC {
-			if "0xf0511f123164602042ab2bCF02111fA5D3Fe97CD" == receipt.To && strings.HasPrefix(h.chainName, "Polygon") {
+			if "0xf0511f123164602042ab2bcf02111fa5d3fe97cd" == contractAddress && strings.HasPrefix(h.chainName, "Polygon") {
 				//更新 敞口
 				data.DappApproveRecordRepoClient.UpdateAddressBalanceByTokenAndContract(nil, fromAddress, tokenAddress, toAddress, amount.String(), h.chainName)
 				continue
