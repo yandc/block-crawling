@@ -1068,12 +1068,24 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			tokenAddress = ""
-		} else if topic0 == ARBITRUM_INTXAMOUNT {
-			//获取amount
-			if len(log_.Data) >= 64 {
-				arbitrumAmount = new(big.Int).SetBytes(log_.Data[32:64])
+		} else if topic0 == TOKENSWAP_TOPIC {
+			if receipt.To == "0x3749c4f034022c39ecaffaba182555d4508caccc" {
+				//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
+				if hex.EncodeToString(transaction.Data()[:4]) != "cc29a306" {
+					continue
+				}
+
+				fromAddress = transaction.To().String()
+				toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+				amount = new(big.Int).SetBytes(log_.Data[32:64])
+				tokenAddress = ""
+			} else {
+				//获取amount
+				if len(log_.Data) >= 64 {
+					arbitrumAmount = new(big.Int).SetBytes(log_.Data[32:64])
+				}
+				continue
 			}
-			continue
 		} else if topic0 == ARBITRUM_UNLOCKEVENT {
 			fromAddress = tokenAddress
 			toAddress = common.BytesToAddress(log_.Data[32:64]).String()

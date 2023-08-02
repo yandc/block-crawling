@@ -510,6 +510,21 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					toAddress = toAddress + "," + realToAddress
 				}
 			} else if methodId == "4782f779" { //Optimism链 Contract
+				//https://optimistic.etherscan.io/tx/0x1de553537b19e29619da0112c688ce4ecc5e185c2e289d757084148f6d4c6d6c
+				transactionType = biz.CONTRACT
+				if len(data) >= 36 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if methodId == "4630a0d8" { //Polygon链 Contract
+				//https://polygonscan.com/tx/0xf8c87e264fb54d02a625d8c1f1af4ec0109126127d11daebea046a8210ea71f1
+				transactionType = biz.CONTRACT
+				if len(data) >= 132 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if methodId == "cc29a306" { //Arbitrum链 Contract
+				//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
 				transactionType = biz.CONTRACT
 				if len(data) >= 36 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()

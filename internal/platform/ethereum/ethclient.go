@@ -25,6 +25,10 @@ import (
 // Arbitrum dapp 跨链时，提取交易，跟普通转账参数一致 20230119
 const ArbitrumDepositTxType = 100
 
+// Arbitrum dapp 跨链时，提取交易，跟普通转账参数一致 20230801
+//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
+const ArbitrumDistributeTxType = 104
+
 // zkSync 跨链转主币ETH时，跟普通转账参数一致
 //https://explorer.zksync.io/tx/0xe2e6a3fc27f5d793b50d4eb80f016fffdb7662278e0c43ab119126206c7876a2
 const zkSyncTxType = 255
@@ -679,7 +683,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType, ArbitrumDepositTxType, zkSyncTxType, zkSyncTxType113:
+	case types.LegacyTxType, ArbitrumDepositTxType, ArbitrumDistributeTxType, zkSyncTxType, zkSyncTxType113:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {
