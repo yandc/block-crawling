@@ -509,8 +509,11 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "4782f779" { //Optimism链 Contract
+			} else if methodId == "4782f779" { //Arbitrum, Optimism, Fantom, BSC链 Contract
+				//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb
 				//https://optimistic.etherscan.io/tx/0x1de553537b19e29619da0112c688ce4ecc5e185c2e289d757084148f6d4c6d6c
+				//https://ftmscan.com/tx/0xce25179db51f9ee48fbdc518b96d2cf584af655a34b95bc535544c1a653be9a8
+				//https://bscscan.com/tx/0x076501069df7ab50acb5244bcefcfe8940d970095a93a5287b75ae8fb3d9269b
 				transactionType = biz.CONTRACT
 				if len(data) >= 36 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()

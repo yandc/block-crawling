@@ -42,7 +42,7 @@ const FANTOM_SWAPED = "0x76af224a143865a50b41496e1a73622698692c565c1214bc862f18e
 const FANTOM_SWAPED_V1 = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
 const FANTOM_NEWLIQUIDITYORDER = "0x66340b656a5a83a68f9bf9206f8b20299c11d9c3c7c5ae3bc6ab4ba12f82927e"
 const ARBITRUM_TRANSFERNATIVE = "0x79fa08de5149d912dce8e5e8da7a7c17ccdf23dd5d3bfe196802e6eb86347c7c"
-const OPTIMISM_WITHDRAWETH = "0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"
+const WITHDRAWETH_TOPIC = "0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"
 const OPTIMISM_FANTOM_LOGANYSWAPIN = "0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"
 const OPTIMISM_NONE = "0x4f56ec39e98539920503fd54ee56ae0cbebe9eb15aa778f18de67701eeae7c65"
 const TOKENSWAP_TOPIC = "0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38"
@@ -103,7 +103,6 @@ var BridgeWhiteMethodIdList = map[string][]string{
 var BridgeWhiteTopicList = map[string][]string{
 	//swap：对应 function topic0
 	"Optimism_Topic": {"Optimism_0x81e792e5a9003cc1c8bf5569a00f34b65d75b017_0xb4a87134099d10c48345145381989042ab07dc53e6e62a6511fca55438562e26",
-		"Optimism_0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af",
 		"Optimism_0xdc42728b0ea910349ed3c6e1c9dc06b5fb591f98_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
 		//https://synapseprotocol.com/?inputCurrency=USDC&outputCurrency=USDC&outputChain=42161
 		"Optimism_0xaf41a65f786339e7911f4acdad6bd49426f2dc6b_0x4f56ec39e98539920503fd54ee56ae0cbebe9eb15aa778f18de67701eeae7c65",
@@ -122,8 +121,7 @@ var BridgeWhiteTopicList = map[string][]string{
 		"Arbitrum_0x11d62807dae812a0f1571243460bf94325f43bb7_0x0874b2d545cb271cdbda4e093020c452328b24af12382ed62c4d00f5c26709db",
 		"Arbitrum_0x11d62807dae812a0f1571243460bf94325f43bb7_0x21435c5b618d77ff3657140cd3318e2cffaebc5e0e1b7318f56a9ba4044c3ed2",
 		"Arbitrum_0xabbc5f99639c9b6bcb58544ddf04efa6802f4064_0xcd3829a3813dc3cdd188fd3d01dcf3268c16be2fdd2dd21d0665418816e46062",
-		"Arbitrum_0xa71353bb71dda105d383b02fc2dd172c4d39ef8b_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
-		"Arbitrum_0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+		"Arbitrum_0xa71353bb71dda105d383b02fc2dd172c4d39ef8b_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"Klaytn_Topic": {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
 		"Polygon_0x553bc791d746767166fa3888432038193ceed5e2_0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4"},
@@ -139,6 +137,14 @@ var BridgeWhiteTopicList = map[string][]string{
 	"Conflux_Topic": {"Conflux_0x0dcb0cb0120d355cde1ce56040be57add0185baa_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"BSC_Topic": {"BSC_0x33a32f0ad4aa704e28c93ed8ffa61d50d51622a7_0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d",
 		"BSC_0xa67aa293642c4e02d1b9f360b007c0dbdc451a08_0x00da46badc3d23e4ffbd09bb00128a2274573502fdbb15d233ec3441c01b6af3"},
+
+	//TODO, 后面弃用上面的方式，改用下面的方式
+	//支持特定链特定合约
+	//"Arbitrum_Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+	//支持所有链特定合约
+	//"Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+	//支持所有链所有合约
+	"Method_Topic": {"4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
 }
 
 type Platform struct {
