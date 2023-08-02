@@ -854,39 +854,39 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device 
 				zap.Error(err),
 			)
 			msg = fmt.Sprintf(
-				"交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\nUser-Agent: %s\nDevice-Id: %s",
+				"交易广播失败。\nsessionId：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\n用户名: %s\nDevice-Id: %s",
 				sessionID,
-				"Unknown",
+				userAgent,
 				"Unknown",
 				errMsg,
-				userAgent,
+				"Unknown",
 				deviceId,
 			)
 		} else {
 			msg = fmt.Sprintf(
-				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s\nUser-Agent: %s\nDevice-Id: %s",
+				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户名: %s\nDevice-Id: %s",
 				info.ChainName,
 				sessionID,
 				info.Address,
-				info.UserName,
+				userAgent,
 				errMsg,
 				info.BaseTxInput,
-				userAgent,
+				info.UserName,
 				deviceId,
 			)
 		}
 		alarmOpts = WithAlarmChannel("txinput")
 	} else {
 		msg = fmt.Sprintf(
-			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\n用户名：%s\n错误消息：%s\ntxInput: %s\nUser-Agent: %s\nDevice-Id: %s",
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户名: %s\nDevice-Id: %s",
 			req.ChainName,
 			req.NodeURL,
 			req.Address,
-			req.UserName,
+			userAgent,
 			req.ErrMsg,
 			req.TxInput,
 			deviceId,
-			userAgent,
+			req.UserName,
 		)
 		alarmOpts = WithAlarmChannel("node-proxy")
 	}
