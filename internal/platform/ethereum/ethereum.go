@@ -45,7 +45,7 @@ const ARBITRUM_TRANSFERNATIVE = "0x79fa08de5149d912dce8e5e8da7a7c17ccdf23dd5d3bf
 const OPTIMISM_WITHDRAWETH = "0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"
 const OPTIMISM_FANTOM_LOGANYSWAPIN = "0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"
 const OPTIMISM_NONE = "0x4f56ec39e98539920503fd54ee56ae0cbebe9eb15aa778f18de67701eeae7c65"
-const ARBITRUM_INTXAMOUNT = "0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38"
+const TOKENSWAP_TOPIC = "0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38"
 const ARBITRUM_UNLOCKEVENT = "0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df"
 const KLAYTN_EXCHANGEPOS = "0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"
 
@@ -116,6 +116,7 @@ var BridgeWhiteTopicList = map[string][]string{
 	"Arbitrum_Topic": {"Arbitrum_0x1619de6b6b20ed217a58d00f37b9d47c7663feca_0x79fa08de5149d912dce8e5e8da7a7c17ccdf23dd5d3bfe196802e6eb86347c7c",
 		//合约内部 调用amount
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38",
+		"Arbitrum_0x3749c4f034022c39ecaffaba182555d4508caccc_0xc6c1e0630dbe9130cc068028486c0d118ddcea348550819defd5cb8c257f8a38",
 		"Arbitrum_0x7cea671dabfba880af6723bddd6b9f4caa15c87b_0xd90288730b87c2b8e0c45bd82260fd22478aba30ae1c4d578b8daba9261604df",
 		"Arbitrum_0x650af55d5877f289837c30b94af91538a7504b76_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
 		"Arbitrum_0x11d62807dae812a0f1571243460bf94325f43bb7_0x0874b2d545cb271cdbda4e093020c452328b24af12382ed62c4d00f5c26709db",
@@ -232,13 +233,13 @@ func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string,
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			Nonce           :r.Nonce,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			Nonce:           r.Nonce,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)
