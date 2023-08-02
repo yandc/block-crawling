@@ -649,7 +649,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 	gmxAmount := big.NewInt(0)
 	xDaiDapp := false
 	contractAddress := receipt.To
-	methodId := hex.EncodeToString(transaction.Data()[:4])
+	var methodId string
+	if len(transaction.Data()) >= 4 {
+		methodId = hex.EncodeToString(transaction.Data()[:4])
+	} else {
+		log.Warn("transaction data is illegal", zap.String("chainName", h.chainName), zap.String("txHash", transactionHash))
+	}
 	// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
 	for _, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
@@ -729,7 +734,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					"EXPECT AT LEAST THREE TOPICS",
 					zap.Any("topics", log_.Topics),
 					zap.String("chainName", h.chainName),
-					zap.String("txhash", transactionHash),
+					zap.String("txHash", transactionHash),
 				)
 				continue
 			}
