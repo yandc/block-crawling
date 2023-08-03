@@ -548,7 +548,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 		}
 	}()
 
-	if value == "" {
+	if value == "" || value == "0" {
 		return
 	}
 	var err error
