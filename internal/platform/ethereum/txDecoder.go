@@ -75,7 +75,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
-	if h.chainName == "ETH" || h.chainName == "Polygon" || h.chainName == "ScrollL2TEST" {
+	if h.chainName == "ETH" || h.chainName == "Polygon" || h.chainName == "ScrollL2TEST" || h.chainName == "BSC" || h.chainName == "Optimism" {
 		go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode, block.Number, txhash)
 	}
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
