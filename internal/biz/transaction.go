@@ -529,32 +529,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 		}
 
-		transactionType := pbb.TransactionType
-		if transactionType == CONTRACT && ((len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x"))) {
-			contractAddress := pbb.ContractAddress
-			if contractAddress == "" {
-				contractAddress = pbb.ToAddress
-			}
-			var methodId string
-			if strings.HasPrefix(pbb.Data, "0x") {
-				methodId = pbb.Data[2:10]
-			} else {
-				methodId = pbb.Data[:8]
-			}
-			methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
-			if err != nil {
-				log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
-			}
-
-			if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
-				transactionType = MINT
-			}
-
-			if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
-				transactionType = SWAP
-			}
-		}
-
 		evmTransactionRecord := &data.EvmTransactionRecord{
 			BlockHash:            pbb.BlockHash,
 			BlockNumber:          int(pbb.BlockNumber),
@@ -578,7 +552,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			MaxPriorityFeePerGas: paseJson["max_priority_fee_per_gas"],
 			Data:                 pbb.Data,
 			EventLog:             pbb.EventLog,
-			TransactionType:      transactionType,
+			TransactionType:      pbb.TransactionType,
 			OperateType:          pbb.OperateType,
 			DappData:             pbb.DappData,
 			ClientData:           pbb.ClientData,
@@ -594,6 +568,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
+			if pbb.TransactionType == CONTRACT {
+				go UpdateTransactionType(pbb)
+			}
 		}
 	case BTC:
 		btcTransactionRecord := &data.BtcTransactionRecord{
@@ -639,32 +616,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 		}
 
-		transactionType := pbb.TransactionType
-		if transactionType == CONTRACT && ((len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x"))) {
-			contractAddress := pbb.ContractAddress
-			if contractAddress == "" {
-				contractAddress = pbb.ToAddress
-			}
-			var methodId string
-			if strings.HasPrefix(pbb.Data, "0x") {
-				methodId = pbb.Data[2:10]
-			} else {
-				methodId = pbb.Data[:8]
-			}
-			methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
-			if err != nil {
-				log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
-			}
-
-			if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
-				transactionType = MINT
-			}
-
-			if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
-				transactionType = SWAP
-			}
-		}
-
 		trxRecord := &data.TrxTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
@@ -683,7 +634,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			EnergyUsage:     paseJson["energy_usage"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
-			TransactionType: transactionType,
+			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
 			CreatedAt:       pbb.CreatedAt,
@@ -693,6 +644,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
 			result, err = data.TrxTransactionRecordRepoClient.Save(nil, GetTableName(pbb.ChainName), trxRecord)
+		}
+		if result == 1 && pbb.TransactionType == CONTRACT {
+			go UpdateTransactionType(pbb)
 		}
 	case APTOS:
 		parseDataMap := make(map[string]interface{})
@@ -1045,6 +999,59 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}, err
 }
 
+func UpdateTransactionType(pbb *pb.TransactionReq) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("UpdateTransactionType error, chainName:"+pbb.ChainName, e)
+			} else {
+				log.Errore("UpdateTransactionType panic, chainName:"+pbb.ChainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户TransactionType，txHash:%s, error：%s", pbb.ChainName, pbb.TransactionHash, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+	chainType := ChainNameType[pbb.ChainName]
+
+	transactionType := pbb.TransactionType
+	if (len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x")) {
+		contractAddress := pbb.ContractAddress
+		if contractAddress == "" {
+			contractAddress = pbb.ToAddress
+		}
+		var methodId string
+		if strings.HasPrefix(pbb.Data, "0x") {
+			methodId = pbb.Data[2:10]
+		} else {
+			methodId = pbb.Data[:8]
+		}
+		methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
+		if err != nil {
+			log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
+		}
+
+		if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
+			transactionType = MINT
+		}
+
+		if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
+			transactionType = SWAP
+		}
+	}
+	if transactionType != CONTRACT {
+		if chainType == EVM {
+			data.EvmTransactionRecordRepoClient.UpdateTransactionTypeByTxHash(nil, GetTableName(pbb.ChainName), pbb.TransactionHash, transactionType)
+		}
+		if chainType == TVM {
+			data.TrxTransactionRecordRepoClient.UpdateTransactionTypeByTxHash(nil, GetTableName(pbb.ChainName), pbb.TransactionHash, transactionType)
+		}
+	}
+
+}
 func UpdateUtxo(pbb *pb.TransactionReq) {
 	defer func() {
 		if err := recover(); err != nil {
