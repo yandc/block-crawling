@@ -99,6 +99,7 @@ type EvmTransactionRecordRepo interface {
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	CursorListAll(ctx context.Context, tableName string, cursor *int64, pageLimit int) ([]*EvmTransactionRecord, error)
 	FindLastNonce(context.Context, string, string) (*EvmTransactionRecord, error)
+	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -404,9 +405,6 @@ func (r *EvmTransactionRecordRepoImpl) FindNonceAndAddressAndStatus(ctx context.
 	}
 	return evmTransactionRecordList, nil
 }
-
-
-
 
 func (r *EvmTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecordList []*EvmTransactionRecord
@@ -1380,4 +1378,14 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableN
 
 func (r *EvmTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
 	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
+}
+
+func (r *EvmTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" failed", err)
+		return 0, err
+	}
+	return ret.RowsAffected, nil
 }

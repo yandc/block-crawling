@@ -68,6 +68,8 @@ type TrxTransactionRecordRepo interface {
 	FindOneByBlockNumber(context.Context, string, int) (*TrxTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*TrxTransactionRecord, error)
+	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
+
 }
 
 type TrxTransactionRecordRepoImpl struct {
@@ -703,4 +705,13 @@ func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 // CountOut implements AtomTransactionRecordRepo
 func (r *TrxTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
 	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
+}
+func (r *TrxTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
+	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" failed", err)
+		return 0, err
+	}
+	return ret.RowsAffected, nil
 }
