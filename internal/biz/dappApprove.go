@@ -130,7 +130,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			continue
 		}
 
-		if record.TransactionType == CONTRACT {
+		if record.TransactionType == CONTRACT || record.TransactionType == SWAP || record.TransactionType == MINT{
 			txhashMap[record.TransactionHash] = record
 			continue
 		}
