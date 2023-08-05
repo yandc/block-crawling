@@ -533,6 +533,26 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
+			} else if methodId == "ca350aa6" { //ETH链 Coinbase: Deposit
+				//https://cn.etherscan.com/tx/0xad7dc826dfb58dcf31cd550f24180c16746621ad5844731bcf7e4441ae65230f
+				transactionType = biz.CONTRACT
+				dl := len(data)
+				if dl >= 196 {
+					start := 100
+					stop := start + 96
+					num := int(new(big.Int).SetBytes(data[68:100]).Int64())
+					for i := 0; i < num; i++ {
+						if stop > dl {
+							break
+						}
+						d := data[start:stop]
+						addressData := d[32:64]
+						realToAddress := common.HexToAddress(hex.EncodeToString(addressData)).String()
+						toAddress = toAddress + "," + realToAddress
+						start = stop
+						stop += 96
+					}
+				}
 			}
 		}
 	}
