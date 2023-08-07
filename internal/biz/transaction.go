@@ -560,11 +560,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:            pbb.UpdatedAt,
 		}
 
-		result, err = data.EvmTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
-		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
-			time.Sleep(time.Duration(i*1) * time.Second)
-			result, err = data.EvmTransactionRecordRepoClient.Save(nil, GetTableName(pbb.ChainName), evmTransactionRecord)
-		}
+		result, err = data.EvmTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -640,10 +636,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.TrxTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), trxRecord)
-		for i := 0; i < 3 && err != nil && !strings.Contains(fmt.Sprintf("%s", err), data.POSTGRES_DUPLICATE_KEY); i++ {
+		result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(ctx, GetTableName(pbb.ChainName), trxRecord)
+		for i := 0; i < 3 && err != nil ; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			result, err = data.TrxTransactionRecordRepoClient.Save(nil, GetTableName(pbb.ChainName), trxRecord)
+			result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(nil, GetTableName(pbb.ChainName), trxRecord)
 		}
 		if result == 1 && pbb.TransactionType == CONTRACT {
 			go UpdateTransactionType(pbb)

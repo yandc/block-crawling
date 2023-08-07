@@ -62,6 +62,7 @@ type EvmTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *EvmTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *EvmTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*EvmTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*EvmTransactionRecord) (int64, error)
@@ -127,6 +128,27 @@ func (r *EvmTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 		} else {
 			log.Errore("insert "+tableName+" failed", err)
 		}
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *EvmTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, evmTransactionRecord *EvmTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"original_hash":            gorm.Expr("excluded.original_hash"),
+			"operate_type":             gorm.Expr("excluded.operate_type"),
+			"dapp_data":                gorm.Expr("excluded.dapp_data"),
+			"client_data":              gorm.Expr("excluded.client_data"),
+			"updated_at":               gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新evm "+tableName+" failed", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected
