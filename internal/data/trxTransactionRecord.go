@@ -47,6 +47,7 @@ type TrxTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
+	SaveOrUpdate(context.Context, string, *TrxTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*TrxTransactionRecord) (int64, error)
@@ -103,6 +104,27 @@ func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+func (r *TrxTransactionRecordRepoImpl) SaveOrUpdate(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":        gorm.Expr("excluded.dapp_data"),
+			"client_data":      gorm.Expr("excluded.client_data"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&trxTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("pending insert or update selective trxTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+
 
 func (r *TrxTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(trxTransactionRecords, len(trxTransactionRecords))
