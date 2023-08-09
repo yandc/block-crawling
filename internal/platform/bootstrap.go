@@ -153,7 +153,6 @@ func (b *Bootstrap) GetTransactionResultByTxhash() {
 	b.Spider.SealPendingTransactions(b.Platform.CreateBlockHandler(liveInterval))
 }
 
-
 func FixNftInfo() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -171,7 +170,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Conflux", "Aptos", "SUI", "SUITEST", "Solana", "ScrollL2TEST", "zkSync"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Conflux", "Aptos", "SUI", "SUITEST", "Solana", "ScrollL2TEST", "zkSync", "Ronin"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
