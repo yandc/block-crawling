@@ -675,7 +675,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 
 			if !inWhiteList {
-				if whiteTopics, ok := BridgeWhiteTopicList[h.chainName+"_Contract_Method_Topic"]; ok {
+				if whiteTopics, ok := WhiteListTopicMap[h.chainName+"_Contract_Method_Topic"]; ok {
 					topicKey := contractAddress + "_" + methodId + "_" + topic0
 					for _, whiteTopic := range whiteTopics {
 						if topicKey == whiteTopic {
@@ -686,7 +686,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 			}
 			if !inWhiteList {
-				if whiteTopics, ok := BridgeWhiteTopicList["Contract_Method_Topic"]; ok {
+				if whiteTopics, ok := WhiteListTopicMap["Contract_Method_Topic"]; ok {
 					topicKey := contractAddress + "_" + methodId + "_" + topic0
 					for _, whiteTopic := range whiteTopics {
 						if topicKey == whiteTopic {
@@ -697,7 +697,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 			}
 			if !inWhiteList {
-				if whiteTopics, ok := BridgeWhiteTopicList["Method_Topic"]; ok {
+				if whiteTopics, ok := WhiteListTopicMap["Method_Topic"]; ok {
 					topicKey := methodId + "_" + topic0
 					for _, whiteTopic := range whiteTopics {
 						if topicKey == whiteTopic {
@@ -1255,6 +1255,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			fromAddress = transaction.To().String()
 			toAddress = transaction.From.String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
+			tokenAddress = ""
+		} else if topic0 == CLAIMED_TOPIC {
+			//https://goerli.etherscan.io/tx/0xbdd255a08a6e568983002b6505d57de28f27a7a28696dcadeb869272dad2a4a1
+			if len(receipt.Logs) > 2 {
+				continue
+			}
+			if methodId != "5b4363bf" {
+				continue
+			}
+			fromAddress = tokenAddress
+			amount = new(big.Int).SetBytes(log_.Data[:32])
+			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			tokenAddress = ""
 		}
 
