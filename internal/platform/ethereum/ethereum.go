@@ -57,6 +57,7 @@ const MATIC_BRIDGE = "0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3
 const WITHDRAWALBONDED_TOPIC = "0x0c3d250c7831051e78aa6a56679e590374c7c424415ffe4aa474491def2fe705"
 const REDEEM_TOPIC = "0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d"
 const NEWPOSITIONORDER_TOPIC = "0x00da46badc3d23e4ffbd09bb00128a2274573502fdbb15d233ec3441c01b6af3"
+const CLAIMED_TOPIC = "0x987d620f307ff6b94d58743cb7a7509f24071586a77759b77c2d4e29f75a2f9a"
 
 // dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
@@ -138,14 +139,18 @@ var BridgeWhiteTopicList = map[string][]string{
 	"Conflux_Topic": {"Conflux_0x0dcb0cb0120d355cde1ce56040be57add0185baa_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"BSC_Topic": {"BSC_0x33a32f0ad4aa704e28c93ed8ffa61d50d51622a7_0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d",
 		"BSC_0xa67aa293642c4e02d1b9f360b007c0dbdc451a08_0x00da46badc3d23e4ffbd09bb00128a2274573502fdbb15d233ec3441c01b6af3"},
+}
 
-	//TODO, 后面弃用上面的方式，改用下面的方式
+//TODO, 后面弃用上面的方式，改用下面的方式
+
+// 白名单列表 chainName + contractAddress + method + topic
+var WhiteListTopicMap = map[string][]string{
 	//支持特定链特定合约
-	//"Arbitrum_Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+	//"Arbitrum_Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_" + WITHDRAWETH_TOPIC},
 	//支持所有链特定合约
-	//"Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC},
 	//支持所有链所有合约
-	"Method_Topic": {"4782f779_0x94effa14ea3a1ef396fa2fd829336d1597f1d76b548c26bfa2332869706638af"},
+	"Method_Topic": {"4782f779_" + WITHDRAWETH_TOPIC},
 }
 
 type Platform struct {
