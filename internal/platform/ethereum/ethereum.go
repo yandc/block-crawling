@@ -126,7 +126,8 @@ var BridgeWhiteTopicList = map[string][]string{
 		"Arbitrum_0xa71353bb71dda105d383b02fc2dd172c4d39ef8b_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
 	"Klaytn_Topic": {"Klaytn_0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654_0x022d176d604c15661a2acf52f28fd69bdd2c755884c08a67132ffeb8098330e0"},
 	"Polygon_Topic": {"Polygon_0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
-		"Polygon_0x553bc791d746767166fa3888432038193ceed5e2_0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4"},
+		"Polygon_0x553bc791d746767166fa3888432038193ceed5e2_0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4",
+		"Polygon_0xb7fdda5330daea72514db2b84211afebd19277ca_0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4"},
 	"ETH_Topic": {
 		"ETH_0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840_0x2d9d115ef3e4a606d698913b1eae831a3cdfe20d9a83d48007b0526749c3d466",
 		"ETH_0xba8da9dcf11b50b03fd5284f164ef5cdef910705_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
@@ -216,6 +217,7 @@ func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
 }
 
 func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string, saveKanban bool) error {
+
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
 	start := 0

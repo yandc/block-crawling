@@ -1291,7 +1291,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				token.Symbol = token.Symbol[2:]
 			}*/
 			xDaiDapp = true
-			tokenAddress = ""
+			//tokenAddress = ""
 		}
 
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
