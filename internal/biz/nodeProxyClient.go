@@ -3,12 +3,14 @@ package biz
 import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/common"
+	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +34,7 @@ var nftLock = common.NewSyncronized(0)
 var nftMutex = new(sync.Mutex)
 
 func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
+	//return "100",nil
 	price, err := GetTokenPrice(ctx, chainName, currency, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -218,6 +221,7 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 }
 
 func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -314,6 +318,7 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 }
 
 func GetNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -354,6 +359,7 @@ func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress stri
 }
 
 func GetCollectionInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
+	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
 	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -562,6 +568,7 @@ func GetTokenNftInfoRetryAlert(ctx context.Context, chainName string, tokenAddre
 }
 
 func GetTokenNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
+	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
 	if err != nil {
 		nftInfo, nftErr := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
@@ -620,6 +627,186 @@ func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, er
 	return client.GetChainNodeInUsedList(ctx, &emptypb.Empty{})
 }
 
+func GetPriceFromMarket(tokenAddress []*v1.Tokens, coinIds []string) (*v1.DescribePriceByCoinAddressReply, error) {
+	//========================
+	//coinss := make([]*v1.DescribePriceByCoinAddressReply_CoinCurrency, 0)
+	//for _, ci := range coinIds {
+	//	coinss = append(coinss, &v1.DescribePriceByCoinAddressReply_CoinCurrency{
+	//		Price: &v1.Currency{
+	//			Cny: 1,
+	//			Usd: 10,
+	//		},
+	//		Icon:   "dfdfdfd",
+	//		CoinID: ci,
+	//	})
+	//
+	//}
+	//tokens := make([]*v1.DescribePriceByCoinAddressReply_Tokens, 0)
+	//for _, ta := range tokenAddress {
+	//	tokens = append(tokens, &v1.DescribePriceByCoinAddressReply_Tokens{
+	//		Price: &v1.Currency{
+	//			Cny: 1,
+	//			Usd: 10,
+	//		},
+	//		Icon:    "dfdfdfd",
+	//		Chain:   ta.Chain,
+	//		Address: ta.Address,
+	//		CoinID:  "ddddd",
+	//	})
+	//}
+	//
+	//return &v1.DescribePriceByCoinAddressReply{
+	//	Coins:  coinss,
+	//	Tokens: tokens,
+	//}, nil
+	//========================
+
+	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := v1.NewMarketClient(conn)
+	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+	defer cancel()
+	result, err := client.DescribePriceByCoinAddress(context, &v1.DescribePriceByCoinAddressRequest{
+		EventId: "100010001000",
+		CoinIDs: coinIds,
+		Tokens:  tokenAddress,
+	})
+	log.Info("调用用户中心", zap.Any("request-tokenAddress", tokenAddress), zap.Any("request-coin", coinIds), zap.Any("result", result), zap.Error(err))
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return result, err
+
+}
+
+func GetPriceFromChain(coinIds []string) (*v1.DescribeCoinsByFieldsReply, error) {
+	//========================
+	//var demos []*v1.DescribeCoinsByFieldsReply_Coin
+	//for _, ci := range coinIds {
+	//	dcbf := &v1.DescribeCoinsByFieldsReply_Coin{
+	//		CoinID: ci,
+	//		Price: &v1.Currency{
+	//			Cny: 1,
+	//			Usd: 10,
+	//		},
+	//		Icon: "dfjkdj",
+	//	}
+	//	demos = append(demos, dcbf)
+	//}
+	//
+	//return &v1.DescribeCoinsByFieldsReply{
+	//	Coins: demos,
+	//}, nil
+	//========================
+	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := v1.NewMarketClient(conn)
+	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+	defer cancel()
+
+	result, err := client.DescribeCoinsByFields(context, &v1.DescribeCoinsByFieldsRequest{
+		EventId: "100010001000",
+		CoinIDs: coinIds,
+		Fields:  []string{"price"},
+	})
+	log.Info("调用用户中心", zap.Any("request-coin", coinIds), zap.Any("地址", AppConfig.MarketRpc), zap.Any("result", result), zap.Error(err))
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return result, err
+}
+
+func GetPriceFromTokenAddress(tokenAddresses []string) (*v1.DescribeTokensByFieldsReply, error) {
+
+	//========================
+	//var demos []*v1.DescribeTokensByFieldsReply_Token
+	//for _, ci := range tokenAddresses {
+	//	dcbf := &v1.DescribeTokensByFieldsReply_Token{
+	//		CoinID:  ci,
+	//		Address: ci,
+	//		Price: &v1.Currency{
+	//			Cny: 1,
+	//			Usd: 10,
+	//		},
+	//		Icon: "dfjkdj",
+	//	}
+	//	demos = append(demos, dcbf)
+	//}
+	//
+	//return &v1.DescribeTokensByFieldsReply{
+	//	Tokens: demos,
+	//}, nil
+	//========================
+
+	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := v1.NewMarketClient(conn)
+	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+	defer cancel()
+
+	result, err := client.DescribeTokensByFields(context, &v1.DescribeTokensByFieldsRequest{
+		EventId: "100010001000",
+		Address: tokenAddresses,
+		Fields:  []string{"price"},
+	})
+	log.Info("调用用户中心", zap.Any("request-token", tokenAddresses), zap.Any("result", result), zap.Error(err))
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return result, err
+
+}
+func DescribeCoinPriceByTimestamp(tokenAddress, coinId, chainName string, timestamp uint32) (*v1.DescribeCoinPriceByTimestampReply, error) {
+	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := v1.NewMarketClient(conn)
+	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+	defer cancel()
+
+	result, err := client.DescribeCoinPriceByTimestamp(context, &v1.DescribeCoinPriceByTimestampRequest{
+		EventId:      "100010001000",
+		CoinID:       coinId,
+		Timestamp:    timestamp,
+		Chain:        chainName,
+		TokenAddress: tokenAddress,
+	})
+	log.Info("调用历史币价", zap.Any("token", tokenAddress), zap.Any("CoinID", coinId), zap.Any(chainName, result), zap.Error(err))
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+
+	return result, err
+
+}
+
 func GetMethodNameRetryAlert(ctx context.Context, chainName string, contractAddress string, methodId string) (string, error) {
 	var methodName string
 	contractAbiList, err := GetContractAbi(ctx, chainName, contractAddress, methodId)
@@ -658,10 +845,7 @@ type ContractAbi struct {
 
 func GetContractAbi(ctx context.Context, chainName string, contractAddress string, methodId string) ([]*ContractAbi, error) {
 	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+
 	client := v1.NewCommRPCClient(conn)
 
 	if ctx == nil {

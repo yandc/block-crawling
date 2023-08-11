@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"strings"
 )
 
@@ -32,7 +31,7 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 			continue
 		}
 		if record.TransactionType == APPROVENFT {
-			log.Info("nftYD", zap.Any(record.TransactionHash, record))
+			//log.Info("nftYD", zap.Any(record.TransactionHash, record))
 			dar := &data.DappApproveRecord{
 				Uid:        record.FromUid,
 				LastTxhash: record.TransactionHash,
@@ -67,8 +66,8 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 					}
 				}
 			}
-			ret, err := data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
-			log.Info("nftYD-1", zap.Any(record.TransactionHash, ret), zap.Any("err", err))
+			data.DappApproveRecordRepoClient.SaveOrUpdate(nil, dar)
+			//log.Info("nftYD-1", zap.Any(record.TransactionHash, ret), zap.Any("err", err))
 		}
 	}
 }
@@ -89,7 +88,6 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			return
 		}
 	}()
-	log.Info(chainName,zap.Any("dappdd",txRecords))
 	txhashMap := make(map[string]*data.EvmTransactionRecord)
 	txhashEventLogMap := make(map[string][]*data.EvmTransactionRecord)
 

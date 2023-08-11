@@ -68,6 +68,7 @@ message App {
   string target = 6;
   string source = 7;
   repeated string httpProxies = 8;
+  string marketRpc = 9;
 }
 
 message AddressServer {

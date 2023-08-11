@@ -2801,12 +2801,11 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	if len(req.Params) > 0 {
 		u := mv.Type.NumIn()
 		paseJson := reflect.New(mv.Type.In(u - 1).Elem())
+		//reqKey := strings.ReplaceAll(utils.ListToString(req.Params), "\\", "")
 
 		jsonErr := json.Unmarshal([]byte(req.Params), paseJson.Interface())
-
 		if jsonErr == nil {
 			args = append(args, reflect.ValueOf(paseJson.Interface()))
-
 		} else {
 			return &pb.JsonResponse{
 				Ok:       false,
@@ -2834,6 +2833,854 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 	}, nil
 }
 
+// 交易资产分布和交易类型 ，前五个后 累加-- 两个 饼图
+func (s *TransactionUsecase) GetDappTop(ctx context.Context, req *TransactionTypeReq) (*TopDappResponse, error) {
+	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
+	dapps, e := data.EvmTransactionRecordRepoClient.ListDappDataStringByTimeRanges(ctx, GetTableName(req.ChainName), req.Address, startTime, endTime)
+	if e != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s dapp数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"dapp数据失败 ", zap.Any("error", e))
+		return &TopDappResponse{
+			Ok:           false,
+			ErrorMessage: e.Error(),
+		}, e
+	}
+	if dapps == nil || len(dapps) == 0 {
+		return &TopDappResponse{
+			Ok: true,
+		}, nil
+	}
+	var dappInfos []DappInfo
+
+	var dappNameMap = make(map[string]DappInfo)
+	//排序用
+	var dappCountMap = make(map[int][]DappInfo)
+	//有map 则拿出value ，判断orgin 也就是url是不是内部的，如果是 替换。 并数量加一
+	var direction = make([]int, 0)
+	var checkDirection = make(map[int]int)
+	for _, di := range dapps {
+		var vs DappInfo
+		if jsonErr := json.Unmarshal([]byte(di), &vs); jsonErr == nil {
+			name := vs.DappName
+			origin := vs.Origin
+			if origin == "" || name == "" {
+				continue
+			}
+			if dnm, ok := dappNameMap[name]; ok {
+				oldCC := dnm.CheckCount
+				nCC := oldCC + 1
+				dnm.CheckCount = nCC
+				if strings.Contains(origin, "web3app.vip") || strings.Contains(origin, "openblock.com") || strings.Contains(origin, "openblock.vip") {
+					dnm.Origin = origin
+				}
+				dappNameMap[name] = dnm
+			} else {
+				dappNameMap[name] = DappInfo{
+					Origin:     origin,
+					Icon:       vs.Icon,
+					DappName:   name,
+					CheckCount: 1,
+				}
+			}
+		}
+	}
+	for _, dappDetail := range dappNameMap {
+		c := dappDetail.CheckCount
+		if dcm, ok := dappCountMap[c]; ok {
+			dcm = append(dcm, dappDetail)
+			dappCountMap[c] = dcm
+		} else {
+			var dtf []DappInfo
+			dtf = append(dtf, dappDetail)
+			dappCountMap[c] = dtf
+		}
+
+		direction = append(direction, c)
+	}
+	result := utils.GetMaxHeap(direction, 10) //由高到低
+
+	for i := len(result) - 1; i >= 0; i-- {
+		r := result[i]
+		if _, ok := checkDirection[r]; ok {
+			continue
+		} else {
+			checkDirection[r] = r
+		}
+		dappInfos = append(dappInfos, dappCountMap[r]...)
+	}
+	//log.Info("dapplog00", zap.Any("DAPPsName", dappNameMap), zap.Any("dappCountMap", dappCountMap), zap.Any("alldirection", direction), zap.Any("result", result), zap.Any("dappInfos", dappInfos))
+
+	return &TopDappResponse{
+		Ok:        true,
+		DappInfos: dappInfos,
+	}, nil
+}
+
+func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, req *AssetDistributionReq) (*AssetDistributionResponse, error) {
+	//tm := time.Now()
+	//var dt = utils.GetDayTime(&tm)
+	var checkDirection = make(map[int]int)
+	var tokenCheck = make(map[string]string)
+	platInfo := PlatInfoMap[req.ChainName]
+	getPriceKey := platInfo.GetPriceKey
+	var mcs []*data.MarketCoinHistory
+	mcsDb, e := data.MarketCoinHistoryRepoClient.ListByTimeRangesAll(ctx, req.Address, req.ChainName)
+	if e != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		return &AssetDistributionResponse{
+			Ok:           false,
+			ErrorMessage: e.Error(),
+		}, e
+	}
+	if mcsDb == nil || len(mcsDb) == 0 {
+		return &AssetDistributionResponse{
+			Ok: true,
+		}, nil
+	}
+
+	for _, mmm := range mcsDb {
+		kk := mmm.TokenAddress
+		if kk == "" {
+			kk = getPriceKey
+		}
+		if _, ok := tokenCheck[kk]; !ok {
+			mcs = append(mcs, mmm)
+			tokenCheck[kk] = kk
+		}
+	}
+	tokens := make([]*v1.Tokens, 0)
+	coinIds := make([]string, 0)
+	mchMap := make(map[string]*data.MarketCoinHistory)
+	for _, mch := range mcs {
+		if mch.TokenAddress == "" {
+			coinIds = append(coinIds, getPriceKey)
+			mchMap[getPriceKey] = mch
+		} else {
+			//daibi
+			tokens = append(tokens, &v1.Tokens{
+				Chain:   req.ChainName,
+				Address: mch.TokenAddress,
+			})
+			mchMap[mch.TokenAddress] = mch
+		}
+	}
+
+	var abs []AssetBalance
+	var orderMap = make(map[int][]AssetBalance)
+	var direction = make([]int, 0)
+	nowPrice, err := GetPriceFromMarket(tokens, coinIds)
+
+	if err != nil {
+		log.Info("查询实时币价失败", zap.Any("error", err))
+	} else {
+		for _, mch := range mcs {
+			var newCnyAmount, newUsdAmount, cnyBalanceAmount, usdBalanceAmount, icon string
+			usdBalanceAmountDecimal := decimal.Zero
+			cnyBalanceAmountDecimal := decimal.Zero
+			if mch.TokenAddress == "" {
+				if nowPrice.Coins != nil && len(nowPrice.Coins) == 1 && nowPrice.Coins[0].CoinID == getPriceKey {
+					newCnyAmount = strconv.FormatFloat(nowPrice.Coins[0].Price.Cny, 'f', 2, 64)
+					newUsdAmount = strconv.FormatFloat(nowPrice.Coins[0].Price.Usd, 'f', 2, 64)
+					cpd, _ := decimal.NewFromString(newCnyAmount)
+					upd, _ := decimal.NewFromString(newUsdAmount)
+					b, _ := decimal.NewFromString(mch.Balance)
+					cnyBalanceAmount = b.Mul(cpd).Round(2).String()
+					usdBalanceAmount = b.Mul(upd).Round(2).String()
+					usdBalanceAmountDecimal = b.Mul(upd).Round(2)
+					cnyBalanceAmountDecimal = b.Mul(cpd).Round(2)
+					icon = nowPrice.Coins[0].Icon
+				}
+			} else {
+			a:
+				for _, t := range nowPrice.Tokens {
+					if t.Chain == req.ChainName && mch.TokenAddress == t.Address {
+						newCnyAmount = strconv.FormatFloat(t.Price.Cny, 'f', 2, 64)
+						newUsdAmount = strconv.FormatFloat(t.Price.Usd, 'f', 2, 64)
+						cpd, _ := decimal.NewFromString(newCnyAmount)
+						upd, _ := decimal.NewFromString(newUsdAmount)
+						b, _ := decimal.NewFromString(mch.Balance)
+						cnyBalanceAmount = b.Mul(cpd).Round(2).String()
+						usdBalanceAmount = b.Mul(upd).Round(2).String()
+						usdBalanceAmountDecimal = b.Mul(upd).Round(2)
+						cnyBalanceAmountDecimal = b.Mul(cpd).Round(2)
+						icon = t.Icon
+						break a
+					}
+				}
+
+			}
+			proportion := "0"
+			negative := "0"
+			usdProceeds := "0"
+			cnyProceeds := "0"
+			cacUsd := ""
+			cacCny := ""
+			if usdBalanceAmountDecimal.Cmp(decimal.Zero) != 0 && mch.UsdAmount.Cmp(decimal.Zero) != 0 {
+				balanceDecimal, _ := decimal.NewFromString(mch.Balance)
+				cacUsd = mch.UsdAmount.Abs().DivRound(balanceDecimal, 2).String()
+				cacCny = mch.CnyAmount.Abs().DivRound(balanceDecimal, 2).String()
+
+				v := usdBalanceAmountDecimal.Sub(mch.UsdAmount.Abs())
+				if v.Cmp(decimal.Zero) != 0 {
+					proportion = v.Abs().DivRound(mch.UsdAmount.Abs(), 2).Mul(decimal.NewFromInt(100)).String()
+				}
+				if v.IsNegative() {
+					negative = "1"
+					v = v.Abs()
+				}
+				usdProceeds = v.Round(2).String()
+
+				vv := cnyBalanceAmountDecimal.Sub(mch.CnyAmount)
+				cnyProceeds = vv.Abs().Round(2).String()
+			}
+			if mch.CnyPrice != "0" {
+				if len(mch.CnyPrice) >= 1 {
+					flag := mch.CnyPrice[0:1] == "-"
+					if flag {
+						mch.CnyPrice = mch.CnyPrice[1:]
+					}
+				}
+				cacCny = mch.CnyPrice
+			}
+			if mch.UsdPrice != "0" {
+				if len(mch.UsdPrice) >= 1 {
+					flag := mch.UsdPrice[0:1] == "-"
+					if flag {
+						mch.UsdPrice = mch.UsdPrice[1:]
+					}
+				}
+				cacUsd = mch.UsdPrice
+			}
+
+			abResult := AssetBalance{
+				CnyAmount:        cacCny,
+				UsdAmount:        cacUsd,
+				NewCnyAmount:     newCnyAmount,
+				NewUsdAmount:     newUsdAmount,
+				CnyBalanceAmount: cnyBalanceAmount,
+				UsdBalanceAmount: usdBalanceAmount,
+				Symbol:           mch.Symbol,
+				HoldCnyAmount:    cnyProceeds,
+				HoldUsdAmount:    usdProceeds,
+				Proportion:       proportion,
+				Negative:         negative,
+				Icon:             icon,
+				TokenAddress:     mch.TokenAddress,
+			}
+			if usdBalanceAmountDecimal.Cmp(decimal.NewFromFloat(10.0)) == 1 {
+				if req.OrderField == "1" {
+					of := int(usdBalanceAmountDecimal.IntPart())
+					if dcm, ok := orderMap[of]; ok {
+						dcm = append(dcm, abResult)
+						orderMap[of] = dcm
+					} else {
+						var dtf []AssetBalance
+						dtf = append(dtf, abResult)
+						orderMap[of] = dtf
+					}
+					direction = append(direction, of)
+				}
+				if req.OrderField == "2" {
+					of, _ := strconv.Atoi(usdProceeds)
+
+					if dcm, ok := orderMap[of]; ok {
+						dcm = append(dcm, abResult)
+						orderMap[of] = dcm
+					} else {
+						var dtf []AssetBalance
+						dtf = append(dtf, abResult)
+						orderMap[of] = dtf
+					}
+					direction = append(direction, of)
+				}
+			}
+		}
+		var result = make([]int, 0)
+		if req.DataDirection == "1" {
+			result = utils.GetMaxHeap(direction, len(direction)) //由低到高
+		} else {
+			result = utils.GetMinHeap(direction, len(direction)) //由高到低
+		}
+
+		for _, v := range result {
+			if _, ok := checkDirection[v]; ok {
+				continue
+			} else {
+				checkDirection[v] = v
+			}
+			abs = append(abs, orderMap[v]...)
+		}
+	}
+
+	return &AssetDistributionResponse{
+		Ok:               true,
+		AssetBalanceList: abs,
+	}, nil
+
+}
+
+func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *TransactionTypeReq) (*AddressAssetResponse, error) {
+	tm := time.Now()
+	var dt = utils.GetDayTime(&tm)
+	platInfo := PlatInfoMap[req.ChainName]
+	getPriceKey := platInfo.GetPriceKey
+	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
+	uahrs, e := data.UserAssetHistoryRepoClient.ListByRangeTimeAndAddressAndChainName(ctx, startTime, endTime, req.Address, req.ChainName)
+	log.Info("xize", zap.Any("", uahrs))
+	if e != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产价值数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		return &AddressAssetResponse{
+			Ok:                   false,
+			Proportion:           "0",
+			Negative:             "0",
+			ProceedsUsd:          "0",
+			ProceedsCny:          "0",
+			StartTime:            endTime,
+			EndTime:              endTime,
+			ErrorMessage:         e.Error(),
+			AddressAssetTypeList: make([]AddressAssetType, 0),
+		}, e
+	}
+	if uahrs == nil || len(uahrs) == 0 {
+		return &AddressAssetResponse{
+			Ok:                   true,
+			Proportion:           "0",
+			Negative:             "0",
+			ProceedsUsd:          "0",
+			ProceedsCny:          "0",
+			StartTime:            endTime,
+			EndTime:              endTime,
+			AddressAssetTypeList: make([]AddressAssetType, 0),
+		}, nil
+	}
+
+	tokens := make([]*v1.Tokens, 0)
+	coinIds := make([]string, 0)
+	dts := make([]int, 0)
+	dtsMap := make(map[int]string)
+	coinAndBalance := make(map[string]string)
+	tokenAndBalance := make(map[string]string)
+
+	//按天 排序 map
+	var assetDtMap = make(map[int64]AddressAssetType)
+	for _, uahr := range uahrs {
+		if uahr.Dt == dt {
+			//zhubi
+			if uahr.TokenAddress == "" {
+				coinIds = append(coinIds, getPriceKey)
+				coinAndBalance[getPriceKey] = uahr.Balance
+			} else {
+				//daibi
+				tokens = append(tokens, &v1.Tokens{
+					Chain:   req.ChainName,
+					Address: uahr.TokenAddress,
+				})
+				tokenAndBalance[uahr.TokenAddress] = uahr.Balance
+			}
+			if _, ok := dtsMap[int(uahr.Dt)]; !ok {
+				dts = append(dts, int(uahr.Dt))
+				dtsMap[int(uahr.Dt)] = uahr.Address
+			}
+
+		} else {
+			//已计算过，就继续累加
+			if ad, ok := assetDtMap[uahr.Dt]; ok {
+				cad := ad.CnyAmountDecimal.Add(uahr.CnyAmount).Round(2)
+				ad.CnyAmountDecimal = cad
+				ad.CnyAmount = cad.String()
+
+				uad := ad.UsdAmountDecimal.Add(uahr.UsdAmount).Round(2)
+				ad.UsdAmountDecimal = uad
+				ad.UsdAmount = uad.String()
+				assetDtMap[uahr.Dt] = ad
+
+			} else {
+				assetDtMap[uahr.Dt] = AddressAssetType{
+					CnyAmount:        uahr.CnyAmount.Round(2).String(),
+					UsdAmount:        uahr.UsdAmount.Round(2).String(),
+					Dt:               int(uahr.Dt),
+					CnyAmountDecimal: uahr.CnyAmount.Round(2),
+					UsdAmountDecimal: uahr.UsdAmount.Round(2),
+				}
+			}
+			if _, ok := dtsMap[int(uahr.Dt)]; !ok {
+				dts = append(dts, int(uahr.Dt))
+				dtsMap[int(uahr.Dt)] = uahr.Address
+			}
+		}
+	}
+
+	//查询币价
+	nowPrice, err := GetPriceFromMarket(tokens, coinIds)
+	if err != nil {
+		log.Info("查询实时币价失败", zap.Any("error", err))
+	} else {
+		totalCnyAmount := decimal.Zero
+		totalUsdAmount := decimal.Zero
+		//主币价格
+		if nowPrice.Coins != nil && len(nowPrice.Coins) == 1 && nowPrice.Coins[0].CoinID == getPriceKey {
+			cnyPrice := strconv.FormatFloat(nowPrice.Coins[0].Price.Cny, 'f', 2, 64)
+			cpd, _ := decimal.NewFromString(cnyPrice)
+			usdPrice := strconv.FormatFloat(nowPrice.Coins[0].Price.Usd, 'f', 2, 64)
+			upd, _ := decimal.NewFromString(usdPrice)
+
+			balanceStr := coinAndBalance[getPriceKey]
+			balance, _ := decimal.NewFromString(balanceStr)
+			//cny 金额
+			cnyValue := balance.Mul(cpd).Round(2)
+			//usd 金额
+			usdValue := balance.Mul(upd).Round(2)
+			totalCnyAmount = totalCnyAmount.Add(cnyValue).Round(2)
+			totalUsdAmount = totalUsdAmount.Add(usdValue).Round(2)
+		}
+		for _, t := range nowPrice.Tokens {
+			cnyPrice := strconv.FormatFloat(t.Price.Cny, 'f', 2, 64)
+			cpd, _ := decimal.NewFromString(cnyPrice)
+			usdPrice := strconv.FormatFloat(t.Price.Usd, 'f', 2, 64)
+			upd, _ := decimal.NewFromString(usdPrice)
+
+			balanceStr := tokenAndBalance[t.Address]
+			balance, _ := decimal.NewFromString(balanceStr)
+			//cny 金额
+			cnyValue := balance.Mul(cpd).Round(2)
+			//usd 金额
+			usdValue := balance.Mul(upd).Round(2)
+			totalCnyAmount = totalCnyAmount.Add(cnyValue).Round(2)
+			totalUsdAmount = totalUsdAmount.Add(usdValue).Round(2)
+
+		}
+		assetDtMap[dt] = AddressAssetType{
+			CnyAmount:        totalCnyAmount.String(),
+			UsdAmount:        totalUsdAmount.String(),
+			Dt:               int(dt),
+			CnyAmountDecimal: totalCnyAmount,
+			UsdAmountDecimal: totalUsdAmount,
+		}
+	}
+
+	//排序由小到大
+	result := utils.GetMaxHeap(dts, len(dts))
+	addressAssetTypeList := make([]AddressAssetType, 0)
+	for index, dtt := range result {
+		if index == 0 {
+			startTime = assetDtMap[int64(dtt)].Dt
+		}
+		addressAssetTypeList = append(addressAssetTypeList, assetDtMap[int64(dtt)])
+	}
+
+	proportion := "0"
+	negative := "0"
+	proceedsUsd := "0"
+	proceedsCny := "0"
+	if len(result) >= 1 {
+		frist := int64(result[0])
+		end := int64(result[len(result)-1])
+		old := assetDtMap[frist]
+		current := assetDtMap[end]
+		if old.UsdAmountDecimal.Cmp(decimal.Zero) != 0 {
+			proportion = current.UsdAmountDecimal.DivRound(old.UsdAmountDecimal, 4).Mul(decimal.NewFromInt(100)).String()
+		}
+		v := current.UsdAmountDecimal.Sub(old.UsdAmountDecimal).Round(2)
+		vv := current.CnyAmountDecimal.Sub(old.CnyAmountDecimal).Round(2)
+		if v.IsNegative() {
+			negative = "1"
+			v = v.Abs()
+		}
+		proceedsUsd = v.String()
+		proceedsCny = vv.Abs().String()
+	}
+
+	return &AddressAssetResponse{
+		Ok:                   true,
+		Proportion:           proportion,
+		Negative:             negative,
+		ProceedsUsd:          proceedsUsd,
+		ProceedsCny:          proceedsCny,
+		StartTime:            startTime,
+		EndTime:              endTime,
+		AddressAssetTypeList: addressAssetTypeList,
+	}, nil
+
+}
+
+func (s *TransactionUsecase) GetTransactionTop(ctx context.Context, req *TransactionTypeReq) (*TransactionTopResponse, error) {
+	//查询 from 为 用户地址
+	//查询to 为用户地址  native，transfer eventlog
+	var checkDirection = make(map[int]int)
+	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
+	toRecords, _ := data.EvmTransactionRecordRepoClient.FindByAddressCount(ctx, GetTableName(req.ChainName), req.Address, "to_address", startTime, endTime, "from_address")
+	fromRecords, _ := data.EvmTransactionRecordRepoClient.FindByAddressCount(ctx, GetTableName(req.ChainName), req.Address, "from_address", startTime, endTime, "to_address")
+	//log.Info("huangtugaoyuan",zap.Any())
+
+	var tops = make(map[string]int64)
+	var counts = make([]int, 0)
+	var result = make(map[int][]string)
+	for _, tr := range toRecords {
+		tops[tr.Address] = int64(tr.Count)
+	}
+	for _, tr := range fromRecords {
+		if ad, ok := tops[tr.Address]; ok {
+			tops[tr.Address] = ad + int64(tr.Count)
+		} else {
+			tops[tr.Address] = int64(tr.Count)
+		}
+	}
+
+	for k, v := range tops {
+		c := int(v)
+		counts = append(counts, c)
+		if rr, ok := result[c]; ok {
+			rr = append(rr, k)
+			result[c] = rr
+		} else {
+			var nrr []string
+			nrr = append(nrr, k)
+			result[c] = nrr
+		}
+	}
+	var tts []TransactionTop
+	mrs := utils.GetMaxHeap(counts, 10) //由高到低
+	for i := len(mrs) - 1; i >= 0; i-- {
+		r := mrs[i]
+		if _, ok := checkDirection[r]; ok {
+			continue
+		} else {
+			checkDirection[r] = r
+		}
+		add := result[r]
+		for _, rv := range add {
+			tts = append(tts, TransactionTop{
+				Count:   int64(r),
+				Address: rv,
+			})
+		}
+
+	}
+	return &TransactionTopResponse{
+		Ok:                 true,
+		TransactionTopList: tts,
+	}, nil
+
+}
+
+func (s *TransactionUsecase) GetAssetByAddressAndTime(ctx context.Context, req *TransactionTypeReq) (*TokenAssetAndCountResponse, error) {
+	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
+	mcs, e := data.MarketCoinHistoryRepoClient.ListByTimeRanges(ctx, req.Address, req.ChainName, startTime, endTime)
+	if e != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		return &TokenAssetAndCountResponse{
+			Ok:           false,
+			ErrorMessage: e.Error(),
+		}, e
+	}
+	totalTransactionQuantity := 0
+	if mcs == nil || len(mcs) == 0 {
+		return &TokenAssetAndCountResponse{
+			Ok:                       true,
+			TotalCnyAmount:           "0",
+			TotalUsdAmount:           "0",
+			TotalTransactionQuantity: totalTransactionQuantity,
+		}, nil
+	}
+	platInfo := PlatInfoMap[req.ChainName]
+	symbol := platInfo.NativeCurrency
+	getPriceKey := platInfo.GetPriceKey
+	totalTransactionq, ctnaa, totalCnyAmount, totalUsdAmount, err := HandleCoinPrice(mcs, getPriceKey, symbol, req.OrderField, req.ChainName)
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		return &TokenAssetAndCountResponse{
+			Ok:           false,
+			ErrorMessage: e.Error(),
+		}, e
+	}
+	return &TokenAssetAndCountResponse{
+		Ok:                        true,
+		TotalCnyAmount:            totalCnyAmount.String(),
+		TotalUsdAmount:            totalUsdAmount.String(),
+		TotalTransactionQuantity:  totalTransactionq,
+		ChainTokenNumberAndAssets: ctnaa,
+	}, nil
+}
+
+func HandleCoinPrice(mcs []*data.MarketCoinHistory, getPriceKey string, nativeSymbol string, orderField string, chainName string) (int, []ChainTokenNumberAndAsset, decimal.Decimal, decimal.Decimal, error) {
+	//token 交易数量，带小数点的
+	tokenAmount := make(map[string]decimal.Decimal)
+	coinIdsMap := make(map[string]string)
+	tokenIdsMap := make(map[string]string)
+	countCoinNum := make(map[string]int)
+	orderMap := make(map[int][]ChainTokenNumberAndAsset)
+	orderList := make([]int, 0)
+
+	totalCnyAmount := decimal.Zero
+	totalUsdAmount := decimal.Zero
+	totalTransactionQuantity := 0
+	ctnaa := make([]ChainTokenNumberAndAsset, 0)
+	ctnaaResult := make([]ChainTokenNumberAndAsset, 0)
+	octbaa := ChainTokenNumberAndAsset{
+		Symbol:              "other",
+		CnyAmount:           "0",
+		UsdAmount:           "0",
+		TransactionQuantity: 0,
+	}
+	log.Info("lebenggg", zap.Any("mcs", mcs))
+	for _, ta := range mcs {
+		if ta.Symbol == "" {
+			continue
+		}
+		tb, _ := decimal.NewFromString(ta.TransactionBalance)
+		if ta.TokenAddress == "" {
+			//cny
+			if v, ok := tokenAmount[getPriceKey]; ok {
+				//有记录后 增加
+				tokenAmount[getPriceKey] = v.Add(tb)
+			} else {
+				tokenAmount[getPriceKey] = tb
+			}
+
+			if _, ok := coinIdsMap[getPriceKey]; !ok {
+				coinIdsMap[getPriceKey] = nativeSymbol
+			}
+
+			if n, ok := countCoinNum[getPriceKey]; ok {
+				countCoinNum[getPriceKey] = n + int(ta.TransactionQuantity)
+			} else {
+				countCoinNum[getPriceKey] = int(ta.TransactionQuantity)
+			}
+
+		} else {
+			//代币
+			if v, ok := tokenAmount[ta.TokenAddress]; ok {
+				//有记录后 增加
+				tokenAmount[ta.TokenAddress] = v.Add(tb)
+			} else {
+				tokenAmount[ta.TokenAddress] = tb
+			}
+
+			if _, ok := tokenIdsMap[ta.TokenAddress]; !ok {
+				tokenIdsMap[ta.TokenAddress] = ta.Symbol
+			}
+
+			if tn, ok := countCoinNum[ta.TokenAddress]; ok {
+				countCoinNum[ta.TokenAddress] = tn + int(ta.TransactionQuantity)
+			} else {
+				countCoinNum[ta.TokenAddress] = int(ta.TransactionQuantity)
+			}
+		}
+	}
+	log.Info("lebenggg1", zap.Any("totalTransactionQuantity", totalTransactionQuantity), zap.Any("tokenAmount", tokenAmount), zap.Any("countCoinNum", countCoinNum))
+
+	tokens := make([]*v1.Tokens, 0)
+	for k, _ := range tokenIdsMap {
+		tokens = append(tokens, &v1.Tokens{
+			Chain:   chainName,
+			Address: k,
+		})
+	}
+	coinIds := make([]string, 0)
+	for ck, _ := range coinIdsMap {
+		coinIds = append(coinIds, ck)
+	}
+
+	//查询币价
+	nowPrice, err := GetPriceFromMarket(tokens, coinIds)
+	if err != nil {
+		log.Info("查询币价失败", zap.Any("error", err))
+		return 0, nil, totalCnyAmount, totalUsdAmount, err
+	}
+	//主币价格
+	if nowPrice.Coins != nil && len(nowPrice.Coins) == 1 && nowPrice.Coins[0].CoinID == getPriceKey {
+		cnyPrice := strconv.FormatFloat(nowPrice.Coins[0].Price.Cny, 'f', 2, 64)
+		cpd, _ := decimal.NewFromString(cnyPrice)
+		usdPrice := strconv.FormatFloat(nowPrice.Coins[0].Price.Usd, 'f', 2, 64)
+		upd, _ := decimal.NewFromString(usdPrice)
+
+		balance := tokenAmount[getPriceKey]
+		//cny 金额
+		cnyValue := balance.Mul(cpd).Round(2)
+		//usd 金额
+		usdValue := balance.Mul(upd).Round(2)
+		hh := ChainTokenNumberAndAsset{
+			Symbol:              coinIdsMap[getPriceKey],
+			CnyAmount:           cnyValue.String(),
+			UsdAmount:           usdValue.String(),
+			TransactionQuantity: countCoinNum[getPriceKey],
+		}
+		if orderField == "1" {
+			orderList = append(orderList, countCoinNum[getPriceKey])
+			if ov, ok := orderMap[countCoinNum[getPriceKey]]; ok {
+				ov = append(ov, hh)
+				orderMap[countCoinNum[getPriceKey]] = ov
+			} else {
+				var newc []ChainTokenNumberAndAsset
+				newc = append(newc, hh)
+				orderMap[countCoinNum[getPriceKey]] = newc
+			}
+		}
+		if orderField == "2" {
+			orderList = append(orderList, int(usdValue.IntPart()))
+			if ov, ok := orderMap[int(usdValue.IntPart())]; ok {
+				ov = append(ov, hh)
+				orderMap[int(usdValue.IntPart())] = ov
+			} else {
+				var newc []ChainTokenNumberAndAsset
+				newc = append(newc, hh)
+				orderMap[int(usdValue.IntPart())] = newc
+			}
+		}
+
+		totalCnyAmount = totalCnyAmount.Add(cnyValue)
+		totalUsdAmount = totalUsdAmount.Add(usdValue)
+	}
+	//拿出币价，计算
+	for _, v1 := range nowPrice.Tokens {
+		cnyTokenPrice := strconv.FormatFloat(v1.Price.Cny, 'f', 2, 64)
+		ctpd, _ := decimal.NewFromString(cnyTokenPrice)
+		usdTokenPrice := strconv.FormatFloat(v1.Price.Usd, 'f', 2, 64)
+		utpd, _ := decimal.NewFromString(usdTokenPrice)
+		tokenBalance := tokenAmount[v1.Address]
+		//cny 金额
+		cnyTokenValue := tokenBalance.Mul(ctpd).Round(2)
+		//usd 金额
+		usdTokenValue := tokenBalance.Mul(utpd).Round(2)
+
+		thh := ChainTokenNumberAndAsset{
+			TokenAddress:        v1.Address,
+			CnyAmount:           cnyTokenValue.String(),
+			UsdAmount:           usdTokenValue.String(),
+			TransactionQuantity: countCoinNum[v1.Address],
+		}
+		tokenInfo, e := GetTokenInfoRetryAlert(nil, chainName, v1.Address)
+		if e == nil {
+			thh.Symbol = tokenInfo.Symbol
+		}
+
+		if orderField == "1" {
+			orderList = append(orderList, countCoinNum[v1.Address])
+			if ov, ok := orderMap[countCoinNum[v1.Address]]; ok {
+				ov = append(ov, thh)
+				orderMap[countCoinNum[v1.Address]] = ov
+			} else {
+				var newc []ChainTokenNumberAndAsset
+				newc = append(newc, thh)
+				orderMap[countCoinNum[v1.Address]] = newc
+			}
+		}
+		if orderField == "2" {
+			orderList = append(orderList, int(usdTokenValue.IntPart()))
+			if ov, ok := orderMap[int(usdTokenValue.IntPart())]; ok {
+				ov = append(ov, thh)
+				orderMap[int(usdTokenValue.IntPart())] = ov
+			} else {
+				var newc []ChainTokenNumberAndAsset
+				newc = append(newc, thh)
+				orderMap[int(usdTokenValue.IntPart())] = newc
+			}
+		}
+
+		totalCnyAmount = totalCnyAmount.Add(cnyTokenValue)
+		totalUsdAmount = totalUsdAmount.Add(usdTokenValue)
+	}
+
+	result := utils.GetMinHeap(orderList, len(orderList)) //由高到低
+	log.Info("lebenggg3", zap.Any("orderList", orderList), zap.Any("result", result), zap.Any("orderMap", orderMap))
+	var checkDirection = make(map[int]int)
+
+	for _, r := range result {
+		if _, ok := checkDirection[r]; ok {
+			continue
+		} else {
+			checkDirection[r] = r
+		}
+		ctnaa = append(ctnaa, orderMap[r]...)
+	}
+	for index, rv := range ctnaa {
+		if index >= 5 {
+			cad, _ := decimal.NewFromString(octbaa.CnyAmount)
+			uad, _ := decimal.NewFromString(octbaa.UsdAmount)
+			ccad, _ := decimal.NewFromString(rv.CnyAmount)
+			cuad, _ := decimal.NewFromString(rv.UsdAmount)
+			octbaa.TransactionQuantity = octbaa.TransactionQuantity + rv.TransactionQuantity
+			octbaa.CnyAmount = cad.Add(ccad).Round(2).String()
+			octbaa.UsdAmount = uad.Add(cuad).Round(2).String()
+			totalTransactionQuantity = totalTransactionQuantity + rv.TransactionQuantity
+		} else {
+			ctnaaResult = append(ctnaaResult, rv)
+			totalTransactionQuantity = totalTransactionQuantity + rv.TransactionQuantity
+
+		}
+	}
+	if octbaa.TransactionQuantity != 0 {
+		ctnaaResult = append(ctnaaResult, octbaa)
+	}
+	return totalTransactionQuantity, ctnaaResult, totalCnyAmount.Round(2), totalUsdAmount.Round(2), nil
+}
+
+func (s *TransactionUsecase) GetTransactionTypeDistributionByAddress(ctx context.Context, req *TransactionTypeReq) (*TransactionTypeDistributionResponse, error) {
+	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
+	etcList, e := data.EvmTransactionRecordRepoClient.FindTransactionTypeByAddress(ctx, GetTableName(req.ChainName), req.Address, startTime, endTime)
+	if e != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易类型数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易类型数据失败 ", zap.Any("error", e))
+		return &TransactionTypeDistributionResponse{
+			Ok:           false,
+			ErrorMessage: e.Error(),
+		}, e
+	}
+	if etcList == nil || len(etcList) == 0 {
+		return &TransactionTypeDistributionResponse{
+			Ok:    true,
+			Total: 0,
+		}, nil
+	}
+	txTotal := 0
+	var ttds []TransactionTypeDistribution
+	otherTransactionType := TransactionTypeDistribution{
+		TransactionType: OTHER,
+		Count:           0,
+	}
+	for _, evmTransactionCount := range etcList {
+		if evmTransactionCount.TransactionType == NATIVE || evmTransactionCount.TransactionType == TRANSFER || evmTransactionCount.TransactionType == CONTRACT || evmTransactionCount.TransactionType == CREATECONTRACT || evmTransactionCount.TransactionType == SWAP {
+			ttd := TransactionTypeDistribution{
+				TransactionType: evmTransactionCount.TransactionType,
+				Count:           evmTransactionCount.Count,
+			}
+			ttds = append(ttds, ttd)
+		} else {
+			otherTransactionType.Count = otherTransactionType.Count + evmTransactionCount.Count
+		}
+
+		txTotal = txTotal + int(evmTransactionCount.Count)
+	}
+	ttds = append(ttds, otherTransactionType)
+
+	return &TransactionTypeDistributionResponse{
+		Ok:                  true,
+		Total:               txTotal,
+		TransactionTypeList: ttds,
+	}, nil
+}
 func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcParams) (*pb.JsonResponse, error) {
 	//log.Info("==4",zap.Any("4",req))
 

@@ -24,6 +24,36 @@ var recordRPCUrl sync.Map
 var dayFormat = "2006-01-02"
 var local, _ = time.LoadLocation("Asia/Shanghai")
 
+func RangeTimeConvertTime(rangeTime string) (int, int) {
+	endTime := time.Now()
+	if rangeTime == "ALL" {
+		return 0, int(endTime.Unix())
+	}
+	if rangeTime == "7D" {
+		m, _ := time.ParseDuration("-168h")
+		startTime := endTime.Add(m)
+		return int(startTime.Unix()), int(endTime.Unix())
+
+	}
+	if rangeTime == "30D" {
+		m, _ := time.ParseDuration("-720h")
+		startTime := endTime.Add(m)
+		return int(startTime.Unix()), int(endTime.Unix())
+	}
+	if rangeTime == "3M" {
+		m, _ := time.ParseDuration("-2189h")
+		startTime := endTime.Add(m)
+		return int(startTime.Unix()), int(endTime.Unix())
+	}
+	if rangeTime == "1Y" {
+		m, _ := time.ParseDuration("-8760h")
+		startTime := endTime.Add(m)
+		return int(startTime.Unix()), int(endTime.Unix())
+	}
+
+	return 0, 0
+}
+
 type minHeap []int
 
 func (h minHeap) Len() int {
@@ -52,9 +82,9 @@ func GetMaxHeap(gas []int, i int) []int {
 	h := minHeap{}
 	heap.Init(&h)
 	for index, v := range gas {
-		if index  < i {
+		if index < i {
 			heap.Push(&h, v)
-		}else {
+		} else {
 			heap.Push(&h, v)
 			heap.Pop(&h)
 		}
@@ -77,9 +107,9 @@ func GetMinHeap(gas []int, i int) []int {
 	h := maxHeap{}
 	heap.Init(&h)
 	for index, v := range gas {
-		if index  < i {
+		if index < i {
 			heap.Push(&h, v)
-		}else {
+		} else {
 			heap.Push(&h, v)
 			heap.Pop(&h)
 		}
@@ -96,7 +126,6 @@ func GetMinHeap(gas []int, i int) []int {
 
 	return result
 }
-
 
 type maxHeap []int
 
@@ -476,4 +505,13 @@ func RandInt32(min, max int32) int32 {
 	//生成的随机数再加min则落在min到max区间
 	rd := rand.Int31n(max-min) + min
 	return rd
+}
+
+func ZeroPoint() time.Duration {
+	now := time.Now()
+	next := now.Add(time.Hour * 24)
+	//next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, next.Location())
+	next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, next.Location())
+	yy := next.Sub(now)
+	return yy
 }

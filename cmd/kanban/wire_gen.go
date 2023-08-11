@@ -60,10 +60,12 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	}
 	userRecordRepo := data.NewUserRecordRepo(userGormDB)
 	userAssetRepo := data.NewUserAssetRepo(db)
+	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
+	userAssetHistoryRepo := data.NewUserAssetHistoryRepo(db)
 	dappApproveRecordRepo := data.NewDappApproveRecordRepo(db)
 	client := data.NewRedisClient(confData)
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
-	dataBundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, dataEvmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo)
+	dataBundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, dataEvmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, dataBundle, bundle)
 	migrateScheduler := kanban.NewMigrateScheduler(bootstrap, bundle, transactionUsecase, kanbanGormDB, options)
 	aggerator := kanban.NewAggerator(bootstrap, bundle, options)

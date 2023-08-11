@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.EvmTransact
 	}()
 
 	go biz.DappApproveFilter(chainName, txRecords)
+	go HandleMarketCoinHistory(chainName, txRecords)
 	go biz.NftApproveFilter(chainName, txRecords)
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
@@ -189,6 +191,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
+	var userAssetHistorys []*data.UserAssetHistory
 	userAssetMap := make(map[string]*data.UserAsset)
 	addressTokenMap := make(map[string]map[string]int)
 	tokenSymbolMap := make(map[string]string)
@@ -331,13 +334,30 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	if len(userAssetMap) == 0 {
 		return
 	}
+	tm := time.Now()
+	var dt = utils.GetDayTime(&tm)
 	for _, userAsset := range userAssetMap {
 		userAssets = append(userAssets, userAsset)
+
+		userAssetHistorys = append(userAssetHistorys, &data.UserAssetHistory{
+			ChainName:    userAsset.ChainName,
+			Uid:          userAsset.Uid,
+			Address:      userAsset.Address,
+			TokenAddress: userAsset.TokenAddress,
+			Balance:      userAsset.Balance,
+			Decimals:     userAsset.Decimals,
+			Symbol:       userAsset.Symbol,
+			Dt:           dt,
+			CreatedAt:    userAsset.CreatedAt,
+			UpdatedAt:    userAsset.UpdatedAt,
+		})
 	}
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+	data.UserAssetHistoryRepoClient.PageBatchSaveOrUpdate(nil, userAssetHistorys, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+		data.UserAssetHistoryRepoClient.PageBatchSaveOrUpdate(nil, userAssetHistorys, biz.PAGE_SIZE)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
@@ -852,4 +872,259 @@ func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error))
 		return fc(*c)
 	})
 	return result, err
+}
+
+func HandleMarketCoinHistory(chainName string, txRecords []*data.EvmTransactionRecord) {
+	//获取 币价
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleMarketCoinHistory error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleMarketCoinHistory panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链处理币价失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	tm := time.Now()
+	var dt = utils.GetDayTime(&tm)
+
+	//拿出精度，还有symbol 还有 getpricekey
+
+	for _, record := range txRecords {
+		if record.Status != biz.SUCCESS {
+			continue
+		}
+		fromUid := record.FromUid
+		toUid := record.ToUid
+		fromAddress := record.FromAddress
+		toAddress := record.ToAddress
+		switch record.TransactionType {
+		case biz.TRANSFER:
+			//解析parse_data 拿出 代币.
+			//计算主币的余额，因为有手续费的花费
+			if fromUid != "" {
+				HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, decimal.Zero)
+				HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+			}
+			if toUid != "" {
+				HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+			}
+
+		case biz.APPROVE, biz.APPROVENFT, biz.CREATECONTRACT, biz.CREATEACCOUNT, biz.TRANSFERNFT, biz.CONTRACT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH, biz.SETAPPROVALFORALL, biz.SAFETRANSFERFROM, biz.SAFEBATCHTRANSFERFROM:
+			//主币计算
+			if fromUid != "" {
+				HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, decimal.Zero)
+			}
+		case biz.EVENTLOG:
+			//  解析parse_data 拿出 代币
+			if fromUid != "" {
+				HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+			}
+			if toUid != "" {
+				HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+			}
+		case biz.NATIVE:
+			// 主币 + 手续费
+			if fromUid != "" {
+				HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, record.Amount)
+			}
+			if toUid != "" {
+				HandlerNativePriceHistory(chainName, toAddress, fromUid, dt, false, record.FeeAmount, record.Amount)
+			}
+		}
+
+	}
+
+	//该交易获取后。处理完需要
+	//查询资产时对比 userAssert 里面的资产查询出所有代
+}
+
+func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int64, fromFlag bool) {
+	now := time.Now().Unix()
+	tokenInfo, _ := biz.ParseTokenInfo(parseData)
+	tokenSymbolMap := make(map[string]int)
+	tokenSymbolMap[tokenInfo.Address] = int(tokenInfo.Decimals)
+
+	tma, _ := biz.GetPriceFromTokenAddress([]string{tokenInfo.Address})
+	if tma == nil {
+		return
+	}
+	var cnyTokenPrice, usdTokenPrice string
+	if len(tma.Tokens) == 1 {
+		cnyTokenPrice = strconv.FormatFloat(tma.Tokens[0].Price.Cny, 'f', 2, 64)
+		usdTokenPrice = strconv.FormatFloat(tma.Tokens[0].Price.Usd, 'f', 2, 64)
+	}
+	cnyTokenPriceDecimal, _ := decimal.NewFromString(cnyTokenPrice)
+	usdTokenPriceDecimal, _ := decimal.NewFromString(usdTokenPrice)
+
+	tokenResult, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		return client.BatchTokenBalance(address, tokenSymbolMap)
+	})
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询%s余额失败", chainName, address)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+":"+address+"查询余额失败", zap.Any("error", err))
+	}
+	balanceList := tokenResult.(map[string]interface{})
+	tokenBalance := fmt.Sprintf("%v", balanceList[tokenInfo.Address])
+	tokenBalanceDecimal, _ := decimal.NewFromString(tokenBalance)
+
+	tokenAmount, _ := decimal.NewFromString(tokenInfo.Amount)
+	var tas string
+	if fromFlag {
+		tas = utils.StringDecimals(tokenAmount.Neg().String(), int(tokenInfo.Decimals))
+	} else {
+		tas = utils.StringDecimals(tokenAmount.String(), int(tokenInfo.Decimals))
+	}
+	tokenAmountDecimal, _ := decimal.NewFromString(tas)
+	cnyTokenAmount := tokenAmountDecimal.Mul(cnyTokenPriceDecimal)
+	usdTokenAmount := tokenAmountDecimal.Mul(usdTokenPriceDecimal)
+
+	fmcs, _ := data.MarketCoinHistoryRepoClient.ListByCondition(nil, &data.MarketCoinHistory{
+		ChainName:    chainName,
+		Address:      address,
+		TokenAddress: tokenInfo.Address,
+	})
+	txb := utils.StringDecimals(tokenAmount.String(), int(tokenInfo.Decimals))
+	if len(fmcs) == 0 {
+		//插入代币 币价
+		msh := &data.MarketCoinHistory{
+			Uid:                 uid,
+			Address:             address,
+			ChainName:           chainName,
+			TokenAddress:        tokenInfo.Address,
+			Symbol:              tokenInfo.Symbol,
+			CnyPrice:            cnyTokenPrice, //均价   1： 10  2：15  3：20  (CnyAmount + inputBalance * inputcnyprice)/(balance+inputBalance)
+			UsdPrice:            usdTokenPrice, //均价
+			TransactionQuantity: 1,
+			CnyAmount:           cnyTokenAmount, // CnyAmount + inputBalance * inputcnyprice
+			UsdAmount:           usdTokenAmount,
+			Dt:                  dt,
+			Balance:             tokenBalance, //当前余额 带小数点
+			CreatedAt:           now,
+			UpdatedAt:           now,
+			TransactionBalance:  txb,
+		}
+		data.MarketCoinHistoryRepoClient.Save(nil, msh)
+	} else if len(fmcs) == 1 {
+		marketCoinHistory := fmcs[0]
+		marketCoinHistory.TransactionQuantity = marketCoinHistory.TransactionQuantity + 1
+		marketCoinHistory.Balance = tokenBalance
+		marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyTokenAmount)
+		marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdTokenAmount)
+		if tokenBalanceDecimal.Cmp(decimal.Zero) != 0 {
+			marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(tokenBalanceDecimal, 0).String()
+			marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(tokenBalanceDecimal, 0).String()
+		}
+		marketCoinHistory.UpdatedAt = now
+		oldTransactionBalance, _ := decimal.NewFromString(marketCoinHistory.TransactionBalance)
+		newTransactionBalance, _ := decimal.NewFromString(txb)
+		marketCoinHistory.TransactionBalance = oldTransactionBalance.Add(newTransactionBalance).String()
+		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
+	}
+}
+func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFlag bool, feeAmount, amount decimal.Decimal) {
+	now := time.Now().Unix()
+	var cnyPrice, usdPrice string
+	platInfo := biz.PlatInfoMap[chainName]
+	decimals := int(platInfo.Decimal)
+	symbol := platInfo.NativeCurrency
+	getPriceKey := platInfo.GetPriceKey
+
+	tokenMarket, _ := biz.GetPriceFromChain([]string{getPriceKey})
+	if tokenMarket == nil {
+		return
+	}
+	cs := tokenMarket.Coins
+	if len(cs) > 0 {
+		for _, c := range cs {
+			if c.CoinID == getPriceKey {
+				if c.Price != nil {
+					cnyPrice = strconv.FormatFloat(c.Price.Cny, 'f', 2, 64)
+					usdPrice = strconv.FormatFloat(c.Price.Usd, 'f', 2, 64)
+				}
+				break
+			}
+		}
+	}
+
+	cnyPriceDecimal, _ := decimal.NewFromString(cnyPrice)
+	usdPriceDecimal, _ := decimal.NewFromString(usdPrice)
+	var fs string
+	if fromFlag {
+		totalAmount := feeAmount.Add(amount)
+		fs = utils.StringDecimals(totalAmount.Neg().String(), decimals)
+	} else {
+		totalAmount := feeAmount.Add(amount)
+		fs = utils.StringDecimals(totalAmount.String(), decimals)
+	}
+	totalNum, _ := decimal.NewFromString(fs)
+	cnyFee := totalNum.Mul(cnyPriceDecimal)
+	usdFee := totalNum.Mul(usdPriceDecimal)
+
+	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+		return client.GetBalance(address)
+	})
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链查询%s余额失败", chainName, address)
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+":"+address+"查询余额失败", zap.Any("error", err))
+	}
+	//主币余额，处理过精度，结果为带小数点
+	balance := result.(string)
+	balanceDecimal, _ := decimal.NewFromString(balance)
+
+	//查询 余额
+	mcs, _ := data.MarketCoinHistoryRepoClient.ListByCondition(nil, &data.MarketCoinHistory{
+		ChainName: chainName,
+		Address:   address,
+	})
+	//计算 ，更新平均值
+
+	if len(mcs) == 0 {
+		//插入主币 币价
+		msh := &data.MarketCoinHistory{
+			Uid:                 uid,
+			Address:             address,
+			ChainName:           chainName,
+			Symbol:              symbol,
+			CnyPrice:            cnyPrice, //均价   1： 10  2：15  3：20  (CnyAmount + inputBalance * inputcnyprice)/(balance+inputBalance)
+			UsdPrice:            usdPrice, //均价
+			TransactionQuantity: 1,
+			CnyAmount:           cnyFee, // CnyAmount + inputBalance * inputcnyprice
+			UsdAmount:           usdFee,
+			Dt:                  dt,
+			Balance:             balance, //当前余额 带小数点
+			CreatedAt:           now,
+			UpdatedAt:           now,
+			TransactionBalance:  totalNum.Abs().String(),
+		}
+		data.MarketCoinHistoryRepoClient.Save(nil, msh)
+	} else if len(mcs) == 1 {
+		marketCoinHistory := mcs[0]
+		marketCoinHistory.TransactionQuantity = marketCoinHistory.TransactionQuantity + 1
+		marketCoinHistory.Balance = balance
+		marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyFee)
+		marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdFee)
+		if balanceDecimal.Cmp(decimal.Zero) != 0 {
+			marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(balanceDecimal, 0).String()
+			marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(balanceDecimal, 0).String()
+		}
+		marketCoinHistory.UpdatedAt = now
+		oldTransactionBalance, _ := decimal.NewFromString(marketCoinHistory.TransactionBalance)
+		newTransactionBalance, _ := decimal.NewFromString(totalNum.Abs().String())
+		marketCoinHistory.TransactionBalance = oldTransactionBalance.Add(newTransactionBalance).String()
+		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
+	}
 }
