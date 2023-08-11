@@ -895,7 +895,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//https://polygonscan.com/tx/0x72ce3718c81bae2c888d0403d33d2f9e5c533c601c90aaaa4158a8439c6f7630
 			//提现，判断 用户无需话费value 判断value是否为0
 			if meta.Value == "0" {
-				if contractAddress == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" && methodId =="4630a0d8" {
+				if contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId =="4630a0d8" {
 					continue
 				}
 				toAddress = meta.FromAddress
