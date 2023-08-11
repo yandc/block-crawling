@@ -144,6 +144,7 @@ const (
 	APTOSNFT  = "AptosNFT"
 	SUINFT    = "SuiNFT"
 	SOLANANFT = "SolanaNFT"
+	COSMOSNFT = "CosmosNFT"
 )
 
 const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
@@ -254,7 +255,6 @@ type ChainTokenNumberAndAsset struct {
 type TransactionTypeDistribution struct {
 	TransactionType string `json:"transactionType"`
 	Count           int64  `json:"count"`
-
 }
 type SignRecordReq struct {
 	Address         string   `json:"address"`
@@ -288,6 +288,7 @@ type SignInfo struct {
 	TransactionType string `json:"transactionType"`
 	TransactionHash string `json:"transactionHash"`
 }
+
 type BatchRpcParams struct {
 	BatchReq []BatchRpcRequest `json:"batchReq,omitempty"`
 }
@@ -573,7 +574,6 @@ func GetAlarmTimestamp(key string) (int64, error) {
 }
 
 func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error) {
-	//return true, "ddd", nil
 	if address == "" {
 		return false, "", nil
 	}

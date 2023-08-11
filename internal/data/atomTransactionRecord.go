@@ -58,6 +58,7 @@ type AtomTransactionRecordRepo interface {
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*AtomTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*AtomTransactionRecord, int) (int64, error)
 	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*AtomTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByTransactionHash(context.Context, string, []*AtomTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *AtomTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*AtomTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*AtomTransactionRecord, error)
@@ -74,6 +75,7 @@ type AtomTransactionRecordRepo interface {
 	FindByTxhash(context.Context, string, string) (*AtomTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*AtomTransactionRecord, error)
 	FindLastNonce(context.Context, string, string) (*AtomTransactionRecord, error)
+	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*AtomTransactionRecord, error)
 }
 
 type AtomTransactionRecordRepoImpl struct {
@@ -269,6 +271,10 @@ func (r *AtomTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(
 
 func (r *AtomTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*AtomTransactionRecord, pageSize int) (int64, error) {
 	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
+}
+
+func (r *AtomTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByTransactionHash(ctx context.Context, tableName string, txRecords []*AtomTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"transaction_hash"}, txRecords, pageSize)
 }
 
 func (r *AtomTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, atomTransactionRecord *AtomTransactionRecord) (int64, error) {
@@ -748,6 +754,47 @@ func (r *AtomTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, ta
 		return nil, err
 	}
 	return atomTransactionRecordList, nil
+}
+
+func (r *AtomTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*AtomTransactionRecord, error) {
+	var atomTransactionRecords []*AtomTransactionRecord
+
+	sqlStr := "select transaction_type, transaction_hash, amount, parse_data, event_log from " + tableName +
+		" where 1=1 " +
+		"and (" +
+		"(" +
+		"(" +
+		"(parse_data not like '%\"collection_name\":\"%' and parse_data not like '%\"item_name\":%') " +
+		"or (parse_data like '%\"collection_name\":\"\"%' and parse_data like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"parse_data like '%\"token_type\":\"CosmosNFT\"%' " +
+		")" +
+		") or (" +
+		"(" +
+		"(event_log not like '%\"collection_name\":\"%' and event_log not like '%\"item_name\":%') " +
+		"or (event_log like '%\"collection_name\":\"\"%' and event_log like '%\"item_name\":\"\"%')" +
+		") and (" +
+		"event_log like '%\"token_type\":\"CosmosNFT\"%'" +
+		")" +
+		")" +
+		")"
+
+	if len(req.StatusNotInList) > 0 {
+		statusNotInList := strings.ReplaceAll(utils.ListToString(req.StatusNotInList), "\"", "'")
+		sqlStr += " and status not in (" + statusNotInList + ")"
+	}
+	if len(req.TransactionTypeNotInList) > 0 {
+		transactionTypeNotInList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeNotInList), "\"", "'")
+		sqlStr += " and transaction_type not in (" + transactionTypeNotInList + ")"
+	}
+
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Raw(sqlStr).Find(&atomTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("list query atomTransactionRecord failed", err)
+		return nil, err
+	}
+	return atomTransactionRecords, nil
 }
 
 // CountOut implements AtomTransactionRecordRepo

@@ -188,6 +188,36 @@ func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (st
 	return "0", nil
 }
 
+type OwnerOf struct {
+	Data struct {
+		Owner     string        `json:"owner"`
+		Approvals []interface{} `json:"approvals"`
+	} `json:"data"`
+}
+
+func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tokenId string) (string, error) {
+	ownerOfMap := map[string]map[string]string{"owner_of": {"token_id": tokenId}}
+	ownerOfBase64, err := utils.GetBase64String(ownerOfMap)
+	if err != nil {
+		return "0", err
+	}
+
+	u, err := c.buildURL("/cosmwasm/wasm/v1/contract/"+tokenAddress+"/smart/"+ownerOfBase64, nil)
+	if err != nil {
+		return "0", err
+	}
+	var out OwnerOf
+	err = c.getResponse(u, &out)
+	if err != nil {
+		return "0", err
+	}
+	ownerAddress := out.Data.Owner
+	if address == ownerAddress {
+		return "1", nil
+	}
+	return "0", nil
+}
+
 type Blockchain struct {
 	Height string `json:"height"`
 	Result struct {
@@ -441,6 +471,72 @@ func (c *Client) GetTransactionByHash(hash string) (tx TransactionInfo, err erro
 	}
 	err = c.getResponse(u, &tx)
 	return tx, err
+}
+
+type NftHistories struct {
+	Data []struct {
+		Id         int `json:"id"`
+		Attributes struct {
+			CreatedAt    time.Time   `json:"createdAt"`
+			Status       int         `json:"status"`
+			UserId       int         `json:"user_id"`
+			CollectionId int         `json:"collection_id"`
+			TokenId      interface{} `json:"token_id"`
+			Price        string      `json:"price"`
+			Address      string      `json:"address"`
+			TnxHash      interface{} `json:"tnx_hash"`
+			UpdatedAt    time.Time   `json:"updatedAt"`
+			User         struct {
+				Data struct {
+					Id         int `json:"id"`
+					Attributes struct {
+						Username          string      `json:"username"`
+						Email             string      `json:"email"`
+						Provider          interface{} `json:"provider"`
+						Confirmed         bool        `json:"confirmed"`
+						Blocked           bool        `json:"blocked"`
+						CreatedAt         time.Time   `json:"createdAt"`
+						UpdatedAt         time.Time   `json:"updatedAt"`
+						WalletAddress     string      `json:"wallet_address"`
+						Bio               interface{} `json:"bio"`
+						TwitterId         interface{} `json:"twitter_id"`
+						TwitterScreenName *string     `json:"twitter_screen_name"`
+						IsFollowTwitter   bool        `json:"is_follow_twitter"`
+						Discord           interface{} `json:"discord"`
+						IsJoinDiscord     bool        `json:"is_join_discord"`
+						DeviceToken       interface{} `json:"device_token"`
+						Avatar            interface{} `json:"avatar"`
+						Cover             interface{} `json:"cover"`
+						IsVip             bool        `json:"is_vip"`
+						IsVipExpired      interface{} `json:"is_vip_expired"`
+						AvatarRarity      interface{} `json:"avatar_rarity"`
+						AvatarNft         interface{} `json:"avatar_nft"`
+						PublicKey         string      `json:"public_key"`
+					} `json:"attributes"`
+				} `json:"data"`
+			} `json:"user"`
+		} `json:"attributes"`
+	} `json:"data"`
+	Meta struct {
+		Pagination struct {
+			Page      int `json:"page"`
+			PageSize  int `json:"pageSize"`
+			PageCount int `json:"pageCount"`
+			Total     int `json:"total"`
+		} `json:"pagination"`
+	} `json:"meta"`
+}
+
+func (c *Client) GetNftHistories(tokenAddress string, tokenId string, pageNum int, pageSize int) (*NftHistories, error) {
+	url := "https://sei-api-testnet.bluemove.net/api/market-item-histories?filters[market_item][collection_address][$eq]=" + tokenAddress + "&filters[market_item][token_id][$eq]=" + tokenId + "&sort[0]=createdAt%3Adesc&pagination[page]=" + strconv.Itoa(pageNum) + "&pagination[pageSize]=" + strconv.Itoa(pageSize) + "&populate[user][populate][0]=%2A"
+	out := &NftHistories{}
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.GetResponse(url, nil, out, &timeoutMS)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 // constructs BlockCypher URLs with parameters for requests
