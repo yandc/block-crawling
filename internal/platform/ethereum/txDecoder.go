@@ -237,6 +237,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					if meta.TransactionType == biz.TRANSFER &&
 						((strings.HasPrefix(h.chainName, "Polygon") && (contractAddress == POLYGON_CODE || len(eventLogs) == 0)) ||
 							(strings.HasPrefix(h.chainName, "zkSync") && (contractAddress == ZKSYNC_CODE || len(eventLogs) == 0))) {
+						//https://polygonscan.com/tx/0x2eae53e26d24435213c25910f7a2498b08bcd002a33ec7f02c31d8b2dae72052
 						meta.TransactionType = biz.NATIVE
 						contractAddress = ""
 					} else {
@@ -1304,6 +1305,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		}
 
+		if strings.HasPrefix(h.chainName, "Polygon") {
+			//https://polygonscan.com/tx/0x2eae53e26d24435213c25910f7a2498b08bcd002a33ec7f02c31d8b2dae72052
+			if tokenAddress == POLYGON_CODE {
+				tokenAddress = ""
+			}
+		}
 		if strings.HasPrefix(h.chainName, "zkSync") {
 			if fromAddress == ZKSYNC_ADDRESS || toAddress == ZKSYNC_ADDRESS {
 				continue
