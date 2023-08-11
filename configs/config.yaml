@@ -37,10 +37,11 @@ data:
 
 app:
   # Possible values: "debug", "release"
-  #  mode: "debug"
+#  mode: ""
   mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,zkSyncTEST,ScrollL2TEST,SeiTEST"
   scanAll: false
   addr: 127.0.0.1:9001
+  marketRpc: 127.0.0.1:9011
   starScan: true
   target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
   source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai

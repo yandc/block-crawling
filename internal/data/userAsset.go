@@ -74,6 +74,7 @@ type UserAssetRepo interface {
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
 	Delete(context.Context, *AssetRequest) (int64, error)
+	ListByChainNames(context.Context, []string) ([]*UserAsset, error)
 }
 
 type UserAssetRepoImpl struct {
@@ -302,6 +303,12 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 	if req.Uid != "" {
 		db = db.Where("uid = ?", req.Uid)
 	}
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
+	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
@@ -373,6 +380,9 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 	if req.Address != "" {
 		db = db.Where("address = ?", req.Address)
 	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
+	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
@@ -427,6 +437,9 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 	if req.Uid != "" {
 		sqlStr += " and uid = '" + req.Uid + "'"
 	}
+	if req.Address != "" {
+		sqlStr += " and address = '" + req.Address + "'"
+	}
 	if len(req.UidList) > 0 {
 		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
 		sqlStr += " and uid in (" + uidList + ")"
@@ -459,7 +472,7 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
 	var userAssetList []*UserAsset
 
-	sqlStr := "select chain_name, token_address, sum(cast(balance as numeric)) as balance " +
+	sqlStr := "select chain_name, token_address, symbol, sum(cast(balance as numeric)) as balance " +
 		"from user_asset " +
 		"where 1=1 "
 	if req.ChainName != "" {
@@ -467,6 +480,13 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 	}
 	if req.Uid != "" {
 		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if req.Address != "" {
+		sqlStr += " and address = '" + req.Address + "'"
+	}
+	if len(req.UidList) > 0 {
+		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
+		sqlStr += " and uid in (" + uidList + ")"
 	}
 	if len(req.AddressList) > 0 {
 		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
@@ -483,7 +503,7 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
 		}
 	}
-	sqlStr += " group by chain_name, token_address"
+	sqlStr += " group by chain_name, token_address, symbol"
 
 	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
 	err := ret.Error
@@ -505,6 +525,9 @@ func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *Asse
 	}
 	if req.Uid != "" {
 		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if req.Address != "" {
+		sqlStr += " and address = '" + req.Address + "'"
 	}
 	if len(req.UidList) > 0 {
 		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
@@ -570,6 +593,9 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 	if req.Address != "" {
 		db = db.Where("address = ?", req.Address)
 	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
+	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
@@ -616,4 +642,15 @@ func (r *UserAssetRepoImpl) UpdateZeroByAddress(ctx context.Context, address str
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+func (r *UserAssetRepoImpl) ListByChainNames(ctx context.Context, chainNames []string) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+
+	ret := r.gormDB.WithContext(ctx).Table("user_asset").Where("chain_name in ?", chainNames).Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query userAsset failed", err)
+		return nil, err
+	}
+	return userAssetList, nil
 }

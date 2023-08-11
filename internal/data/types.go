@@ -82,3 +82,17 @@ type TBTransactionRecord struct {
 func (tbTransactionRecord TBTransactionRecord) TableName() string {
 	return "tb_transaction_record"
 }
+
+type EvmTransactionCount struct {
+	TransactionType string `json:"transactionType" form:"transactionType"`
+	Count           int64  `json:"count" form:"count"`
+}
+type EvmDappCount struct {
+	DappData string `json:"dappData" form:"dappData"`
+	Count    int    `json:"count" form:"count"`
+}
+
+type EvmTransferCount struct {
+	Address string `json:"address" form:"address"`
+	Count   int    `json:"count" form:"count"`
+}

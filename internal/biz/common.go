@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"math"
 	"regexp"
 	"strconv"
@@ -154,6 +155,107 @@ var rocketMsgLevels = map[string]int{
 	"FATAL":   3,
 }
 
+type AssetDistributionReq struct {
+	ChainAndAddress
+	TimeRange     string `json:"timeRange,omitempty"`
+	DataDirection string `json:"dataDirection,omitempty"`
+	OrderField    string `json:"orderField,omitempty"`
+}
+type AssetDistributionResponse struct {
+	Ok               bool           `json:"ok,omitempty"`
+	ErrorMessage     string         `json:"errorMessage,omitempty"`
+	AssetBalanceList []AssetBalance `json:"assetBalanceList,omitempty"`
+}
+type AssetBalance struct {
+	CnyAmount        string `json:"cnyAmount,omitempty"`        //带小数点的 法币
+	UsdAmount        string `json:"usdAmount,omitempty"`        //带小数点的 法币
+	NewCnyAmount     string `json:"newCnyAmount,omitempty"`     //带小数点的 法币
+	NewUsdAmount     string `json:"newUsdAmount,omitempty"`     //带小数点的 法币
+	CnyBalanceAmount string `json:"cnyBalanceAmount,omitempty"` //带小数点的 法币
+	UsdBalanceAmount string `json:"usdBalanceAmount,omitempty"` //带小数点的 法币
+	Symbol           string `json:"symbol"`
+	HoldCnyAmount    string `json:"holdCnyAmount,omitempty"` //带小数点的 法币
+	HoldUsdAmount    string `json:"holdUsdAmount,omitempty"` //带小数点的 法币
+	Proportion       string `json:"proportion,omitempty"`
+	Negative         string `json:"negative,omitempty"`
+	Icon             string `json:"icon,omitempty"`
+	TokenAddress     string `json:"tokenAddress"`
+}
+type AddressAssetResponse struct {
+	Ok                   bool               `json:"ok,omitempty"`
+	ErrorMessage         string             `json:"errorMessage,omitempty"`
+	Proportion           string             `json:"proportion,omitempty"`
+	Negative             string             `json:"negative,omitempty"`
+	ProceedsUsd          string             `json:"proceedsUsd,omitempty"`
+	ProceedsCny          string             `json:"proceedsCny,omitempty"`
+	AddressAssetTypeList []AddressAssetType `json:"addressAssetTypeList,omitempty"`
+	StartTime            int                `json:"startTime,omitempty"`
+	EndTime              int                `json:"endTime,omitempty"`
+}
+type AddressAssetType struct {
+	CnyAmount        string          `json:"cnyAmount,omitempty"` //带小数点的 法币
+	UsdAmount        string          `json:"usdAmount,omitempty"` //带小数点的 法币
+	Dt               int             `json:"dt,omitempty"`
+	CnyAmountDecimal decimal.Decimal `json:"cnyAmountDecimal,omitempty"` //带小数点的 法币
+	UsdAmountDecimal decimal.Decimal `json:"usdAmountDecimal,omitempty"` //带小数点的 法币
+}
+
+type TransactionTopResponse struct {
+	Ok                 bool             `json:"ok,omitempty"`
+	ErrorMessage       string           `json:"errorMessage,omitempty"`
+	TransactionTopList []TransactionTop `json:"transactionTopList,omitempty"`
+}
+
+type TransactionTop struct {
+	Count     int64  `json:"count"`
+	Address   string `json:"address"`
+	CnyAmount string `json:"cnyAmount,omitempty"` //带小数点的 法币
+	UsdAmount string `json:"usdAmount,omitempty"` //带小数点的 法币
+}
+
+type TopDappResponse struct {
+	Ok           bool       `json:"ok,omitempty"`
+	ErrorMessage string     `json:"errorMessage,omitempty"`
+	DappInfos    []DappInfo `json:"dappInfos,omitempty"`
+}
+type DappInfo struct {
+	//Dapp 的 LOGO、名称、交互次数
+	Origin     string `json:"origin,omitempty"`
+	Icon       string `json:"icon,omitempty"`
+	DappName   string `json:"dappName,omitempty"`
+	CheckCount int    `json:"checkCount,omitempty"`
+}
+
+type TransactionTypeDistributionResponse struct {
+	Ok                  bool                          `json:"ok,omitempty"`
+	ErrorMessage        string                        `json:"errorMessage,omitempty"`
+	Total               int                           `json:"total,omitempty"`
+	TransactionTypeList []TransactionTypeDistribution `json:"transactionTypeList,omitempty"`
+}
+
+type TokenAssetAndCountResponse struct {
+	Ok                        bool                       `json:"ok,omitempty"`
+	ErrorMessage              string                     `json:"errorMessage,omitempty"`
+	TotalCnyAmount            string                     `json:"totalCnyAmount,omitempty"`
+	TotalUsdAmount            string                     `json:"totalUsdAmount,omitempty"`
+	TotalTransactionQuantity  int                        `json:"totalTransactionQuantity"`
+	ChainTokenNumberAndAssets []ChainTokenNumberAndAsset `json:"chainTokenNumberAndAssets"`
+}
+
+type ChainTokenNumberAndAsset struct {
+	TokenAddress        string `json:"tokenAddress"`
+	Address             string `json:"address"`
+	Symbol              string `json:"symbol"`
+	CnyAmount           string `json:"cnyAmount,omitempty"` //带小数点的 法币
+	UsdAmount           string `json:"usdAmount,omitempty"` //带小数点的 法币
+	TransactionQuantity int    `json:"transactionQuantity"`
+}
+
+type TransactionTypeDistribution struct {
+	TransactionType string `json:"transactionType"`
+	Count           int64  `json:"count"`
+
+}
 type SignRecordReq struct {
 	Address         string   `json:"address"`
 	ChainName       string   `json:"chainName"`
@@ -186,7 +288,6 @@ type SignInfo struct {
 	TransactionType string `json:"transactionType"`
 	TransactionHash string `json:"transactionHash"`
 }
-
 type BatchRpcParams struct {
 	BatchReq []BatchRpcRequest `json:"batchReq,omitempty"`
 }
@@ -249,6 +350,18 @@ type AddressPendingAmountRequest struct {
 type ChainAndAddress struct {
 	ChainName string `json:"chainName,omitempty"`
 	Address   string `json:"address,omitempty"`
+}
+
+type TimeCondition struct {
+	StartUnix int `json:"startUnix,omitempty"`
+	EndUnix   int `json:"endUnix,omitempty"`
+}
+
+type TransactionTypeReq struct {
+	TimeRange  string `json:"timeRange,omitempty"`
+	OrderField string `json:"orderField,omitempty"`
+	ChainAndAddress
+	TimeCondition
 }
 
 type AddressPendingAmountResponse struct {
@@ -460,6 +573,7 @@ func GetAlarmTimestamp(key string) (int64, error) {
 }
 
 func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error) {
+	//return true, "ddd", nil
 	if address == "" {
 		return false, "", nil
 	}

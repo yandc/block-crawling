@@ -72,7 +72,7 @@ func main() {
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
 	//platform.HandleTokenInfo()
-	platform.HandleTokenUri()
+	platform.SyncChainNames([]string{"ETH", "Polygon", "Arbitrum","BSC"})
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
 	//platform.FixAddressToUid()

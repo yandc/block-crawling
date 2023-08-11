@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"strconv"
 	"strings"
 
@@ -37,19 +38,91 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
 	flag.StringVar(&testFunc, "name", "price", "test func name")
 }
-func main() {
-	gas := []int{1,2,3,4,5,6,7,8,9,10,11,12,13}
-	result := utils.GetMaxHeap(gas,10)
-	fmt.Println(result)
 
-	result1 := utils.GetMinHeap(gas,10)
-	fmt.Println(result1)
+func main() {
+	//格式化dt
+	tm := time.Unix(1687310927,0)
+	var dt = utils.GetDayTime(&tm)
+	fmt.Println(dt)
+	fmt.Println(uint32(dt))
+
+
+
+	gas := []int{1,2,3,4,5,6,7,8,9,10,11,12,13}
+	result := utils.GetMinHeap(gas, len(gas))//由高到低
+	fmt.Println(result)
+	s := "10"
+	xx, _ := decimal.NewFromString(s)
+	xxy, _ := decimal.NewFromString("3")
+
+	fs := utils.StringDecimals(xx.Neg().String(), 3)
+	yy, _ := decimal.NewFromString(fs)
+	fmt.Println(fs)
+	fmt.Println(yy)
+
+	fmt.Println(xx.DivRound(xxy, 4))
+
+	//go func() {
+		for true{
+			fmt.Println(utils.ZeroPoint())
+			customChainPlan := time.NewTicker(utils.ZeroPoint())
+			fmt.Println("wojinlail")
+			select {
+			case <-customChainPlan.C:
+				fmt.Println("mmmt-------")
+			}
+		}
+
+	//}()
+
+}
+
+func main2() {
+	endTime := time.Now()
+	m, _ := time.ParseDuration("-1h")
+	startTime := endTime.Add(m)
+	fmt.Println(endTime.Unix())
+	fmt.Println(startTime.Unix())
+
+	dds := "[{\"origin\":\"https://sushiv2.openblock.vip\",\"icon\":\"https://obapps.243096.com/images/dapp/ab75120c50cdd0fbba12761a7ca4007a.png\",\"dappName\":\"Sushi v2\",\"supportChains\":[\"eth\",\"arbitrum\",\"bsc\",\"avalanche\",\"fantom\",\"arbitrumnova\",\"polygon\",\"optimism\"],\"channel\":\"inner\",\"href\":\"\"}]"
+	var vs []biz.DappInfo
+	json.Unmarshal([]byte(dds), &vs)
+	fmt.Println(vs)
+
+	tokenIdsMap := make(map[string]string)
+	tokenIdsMap["1"] = "11"
+	tokenIdsMap["2"] = "21"
+	tokenIdsMap["1"] = "31"
+	tokenIdsMap["4"] = "41"
+
+	tokenIds := make([]string, len(tokenIdsMap))
+	for k, v := range tokenIdsMap {
+		tokenIds = append(tokenIds, k)
+		fmt.Println(k)
+		fmt.Println(v)
+		fmt.Println("============")
+	}
+
+	cnyFloat := strconv.FormatFloat(7.017010327577591, 'f', 2, 64)
+	fmt.Println(cnyFloat)
+	s := "10"
+	xx, _ := decimal.NewFromString(s)
+	xxy, _ := decimal.NewFromString("3")
+
+	fs := utils.StringDecimals(xx.Neg().String(), 3)
+	yy, _ := decimal.NewFromString(fs)
+	fmt.Println(fs)
+	fmt.Println(yy)
+
+	fmt.Println(xx.DivRound(xxy, 4))
 
 }
 func main1() {
 	flag.Parse()
 	fmt.Println("func name", testFunc)
 	//testGetBalance()
+	aax := decimal.NewFromInt(-10).String() // output: "-10"
+	fmt.Println(aax)
 	fmt.Println("test main end")
 
 	//txTime := 1664883095000 /1000
@@ -127,13 +200,12 @@ func main1() {
 	fmt.Println(rets[2])
 	fmt.Println(len(rets) >= 3)
 
-
 	gl := "150878"
 	gu := "149039"
 	gasLimit, _ := strconv.ParseFloat(gl, 64)
 	gasUsed, _ := strconv.ParseFloat(gu, 64)
 
-	f := gasUsed/gasLimit
+	f := gasUsed / gasLimit
 	if f > 0.9 {
 		fmt.Println(f)
 		fmt.Println(f > 0.9)

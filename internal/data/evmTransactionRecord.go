@@ -100,6 +100,10 @@ type EvmTransactionRecordRepo interface {
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	CursorListAll(ctx context.Context, tableName string, cursor *int64, pageLimit int) ([]*EvmTransactionRecord, error)
 	FindLastNonce(context.Context, string, string) (*EvmTransactionRecord, error)
+	FindTransactionTypeByAddress(context.Context, string, string, int, int) ([]EvmTransactionCount, error)
+	ListDappDataByTimeRanges(context.Context, string, string, int, int) ([]EvmDappCount, error)
+	ListDappDataStringByTimeRanges(context.Context, string, string, int, int) ([]string, error)
+	FindByAddressCount(context.Context, string, string, string, int, int, string) ([]EvmTransferCount, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
 }
 
@@ -139,11 +143,11 @@ func (r *EvmTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"original_hash":            gorm.Expr("excluded.original_hash"),
-			"operate_type":             gorm.Expr("excluded.operate_type"),
-			"dapp_data":                gorm.Expr("excluded.dapp_data"),
-			"client_data":              gorm.Expr("excluded.client_data"),
-			"updated_at":               gorm.Expr("excluded.updated_at"),
+			"original_hash": gorm.Expr("excluded.original_hash"),
+			"operate_type":  gorm.Expr("excluded.operate_type"),
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecord)
 	err := ret.Error
@@ -430,7 +434,7 @@ func (r *EvmTransactionRecordRepoImpl) FindNonceAndAddressAndStatus(ctx context.
 
 func (r *EvmTransactionRecordRepoImpl) ListAll(ctx context.Context, tableName string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecordList []*EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Find(&evmTransactionRecordList)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Order("tx_time asc").Find(&evmTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" failed", err)
@@ -1397,11 +1401,57 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableN
 		}
 	}
 }
+func (r *EvmTransactionRecordRepoImpl) FindTransactionTypeByAddress(ctx context.Context, tableName string, address string, startTime int, endTime int) ([]EvmTransactionCount, error) {
+	var evmTransactionCount []EvmTransactionCount
+	ret := r.gormDB.Select("transaction_type, count(transaction_type)").WithContext(ctx).Table(tableName).Where("(from_address = ? or to_address = ?) and transaction_type not in ('eventLog','')  and created_at >= ? and created_at <= ? ", address, address, startTime, endTime).Group("transaction_type").Find(&evmTransactionCount)
+	err := ret.Error
+	if err != nil {
+		log.Errore("FindTransactionTypeByAddress from "+tableName+" failed", err)
+		return nil, err
+	} else {
+		if ret.RowsAffected == 0 {
+			return nil, nil
+		} else {
+			return evmTransactionCount, nil
+		}
+	}
+}
+func (r *EvmTransactionRecordRepoImpl) ListDappDataByTimeRanges(ctx context.Context, tableName string, address string, startTime int, endTime int) ([]EvmDappCount, error) {
+	var dappDatas []EvmDappCount
+	ret := r.gormDB.Select("dapp_data, count(dapp_data)").WithContext(ctx).Table(tableName).Where("from_address = ? and  created_at >= ? and created_at <= ? and dapp_data != '' ", address, startTime, endTime).Group("dapp_data").Order("count(dapp_data) desc").Limit(10).Find(&dappDatas)
+	err := ret.Error
+	if err != nil {
+		log.Errore("ListDappDataByTimeRanges failed", err)
+		return nil, err
+	}
+	return dappDatas, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) ListDappDataStringByTimeRanges(ctx context.Context, tableName string, address string, startTime int, endTime int) ([]string, error) {
+	var dappDatas []string
+	ret := r.gormDB.Select("dapp_data").WithContext(ctx).Table(tableName).Where("from_address = ? and  created_at >= ? and created_at <= ? and dapp_data != '' ", address, startTime, endTime).Find(&dappDatas)
+	err := ret.Error
+	if err != nil {
+		log.Errore("ListDappDataByTimeRanges failed", err)
+		return nil, err
+	}
+	return dappDatas, nil
+}
 
 func (r *EvmTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
 	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }
 
+func (r *EvmTransactionRecordRepoImpl) FindByAddressCount(ctx context.Context, tableName string, address string, groupField string, startTime int, endTime int, f string) ([]EvmTransferCount, error) {
+	var evmTransferCounts []EvmTransferCount
+	ret := r.gormDB.Select(groupField+" as address, count("+groupField+")").WithContext(ctx).Table(tableName).Where(f+" = ? and transaction_type in ('transfer','native') and  created_at >= ? and created_at <= ?  and status = 'success' ", address, startTime, endTime).Group(groupField).Find(&evmTransferCounts)
+	err := ret.Error
+	if err != nil {
+		log.Errore("FindByAddressCount failed", err)
+		return nil, err
+	}
+	return evmTransferCounts, nil
+}
 func (r *EvmTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
 	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
 	err := ret.Error

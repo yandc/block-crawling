@@ -55,10 +55,12 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	}
 	userRecordRepo := data.NewUserRecordRepo(userGormDB)
 	userAssetRepo := data.NewUserAssetRepo(db)
+	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
+	userAssetHistoryRepo := data.NewUserAssetHistoryRepo(db)
 	dappApproveRecordRepo := data.NewDappApproveRecordRepo(db)
 	client := data.NewRedisClient(confData)
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
-	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	appConf := biz.NewConfig(app)
 	bizLark := biz.NewLark(lark)
 	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark)
