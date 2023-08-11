@@ -576,7 +576,8 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 	}()
 
 	for _, record := range txRecords {
-		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT {
+		if record.TransactionType == biz.CONTRACT || record.TransactionType == biz.SWAP || record.TransactionType == biz.MINT ||
+			record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
 			continue
 		}
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {

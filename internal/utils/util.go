@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"container/heap"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -494,6 +495,20 @@ func GetHexString(value interface{}) string {
 		result = fmt.Sprintf("%x", value)
 	}
 	return result
+}
+
+func GetBase64String(value interface{}) (string, error) {
+	var result string
+	if stringValue, ok := value.(string); ok {
+		result = stringValue
+	} else {
+		valueBytes, err := json.Marshal(value)
+		if err != nil {
+			return "", err
+		}
+		result = base64.StdEncoding.EncodeToString(valueBytes)
+	}
+	return result, nil
 }
 
 func RandInt32(min, max int32) int32 {
