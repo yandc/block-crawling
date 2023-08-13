@@ -33,7 +33,7 @@ type txDecoder struct {
 
 type TokenBalance struct {
 	AccountIndex  int         `json:"accountIndex"`
-	Account       string      `json:"account"`
+	Pubkey        string      `json:"pubkey"`
 	Mint          string      `json:"mint"`
 	Owner         string      `json:"owner"`
 	ProgramId     string      `json:"programId"`
@@ -122,7 +122,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 		tb := TokenBalance{
 			AccountIndex: tokenBalance.AccountIndex,
-			Account:      accountKeys[tokenBalance.AccountIndex].Pubkey,
+			Pubkey:       accountKeys[tokenBalance.AccountIndex].Pubkey,
 			Mint:         tokenBalance.Mint,
 			Owner:        tokenBalance.Owner,
 			ProgramId:    tokenBalance.ProgramId,
@@ -134,7 +134,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				TransferAmount: new(big.Int).Sub(postAmount, preAmount),
 			},
 		}
-		tokenBalanceMap[tb.Account] = tb
+		tokenBalanceMap[tb.Pubkey] = tb
 		if tb.Owner != "" {
 			tokenBalanceOwnerMap[tb.Owner] = tb
 		}
@@ -959,6 +959,9 @@ func mergeInstructions(instructions []Instruction, tokenBalanceMap map[string]To
 					contractAddress = sourceTokenBalance.Mint
 				} else if destinationTokenBalance.Mint != "" {
 					contractAddress = destinationTokenBalance.Mint
+				} else {
+					//https://solscan.io/tx/3QH3FQF9EUoU19xKPXWtFYgeuxpmUUC6UjSNVh3ZUc9qVP3UEyx6NDbdnpr9gCh1qdwEex37cGEHui3gGQhfKRdE
+					contractAddress = "UnknownToken"
 				}
 
 				key := fromAddress + toAddress + contractAddress
