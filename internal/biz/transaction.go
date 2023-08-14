@@ -24,7 +24,6 @@ import (
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -637,7 +636,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(ctx, GetTableName(pbb.ChainName), trxRecord)
-		for i := 0; i < 3 && err != nil ; i++ {
+		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
 			result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(nil, GetTableName(pbb.ChainName), trxRecord)
 		}
@@ -4030,8 +4029,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		uniqAssets[key] = asset
 	}
 
-	needUpdateAssets := make([]*data.UserAsset, 0, len(assets))
-	needPush := make([]UserTokenPush, 0, len(assets))
+	diffBet := false
 	for _, newItem := range uniqAssets {
 		tokenAddress := newItem.TokenAddress
 		if req.Address == "0x0000000000000000000000000000000000000000" || req.Address == tokenAddress {
@@ -4043,164 +4041,25 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			if newItem.Balance == "0" {
 				continue
 			}
-			uidOk, uid, err := UserAddressSwitchRetryAlert(req.ChainName, req.Address)
-			if err != nil {
-				return nil, err
-			}
-
-			if !uidOk {
-				return nil, errors.New("unknown address")
-			}
-			tokenInfo, err := s.getTokenInfo(ctx, req.ChainName, req.Address, &newItem)
-			if err != nil {
-				log.Error(req.ChainName+"链资产变更，从nodeProxy中获取代币精度失败", zap.Any("address", req.Address), zap.Any("tokenAddress", newItem.TokenAddress), zap.Any("error", err))
-				return nil, err
-			}
-			tokenInfo.Address = newItem.TokenAddress
-			s.attemptFixZeroDecimals(ctx, req, &newItem, &tokenInfo)
-
-			needUpdateAssets = append(needUpdateAssets, &data.UserAsset{
-				ChainName:    req.ChainName,
-				Uid:          uid,
-				Address:      req.Address,
-				TokenAddress: tokenInfo.Address,
-				Balance:      newItem.Balance,
-				Decimals:     int32(tokenInfo.Decimals),
-				Symbol:       tokenInfo.Symbol,
-				CreatedAt:    time.Now().Unix(),
-				UpdatedAt:    time.Now().Unix(),
-			})
-			if !IsNative(req.ChainName, tokenAddress) {
-				needPush = append(needPush, UserTokenPush{
-					ChainName:    req.ChainName,
-					Uid:          uid,
-					Address:      req.Address,
-					TokenAddress: tokenAddress,
-					Decimals:     int32(tokenInfo.Decimals),
-					Symbol:       tokenInfo.Symbol,
-				})
-			}
-			continue
+			diffBet = true
+			break
 		}
-		s.attemptFixZeroDecimals(ctx, req, &newItem, nil)
 
 		newBalance := newItem.Balance
-		if oldItem.Balance != "0" && newBalance == "0" && tokenAddress == "" {
-			// Double check zero balance.
-			balance, err := s.getBalance(ctx, req.ChainName, req.Address)
-			if err != nil {
-				continue
-			}
-			newBalance = balance
-			log.Info(
-				"FIX ZERO BALANCE",
-				zap.String("chainName", req.ChainName),
-				zap.String("address", req.Address),
-				zap.String("balance", newBalance),
-			)
-		}
 
 		// update
 		if oldItem.Balance != newBalance {
-			// XXX: only update balance here.
-			oldItem.Balance = newBalance
-			needUpdateAssets = append(needUpdateAssets, oldItem)
+			diffBet = true
+			break
 		}
 	}
-	if len(needUpdateAssets) > 0 {
-		_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, needUpdateAssets, PAGE_SIZE)
-		for i := 0; i < 3 && err != nil; i++ {
-			time.Sleep(time.Duration(i*1) * time.Second)
-			_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, needUpdateAssets, PAGE_SIZE)
-		}
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链资产变更，将数据插入到数据库中失败", req.ChainName)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(req.ChainName+"链资产变更，将数据插入到数据库中失败", zap.Any("error", err))
-			return nil, err
-		}
-
+	if diffBet {
 		platInfo := PlatInfoMap[req.ChainName]
 		if platInfo != nil {
 			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL)
 		}
 	}
-	if len(needPush) > 0 {
-		HandleTokenPush(req.ChainName, needPush)
-	}
 	return struct{}{}, nil
-}
-
-func (s *TransactionUsecase) attemptFixZeroDecimals(ctx context.Context, req *UserAssetUpdateRequest, asset *UserAsset, tokenInfo *types.TokenInfo) {
-	if asset.Decimals != 0 || strings.Contains(asset.Balance, ".") || asset.Balance == "0" {
-		return
-	}
-	// Decimals is zero which may be incorrect.
-	if tokenInfo == nil {
-		token, err := s.getTokenInfo(ctx, req.ChainName, req.Address, asset)
-		if err != nil {
-			log.Error(req.ChainName+"链资产变更，从nodeProxy中获取代币精度失败", zap.Any("address", req.Address), zap.Any("tokenAddress", asset.TokenAddress), zap.Any("error", err))
-			return
-		}
-		tokenInfo = &token
-	}
-
-	// Ignore native currency
-	if tokenInfo.Address == "" {
-		return
-	}
-
-	if tokenInfo.Decimals != 0 {
-		newBalance := utils.StringDecimals(asset.Balance, int(tokenInfo.Decimals))
-		log.Info(
-			"INCORRECT ZERO DECIMALS",
-			zap.String("beforeBalance", asset.Balance),
-			zap.String("afterBalance", newBalance),
-			zap.String("address", req.Address),
-			zap.String("tokenAddress", asset.TokenAddress),
-			zap.Int64("decimals", tokenInfo.Decimals),
-		)
-		asset.Balance = newBalance
-	}
-}
-
-func (s *TransactionUsecase) getBalance(ctx context.Context, chainName, address string) (string, error) {
-	result, err := ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
-		if c, ok := client.(RPCNodeBalancer); ok {
-			return c.GetBalance(address)
-		}
-		return 0, errors.New("not supported")
-	})
-
-	if err != nil {
-		// We don't know, returns false is safer.
-		log.Info(
-			"CHECK ZERO BALANCE FAILED",
-			zap.String("chainName", chainName),
-			zap.String("address", address),
-			zap.Error(err),
-		)
-		return "", err
-	}
-	return result.(string), nil
-}
-
-func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {
-	if asset.TokenAddress == address || asset.TokenAddress == "" {
-		platInfo, ok := PlatInfoMap[chainName]
-		if !ok {
-			return *new(types.TokenInfo), errors.New("no such chain")
-		}
-		return types.TokenInfo{
-			Address:  "",
-			Decimals: int64(platInfo.Decimal),
-			Symbol:   platInfo.NativeCurrency,
-		}, nil
-		// extract from config
-	}
-	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
 }
 
 func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
