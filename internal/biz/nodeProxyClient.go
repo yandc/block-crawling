@@ -34,7 +34,6 @@ var nftLock = common.NewSyncronized(0)
 var nftMutex = new(sync.Mutex)
 
 func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
-	//return "100",nil
 	price, err := GetTokenPrice(ctx, chainName, currency, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -221,7 +220,6 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 }
 
 func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
-	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -318,7 +316,6 @@ func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, toke
 }
 
 func GetNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
-	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -359,7 +356,6 @@ func GetNftInfoDirectly(ctx context.Context, chainName string, tokenAddress stri
 }
 
 func GetCollectionInfoDirectlyRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
-	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetCollectionInfoDirectly(ctx, chainName, tokenAddress)
 	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
@@ -568,21 +564,22 @@ func GetTokenNftInfoRetryAlert(ctx context.Context, chainName string, tokenAddre
 }
 
 func GetTokenNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
-	//return types.TokenInfo{}, nil
 	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
 	if err != nil {
 		nftInfo, nftErr := GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
-		if nftErr == nil && nftInfo.TokenType != "" {
-			return nftInfo, nftErr
-		}
-		return tokenInfo, err
-	}
-	if tokenInfo.TokenType == "" && tokenInfo.Decimals == 0 && (tokenInfo.Symbol == "" || tokenInfo.Symbol == "Unknown Token") {
-		tokenInfo, err = GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
-		if tokenInfo.TokenType == "" {
-			if chainName == "Solana" {
-				tokenInfo.TokenType = SOLANANFT
+		if nftErr == nil {
+			if nftInfo.TokenType != "" || (nftInfo.TokenType == "" && chainName == "Solana") {
+				if nftInfo.TokenType == "" && chainName == "Solana" {
+					nftInfo.TokenType = SOLANANFT
+				}
+				tokenInfo = nftInfo
+				err = nil
 			}
+		}
+	} else if tokenInfo.TokenType == "" && tokenInfo.Decimals == 0 && (tokenInfo.Symbol == "" || tokenInfo.Symbol == "Unknown Token") {
+		tokenInfo, err = GetNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
+		if err == nil && (tokenInfo.TokenType == "" && chainName == "Solana") {
+			tokenInfo.TokenType = SOLANANFT
 		}
 	}
 	return tokenInfo, err
