@@ -1953,8 +1953,10 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 		Uid:              req.Uid,
 		AddressList:      req.AddressList,
 		TokenAddressList: req.TokenAddressList,
+		UidType:          req.AddressType,
 		AmountType:       req.AmountType,
 		OrderBy:          req.OrderBy,
+		GroupBy:          "chain_name, token_address, symbol",
 		DataDirection:    req.DataDirection,
 		StartIndex:       req.StartIndex,
 		PageNum:          req.PageNum,
@@ -2011,8 +2013,6 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 			return result, err
 		}
 
-		result.Total = total
-		result.List = list
 		if len(list) > 0 {
 			for _, record := range list {
 				if record == nil {
@@ -2040,6 +2040,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 				balances, _ := decimal.NewFromString(record.Balance)
 				cnyAmount := prices.Mul(balances)
 				record.CurrencyAmount = cnyAmount.String()
+				//record.Price = price
 			}
 		}
 
@@ -2064,7 +2065,176 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
 			}
 		}
+		result.Total = total
+		result.List = list
 		result.TotalCurrencyAmount = totalCurrencyAmount.String()
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) PageListAssetGroup(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	chainType := ChainNameType[req.ChainName]
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
+	}
+
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Uid:              req.Uid,
+		AddressList:      req.AddressList,
+		TokenAddressList: req.TokenAddressList,
+		UidType:          req.AddressType,
+		AmountType:       req.AmountType,
+		GroupBy:          "chain_name, token_address, symbol",
+	}
+	var result = &pb.PageListAssetResponse{}
+	var total int64
+	var list []*pb.AssetResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, err = data.UserAssetRepoClient.ListBalanceGroup(ctx, request)
+	if err == nil {
+		if req.Total {
+			total = int64(len(recordList))
+		}
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		var chainNameTokenAddressMap = make(map[string][]string)
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, asset := range recordList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
+		if err != nil {
+			return result, err
+		}
+
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				chainName := record.ChainName
+				tokenAddress := record.TokenAddress
+				var price string
+				tokenAddressPriceMap := resultMap[chainName]
+				if tokenAddress == "" {
+					price = tokenAddressPriceMap[chainName]
+				} else {
+					price = tokenAddressPriceMap[tokenAddress]
+				}
+				prices, _ := decimal.NewFromString(price)
+				balances, _ := decimal.NewFromString(record.Balance)
+				cnyAmount := prices.Mul(balances)
+				record.CurrencyAmount = cnyAmount.String()
+				//record.Price = price
+
+				/*if strings.Contains(req.OrderBy, "currencyAmount ") {
+					record.Cursor = cnyAmount.IntPart()
+				} else if strings.Contains(req.OrderBy, "price ") {
+					record.Cursor = prices.IntPart()
+				}*/
+			}
+
+			//处理排序
+			orderBys := strings.Split(req.OrderBy, " ")
+			orderByColumn := orderBys[0]
+			orderByDirection := orderBys[1]
+			if orderByColumn == "currencyAmount" {
+				sort.SliceStable(list, func(i, j int) bool {
+					if list[i] == nil || list[j] == nil {
+						return true
+					}
+					iCurrencyAmount, _ := decimal.NewFromString(list[i].CurrencyAmount)
+					jCurrencyAmount, _ := decimal.NewFromString(list[j].CurrencyAmount)
+					/*if list[i].Price == "" || list[i].Price == "0" {
+						return false
+					} else if list[j].Price == "" || list[j].Price == "0" {
+						return true
+					} else {*/
+					if strings.EqualFold(orderByDirection, "asc") {
+						if iCurrencyAmount.Equal(jCurrencyAmount) {
+							iBalance, _ := decimal.NewFromString(list[i].Balance)
+							jBalance, _ := decimal.NewFromString(list[j].Balance)
+							return iBalance.LessThan(jBalance)
+						}
+						return iCurrencyAmount.LessThan(jCurrencyAmount)
+					} else {
+						if iCurrencyAmount.Equal(jCurrencyAmount) {
+							iBalance, _ := decimal.NewFromString(list[i].Balance)
+							jBalance, _ := decimal.NewFromString(list[j].Balance)
+							return iBalance.GreaterThan(jBalance)
+						}
+						return iCurrencyAmount.GreaterThan(jCurrencyAmount)
+					}
+					//}
+				})
+			} else if orderByColumn == "price" {
+				sort.SliceStable(list, func(i, j int) bool {
+					if list[i] == nil || list[j] == nil {
+						return true
+					}
+					iPrice, _ := decimal.NewFromString(list[i].Price)
+					jPrice, _ := decimal.NewFromString(list[j].Price)
+					if list[i].Price == "" || list[i].Price == "0" {
+						return false
+					} else if list[j].Price == "" || list[j].Price == "0" {
+						return true
+					} else {
+						if strings.EqualFold(orderByDirection, "asc") {
+							return iPrice.LessThan(jPrice)
+						} else {
+							return iPrice.GreaterThan(jPrice)
+						}
+					}
+				})
+			}
+
+			//处理分页
+			if req.DataDirection == 0 {
+				listLen := int32(len(list))
+				var offset int32
+				var stopIndex int32
+				if req.PageNum > 0 {
+					offset = (req.PageNum - 1) * req.PageSize
+				}
+				if offset < listLen {
+					stopIndex = offset + req.PageSize
+					if stopIndex > listLen {
+						stopIndex = listLen
+					}
+					list = list[offset:stopIndex]
+				} else {
+					list = nil
+				}
+			} else {
+				list = nil
+			}
+		}
+		result.Total = total
+		result.List = list
 	}
 	return result, err
 }
@@ -2084,6 +2254,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 		Uid:              req.Uid,
 		AddressList:      req.AddressList,
 		TokenAddressList: req.TokenAddressList,
+		UidType:          req.AddressType,
 		AmountType:       req.AmountType,
 	}
 	var result = &pb.PageListAssetResponse{}
@@ -2131,7 +2302,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 
 		for chainName, tokenAddressMap := range tokenAddressMapMap {
 			tokenAddressList := make([]string, 0, len(tokenAddressMap))
-			for key, _ := range tokenAddressMap {
+			for key := range tokenAddressMap {
 				tokenAddressList = append(tokenAddressList, key)
 			}
 			chainNameTokenAddressMap[chainName] = tokenAddressList
@@ -2164,11 +2335,16 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 				record.Price = price
 
 				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
+
+				/*if strings.Contains(req.OrderBy, "currencyAmount ") {
+					record.Cursor = cnyAmount.IntPart()
+				} else if strings.Contains(req.OrderBy, "price ") {
+					record.Cursor = prices.IntPart()
+				}*/
 			}
 
 			//处理排序
-			orderBy := req.OrderBy
-			orderBys := strings.Split(orderBy, " ")
+			orderBys := strings.Split(req.OrderBy, " ")
 			orderByColumn := orderBys[0]
 			orderByDirection := orderBys[1]
 			if orderByColumn == "currencyAmount" {
@@ -2269,12 +2445,12 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 	var result = &pb.ListBalanceResponse{}
 	var list []*pb.BalanceResponse
 	var err error
+
 	var recordList []*data.UserAsset
 	recordList, err = data.UserAssetRepoClient.List(ctx, request)
 	if err == nil {
 		err = utils.CopyProperties(recordList, &list)
 	}
-
 	if err == nil {
 		result.List = list
 	}
@@ -2308,7 +2484,7 @@ func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb
 
 		for chainName, tokenAddressMap := range tokenAddressMapMap {
 			tokenAddressList := make([]string, 0, len(tokenAddressMap))
-			for key, _ := range tokenAddressMap {
+			for key := range tokenAddressMap {
 				tokenAddressList = append(tokenAddressList, key)
 			}
 			chainNameTokenAddressMap[chainName] = tokenAddressList
@@ -2362,13 +2538,14 @@ func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb
 func (s *TransactionUsecase) ListHasBalanceUidDimension(ctx context.Context, req *pb.ListHasBalanceUidDimensionRequest) (*pb.ListHasBalanceUidDimensionResponse, error) {
 	var request = &data.AssetRequest{
 		UidList: req.UidList,
+		GroupBy: "uid",
 	}
 	var result = &pb.ListHasBalanceUidDimensionResponse{}
 	var list []*pb.HasBalanceUidDimensionResponse
 	var err error
 
 	var recordList []*data.UserAsset
-	recordList, err = data.UserAssetRepoClient.ListBalanceGroupByUid(ctx, request)
+	recordList, err = data.UserAssetRepoClient.ListBalanceGroup(ctx, request)
 	if err == nil && len(recordList) > 0 {
 		for _, record := range recordList {
 			if record == nil {
@@ -2387,6 +2564,52 @@ func (s *TransactionUsecase) ListHasBalanceUidDimension(ctx context.Context, req
 		}
 		result.List = list
 	}
+	return result, err
+}
+
+func (s *TransactionUsecase) AssetHistoryFundAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryFundAmountListResponse, error) {
+	var request = &data.AssetRequest{
+		ChainName: req.ChainName,
+		UidType:   req.AddressType,
+		StartTime: req.StartTime,
+		StopTime:  req.StopTime,
+	}
+	var result = &pb.AssetHistoryFundAmountListResponse{}
+	var list []*pb.AssetHistoryFundAmountResponse
+	var err error
+
+	var recordList []*data.ChainTypeAsset
+	recordList, err = data.ChainTypeAssetRepoClient.List(ctx, request)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+	if err == nil {
+		result.List = list
+	}
+
+	return result, err
+}
+
+func (s *TransactionUsecase) AssetHistoryAddressAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryAddressAmountListResponse, error) {
+	var request = &data.AssetRequest{
+		ChainName: req.ChainName,
+		UidType:   req.AddressType,
+		StartTime: req.StartTime,
+		StopTime:  req.StopTime,
+	}
+	var result = &pb.AssetHistoryAddressAmountListResponse{}
+	var list []*pb.AssetHistoryAddressAmountResponse
+	var err error
+
+	var recordList []*data.ChainTypeAddressAmount
+	recordList, err = data.ChainTypeAddressAmountRepoClient.List(ctx, request)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+	if err == nil {
+		result.List = list
+	}
+
 	return result, err
 }
 

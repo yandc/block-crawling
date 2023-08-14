@@ -18,6 +18,7 @@ require (
 	github.com/nervosnetwork/ckb-sdk-go v1.0.4
 	github.com/novifinancial/serde-reflection/serde-generate/runtime/golang v0.0.0-20210526181959-1694c58d103e
 	github.com/pkg/errors v0.9.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/shopspring/decimal v1.2.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b

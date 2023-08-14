@@ -337,6 +337,8 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	tm := time.Now()
 	var dt = utils.GetDayTime(&tm)
 	for _, userAsset := range userAssetMap {
+		uidType, _ := biz.GetUidTypeCode(userAsset.Address)
+		userAsset.UidType = uidType
 		userAssets = append(userAssets, userAsset)
 
 		userAssetHistorys = append(userAssetHistorys, &data.UserAssetHistory{

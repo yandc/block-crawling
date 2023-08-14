@@ -152,6 +152,8 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 		}
 
 		for _, u := range userAssetMap {
+			uidType, _ := biz.GetUidTypeCode(userAsset.Address)
+			userAsset.UidType = uidType
 			_, err := data.UserAssetRepoClient.SaveOrUpdate(nil, u)
 			if err != nil {
 				// postgres出错 接入lark报警

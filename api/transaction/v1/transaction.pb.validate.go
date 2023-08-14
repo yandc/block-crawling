@@ -3988,6 +3988,8 @@ func (m *PageListAssetRequest) validate(all bool) error {
 
 	// no validation rules for Total
 
+	// no validation rules for AddressType
+
 	if len(errors) > 0 {
 		return PageListAssetRequestMultiError(errors)
 	}
@@ -4267,6 +4269,8 @@ func (m *AssetResponse) validate(all bool) error {
 	// no validation rules for Cursor
 
 	// no validation rules for Price
+
+	// no validation rules for AddressType
 
 	if len(errors) > 0 {
 		return AssetResponseMultiError(errors)
@@ -5438,6 +5442,630 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = HasBalanceUidDimensionResponseValidationError{}
+
+// Validate checks the field values on AssetHistoryRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AssetHistoryRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AssetHistoryRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AssetHistoryRequestMultiError, or nil if none found.
+func (m *AssetHistoryRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AssetHistoryRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	// no validation rules for AddressType
+
+	if m.GetStartTime() <= 0 {
+		err := AssetHistoryRequestValidationError{
+			field:  "StartTime",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.GetStopTime() <= 0 {
+		err := AssetHistoryRequestValidationError{
+			field:  "StopTime",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return AssetHistoryRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// AssetHistoryRequestMultiError is an error wrapping multiple validation
+// errors returned by AssetHistoryRequest.ValidateAll() if the designated
+// constraints aren't met.
+type AssetHistoryRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AssetHistoryRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AssetHistoryRequestMultiError) AllErrors() []error { return m }
+
+// AssetHistoryRequestValidationError is the validation error returned by
+// AssetHistoryRequest.Validate if the designated constraints aren't met.
+type AssetHistoryRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AssetHistoryRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AssetHistoryRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AssetHistoryRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AssetHistoryRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AssetHistoryRequestValidationError) ErrorName() string {
+	return "AssetHistoryRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AssetHistoryRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAssetHistoryRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AssetHistoryRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AssetHistoryRequestValidationError{}
+
+// Validate checks the field values on AssetHistoryFundAmountListResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *AssetHistoryFundAmountListResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AssetHistoryFundAmountListResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// AssetHistoryFundAmountListResponseMultiError, or nil if none found.
+func (m *AssetHistoryFundAmountListResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AssetHistoryFundAmountListResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, AssetHistoryFundAmountListResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, AssetHistoryFundAmountListResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return AssetHistoryFundAmountListResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return AssetHistoryFundAmountListResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AssetHistoryFundAmountListResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// AssetHistoryFundAmountListResponse.ValidateAll() if the designated
+// constraints aren't met.
+type AssetHistoryFundAmountListResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AssetHistoryFundAmountListResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AssetHistoryFundAmountListResponseMultiError) AllErrors() []error { return m }
+
+// AssetHistoryFundAmountListResponseValidationError is the validation error
+// returned by AssetHistoryFundAmountListResponse.Validate if the designated
+// constraints aren't met.
+type AssetHistoryFundAmountListResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AssetHistoryFundAmountListResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AssetHistoryFundAmountListResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AssetHistoryFundAmountListResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AssetHistoryFundAmountListResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AssetHistoryFundAmountListResponseValidationError) ErrorName() string {
+	return "AssetHistoryFundAmountListResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AssetHistoryFundAmountListResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAssetHistoryFundAmountListResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AssetHistoryFundAmountListResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AssetHistoryFundAmountListResponseValidationError{}
+
+// Validate checks the field values on AssetHistoryFundAmountResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AssetHistoryFundAmountResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AssetHistoryFundAmountResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// AssetHistoryFundAmountResponseMultiError, or nil if none found.
+func (m *AssetHistoryFundAmountResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AssetHistoryFundAmountResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for CnyAmount
+
+	// no validation rules for UsdAmount
+
+	// no validation rules for Dt
+
+	if len(errors) > 0 {
+		return AssetHistoryFundAmountResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AssetHistoryFundAmountResponseMultiError is an error wrapping multiple
+// validation errors returned by AssetHistoryFundAmountResponse.ValidateAll()
+// if the designated constraints aren't met.
+type AssetHistoryFundAmountResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AssetHistoryFundAmountResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AssetHistoryFundAmountResponseMultiError) AllErrors() []error { return m }
+
+// AssetHistoryFundAmountResponseValidationError is the validation error
+// returned by AssetHistoryFundAmountResponse.Validate if the designated
+// constraints aren't met.
+type AssetHistoryFundAmountResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AssetHistoryFundAmountResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AssetHistoryFundAmountResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AssetHistoryFundAmountResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AssetHistoryFundAmountResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AssetHistoryFundAmountResponseValidationError) ErrorName() string {
+	return "AssetHistoryFundAmountResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AssetHistoryFundAmountResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAssetHistoryFundAmountResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AssetHistoryFundAmountResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AssetHistoryFundAmountResponseValidationError{}
+
+// Validate checks the field values on AssetHistoryAddressAmountListResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the first error encountered is returned, or nil if
+// there are no violations.
+func (m *AssetHistoryAddressAmountListResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AssetHistoryAddressAmountListResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// AssetHistoryAddressAmountListResponseMultiError, or nil if none found.
+func (m *AssetHistoryAddressAmountListResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AssetHistoryAddressAmountListResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, AssetHistoryAddressAmountListResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, AssetHistoryAddressAmountListResponseValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return AssetHistoryAddressAmountListResponseValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return AssetHistoryAddressAmountListResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AssetHistoryAddressAmountListResponseMultiError is an error wrapping
+// multiple validation errors returned by
+// AssetHistoryAddressAmountListResponse.ValidateAll() if the designated
+// constraints aren't met.
+type AssetHistoryAddressAmountListResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AssetHistoryAddressAmountListResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AssetHistoryAddressAmountListResponseMultiError) AllErrors() []error { return m }
+
+// AssetHistoryAddressAmountListResponseValidationError is the validation error
+// returned by AssetHistoryAddressAmountListResponse.Validate if the
+// designated constraints aren't met.
+type AssetHistoryAddressAmountListResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AssetHistoryAddressAmountListResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AssetHistoryAddressAmountListResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AssetHistoryAddressAmountListResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AssetHistoryAddressAmountListResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AssetHistoryAddressAmountListResponseValidationError) ErrorName() string {
+	return "AssetHistoryAddressAmountListResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AssetHistoryAddressAmountListResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAssetHistoryAddressAmountListResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AssetHistoryAddressAmountListResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AssetHistoryAddressAmountListResponseValidationError{}
+
+// Validate checks the field values on AssetHistoryAddressAmountResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *AssetHistoryAddressAmountResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AssetHistoryAddressAmountResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// AssetHistoryAddressAmountResponseMultiError, or nil if none found.
+func (m *AssetHistoryAddressAmountResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AssetHistoryAddressAmountResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for AddressAmount
+
+	// no validation rules for Dt
+
+	if len(errors) > 0 {
+		return AssetHistoryAddressAmountResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AssetHistoryAddressAmountResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// AssetHistoryAddressAmountResponse.ValidateAll() if the designated
+// constraints aren't met.
+type AssetHistoryAddressAmountResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AssetHistoryAddressAmountResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AssetHistoryAddressAmountResponseMultiError) AllErrors() []error { return m }
+
+// AssetHistoryAddressAmountResponseValidationError is the validation error
+// returned by AssetHistoryAddressAmountResponse.Validate if the designated
+// constraints aren't met.
+type AssetHistoryAddressAmountResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AssetHistoryAddressAmountResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AssetHistoryAddressAmountResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AssetHistoryAddressAmountResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AssetHistoryAddressAmountResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AssetHistoryAddressAmountResponseValidationError) ErrorName() string {
+	return "AssetHistoryAddressAmountResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AssetHistoryAddressAmountResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAssetHistoryAddressAmountResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AssetHistoryAddressAmountResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AssetHistoryAddressAmountResponseValidationError{}
 
 // Validate checks the field values on PageListNftAssetRequest with the rules
 // defined in the proto definition for this message. If any rules are

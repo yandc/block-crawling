@@ -53,10 +53,12 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	userAssetRepo := data.NewUserAssetRepo(db)
 	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
 	userAssetHistoryRepo := data.NewUserAssetHistoryRepo(db)
+	chainTypeAssetRepo := data.NewChainTypeAssetRepo(db)
+	chainTypeAddressAmountRepo := data.NewChainTypeAddressAmountRepo(db)
 	dappApproveRecordRepo := data.NewDappApproveRecordRepo(db)
 	client := data.NewRedisClient(confData)
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
-	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
 	if err != nil {
 		cleanup2()

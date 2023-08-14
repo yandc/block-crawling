@@ -23,6 +23,7 @@ type UserAsset struct {
 	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
 	Decimals     int32  `json:"decimals" form:"decimals"`
 	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(72);index"`
+	UidType      int8   `json:"uidType" form:"uidType"`
 	CreatedAt    int64  `json:"createdAt" form:"createdAt"`
 	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`
 }
@@ -35,16 +36,25 @@ type AssetRequest struct {
 	AddressList                      []string
 	TokenAddress                     string
 	TokenAddressList                 []string
+	UidType                          int32
+	UidTypeList                      []int32
 	AmountType                       int32
 	ChainNameAddressTokenAddressList []*AssetRequest
 	StartTime                        int64
 	StopTime                         int64
+	GroupBy                          string
 	OrderBy                          string
 	DataDirection                    int32
 	StartIndex                       int64
 	PageNum                          int32
 	PageSize                         int32
 	Total                            bool
+}
+
+type UserAssetWrapper struct {
+	UserAsset
+	AddressAmount int64 `json:"addressAmount,omitempty"`
+	Total         int64 `json:"total,omitempty"`
 }
 
 func (userAsset UserAsset) TableName() string {
@@ -63,6 +73,7 @@ type UserAssetRepo interface {
 	PageBatchSaveOrUpdateSelectiveById(context.Context, []*UserAsset, int) (int64, error)
 	Update(context.Context, *UserAsset) (int64, error)
 	UpdateZeroByAddress(context.Context, string) (int64, error)
+	UpdateUidTypeByUid(context.Context, string, int8) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
@@ -70,7 +81,8 @@ type UserAssetRepo interface {
 	List(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalanceGroup(context.Context, *AssetRequest) ([]*UserAsset, error)
-	ListBalanceGroupByUid(context.Context, *AssetRequest) ([]*UserAsset, error)
+	PageListBalanceGroup(context.Context, *AssetRequest) ([]*UserAssetWrapper, int64, error)
+	ListAddressAmountGroup(context.Context, *AssetRequest) ([]*UserAssetWrapper, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
 	Delete(context.Context, *AssetRequest) (int64, error)
@@ -201,6 +213,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Cont
 			"balance":       gorm.Expr("case when excluded.balance != '' then excluded.balance else user_asset.balance end"),
 			"decimals":      gorm.Expr("case when excluded.decimals != 0 then excluded.decimals else user_asset.decimals end"),
 			"symbol":        gorm.Expr("case when excluded.symbol != '' then excluded.symbol else user_asset.symbol end"),
+			"uid_type":      gorm.Expr("case when excluded.uid_type != 0 then excluded.uid_type else user_asset.uid_type end"),
 			"updated_at":    gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&userAssets)
@@ -249,6 +262,17 @@ func (r *UserAssetRepoImpl) Update(ctx context.Context, userAsset *UserAsset) (i
 	err := ret.Error
 	if err != nil {
 		log.Errore("update userAsset failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *UserAssetRepoImpl) UpdateUidTypeByUid(ctx context.Context, uid string, uidType int8) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("uid = ?", uid).Update("uid_type", uidType)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update uidType by uid", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected
@@ -314,6 +338,12 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 	}
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if req.UidType != 0 {
+		db = db.Where("uid_type = ?", req.UidType)
+	}
+	if len(req.UidTypeList) > 0 {
+		db = db.Where("uid_type in(?)", req.UidTypeList)
 	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {
@@ -392,6 +422,12 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
 	}
+	if req.UidType != 0 {
+		db = db.Where("uid_type = ?", req.UidType)
+	}
+	if len(req.UidTypeList) > 0 {
+		db = db.Where("uid_type in(?)", req.UidTypeList)
+	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {
 			db = db.Where("(balance is null or balance = '' or balance = '0')")
@@ -452,6 +488,13 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
 		sqlStr += " and token_address in (" + tokenAddressList + ")"
 	}
+	if req.UidType != 0 {
+		sqlStr += " and uid_type = " + strconv.Itoa(int(req.UidType))
+	}
+	if len(req.UidTypeList) > 0 {
+		uidTypeList := strings.ReplaceAll(utils.ListToString(req.UidTypeList), "\"", "")
+		sqlStr += " and uid_type in (" + uidTypeList + ")"
+	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {
 			sqlStr += " and (balance is null or balance = '' or balance = '0')"
@@ -472,7 +515,11 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
 	var userAssetList []*UserAsset
 
-	sqlStr := "select chain_name, token_address, symbol, sum(cast(balance as numeric)) as balance " +
+	groupBy := req.GroupBy
+	if groupBy != "" {
+		groupBy += ", "
+	}
+	sqlStr := "select " + groupBy + "sum(cast(balance as numeric)) as balance " +
 		"from user_asset " +
 		"where 1=1 "
 	if req.ChainName != "" {
@@ -496,6 +543,13 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
 		sqlStr += " and token_address in (" + tokenAddressList + ")"
 	}
+	if req.UidType != 0 {
+		sqlStr += " and uid_type = " + strconv.Itoa(int(req.UidType))
+	}
+	if len(req.UidTypeList) > 0 {
+		uidTypeList := strings.ReplaceAll(utils.ListToString(req.UidTypeList), "\"", "")
+		sqlStr += " and uid_type in (" + uidTypeList + ")"
+	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {
 			sqlStr += " and (balance is null or balance = '' or balance = '0')"
@@ -503,7 +557,9 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
 		}
 	}
-	sqlStr += " group by chain_name, token_address, symbol"
+	if req.GroupBy != "" {
+		sqlStr += " group by " + req.GroupBy
+	}
 
 	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
 	err := ret.Error
@@ -514,10 +570,100 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 	return userAssetList, nil
 }
 
-func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
-	var userAssetList []*UserAsset
+func (r *UserAssetRepoImpl) PageListBalanceGroup(ctx context.Context, req *AssetRequest) ([]*UserAssetWrapper, int64, error) {
+	var userAssetList []*UserAssetWrapper
+	var total int64
 
-	sqlStr := "select uid, sum(cast(balance as numeric)) as balance " +
+	groupBy := req.GroupBy
+	if groupBy != "" {
+		groupBy += ", "
+	}
+	sqlStr := "with t as(" +
+		"select " + groupBy + "sum(cast(balance as numeric)) as balance "
+	sqlStr += "from user_asset " +
+		"where 1=1 "
+	if req.ChainName != "" {
+		sqlStr += " and chain_name = '" + req.ChainName + "'"
+	}
+	if req.Uid != "" {
+		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if req.Address != "" {
+		sqlStr += " and address = '" + req.Address + "'"
+	}
+	if len(req.UidList) > 0 {
+		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
+		sqlStr += " and uid in (" + uidList + ")"
+	}
+	if len(req.AddressList) > 0 {
+		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
+		sqlStr += " and address in (" + addressList + ")"
+	}
+	if len(req.TokenAddressList) > 0 {
+		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
+		sqlStr += " and token_address in (" + tokenAddressList + ")"
+	}
+	if req.UidType != 0 {
+		sqlStr += " and uid_type = " + strconv.Itoa(int(req.UidType))
+	}
+	if len(req.UidTypeList) > 0 {
+		uidTypeList := strings.ReplaceAll(utils.ListToString(req.UidTypeList), "\"", "")
+		sqlStr += " and uid_type in (" + uidTypeList + ")"
+	}
+	if req.AmountType > 0 {
+		if req.AmountType == 1 {
+			sqlStr += " and (balance is null or balance = '' or balance = '0')"
+		} else if req.AmountType == 2 {
+			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+
+	if req.GroupBy != "" {
+		sqlStr += " group by " + req.GroupBy
+	}
+	sqlStr += ")"
+
+	sqlStr += " select t.* "
+	if req.Total {
+		sqlStr += ", t1.* "
+	}
+	sqlStr += " from t "
+	if req.Total {
+		sqlStr += " inner join (select count(*) as total from t) as t1 on 1=1 "
+	}
+	if req.OrderBy != "" {
+		sqlStr += " order by t." + req.OrderBy
+	}
+
+	if req.DataDirection == 0 {
+		if req.PageNum > 0 {
+			sqlStr += " offset " + strconv.Itoa(int(req.PageNum-1)*int(req.PageSize))
+		} else {
+			sqlStr += " offset 0 "
+		}
+	}
+	sqlStr += " limit " + strconv.Itoa(int(req.PageSize))
+
+	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("page query userAsset failed", err)
+		return nil, 0, err
+	}
+	if len(userAssetList) > 0 {
+		total = userAssetList[0].Total
+	}
+	return userAssetList, total, nil
+}
+
+func (r *UserAssetRepoImpl) ListAddressAmountGroup(ctx context.Context, req *AssetRequest) ([]*UserAssetWrapper, error) {
+	var userAssetList []*UserAssetWrapper
+
+	groupBy := req.GroupBy
+	if groupBy != "" {
+		groupBy += ", "
+	}
+	sqlStr := "select " + groupBy + "count(distinct address) as address_amount " +
 		"from user_asset " +
 		"where 1=1 "
 	if req.ChainName != "" {
@@ -541,6 +687,13 @@ func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *Asse
 		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
 		sqlStr += " and token_address in (" + tokenAddressList + ")"
 	}
+	if req.UidType != 0 {
+		sqlStr += " and uid_type = " + strconv.Itoa(int(req.UidType))
+	}
+	if len(req.UidTypeList) > 0 {
+		uidTypeList := strings.ReplaceAll(utils.ListToString(req.UidTypeList), "\"", "")
+		sqlStr += " and uid_type in (" + uidTypeList + ")"
+	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {
 			sqlStr += " and (balance is null or balance = '' or balance = '0')"
@@ -548,7 +701,9 @@ func (r *UserAssetRepoImpl) ListBalanceGroupByUid(ctx context.Context, req *Asse
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
 		}
 	}
-	sqlStr += " group by uid"
+	if req.GroupBy != "" {
+		sqlStr += " group by " + req.GroupBy
+	}
 
 	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
 	err := ret.Error
@@ -604,6 +759,12 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 	}
 	if len(req.TokenAddressList) > 0 {
 		db = db.Where("token_address in(?)", req.TokenAddressList)
+	}
+	if req.UidType != 0 {
+		db = db.Where("uid_type = ?", req.UidType)
+	}
+	if len(req.UidTypeList) > 0 {
+		db = db.Where("uid_type in(?)", req.UidTypeList)
 	}
 	if req.AmountType > 0 {
 		if req.AmountType == 1 {

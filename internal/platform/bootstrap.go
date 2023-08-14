@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/common"
+	"block-crawling/internal/scheduling"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -629,7 +630,16 @@ func (bs Server) Start(ctx context.Context) error {
 
 	//定时  已启动的 ==  拉取内存 配置
 	InitCustomePlan()
-	//他那边的链配置
+
+	//添加定时任务（每天23:58:00）执行
+	_, err := scheduling.Task.AddTask("58 23 * * *", scheduling.NewStatisticUserAssetTask())
+	if err != nil {
+		log.Error("add statisticUserAssetTask error", zap.Any("", err))
+		return err
+	}
+	//启动定时任务
+	scheduling.Task.Start()
+
 	return nil
 }
 

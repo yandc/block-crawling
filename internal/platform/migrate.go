@@ -127,11 +127,11 @@ func MigrateRecord() {
 		bn, _ := strconv.Atoi(record.BlockNumber)
 		fu := ""
 		tu := ""
-		flag, fromUid, _ := biz.UserAddressSwitch(record.FromObj)
+		flag, fromUid, _ := biz.UserAddressSwitchRetryAlert(record.ChainName, record.FromObj)
 		if flag {
 			fu = fromUid
 		}
-		flag1, toUid, _ := biz.UserAddressSwitch(record.ToObj)
+		flag1, toUid, _ := biz.UserAddressSwitchRetryAlert(record.ChainName, record.ToObj)
 		if flag1 {
 			tu = toUid
 		}
@@ -309,11 +309,11 @@ func initEvmModel(record *data.TBTransactionRecord) *data.EvmTransactionRecord {
 
 	fu := ""
 	tu := ""
-	flag, fromUid, _ := biz.UserAddressSwitch(record.FromObj)
+	flag, fromUid, _ := biz.UserAddressSwitchRetryAlert(record.ChainName, record.FromObj)
 	if flag {
 		fu = fromUid
 	}
-	flag1, toUid, _ := biz.UserAddressSwitch(record.ToObj)
+	flag1, toUid, _ := biz.UserAddressSwitchRetryAlert(record.ChainName, record.ToObj)
 	if flag1 {
 		tu = toUid
 	}
@@ -5015,10 +5015,10 @@ func DeleteAsset() {
 
 	var userAssetList []int64
 	for _, userAsset := range list {
-		userAddress, _, err := biz.UserAddressSwitch(userAsset.Address)
+		userAddress, _, err := biz.UserAddressSwitchRetryAlert(userAsset.ChainName, userAsset.Address)
 		for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			userAddress, _, err = biz.UserAddressSwitch(userAsset.Address)
+			userAddress, _, err = biz.UserAddressSwitchRetryAlert(userAsset.ChainName, userAsset.Address)
 		}
 		if err == nil {
 			if userAddress {
@@ -5165,10 +5165,10 @@ func HandleAssetByEventLog() {
 			key := evmTxRecord.ChainName + fromAddress + tokenAddress
 			_, ok := userAssetMap[key]
 			if !ok {
-				userFromAddress, fromUid, err := biz.UserAddressSwitch(fromAddress)
+				userFromAddress, fromUid, err := biz.UserAddressSwitchRetryAlert(evmTxRecord.ChainName, fromAddress)
 				for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					userFromAddress, fromUid, err = biz.UserAddressSwitch(fromAddress)
+					userFromAddress, fromUid, err = biz.UserAddressSwitchRetryAlert(evmTxRecord.ChainName, fromAddress)
 				}
 				if err == nil {
 					if userFromAddress {
@@ -5188,10 +5188,10 @@ func HandleAssetByEventLog() {
 			key = evmTxRecord.ChainName + toAddress + tokenAddress
 			_, ok = userAssetMap[key]
 			if !ok {
-				userToAddress, toUid, err := biz.UserAddressSwitch(toAddress)
+				userToAddress, toUid, err := biz.UserAddressSwitchRetryAlert(evmTxRecord.ChainName, toAddress)
 				for i := 0; i < 3 && err != nil && fmt.Sprintf("%s", err) != biz.REDIS_NIL_KEY; i++ {
 					time.Sleep(time.Duration(i*1) * time.Second)
-					userToAddress, toUid, err = biz.UserAddressSwitch(toAddress)
+					userToAddress, toUid, err = biz.UserAddressSwitchRetryAlert(evmTxRecord.ChainName, toAddress)
 				}
 				if err == nil {
 					if userToAddress {
@@ -5991,7 +5991,7 @@ func ReplaceDappApproveRecord() {
 	}
 
 	for _, address := range addresses {
-		addressExist, uid, err := biz.UserAddressSwitch(address)
+		addressExist, uid, err := biz.UserAddressSwitchRetryAlert("", address)
 		if err != nil {
 			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
 			continue
@@ -6018,7 +6018,7 @@ func ReplaceNervosCellRecord() {
 	}
 
 	for _, address := range addresses {
-		addressExist, uid, err := biz.UserAddressSwitch(address)
+		addressExist, uid, err := biz.UserAddressSwitchRetryAlert("", address)
 		if err != nil {
 			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
 			continue
@@ -6051,7 +6051,7 @@ func ReplaceNftRecordHistoryUid(columnAddress string, columnUrd string) {
 	}
 
 	for _, address := range addresses {
-		addressExist, uid, err := biz.UserAddressSwitch(address)
+		addressExist, uid, err := biz.UserAddressSwitchRetryAlert("", address)
 		if err != nil {
 			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
 			continue
@@ -6077,7 +6077,7 @@ func ReplaceUtxoUnspentRecord() {
 	}
 
 	for _, address := range addresses {
-		addressExist, uid, err := biz.UserAddressSwitch(address)
+		addressExist, uid, err := biz.UserAddressSwitchRetryAlert("", address)
 		if err != nil {
 			log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err))
 			continue
@@ -7179,4 +7179,95 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 		marketCoinHistory.Balance = oldBalance.Add(totalNum).String()
 		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 	}
+}
+
+func UpdateAssetUidType() {
+	log.Info("填补uid对应的钱包类型，处理用户资产表开始")
+
+	var request = &data.AssetRequest{
+		GroupBy:  "uid, address",
+		PageNum:  1,
+		PageSize: data.MAX_PAGE_SIZE,
+		Total:    true,
+	}
+	uidUidTypeMap := make(map[string]int8)
+	var recordGroupList []*data.UserAssetWrapper
+	userAssets, total, err := data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
+	if err != nil {
+		log.Error("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("error", err))
+		return
+	}
+	if total == 0 {
+		log.Info("填补uid对应的钱包类型，从数据库中查询用户资产为空", zap.Any("total", total))
+		return
+	}
+	recordGroupList = append(recordGroupList, userAssets...)
+	if total > data.MAX_PAGE_SIZE {
+		request.Total = false
+		pages := total / data.MAX_PAGE_SIZE
+		remainder := total % data.MAX_PAGE_SIZE
+		if remainder > 0 {
+			pages++
+		}
+
+		var i int64 = 2
+		for ; i <= pages; i++ {
+			log.Info("填补uid对应的钱包类型，从数据库中查询用户资产中", zap.Any("pageNum", i), zap.Any("pages", pages), zap.Any("total", total))
+			time.Sleep(time.Duration(5) * time.Second)
+			request.PageNum = int32(i)
+			userAssets, _, err = data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
+			if err != nil {
+				log.Info("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("pageNum", i), zap.Any("pages", pages), zap.Any("total", total))
+				return
+			}
+			if len(userAssets) > 0 {
+				recordGroupList = append(recordGroupList, userAssets...)
+			}
+		}
+	}
+	if err != nil {
+		log.Error("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
+		return
+	}
+
+	recordSize := len(recordGroupList)
+	if recordSize == 0 {
+		log.Info("填补uid对应的钱包类型，从数据库中查询用户资产为空", zap.Any("size", recordSize), zap.Any("total", total))
+		return
+	}
+
+	log.Info("填补uid对应的钱包类型，开始执行从Redis中查询钱包类型操作", zap.Any("size", recordSize), zap.Any("total", total))
+	var num int
+	for _, userAsset := range recordGroupList {
+		uidType, ok := uidUidTypeMap[userAsset.Uid]
+		if ok {
+			continue
+		}
+		if num++; num%data.MAX_PAGE_SIZE == 0 {
+			log.Info("填补uid对应的钱包类型，从Redis中查询钱包类型中", zap.Any("num", num), zap.Any("size", recordSize), zap.Any("total", total))
+			time.Sleep(time.Duration(1) * time.Second)
+		}
+		uidType, _ = biz.GetUidTypeCode(userAsset.Address)
+		uidUidTypeMap[userAsset.Uid] = uidType
+	}
+
+	log.Info("填补uid对应的钱包类型，开始执行修改数据库操作", zap.Any("size", len(uidUidTypeMap)))
+	num = 0
+	for uid, uidType := range uidUidTypeMap {
+		if num++; num%biz.PAGE_SIZE == 0 {
+			log.Info("填补uid对应的钱包类型，修改数据库中", zap.Any("num", num), zap.Any("size", len(uidUidTypeMap)))
+			time.Sleep(time.Duration(2) * time.Second)
+		}
+		var count int64
+		count, err = data.UserAssetRepoClient.UpdateUidTypeByUid(nil, uid, uidType)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = data.UserAssetRepoClient.UpdateUidTypeByUid(nil, uid, uidType)
+		}
+		if err != nil {
+			log.Error("填补uid对应的钱包类型，将数据插入到数据库中失败", zap.Any("size", len(uidUidTypeMap)), zap.Any("count", count), zap.Any("uid", uid), zap.Any("uidType", uidType), zap.Any("error", err))
+		}
+	}
+
+	log.Info("填补uid对应的钱包类型，处理用户资产表结束")
 }

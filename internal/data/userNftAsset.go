@@ -64,6 +64,7 @@ type NftAssetRequest struct {
 	CollectionNameLikeIgnoreCase string
 	StartTime                    int64
 	StopTime                     int64
+	GroupBy                      string
 	OrderBy                      string
 	DataDirection                int32
 	StartIndex                   int64
@@ -93,7 +94,7 @@ type UserNftAssetRepo interface {
 	ListAll(context.Context) ([]*UserNftAsset, error)
 	PageList(context.Context, *NftAssetRequest) ([]*UserNftAsset, int64, error)
 	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
-	ListBalanceGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAsset, error)
+	ListBalanceGroup(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
 	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -352,6 +353,12 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *NftAssetReques
 	if req.Uid != "" {
 		db = db.Where("uid = ?", req.Uid)
 	}
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
+	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
@@ -432,6 +439,9 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	if req.Address != "" {
 		db = db.Where("address = ?", req.Address)
 	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
+	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
 	}
@@ -470,10 +480,14 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	return userNftAssetList, nil
 }
 
-func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *pb.PageListNftAssetRequest) ([]*UserNftAsset, error) {
+func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *NftAssetRequest) ([]*UserNftAsset, error) {
 	var userNftAssetList []*UserNftAsset
 
-	sqlStr := "select chain_name, token_address, sum(cast(balance as numeric)) as balance " +
+	groupBy := req.GroupBy
+	if groupBy != "" {
+		groupBy += ", "
+	}
+	sqlStr := "select " + groupBy + "sum(cast(balance as numeric)) as balance " +
 		"from user_nft_asset " +
 		"where 1=1 "
 	if req.ChainName != "" {
@@ -481,6 +495,9 @@ func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *pb.Pag
 	}
 	if req.Uid != "" {
 		sqlStr += " and uid = '" + req.Uid + "'"
+	}
+	if req.Address != "" {
+		sqlStr += " and address = '" + req.Address + "'"
 	}
 	if len(req.AddressList) > 0 {
 		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
@@ -507,7 +524,9 @@ func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *pb.Pag
 	if req.CollectionNameLikeIgnoreCase != "" {
 		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
 	}
-	sqlStr += " group by chain_name, token_address"
+	if req.GroupBy != "" {
+		sqlStr += " group by " + req.GroupBy
+	}
 
 	ret := r.gormDB.WithContext(ctx).Table("user_nft_asset").Raw(sqlStr).Find(&userNftAssetList)
 	err := ret.Error
@@ -580,7 +599,9 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	if req.Total {
 		sqlStr += " inner join (select count(*) as total, sum(balance) as total_balance from t) as t1 on 1=1 "
 	}
-	sqlStr += " order by t." + req.OrderBy
+	if req.OrderBy != "" {
+		sqlStr += " order by t." + req.OrderBy
+	}
 
 	if req.DataDirection == 0 {
 		if req.PageNum > 0 {
@@ -637,6 +658,9 @@ func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest)
 	}
 	if req.Address != "" {
 		db = db.Where("address = ?", req.Address)
+	}
+	if len(req.UidList) > 0 {
+		db = db.Where("uid in(?)", req.UidList)
 	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
