@@ -369,6 +369,8 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.AtomTran
 		return
 	}
 	for _, userAsset := range userAssetMap {
+		uidType, _ := biz.GetUidTypeCode(userAsset.Address)
+		userAsset.UidType = uidType
 		userAssets = append(userAssets, userAsset)
 	}
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)

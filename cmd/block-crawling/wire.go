@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/data/kanban"
+	"block-crawling/internal/scheduling"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2"
@@ -29,6 +30,7 @@ func wireApp(*conf.Server, *conf.Data, *conf.App, *conf.AddressServer, *conf.Lar
 		biz.LarkProviderSet,
 		biz.ProviderSet,
 		service.ProviderSet,
+		scheduling.ProviderSet,
 		newApp,
 	))
 }

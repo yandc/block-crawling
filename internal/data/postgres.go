@@ -28,7 +28,7 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 		log.Fatale("failed opening connection to postgres", err)
 	}
 
-	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{},&UserAssetHistory{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{},&MarketCoinHistory{})
+	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserAssetHistory{}, &ChainTypeAsset{}, &ChainTypeAddressAmount{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{}, &MarketCoinHistory{})
 
 	sqlDb, err := gormlDb.DB()
 	if err != nil {

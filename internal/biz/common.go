@@ -46,6 +46,7 @@ const (
 	BLOCK_NODE_HEIGHT_KEY     = "block:height:node:"
 	BLOCK_HASH_KEY            = "block:hash:"
 	USER_ADDRESS_KEY          = "usercore:"
+	USERCENTER_ADDRESS_KEY    = "usercenter:"
 	BLOCK_HASH_EXPIRATION_KEY = 2 * time.Hour
 	TABLE_POSTFIX             = data.TABLE_POSTFIX
 	ADDRESS_DONE_NONCE        = "done:"    // + chainanme:address value-->nonce
@@ -131,6 +132,13 @@ const (
 const (
 	CNY = "CNY" //人民币
 	USD = "USD" //美元
+)
+
+// 钱包类型
+const (
+	PERSON  = "PERSON"  //个人钱包
+	COMPANY = "COMPANY" //企业钱包
+	COADMIN = "COADMIN" //共管钱包
 )
 
 const TOKEN_INFO_QUEUE_TOPIC = "token:info:queue:topic"
@@ -578,7 +586,10 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 		return false, "", nil
 	}
 
-	enable, uid, err := UserAddressSwitch(address)
+	enable, uid, err := UserAddressSwitchNew(address)
+	if err != nil || !enable {
+		enable, uid, err = UserAddressSwitch(address)
+	}
 	if err != nil {
 		// redis出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败，address:%s", chainName, address)
@@ -608,6 +619,99 @@ func UserAddressSwitch(address string) (bool, string, error) {
 		}
 	}
 	return enable, uid, nil
+}
+
+var UserInfoMap = &sync.Map{}
+
+type UserInfo struct {
+	Uid     string `json:"uid"`
+	UidType string `json:"uid_type"`
+}
+
+func GetUserInfo(address string) (*UserInfo, error) {
+	if address == "" {
+		return nil, nil
+	}
+	userInfoStr, err := data.RedisClient.Get(USERCENTER_ADDRESS_KEY + address).Result()
+	for i := 0; i < 3 && err != nil && err != redis.Nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		userInfoStr, err = data.RedisClient.Get(USERCENTER_ADDRESS_KEY + address).Result()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if userInfoStr == "" {
+		return nil, nil
+	}
+
+	var userInfo *UserInfo
+	err = json.Unmarshal([]byte(userInfoStr), &userInfo)
+	if err != nil {
+		return nil, err
+	}
+	if userInfo != nil {
+		UserInfoMap.Store(address, userInfo)
+	}
+	return userInfo, nil
+}
+
+func UserAddressSwitchNew(address string) (bool, string, error) {
+	if address == "" {
+		return false, "", nil
+	}
+	enable := true
+	var uid string
+	userInfo, err := GetUserInfo(address)
+	if !AppConfig.ScanAll {
+		if err != nil && err != redis.Nil {
+			return false, "", err
+		}
+		if userInfo == nil {
+			enable = false
+		}
+	}
+	if userInfo != nil {
+		uid = userInfo.Uid
+	}
+
+	return enable, uid, nil
+}
+
+func GetUidType(address string) (string, error) {
+	if address == "" {
+		return "", nil
+	}
+	var uidType string
+	userInfo, err := GetUserInfo(address)
+	if err != nil && err != redis.Nil {
+		return "", err
+	}
+	if userInfo != nil {
+		uidType = userInfo.UidType
+	}
+	return uidType, nil
+}
+
+func GetUidTypeCode(address string) (int8, error) {
+	if address == "" {
+		return 0, nil
+	}
+	var uidTypeCode int8
+	userInfo, err := GetUserInfo(address)
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+	if userInfo != nil {
+		uidType := userInfo.UidType
+		if uidType == PERSON {
+			uidTypeCode = 1
+		} else if uidType == COMPANY {
+			uidTypeCode = 2
+		} else if uidType == COADMIN {
+			uidTypeCode = 3
+		}
+	}
+	return uidTypeCode, nil
 }
 
 var chainGasPriceMap = &sync.Map{}

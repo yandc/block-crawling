@@ -20,6 +20,8 @@ service Transaction {
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
   //管理平台分页查询用户资产列表
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
+  //管理平台分页查询用户资产分组列表
+  rpc PageListAssetGroup(PageListAssetRequest) returns (PageListAssetResponse);
   //客户端分页查询用户资产列表
   rpc ClientPageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //查询用户余额
@@ -28,6 +30,10 @@ service Transaction {
   rpc ListAmountUidDimension(ListAmountUidDimensionRequest) returns (ListAmountUidDimensionResponse);
   //根据uid维度查询用户是否有余额列表
   rpc ListHasBalanceUidDimension(ListHasBalanceUidDimensionRequest) returns (ListHasBalanceUidDimensionResponse);
+  //交易数据看板查询资沉量趋势图
+  rpc AssetHistoryFundAmount(AssetHistoryRequest) returns (AssetHistoryFundAmountListResponse);
+  //交易数据看板查询钱包地址数趋势图
+  rpc AssetHistoryAddressAmount(AssetHistoryRequest) returns (AssetHistoryAddressAmountListResponse);
   //客户端分页查询用户NFT资产分组列表
   rpc ClientPageListNftAssetGroup(PageListNftAssetRequest) returns (ClientPageListNftAssetGroupResponse);
   //客户端分页查询用户NFT资产列表
@@ -377,6 +383,7 @@ message PageListAssetRequest {
   int32 pageNum = 10 [(validate.rules).int32.gte = 0];
   int32 pageSize = 11 [(validate.rules).int32.gte = 0];
   bool total = 12;
+  int32 addressType = 13;//钱包类型: 0:ALL(不传默认查询所有钱包类型), 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
 }
 
 message PageListAssetResponse {
@@ -399,6 +406,7 @@ message AssetResponse {
   int64 updatedAt = 11;
   int64 cursor = 12;
   string price = 13;
+  int32 addressType = 14;//钱包类型: 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
 }
 
 message AssetRequest {
@@ -441,6 +449,32 @@ message ListHasBalanceUidDimensionResponse {
 message HasBalanceUidDimensionResponse {
   string uid = 1;
   bool hasBalance = 2;
+}
+
+message AssetHistoryRequest {
+  string chainName = 1;//-- 非必输
+  int32 addressType = 2;//钱包类型: 0:ALL(不传默认查询所有钱包类型), 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
+  int64 startTime = 3 [(validate.rules).int64.gt = 0];
+  int64 stopTime = 4 [(validate.rules).int64.gt = 0];
+}
+
+message AssetHistoryFundAmountListResponse {
+  repeated AssetHistoryFundAmountResponse list = 1;
+}
+
+message AssetHistoryFundAmountResponse {
+  string cnyAmount = 1;
+  string usdAmount = 2;
+  int64 dt = 3;
+}
+
+message AssetHistoryAddressAmountListResponse {
+  repeated AssetHistoryAddressAmountResponse list = 1;
+}
+
+message AssetHistoryAddressAmountResponse {
+  int64 addressAmount = 1;
+  int64 dt = 2;
 }
 
 message PageListNftAssetRequest {

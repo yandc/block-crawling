@@ -33,6 +33,8 @@ type TransactionClient interface {
 	GetDappListPageList(ctx context.Context, in *DappPageListReq, opts ...grpc.CallOption) (*DappPageListResp, error)
 	//管理平台分页查询用户资产列表
 	PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
+	//管理平台分页查询用户资产分组列表
+	PageListAssetGroup(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//客户端分页查询用户资产列表
 	ClientPageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//查询用户余额
@@ -41,6 +43,10 @@ type TransactionClient interface {
 	ListAmountUidDimension(ctx context.Context, in *ListAmountUidDimensionRequest, opts ...grpc.CallOption) (*ListAmountUidDimensionResponse, error)
 	//根据uid维度查询用户是否有余额列表
 	ListHasBalanceUidDimension(ctx context.Context, in *ListHasBalanceUidDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceUidDimensionResponse, error)
+	//交易数据看板查询资沉量趋势图
+	AssetHistoryFundAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryFundAmountListResponse, error)
+	//交易数据看板查询钱包地址数趋势图
+	AssetHistoryAddressAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryAddressAmountListResponse, error)
 	//客户端分页查询用户NFT资产分组列表
 	ClientPageListNftAssetGroup(ctx context.Context, in *PageListNftAssetRequest, opts ...grpc.CallOption) (*ClientPageListNftAssetGroupResponse, error)
 	//客户端分页查询用户NFT资产列表
@@ -147,6 +153,15 @@ func (c *transactionClient) PageListAsset(ctx context.Context, in *PageListAsset
 	return out, nil
 }
 
+func (c *transactionClient) PageListAssetGroup(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error) {
+	out := new(PageListAssetResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/PageListAssetGroup", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *transactionClient) ClientPageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error) {
 	out := new(PageListAssetResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ClientPageListAsset", in, out, opts...)
@@ -177,6 +192,24 @@ func (c *transactionClient) ListAmountUidDimension(ctx context.Context, in *List
 func (c *transactionClient) ListHasBalanceUidDimension(ctx context.Context, in *ListHasBalanceUidDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceUidDimensionResponse, error) {
 	out := new(ListHasBalanceUidDimensionResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ListHasBalanceUidDimension", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) AssetHistoryFundAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryFundAmountListResponse, error) {
+	out := new(AssetHistoryFundAmountListResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/AssetHistoryFundAmount", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) AssetHistoryAddressAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryAddressAmountListResponse, error) {
+	out := new(AssetHistoryAddressAmountListResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/AssetHistoryAddressAmount", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +339,8 @@ type TransactionServer interface {
 	GetDappListPageList(context.Context, *DappPageListReq) (*DappPageListResp, error)
 	//管理平台分页查询用户资产列表
 	PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
+	//管理平台分页查询用户资产分组列表
+	PageListAssetGroup(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//客户端分页查询用户资产列表
 	ClientPageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//查询用户余额
@@ -314,6 +349,10 @@ type TransactionServer interface {
 	ListAmountUidDimension(context.Context, *ListAmountUidDimensionRequest) (*ListAmountUidDimensionResponse, error)
 	//根据uid维度查询用户是否有余额列表
 	ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error)
+	//交易数据看板查询资沉量趋势图
+	AssetHistoryFundAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryFundAmountListResponse, error)
+	//交易数据看板查询钱包地址数趋势图
+	AssetHistoryAddressAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryAddressAmountListResponse, error)
 	//客户端分页查询用户NFT资产分组列表
 	ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error)
 	//客户端分页查询用户NFT资产列表
@@ -369,6 +408,9 @@ func (UnimplementedTransactionServer) GetDappListPageList(context.Context, *Dapp
 func (UnimplementedTransactionServer) PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListAsset not implemented")
 }
+func (UnimplementedTransactionServer) PageListAssetGroup(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PageListAssetGroup not implemented")
+}
 func (UnimplementedTransactionServer) ClientPageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListAsset not implemented")
 }
@@ -380,6 +422,12 @@ func (UnimplementedTransactionServer) ListAmountUidDimension(context.Context, *L
 }
 func (UnimplementedTransactionServer) ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListHasBalanceUidDimension not implemented")
+}
+func (UnimplementedTransactionServer) AssetHistoryFundAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryFundAmountListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssetHistoryFundAmount not implemented")
+}
+func (UnimplementedTransactionServer) AssetHistoryAddressAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryAddressAmountListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssetHistoryAddressAmount not implemented")
 }
 func (UnimplementedTransactionServer) ClientPageListNftAssetGroup(context.Context, *PageListNftAssetRequest) (*ClientPageListNftAssetGroupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClientPageListNftAssetGroup not implemented")
@@ -574,6 +622,24 @@ func _Transaction_PageListAsset_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transaction_PageListAssetGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).PageListAssetGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/PageListAssetGroup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).PageListAssetGroup(ctx, req.(*PageListAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Transaction_ClientPageListAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PageListAssetRequest)
 	if err := dec(in); err != nil {
@@ -642,6 +708,42 @@ func _Transaction_ListHasBalanceUidDimension_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TransactionServer).ListHasBalanceUidDimension(ctx, req.(*ListHasBalanceUidDimensionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_AssetHistoryFundAmount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssetHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).AssetHistoryFundAmount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/AssetHistoryFundAmount",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).AssetHistoryFundAmount(ctx, req.(*AssetHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_AssetHistoryAddressAmount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssetHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).AssetHistoryAddressAmount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/AssetHistoryAddressAmount",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).AssetHistoryAddressAmount(ctx, req.(*AssetHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -902,6 +1004,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Transaction_PageListAsset_Handler,
 		},
 		{
+			MethodName: "PageListAssetGroup",
+			Handler:    _Transaction_PageListAssetGroup_Handler,
+		},
+		{
 			MethodName: "ClientPageListAsset",
 			Handler:    _Transaction_ClientPageListAsset_Handler,
 		},
@@ -916,6 +1022,14 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListHasBalanceUidDimension",
 			Handler:    _Transaction_ListHasBalanceUidDimension_Handler,
+		},
+		{
+			MethodName: "AssetHistoryFundAmount",
+			Handler:    _Transaction_AssetHistoryFundAmount_Handler,
+		},
+		{
+			MethodName: "AssetHistoryAddressAmount",
+			Handler:    _Transaction_AssetHistoryAddressAmount_Handler,
 		},
 		{
 			MethodName: "ClientPageListNftAssetGroup",

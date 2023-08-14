@@ -12,6 +12,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/platform"
+	"block-crawling/internal/scheduling"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
 	"github.com/go-kratos/kratos/v2"
@@ -53,10 +54,12 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	userAssetRepo := data.NewUserAssetRepo(db)
 	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
 	userAssetHistoryRepo := data.NewUserAssetHistoryRepo(db)
+	chainTypeAssetRepo := data.NewChainTypeAssetRepo(db)
+	chainTypeAddressAmountRepo := data.NewChainTypeAddressAmountRepo(db)
 	dappApproveRecordRepo := data.NewDappApproveRecordRepo(db)
 	client := data.NewRedisClient(confData)
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
-	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
 	if err != nil {
 		cleanup2()
@@ -75,6 +78,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	grpcServer := server.NewGRPCServer(confServer, transactionService, logLogger)
 	httpServer := server.NewHTTPServer(confServer, transactionService, logLogger)
 	kratosApp := newApp(logLogger, grpcServer, httpServer, platformServer)
+	scheduling.NewScheduledTask()
 	return kratosApp, func() {
 		cleanup3()
 		cleanup2()

@@ -314,6 +314,21 @@ func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageList
 	return result, err
 }
 
+func (s *TransactionService) PageListAssetGroup(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	if req.OrderBy == "" {
+		req.OrderBy = "currencyAmount desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
+	result, err := s.ts.PageListAssetGroup(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) ClientPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
 	if req.ChainName == "" {
 		return nil, errors.New("chainName is required")
@@ -362,6 +377,34 @@ func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req
 	}
 
 	result, err := s.ts.ListHasBalanceUidDimension(ctx, req)
+	return result, err
+}
+
+func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryFundAmountListResponse, error) {
+	if req.StartTime >= req.StopTime {
+		return nil, errors.New("startTime is greater than stopTime")
+	}
+	if req.ChainName == "" {
+		req.ChainName = "all"
+	}
+	if req.AddressType == 0 {
+		req.AddressType = -1
+	}
+	result, err := s.ts.AssetHistoryFundAmount(ctx, req)
+	return result, err
+}
+
+func (s *TransactionService) AssetHistoryAddressAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryAddressAmountListResponse, error) {
+	if req.StartTime >= req.StopTime {
+		return nil, errors.New("startTime is greater than stopTime")
+	}
+	if req.ChainName == "" {
+		req.ChainName = "all"
+	}
+	if req.AddressType == 0 {
+		req.AddressType = -1
+	}
+	result, err := s.ts.AssetHistoryAddressAmount(ctx, req)
 	return result, err
 }
 

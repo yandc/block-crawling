@@ -60,6 +60,8 @@ type StatisticRequest struct {
 	TokenAddress      string
 	TokenAddressList  []string
 	FundDirectionList []int16
+	StartTime         int64
+	StopTime          int64
 }
 
 type TransactionStatisticRepoImpl struct {
@@ -274,17 +276,17 @@ func (r *TransactionStatisticRepoImpl) PageList(ctx context.Context, req *pb.Pag
 	if req.ChainName != "" {
 		db = db.Where("chain_name = ?", req.ChainName)
 	}
-	if len(req.FundDirectionList) > 0 {
-		db = db.Where("fund_direction in(?)", req.FundDirectionList)
-	}
 	if req.TokenAddress != "" {
 		db = db.Where("token_address = ?", req.TokenAddress)
 	}
+	if len(req.FundDirectionList) > 0 {
+		db = db.Where("fund_direction in(?)", req.FundDirectionList)
+	}
 	if req.StartTime > 0 {
-		db = db.Where("created_at >= ?", req.StartTime)
+		db = db.Where("dt >= ?", req.StartTime)
 	}
 	if req.StopTime > 0 {
-		db = db.Where("created_at < ?", req.StopTime)
+		db = db.Where("dt < ?", req.StopTime)
 	}
 
 	if req.Total {
@@ -341,6 +343,12 @@ func (r *TransactionStatisticRepoImpl) List(ctx context.Context, req *StatisticR
 	if len(req.FundDirectionList) > 0 {
 		db = db.Where("fund_direction in(?)", req.FundDirectionList)
 	}
+	if req.StartTime > 0 {
+		db = db.Where("dt >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("dt < ?", req.StopTime)
+	}
 
 	ret := db.Find(&transactionStatisticList)
 	err := ret.Error
@@ -376,6 +384,12 @@ func (r *TransactionStatisticRepoImpl) Delete(ctx context.Context, req *Statisti
 	}
 	if len(req.FundDirectionList) > 0 {
 		db = db.Where("fund_direction in(?)", req.FundDirectionList)
+	}
+	if req.StartTime > 0 {
+		db = db.Where("dt >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("dt < ?", req.StopTime)
 	}
 
 	ret := db.Delete(&UserAsset{})
