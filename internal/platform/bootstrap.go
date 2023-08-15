@@ -631,7 +631,6 @@ func (bs Server) Start(ctx context.Context) error {
 	//定时  已启动的 ==  拉取内存 配置
 	InitCustomePlan()
 
-	scheduling.StatisticUserAsset()
 	//添加定时任务（每天23:58:00）执行
 	_, err := scheduling.Task.AddTask("58 23 * * *", scheduling.NewStatisticUserAssetTask())
 	if err != nil {
@@ -639,7 +638,7 @@ func (bs Server) Start(ctx context.Context) error {
 		return err
 	}
 	//启动定时任务
-	//scheduling.Task.Start()
+	scheduling.Task.Start()
 
 	return nil
 }
