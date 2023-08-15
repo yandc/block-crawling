@@ -3239,6 +3239,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 
 			}
 			proportion := "0"
+			orgProportion := "0"
 			negative := "0"
 			usdProceeds := "0"
 			cnyProceeds := "0"
@@ -3252,6 +3253,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 				v := usdBalanceAmountDecimal.Sub(mch.UsdAmount.Abs())
 				if v.Cmp(decimal.Zero) != 0 {
 					proportion = v.Abs().DivRound(mch.UsdAmount.Abs(), 2).Mul(decimal.NewFromInt(100)).String()
+					orgProportion = v.DivRound(mch.UsdAmount.Abs(), 2).Mul(decimal.NewFromInt(100)).String()
 				}
 				if v.IsNegative() {
 					negative = "1"
@@ -3298,7 +3300,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 			}
 			if usdBalanceAmountDecimal.Cmp(decimal.NewFromFloat(10.0)) == 1 {
 				if req.OrderField == "1" {
-					of := int(usdBalanceAmountDecimal.IntPart())
+					of := int(usdBalanceAmountDecimal.Mul(decimal.NewFromInt(100)).IntPart())
 					if dcm, ok := orderMap[of]; ok {
 						dcm = append(dcm, abResult)
 						orderMap[of] = dcm
@@ -3310,7 +3312,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 					direction = append(direction, of)
 				}
 				if req.OrderField == "2" {
-					of, _ := strconv.Atoi(usdProceeds)
+					of, _ := strconv.Atoi(orgProportion)
 
 					if dcm, ok := orderMap[of]; ok {
 						dcm = append(dcm, abResult)
@@ -3324,13 +3326,13 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 				}
 			}
 		}
+
 		var result = make([]int, 0)
 		if req.DataDirection == "1" {
 			result = utils.GetMaxHeap(direction, len(direction)) //由低到高
 		} else {
 			result = utils.GetMinHeap(direction, len(direction)) //由高到低
 		}
-
 		for _, v := range result {
 			if _, ok := checkDirection[v]; ok {
 				continue

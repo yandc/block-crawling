@@ -105,6 +105,7 @@ type EvmTransactionRecordRepo interface {
 	ListDappDataStringByTimeRanges(context.Context, string, string, int, int) ([]string, error)
 	FindByAddressCount(context.Context, string, string, string, int, int, string) ([]EvmTransferCount, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
+	FindUsdt(context.Context, string)([]*EvmTransactionRecord, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -1460,4 +1461,15 @@ func (r *EvmTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context
 		return 0, err
 	}
 	return ret.RowsAffected, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindUsdt(ctx context.Context, tableName string)([]*EvmTransactionRecord, error){
+	var evmTransactionRecordList []*EvmTransactionRecord
+	ret := r.gormDB.Table(tableName).Where(" (from_address ='0xb7B4D65CB5a0c44cCB9019ca74745686188173Db' or to_address ='0xb7B4D65CB5a0c44cCB9019ca74745686188173Db') and transaction_type in ('transfer','eventLog') and status ='success' and parse_data like '%0xdAC17F958D2ee523a2206206994597C13D831ec7%' ").Order("tx_time asc").Find(&evmTransactionRecordList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" failed", err)
+		return nil, err
+	}
+	return evmTransactionRecordList, nil
 }
