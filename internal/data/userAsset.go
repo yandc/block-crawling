@@ -42,6 +42,7 @@ type AssetRequest struct {
 	ChainNameAddressTokenAddressList []*AssetRequest
 	StartTime                        int64
 	StopTime                         int64
+	SelectColumn                     string
 	GroupBy                          string
 	OrderBy                          string
 	DataDirection                    int32
@@ -388,6 +389,9 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 	}
 	db = db.Limit(int(req.PageSize))
 
+	if req.SelectColumn != "" {
+		db = db.Select(req.SelectColumn)
+	}
 	ret := db.Find(&userAssetList)
 	err := ret.Error
 	if err != nil {
