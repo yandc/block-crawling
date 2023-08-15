@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -53,47 +54,51 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 	log.Info("统计用户资产金额，处理指标数据开始", zap.Any("dt", dt), zap.Any("nowTime", nowTime))
 
 	var request = &data.AssetRequest{
-		UidTypeList: []int32{1, 2, 3},
-		AmountType:  2,
-		GroupBy:     "chain_name, uid_type, token_address",
-		PageNum:     1,
-		PageSize:    data.MAX_PAGE_SIZE,
-		Total:       true,
+		UidTypeList:   []int32{1, 2, 3},
+		AmountType:    2,
+		SelectColumn:  "id, chain_name, uid_type, token_address, balance",
+		OrderBy:       "id asc",
+		DataDirection: 2,
+		StartIndex:    0,
+		PageSize:      data.MAX_PAGE_SIZE,
+		Total:         false,
 	}
 	var chainTypeAssetList []*data.ChainTypeAsset
 	chainTypeAssetMap := make(map[string]map[int8]*data.ChainTypeAsset)
 	chainTypeAssetChainNameMap := make(map[string]*data.ChainTypeAsset)
 	chainTypeAssetUidTypeMap := make(map[int8]*data.ChainTypeAsset)
-	var recordGroupList []*data.UserAssetWrapper
-	userAssets, total, err := data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
-	if err != nil {
-		log.Error("统计用户资产金额开始，从数据库中查询用户资产失败", zap.Any("error", err))
-		return
-	}
-	if total == 0 {
-		log.Info("统计用户资产金额开始，从数据库中查询用户资产为空", zap.Any("total", total))
-		return
-	}
-	recordGroupList = append(recordGroupList, userAssets...)
-	if total > data.MAX_PAGE_SIZE {
-		request.Total = false
-		pages := total / data.MAX_PAGE_SIZE
-		remainder := total % data.MAX_PAGE_SIZE
-		if remainder > 0 {
-			pages++
+	var recordGroupList []*data.UserAsset
+	recordGroupMap := make(map[string]*data.UserAsset)
+	var err error
+	var total int64
+	for {
+		var userAssets []*data.UserAsset
+		userAssets, _, err = data.UserAssetRepoClient.PageList(nil, request)
+		if err != nil {
+			break
+		}
+		dataLen := int32(len(userAssets))
+		if dataLen == 0 {
+			break
 		}
 
-		var i int64 = 2
-		for ; i <= pages; i++ {
-			request.PageNum = int32(i)
-			userAssets, _, err = data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
-			if err != nil {
-				break
-			}
-			if len(userAssets) > 0 {
-				recordGroupList = append(recordGroupList, userAssets...)
+		total += int64(dataLen)
+		for _, userAsset := range userAssets {
+			key := userAsset.ChainName + strconv.Itoa(int(userAsset.UidType)) + userAsset.TokenAddress
+			oldUserAsset, ok := recordGroupMap[key]
+			if !ok {
+				recordGroupMap[key] = userAsset
+			} else {
+				balance, _ := decimal.NewFromString(userAsset.Balance)
+				oldBalance, _ := decimal.NewFromString(oldUserAsset.Balance)
+				oldUserAsset.Balance = oldBalance.Add(balance).String()
 			}
 		}
+		if dataLen < request.PageSize {
+			break
+		}
+		request.StartIndex = userAssets[len(userAssets)-1].Id
+		time.Sleep(time.Duration(1) * time.Second)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
@@ -101,6 +106,14 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Error("统计用户资产金额，从数据库中查询用户资产信息失败", zap.Any("dt", dt), zap.Any("total", total), zap.Any("error", err))
+		return
+	}
+	if total == 0 {
+		log.Info("统计用户资产金额开始，从数据库中查询用户资产为空", zap.Any("total", total))
+		return
+	}
+	for _, userAsset := range recordGroupMap {
+		recordGroupList = append(recordGroupList, userAsset)
 	}
 
 	recordSize := len(recordGroupList)

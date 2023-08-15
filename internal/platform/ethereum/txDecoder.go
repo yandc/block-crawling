@@ -895,7 +895,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//https://polygonscan.com/tx/0x72ce3718c81bae2c888d0403d33d2f9e5c533c601c90aaaa4158a8439c6f7630
 			//提现，判断 用户无需话费value 判断value是否为0
 			if meta.Value == "0" {
-				if contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId =="4630a0d8" {
+				if contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8" {
 					continue
 				}
 				toAddress = meta.FromAddress
@@ -1351,18 +1351,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		}
 
-		//不展示event log中的授权记录
-		//https://polygonscan.com/tx/0xdd8635bfce70c989487eea4403826e691efbf230887e92cc958d53e79281b7b9#eventlog 合约地址：0xf0511f123164602042ab2bcf02111fa5d3fe97cd
-		//if topic0 == APPROVAL_TOPIC {
-		//	//https://polygonscan.com/tx/0x1444da34ed2dff311adb0a79382e94af6987b861e525ea5c1ecc9e6a49988119 ob闪对 代币 动态approve处理 合约地址：0xb7fdda5330daea72514db2b84211afebd19277ca
-		//	if ("0xf0511f123164602042ab2bcf02111fa5d3fe97cd" == contractAddress || "0xb7fdda5330daea72514db2b84211afebd19277ca" == contractAddress) && strings.HasPrefix(h.chainName, "Polygon") {
-		//		//更新 敞口
-		//		data.DappApproveRecordRepoClient.UpdateAddressBalanceByTokenAndContract(nil, fromAddress, tokenAddress, toAddress, amount.String(), h.chainName)
-		//		continue
-		//	} else {
-		//		continue
-		//	}
-		//}
+		if topic0 == APPROVAL_TOPIC {
+			continue
+		}
 
 		if len(tokens) > 0 {
 			for _, tokenInfo := range tokens {

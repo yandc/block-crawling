@@ -632,7 +632,7 @@ func (bs Server) Start(ctx context.Context) error {
 	InitCustomePlan()
 
 	//添加定时任务（每天23:58:00）执行
-	_, err := scheduling.Task.AddTask("58 23 * * *", scheduling.NewStatisticUserAssetTask())
+	_, err := scheduling.Task.AddTask("20 17 * * *", scheduling.NewStatisticUserAssetTask())
 	if err != nil {
 		log.Error("add statisticUserAssetTask error", zap.Any("", err))
 		return err
