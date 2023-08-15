@@ -1021,17 +1021,32 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 	} else if len(fmcs) == 1 {
 		marketCoinHistory := fmcs[0]
 		marketCoinHistory.TransactionQuantity = marketCoinHistory.TransactionQuantity + 1
+		oldBalance, _ := decimal.NewFromString(marketCoinHistory.Balance)
+
 		marketCoinHistory.Balance = tokenBalance
-		marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyTokenAmount)
-		marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdTokenAmount)
-		if tokenBalanceDecimal.Cmp(decimal.Zero) != 0 {
-			marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(tokenBalanceDecimal, 0).String()
-			marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(tokenBalanceDecimal, 0).String()
-		}
-		marketCoinHistory.UpdatedAt = now
+
 		oldTransactionBalance, _ := decimal.NewFromString(marketCoinHistory.TransactionBalance)
 		newTransactionBalance, _ := decimal.NewFromString(txb)
 		marketCoinHistory.TransactionBalance = oldTransactionBalance.Add(newTransactionBalance).String()
+
+		if oldBalance.Cmp(decimal.Zero) == 0 {
+			marketCoinHistory.CnyPrice = cnyTokenPrice
+			marketCoinHistory.UsdPrice = usdTokenPrice
+			marketCoinHistory.CnyAmount = cnyTokenAmount
+			marketCoinHistory.UsdAmount = usdTokenAmount
+		}else {
+			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyTokenAmount)
+			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdTokenAmount)
+			if tokenBalanceDecimal.Cmp(decimal.Zero) != 0 {
+				marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(tokenBalanceDecimal, 2).String()
+				marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(tokenBalanceDecimal, 2).String()
+			}
+		}
+
+
+
+		marketCoinHistory.UpdatedAt = now
+
 		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 	}
 }
@@ -1117,17 +1132,28 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 	} else if len(mcs) == 1 {
 		marketCoinHistory := mcs[0]
 		marketCoinHistory.TransactionQuantity = marketCoinHistory.TransactionQuantity + 1
+		oldBalance, _ := decimal.NewFromString(marketCoinHistory.Balance)
 		marketCoinHistory.Balance = balance
-		marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyFee)
-		marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdFee)
-		if balanceDecimal.Cmp(decimal.Zero) != 0 {
-			marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(balanceDecimal, 0).String()
-			marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(balanceDecimal, 0).String()
-		}
-		marketCoinHistory.UpdatedAt = now
+
 		oldTransactionBalance, _ := decimal.NewFromString(marketCoinHistory.TransactionBalance)
 		newTransactionBalance, _ := decimal.NewFromString(totalNum.Abs().String())
 		marketCoinHistory.TransactionBalance = oldTransactionBalance.Add(newTransactionBalance).String()
+
+		if oldBalance.Cmp(decimal.Zero) == 0 {
+			marketCoinHistory.CnyPrice = cnyPrice
+			marketCoinHistory.UsdPrice = usdPrice
+			marketCoinHistory.CnyAmount = cnyFee
+			marketCoinHistory.UsdAmount = usdFee
+		}else {
+			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyFee)
+			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdFee)
+			if balanceDecimal.Cmp(decimal.Zero) != 0 {
+				marketCoinHistory.CnyPrice = marketCoinHistory.CnyAmount.DivRound(balanceDecimal, 2).String()
+				marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(balanceDecimal, 2).String()
+			}
+		}
+		marketCoinHistory.UpdatedAt = now
+
 		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 	}
 }
