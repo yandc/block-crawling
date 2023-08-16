@@ -7,10 +7,9 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/data/kanban"
 	"fmt"
+	"gitlab.bixin.com/mili/node-driver/chain"
 	"strings"
 	"time"
-
-	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 // ERC20 or ERC721
@@ -108,7 +107,8 @@ var BridgeWhiteTopicList = map[string][]string{
 		"Optimism_0xdc42728b0ea910349ed3c6e1c9dc06b5fb591f98_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
 		//https://synapseprotocol.com/?inputCurrency=USDC&outputCurrency=USDC&outputChain=42161
 		"Optimism_0xaf41a65f786339e7911f4acdad6bd49426f2dc6b_0x4f56ec39e98539920503fd54ee56ae0cbebe9eb15aa778f18de67701eeae7c65",
-		"Optimism_0xf480f38c366daac4305dc484b2ad7a496ff00cea_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55"},
+		"Optimism_0xf480f38c366daac4305dc484b2ad7a496ff00cea_0xaac9ce45fe3adf5143598c4f18a369591a20a3384aedaf1b525d29127e1fcd55",
+		"Optimism_0x9d39fc627a6d9d9f8c831c16995b209548cc3401_0x79fa08de5149d912dce8e5e8da7a7c17ccdf23dd5d3bfe196802e6eb86347c7c"},
 	//OpenOceanExchange.V2 https://openocean.finance/
 	"Fantom_Topic": {"Fantom_0x6352a56caadc4f1e25cd6c75970fa768a3304e64_0x76af224a143865a50b41496e1a73622698692c565c1214bc862f18e22d829c5e",
 		"Fantom_0x31f63a33141ffee63d4b26755430a390acdd8a4d_0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",

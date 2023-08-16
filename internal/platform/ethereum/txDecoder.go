@@ -1055,6 +1055,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		} else if topic0 == ARBITRUM_TRANSFERNATIVE {
 			//https://arbiscan.io/tx/0xc03bc0de5428c81bddb027358154fc2355225bf8492125bc95cf6699cef87c3f 主币
 			//https://arbiscan.io/tx/0xa459004e8f9ea67cb1174d3f8d0e2b42450bae69b6feb9644b1c654eac66e598 代币
+			//https://optimistic.etherscan.io/tx/0xcbfaeb2d83f0235577343d7f35c0ec305a8f188465fc6a2ad78382ccfae3836d op主币
 			fromAddress = common.HexToAddress(receipt.To).String()
 			if len(log_.Data) > 96 {
 				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[64:96])).String()
