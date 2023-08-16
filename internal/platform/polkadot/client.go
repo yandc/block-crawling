@@ -165,6 +165,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	timeoutMS := 5_000 * time.Millisecond
 	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	//if txInfo.Error != "" {

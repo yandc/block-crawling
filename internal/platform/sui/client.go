@@ -2,10 +2,12 @@ package sui
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +103,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		if strings.Contains(err.Error(), "Error checking transaction input objects: ObjectNotFound") {
 			return nil, common.TransactionNotFound
 		}
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	/*var transaction *TransactionInfo
@@ -109,6 +112,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		if erro, ok := err.(*types.ErrorObject); ok && (strings.HasPrefix(erro.Message, "Could not find the referenced transaction") {
 			return nil, common.TransactionNotFound
 		}
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	} else {
 		if len(transactions) > 0 {

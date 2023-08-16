@@ -134,6 +134,7 @@ func (c *Client) GetBlockByTxVersion(txVersion int) (*chain.Block, error) {
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	nonce, _ := strconv.Atoi(rawTx.SequenceNumber)

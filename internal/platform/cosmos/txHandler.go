@@ -573,7 +573,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			feeAmount, _ = decimal.NewFromString(tx.TxResponse.Tx.AuthInfo.Fee.Amount[0].Amount)
 		}
 		gasUsed, _ := decimal.NewFromString(tx.TxResponse.GasUsed)
-		gasPrice := feeAmount.Div(gasUsed).String()
+		var gasPrice = "0"
+		if tx.TxResponse.GasUsed != "0" {
+			gasPrice = feeAmount.Div(gasUsed).String()
+		}
 		payload, _ = utils.JsonEncode(map[string]interface{}{"memo": tx.TxResponse.Tx.Body.Memo})
 
 		/*if contractAddress != "" {

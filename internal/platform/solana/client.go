@@ -321,16 +321,17 @@ type Instruction struct {
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	transaction, err := c.GetTransactionByHash(txHash)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	if transaction == nil {
-		return nil, err
+		return nil, nil
 	}
 	tx := &chain.Transaction{}
 	tx.BlockNumber = uint64(transaction.Slot)
 	tx.Hash = txHash
 	tx.Raw = transaction
-	return tx, err
+	return tx, nil
 }
 
 func (c *Client) GetTransactionByHash(txHash string) (*TransactionInfo, error) {

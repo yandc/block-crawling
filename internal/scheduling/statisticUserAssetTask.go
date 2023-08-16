@@ -97,7 +97,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		if dataLen < request.PageSize {
 			break
 		}
-		request.StartIndex = userAssets[len(userAssets)-1].Id
+		request.StartIndex = userAssets[dataLen-1].Id
 		time.Sleep(time.Duration(1) * time.Second)
 	}
 	if err != nil {

@@ -112,7 +112,6 @@ func (c *Client) GetAccountHashByAddress(address string) (string, error) {
 	return result.Account.AccountHash, nil
 }
 
-
 func (c *Client) GetBalance(address string) (string, error) {
 	block, err := c.GetLatestBlock()
 	if err != nil {
@@ -266,6 +265,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	timeoutMS := 5_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.Url, JSONID, JSONRPC, method, &result, params, &timeoutMS)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -277,6 +277,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	bockHash := result.ExecutionResults[0].BlockHash
 	block, err1 := c.GetBlockByHash(bockHash)
 	if err != nil {
+		log.Error("get block by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, fmt.Errorf("failed to get block result: %w", err1)
 	}
 	tx := &chain.Transaction{}
