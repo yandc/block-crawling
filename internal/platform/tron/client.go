@@ -186,6 +186,7 @@ func (c *Client) parseTxMeta(tx *types.BlockTx) *txMeta {
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.GetTransactionInfoByHash(txHash)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 

@@ -89,7 +89,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = SuiGetTxByAddress(chainName, address, urls)
 	case "Kaspa":
 		err = KaspaGetTxByAddress(chainName, address, urls)
-	case "SeiTEST":
+	case "Sei", "SeiTEST":
 		err = SeiGetTxByAddress(chainName, address, urls)
 	}
 
@@ -126,7 +126,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 	var dbLastRecordSlotNumber int
 	var dbLastRecordHash string
 	if lastRecord != nil {
-		dbLastRecordSlotNumber =lastRecord.BlockNumber
+		dbLastRecordSlotNumber = lastRecord.BlockNumber
 		dbLastRecordHash = strings.Split(lastRecord.TransactionHash, "#")[0]
 	}
 	//func GetApiTx(url string, starblock string, page int, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
@@ -149,15 +149,11 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		alarmOpts := WithMsgLevel("FATAL")
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询, 未查出结果,但是资产有变动", chainName)
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-
 		log.Warn(alarmMsg, zap.Any("lastTx", lastRecord))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
 		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
-
-
-
 
 		for _, record := range result {
 			txHash := record.Hash
@@ -490,6 +486,9 @@ chainFlag:
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
 		}
 		starIndex = out[dataLen-1].Header.Id
 	}
@@ -927,7 +926,8 @@ chainFlag:
 			break
 		}
 
-		if len(out.Data.MoveResources) == 0 {
+		dataLen := len(out.Data.MoveResources)
+		if dataLen == 0 {
 			break
 		}
 		for _, browserInfo := range out.Data.MoveResources {
@@ -936,6 +936,9 @@ chainFlag:
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
 		}
 		starIndex += pageSize
 	}
@@ -2344,10 +2347,6 @@ func NervosGetTxByAddress(chainName string, address string, urls []string) (err 
 		}
 	}()
 
-	var pageNum = 1
-	url := urls[0]
-	url = url + "/address_transactions/" + address + "?page_size=" + strconv.Itoa(pageSize) + "&page="
-
 	req := &data.TransactionRequest{
 		Nonce:       -1,
 		FromAddress: address,
@@ -2369,6 +2368,10 @@ func NervosGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
+
+	var pageNum = 1
+	url := urls[0]
+	url = url + "/address_transactions/" + address + "?page_size=" + strconv.Itoa(pageSize) + "&page="
 
 	var chainRecords []*NervosBrowserInfo
 chainFlag:
@@ -2407,6 +2410,9 @@ chainFlag:
 				break chainFlag
 			}
 			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
 		}
 		pageNum++
 	}
@@ -2901,7 +2907,7 @@ func SeiGetTxByAddress(chainName string, address string, urls []string) (err err
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
 	for _, url := range urls {
-		if url == "https://atlantic-2-graphql.alleslabs.dev/v1/graphql" {
+		if url == "https://pacific-1-graphql.alleslabs.dev/v1/graphql" || url == "https://atlantic-2-graphql.alleslabs.dev/v1/graphql" {
 			atomTransactionRecordList, err = getSeiRecordByGraphql(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
 		} else if url == "https://sei.api.explorers.guru" {
 			atomTransactionRecordList, err = getSeiRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
@@ -3030,9 +3036,8 @@ chainFlag:
 		}
 		if dataLen < pageSize {
 			break
-		} else {
-			offset = offset + dataLen
 		}
+		offset = offset + dataLen
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord

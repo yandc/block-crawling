@@ -140,6 +140,7 @@ func (c *Client) getBlock(height uint64) (*chain.Block, error) {
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -227,7 +228,7 @@ func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
 			//抛出异常
 			return tx, errors.New(tx.Error)
 		}
-		return tx,err
+		return tx, err
 	} else {
 		utxoTxByDD, e := doge.GetTransactionsByTXHash(hash, &c.DispatchClient)
 		if e != nil {

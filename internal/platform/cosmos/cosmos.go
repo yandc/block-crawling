@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/log"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -89,13 +90,13 @@ func BatchSaveOrUpdate(txRecords []*data.AtomTransactionRecord, tableName string
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			Nonce           :r.Nonce,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			Nonce:           r.Nonce,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)
@@ -105,6 +106,14 @@ func BatchSaveOrUpdate(txRecords []*data.AtomTransactionRecord, tableName string
 var monitorHeightSeq uint64
 
 func (p *Platform) MonitorHeight() {
-	// Disable at test.
-	return
+	if p.ChainName == "Cosmos" {
+		p.CommPlatform.MonitorHeight()
+	} else {
+		// 每 6 小时监控一次
+		seq := atomic.AddUint64(&monitorHeightSeq, 1)
+		if seq == 360 {
+			p.CommPlatform.MonitorHeight()
+			atomic.StoreUint64(&monitorHeightSeq, 0)
+		}
+	}
 }

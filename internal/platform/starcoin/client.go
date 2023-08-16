@@ -2,10 +2,12 @@ package starcoin
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
+	"go.uber.org/zap"
 	"math/big"
 	"strconv"
 	"strings"
@@ -215,6 +217,7 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	transactionInfo, err := c.GetTransactionByHash(txHash)
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -222,10 +225,10 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	scriptFunction := userTransaction.RawTransaction.DecodedPayload.ScriptFunction
 	if !strings.HasPrefix(scriptFunction.Function, "peer_to_peer") {
 		events, err := c.GetTransactionEventByHash(txHash)
-
 		if err != nil {
 			errObject, ok := err.(*types.ErrorObject)
 			if !ok || !(ok && strings.HasPrefix(errObject.Message, "cannot find txn info of txn")) {
+				log.Error("get transaction event by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 				return nil, err
 			}
 		}

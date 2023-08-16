@@ -592,7 +592,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		if err == ethereum.NotFound {
 			return nil, pcommon.TransactionNotFound
 		}
-		log.Error(c.chainName+"查询链上数据失败", zap.Any("txHash", txHash), zap.Any("error", err))
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -601,7 +601,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		if err == ethereum.NotFound {
 			return nil, pcommon.TransactionNotFound
 		}
-		log.Error(c.chainName+"查询链上 Receipt 数据失败", zap.Any("txHash", txHash), zap.Any("error", err))
+		log.Error("get transaction receipt by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 

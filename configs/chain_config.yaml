@@ -645,6 +645,7 @@ platform:
       - https://solana-mainnet.g.alchemy.com/v2/wyuFXpGqrGkBFAuyWH8vlUUk_eUhXAFI
       - https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7
     httpURL:
+      - https://api.solscan.io
       - https://api.mainnet-beta.solana.com
       - https://node.onekey.so/sol
       - https://docs-demo.solana-mainnet.quiknode.pro
@@ -652,7 +653,6 @@ platform:
       - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c
       - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678
       - https://public-api.solanabeach.io
-      - https://api.solscan.io
     symbol: Solana
     type: SOL
     safelyConcurrentBlockDelta: 50
@@ -1044,6 +1044,35 @@ platform:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 1
     monitorHeightAlarmThr: 0
+
+  Sei:
+    blockExplorerAddrUrl: https://sei.explorers.guru/account/
+    blockExplorerTxUrl: https://sei.explorers.guru/transaction/
+    blockExplorerUrl: https://sei.explorers.guru/
+    chain: Sei
+    chainId: "pacific-1"
+    coinId: 118
+    decimal: 6
+    fullName: Sei
+    getPriceKey: sei
+    handler: sei
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpg
+    nativeCurrency: SEI
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://sei-api.polkachu.com
+      - https://sei-rest.brocha.in
+      - https://rest.sei-apis.com
+      - https://sei-m.api.manticore.team
+    httpURL:
+      - https://pacific-1-graphql.alleslabs.dev/v1/graphql
+      - https://sei.api.explorers.guru
+    symbol: Sei
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 12
+    monitorHeightAlarmThr: 100
 
 platformTest:
   AptosTEST:

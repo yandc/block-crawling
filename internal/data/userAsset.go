@@ -22,7 +22,7 @@ type UserAsset struct {
 	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
 	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
 	Decimals     int32  `json:"decimals" form:"decimals"`
-	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(72);index"`
+	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(128);index"`
 	UidType      int8   `json:"uidType" form:"uidType"`
 	CreatedAt    int64  `json:"createdAt" form:"createdAt"`
 	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`

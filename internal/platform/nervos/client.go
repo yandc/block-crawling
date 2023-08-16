@@ -3,11 +3,13 @@ package nervos
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"math/big"
 	"strconv"
 	"strings"
@@ -390,6 +392,7 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.client.GetTransaction(context.Background(), types.HexToHash(txHash))
 	if err != nil {
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	if rawTx.TxStatus.Status == types.TransactionStatusRejected {

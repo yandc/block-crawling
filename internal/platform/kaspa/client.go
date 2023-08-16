@@ -2,12 +2,14 @@ package kaspa
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
@@ -146,6 +148,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		if err.Error() == "Transaction not found" || strings.Contains(err.Error(), "string does not match regex \"[a-f0-9]{64}\"") {
 			return nil, common.TransactionNotFound
 		}
+		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
 	if len(rawTx.Inputs) > 0 {
