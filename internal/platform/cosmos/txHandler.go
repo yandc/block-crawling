@@ -50,6 +50,14 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		status = biz.FAIL
 	}
 
+	var gasPrice string
+	var maxFeePerGasNode = tx.TxResponse.GasUsed
+	if len(tx.Tx.AuthInfo.Fee.Amount) > 0 {
+		gasPrice = tx.Tx.AuthInfo.Fee.Amount[0].Amount
+	}
+
+	go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, "", gasPrice, chainBlock.Number, transactionHash)
+
 	if status == "" || tx.TxResponse.Tx.Type != "/cosmos.tx.v1beta1.Tx" {
 		return nil
 	}

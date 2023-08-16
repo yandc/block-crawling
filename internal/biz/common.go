@@ -12,12 +12,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"math"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	ncommon "gitlab.bixin.com/mili/node-driver/common"
@@ -412,6 +413,7 @@ type ChainFeeInfoReq struct {
 type ChainFeeInfoResp struct {
 	ChainName            string `json:"chainName,omitempty"`
 	GasPrice             string `json:"gasPrice,omitempty"`
+	GasUsed              string `json:"gasUsed,omitempty"`
 	MaxFeePerGas         string `json:"maxFeePerGas,omitempty"`
 	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas,omitempty"`
 }

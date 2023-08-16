@@ -4198,8 +4198,14 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 
 func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *ChainFeeInfoReq) (*ChainFeeInfoResp, error) {
 	chainName := req.ChainName
+	if chainName == "SeiTEST" {
+		return &ChainFeeInfoResp{
+			ChainName: chainName,
+			GasPrice:  "150000",
+		}, nil
+	}
 	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST" && chainName != "BSC" && chainName != "Optimism") {
-		return nil, nil
+		return nil, errors.New("unsupported chain")
 	}
 	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
 	maxFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_FEE_PER_GAS + chainName).Result()
