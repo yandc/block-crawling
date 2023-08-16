@@ -1054,7 +1054,7 @@ platform:
     coinId: 118
     decimal: 6
     fullName: Sei
-    getPriceKey: sei
+    getPriceKey: sei-network
     handler: sei
     icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpg
     nativeCurrency: SEI

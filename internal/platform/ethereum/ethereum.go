@@ -57,6 +57,7 @@ const WITHDRAWALBONDED_TOPIC = "0x0c3d250c7831051e78aa6a56679e590374c7c424415ffe
 const REDEEM_TOPIC = "0xe02f6383e19e87c24e0c03e2cd5dbd05156cb29a1b0f3dbca1fa3430e444f63d"
 const NEWPOSITIONORDER_TOPIC = "0x00da46badc3d23e4ffbd09bb00128a2274573502fdbb15d233ec3441c01b6af3"
 const CLAIMED_TOPIC = "0x987d620f307ff6b94d58743cb7a7509f24071586a77759b77c2d4e29f75a2f9a"
+const RUN_METHOD_TOPIC = "0x5beea7b3b87c573953fec05007114d17712e5775d364acc106d8da9e74849033"
 
 // dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
@@ -149,7 +150,8 @@ var WhiteListTopicMap = map[string][]string{
 	//支持特定链特定合约
 	//"Arbitrum_Contract_Method_Topic": {"0x8f957ed3f969d7b6e5d6df81e61a5ff45f594dd1_4782f779_" + WITHDRAWETH_TOPIC},
 	//支持所有链特定合约
-	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC},
+	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,
+		"0x86232f68b5bf2a3a03851d98556352512a3b12b9_ba847759_" + RUN_METHOD_TOPIC},
 	//支持所有链所有合约
 	"Method_Topic": {"4782f779_" + WITHDRAWETH_TOPIC},
 }
