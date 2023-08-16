@@ -123,51 +123,57 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		return
 
 	}
+	var dbLastRecordSlotNumber int
+	var dbLastRecordHash string
+	if lastRecord != nil {
+		dbLastRecordSlotNumber =lastRecord.BlockNumber
+		dbLastRecordHash = strings.Split(lastRecord.TransactionHash, "#")[0]
+	}
 	//func GetApiTx(url string, starblock string, page int, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
 	var result []EvmApiRecord
 	var intxResult []EvmApiRecord
 
 	for i := 0; i < len(urls); i++ {
 		//init record
-		if lastRecord == nil {
-			evmRecords, flag := GetApiTx(urls[i], "0", 50, "txlist", address, chainName)
-			evmIntxRecords, flagIntx := GetApiTx(urls[i], "0", 50, "txlistinternal", address, chainName)
-			if flag || flagIntx {
-				continue
-			}
-			result = append(result, evmRecords...)
-			intxResult = append(intxResult, evmIntxRecords...)
-			break
-		} else {
-			starblock := lastRecord.BlockNumber + 1
-			evmRecords, flag := GetApiTx(urls[i], strconv.Itoa(starblock), 50, "txlist", address, chainName)
-			evmIntxRecords, flagIntx := GetApiTx(urls[i], strconv.Itoa(starblock), 50, "txlistinternal", address, chainName)
-			if flag || flagIntx {
-				continue
-			}
-			result = append(result, evmRecords...)
-			intxResult = append(intxResult, evmIntxRecords...)
-			break
+		//节点api变更 参数 start不能识别
+		evmRecords, flag := GetApiTx(urls[i], "0", 50, "txlist", address, chainName)
+		evmIntxRecords, flagIntx := GetApiTx(urls[i], "0", 50, "txlistinternal", address, chainName)
+		if flag || flagIntx {
+			continue
 		}
+		result = append(result, evmRecords...)
+		intxResult = append(intxResult, evmIntxRecords...)
+		break
 	}
 	if len(result) == 0 {
+		alarmOpts := WithMsgLevel("FATAL")
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询, 未查出结果,但是资产有变动", chainName)
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+
 		log.Warn(alarmMsg, zap.Any("lastTx", lastRecord))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
 		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
+
+
+
+
 		for _, record := range result {
 			txHash := record.Hash
+			bn, _ := strconv.Atoi(record.BlockNumber)
+
 			if txHash == "" {
 				continue
+			}
+			if bn < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
+				break
 			}
 			if _, ok := transactionRecordMap[txHash]; !ok {
 				transactionRecordMap[txHash] = ""
 			} else {
 				continue
 			}
-			bn, _ := strconv.Atoi(record.BlockNumber)
 			evmRecord := &data.EvmTransactionRecord{
 				TransactionHash: txHash,
 				BlockNumber:     bn,
@@ -185,15 +191,18 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 
 		for _, intxRecord := range intxResult {
 			txHash := intxRecord.Hash
+			bn, _ := strconv.Atoi(intxRecord.BlockNumber)
 			if txHash == "" {
 				continue
+			}
+			if bn < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
+				break
 			}
 			if _, ok := transactionRecordMap[txHash]; !ok {
 				transactionRecordMap[txHash] = ""
 			} else {
 				continue
 			}
-			bn, _ := strconv.Atoi(intxRecord.BlockNumber)
 			txTime, _ := strconv.Atoi(intxRecord.TimeStamp)
 			am, _ := decimal.NewFromString(intxRecord.Value)
 			fa := types2.HexToAddress(intxRecord.From).Hex()
