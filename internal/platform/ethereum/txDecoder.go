@@ -1273,6 +1273,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			amount = new(big.Int).SetBytes(log_.Data[:32])
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			tokenAddress = ""
+		} else if topic0 == RUN_METHOD_TOPIC {
+			//https://ftmscan.com/tx/0x9bcb66793ae2030eb3686d988134ecce640e6162f6c492d2a39914b7ce44841c
+			if methodId != "ba847759" {
+				continue
+			}
+			if len(log_.Data) < 128 {
+				continue
+			}
+			fromAddress = transaction.From.String()
+			toAddress = common.BytesToAddress(log_.Data[:32]).String()
+			amount = new(big.Int).SetBytes(log_.Data[96:128])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
