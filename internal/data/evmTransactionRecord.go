@@ -105,7 +105,7 @@ type EvmTransactionRecordRepo interface {
 	ListDappDataStringByTimeRanges(context.Context, string, string, int, int) ([]string, error)
 	FindByAddressCount(context.Context, string, string, string, int, int, string) ([]EvmTransferCount, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
-	FindUsdt(context.Context, string)([]*EvmTransactionRecord, error)
+	FindUsdt(context.Context, string) ([]*EvmTransactionRecord, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
@@ -224,7 +224,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":                   clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":               clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":                   clause.Column{Table: "excluded", Name: "amount"},
-			"status":                   gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"status":                   gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
 			"tx_time":                  clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address":         clause.Column{Table: "excluded", Name: "contract_address"},
 			"parse_data":               clause.Column{Table: "excluded", Name: "parse_data"},
@@ -1463,7 +1463,7 @@ func (r *EvmTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context
 	return ret.RowsAffected, nil
 }
 
-func (r *EvmTransactionRecordRepoImpl) FindUsdt(ctx context.Context, tableName string)([]*EvmTransactionRecord, error){
+func (r *EvmTransactionRecordRepoImpl) FindUsdt(ctx context.Context, tableName string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecordList []*EvmTransactionRecord
 	ret := r.gormDB.Table(tableName).Where(" (from_address ='0xb7B4D65CB5a0c44cCB9019ca74745686188173Db' or to_address ='0xb7B4D65CB5a0c44cCB9019ca74745686188173Db') and transaction_type in ('transfer','eventLog') and status ='success' and parse_data like '%0xdAC17F958D2ee523a2206206994597C13D831ec7%' ").Order("tx_time asc").Find(&evmTransactionRecordList)
 	err := ret.Error

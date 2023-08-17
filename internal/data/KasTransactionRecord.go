@@ -139,7 +139,7 @@ func (r *KasTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           clause.Column{Table: "excluded", Name: "amount"},
-			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"confirm_count":    clause.Column{Table: "excluded", Name: "confirm_count"},
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),

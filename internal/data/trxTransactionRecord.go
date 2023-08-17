@@ -70,7 +70,6 @@ type TrxTransactionRecordRepo interface {
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*TrxTransactionRecord, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
-
 }
 
 type TrxTransactionRecordRepoImpl struct {
@@ -109,9 +108,9 @@ func (r *TrxTransactionRecordRepoImpl) SaveOrUpdate(ctx context.Context, tableNa
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":        gorm.Expr("excluded.dapp_data"),
-			"client_data":      gorm.Expr("excluded.client_data"),
-			"updated_at":       gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&trxTransactionRecord)
 	err := ret.Error
@@ -123,8 +122,6 @@ func (r *TrxTransactionRecordRepoImpl) SaveOrUpdate(ctx context.Context, tableNa
 	affected := ret.RowsAffected
 	return affected, err
 }
-
-
 
 func (r *TrxTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, trxTransactionRecords []*TrxTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(trxTransactionRecords, len(trxTransactionRecords))
@@ -188,7 +185,7 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":           clause.Column{Table: "excluded", Name: "to_uid"},
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           clause.Column{Table: "excluded", Name: "amount"},
-			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
 			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
