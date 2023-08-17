@@ -1177,6 +1177,263 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	orderBys := strings.Split(req.OrderBy, " ")
 	orderByColumn := orderBys[0]
+
+	var request *data.TransactionRequest
+	utils.CopyProperties(req, &request)
+	request.Nonce = -1
+
+	var result = &pb.PageListResponse{}
+	var total int64
+	var list []*pb.TransactionRecord
+	var err error
+
+	switch chainType {
+	case POLKADOT:
+		var recordList []*data.DotTransactionRecord
+		recordList, total, err = data.DotTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case CASPER:
+		var recordList []*data.CsprTransactionRecord
+		recordList, total, err = data.CsprTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case NERVOS:
+		var recordList []*data.CkbTransactionRecord
+		recordList, total, err = data.CkbTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case BTC:
+		var recordList []*data.BtcTransactionRecord
+		recordList, total, err = data.BtcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+			if len(list) > 0 {
+				for _, record := range list {
+					amount := utils.StringDecimals(record.Amount, 8)
+					feeAmount := utils.StringDecimals(record.FeeAmount, 8)
+					record.Amount = amount
+					record.FeeAmount = feeAmount
+					record.TransactionType = NATIVE
+				}
+			}
+		}
+	case EVM:
+		var recordList []*data.EvmTransactionRecord
+		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+		if len(list) > 0 {
+			for _, record := range list {
+				//将发送给合约的主币转成一条eventLog
+				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
+					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
+					record.EventLog = eventLogStr
+				}
+			}
+		}
+	case STC:
+		var recordList []*data.StcTransactionRecord
+		recordList, total, err = data.StcTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case TVM:
+		var recordList []*data.TrxTransactionRecord
+		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+		if len(list) > 0 {
+			for _, record := range list {
+				//将发送给合约的主币转成一条eventLog
+				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
+					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
+					record.EventLog = eventLogStr
+				}
+			}
+		}
+	case APTOS:
+		var recordList []*data.AptTransactionRecord
+		recordList, total, err = data.AptTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case SUI:
+		var recordList []*data.SuiTransactionRecord
+		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case SOLANA:
+		var recordList []*data.SolTransactionRecord
+		recordList, total, err = data.SolTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case COSMOS:
+		var recordList []*data.AtomTransactionRecord
+		recordList, total, err = data.AtomTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+		}
+	case KASPA:
+		var recordList []*data.KasTransactionRecord
+		recordList, total, err = data.KasTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
+			if len(list) > 0 {
+				for _, record := range list {
+					record.TransactionType = NATIVE
+				}
+			}
+		}
+	}
+	if err == nil {
+		result.Total = total
+		result.List = list
+		if len(list) > 0 {
+			now := time.Now().Unix()
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				record.ChainName = req.ChainName
+				if orderByColumn == "id" {
+					record.Cursor = record.Id
+				} else if orderByColumn == "block_number" {
+					record.Cursor = record.BlockNumber
+				} else if orderByColumn == "nonce" {
+					record.Cursor = record.Nonce
+				} else if orderByColumn == "tx_time" {
+					record.Cursor = record.TxTime
+				} else if orderByColumn == "created_at" {
+					record.Cursor = record.CreatedAt
+				} else if orderByColumn == "updated_at" {
+					record.Cursor = record.UpdatedAt
+				}
+
+				feeData := make(map[string]string)
+				switch chainType {
+				case BTC:
+					feeData = nil
+				case EVM:
+					feeData["gas_limit"] = record.GasLimit
+					feeData["gas_used"] = record.GasUsed
+					feeData["gas_price"] = record.GasPrice
+					feeData["base_fee"] = record.BaseFee
+					feeData["max_fee_per_gas"] = record.MaxFeePerGas
+					feeData["max_priority_fee_per_gas"] = record.MaxPriorityFeePerGas
+
+					//ParseData 字段
+					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
+					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
+					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
+
+					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
+						evm := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+							if record.Nonce == 0 {
+								evm["pendingMsg"] = GAS_FEE_LOW
+								parseDataStr, _ := utils.JsonEncode(evm)
+								record.ParseData = parseDataStr
+							} else {
+								ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
+								if err == nil {
+									if ret == nil {
+										//请填补空缺nonce交易 "nonceMsg":"2"
+										evm["pendingMsg"] = NONCE_BREAK
+									} else {
+										if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
+											// "gasfeeMsg" :"1"
+											evm["pendingMsg"] = GAS_FEE_LOW
+										}
+										if ret.Status == PENDING || ret.Status == NO_STATUS {
+											//"nonceMsg":"1"
+											evm["pendingMsg"] = NONCE_QUEUE
+										}
+										if ret.Status == DROPPED {
+											//请填补空缺nonce交易 "nonceMsg":"2"
+											evm["pendingMsg"] = NONCE_BREAK
+										}
+									}
+									parseDataStr, _ := utils.JsonEncode(evm)
+									record.ParseData = parseDataStr
+								}
+							}
+						}
+					}
+
+					if record.Status == FAIL {
+						evm := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+							//| 150878    | 149039
+							gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
+							gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
+
+							f := gasUsed / gasLimit
+							if f > 0.9 {
+								evm["failMsg"] = GAS_LIMIT_LOW
+								parseDataStr, _ := utils.JsonEncode(evm)
+								record.ParseData = parseDataStr
+							}
+						}
+					}
+				case TVM:
+					feeData["fee_limit"] = record.FeeLimit
+					feeData["net_usage"] = record.NetUsage
+					feeData["energy_usage"] = record.EnergyUsage
+				case SUI:
+					feeData["gas_limit"] = record.GasLimit
+					feeData["gas_used"] = record.GasUsed
+				case SOLANA:
+					feeData = nil
+				default:
+					feeData["gas_limit"] = record.GasLimit
+					feeData["gas_used"] = record.GasUsed
+					feeData["gas_price"] = record.GasPrice
+				}
+				if feeData != nil {
+					feeDataStr, _ := utils.JsonEncode(feeData)
+					record.FeeData = feeDataStr
+				}
+			}
+		}
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
+	chainType := ChainNameType[req.ChainName]
+	switch chainType {
+	case EVM:
+		if req.ContractAddress != "" {
+			req.ContractAddress = types2.HexToAddress(req.ContractAddress).Hex()
+		}
+		if req.TokenAddress != "" && req.TokenAddress != data.MAIN_ADDRESS_PARAM {
+			req.TokenAddress = types2.HexToAddress(req.TokenAddress).Hex()
+		}
+		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
+		req.ToAddressList = utils.HexToAddress(req.ToAddressList)
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+	case COSMOS:
+		if req.ContractAddress != "" {
+			req.ContractAddress = utils.AddressIbcToLower(req.ContractAddress)
+		}
+		if req.TokenAddress != "" && req.TokenAddress != data.MAIN_ADDRESS_PARAM {
+			req.TokenAddress = utils.AddressIbcToLower(req.TokenAddress)
+		}
+	}
+
+	orderBys := strings.Split(req.OrderBy, " ")
+	orderByColumn := orderBys[0]
 	orderByDirection := orderBys[1]
 
 	var request *data.TransactionRequest

@@ -123,7 +123,8 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 	}
 
 	log.Info("统计用户资产金额，开始执行从nodeProxy中获取代币价格操作", zap.Any("size", recordSize), zap.Any("total", total))
-	tokenPriceMap := make(map[string]map[string]string)
+	cnyTokenPriceMap := make(map[string]map[string]string)
+	usdTokenPriceMap := make(map[string]map[string]string)
 	requestNum := 100
 	var chainNameTokenAddressMap = make(map[string][]string)
 	for i, userAsset := range recordGroupList {
@@ -137,16 +138,32 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 			continue
 		}
 
-		var resultMap map[string]map[string]string
-		resultMap, err = biz.GetTokensPrice(nil, biz.CNY, chainNameTokenAddressMap)
+		var cnyResultMap map[string]map[string]string
+		var usdResultMap map[string]map[string]string
+		cnyResultMap, err = biz.GetTokensPriceRetryAlert(nil, biz.CNY, chainNameTokenAddressMap)
 		if err != nil {
 			log.Error("统计用户资产金额，从nodeProxy中获取代币价格失败", zap.Any("i", i), zap.Any("size", recordSize), zap.Any("total", total), zap.Any("error", err))
 			break
 		}
-		for chainName, tokenAddressPriceMap := range resultMap {
-			oldTokenAddressPriceMap, ok := tokenPriceMap[chainName]
+		usdResultMap, err = biz.GetTokensPriceRetryAlert(nil, biz.USD, chainNameTokenAddressMap)
+		if err != nil {
+			log.Error("统计用户资产金额，从nodeProxy中获取代币价格失败", zap.Any("i", i), zap.Any("size", recordSize), zap.Any("total", total), zap.Any("error", err))
+			break
+		}
+		for chainName, tokenAddressPriceMap := range cnyResultMap {
+			oldTokenAddressPriceMap, ok := cnyTokenPriceMap[chainName]
 			if !ok {
-				tokenPriceMap[chainName] = tokenAddressPriceMap
+				cnyTokenPriceMap[chainName] = tokenAddressPriceMap
+			} else {
+				for tokenAddress, price := range tokenAddressPriceMap {
+					oldTokenAddressPriceMap[tokenAddress] = price
+				}
+			}
+		}
+		for chainName, tokenAddressPriceMap := range usdResultMap {
+			oldTokenAddressPriceMap, ok := usdTokenPriceMap[chainName]
+			if !ok {
+				usdTokenPriceMap[chainName] = tokenAddressPriceMap
 			} else {
 				for tokenAddress, price := range tokenAddressPriceMap {
 					oldTokenAddressPriceMap[tokenAddress] = price
@@ -163,14 +180,15 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		log.Error("统计用户资产金额，从nodeProxy中获取代币价格失败", zap.Any("dt", dt), zap.Any("error", err))
 	}
 
-	if len(tokenPriceMap) == 0 {
-		log.Info("统计用户资产金额，从nodeProxy中获取代币价格为空", zap.Any("dt", dt), zap.Any("size", len(tokenPriceMap)))
+	if len(cnyTokenPriceMap) == 0 || len(usdTokenPriceMap) == 0 {
+		log.Info("统计用户资产金额，从nodeProxy中获取代币价格为空", zap.Any("dt", dt), zap.Any("cnySize", len(cnyTokenPriceMap)), zap.Any("usdSize", len(usdTokenPriceMap)))
 		return
 	}
 	var chainTypeAssetDt = &data.ChainTypeAsset{
 		ChainName: "",
 		UidType:   0,
 		CnyAmount: decimal.Zero,
+		UsdAmount: decimal.Zero,
 		Dt:        dt,
 		CreatedAt: nowTime,
 		UpdatedAt: nowTime,
@@ -178,17 +196,26 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 	for _, userAsset := range recordGroupList {
 		chainName := userAsset.ChainName
 		tokenAddress := userAsset.TokenAddress
-		var price string
-		tokenAddressPriceMap := tokenPriceMap[chainName]
+		var cnyPrice string
+		var usdPrice string
+		cnyTokenAddressPriceMap := cnyTokenPriceMap[chainName]
 		if tokenAddress == "" {
-			price = tokenAddressPriceMap[chainName]
+			cnyPrice = cnyTokenAddressPriceMap[chainName]
 		} else {
-			price = tokenAddressPriceMap[tokenAddress]
+			cnyPrice = cnyTokenAddressPriceMap[tokenAddress]
 		}
-		prices, _ := decimal.NewFromString(price)
+		usdTokenAddressPriceMap := usdTokenPriceMap[chainName]
+		if tokenAddress == "" {
+			usdPrice = usdTokenAddressPriceMap[chainName]
+		} else {
+			usdPrice = usdTokenAddressPriceMap[tokenAddress]
+		}
+		cnyPrices, _ := decimal.NewFromString(cnyPrice)
+		usdPrices, _ := decimal.NewFromString(usdPrice)
 		balance := userAsset.Balance
 		balances, _ := decimal.NewFromString(balance)
-		cnyAmount := prices.Mul(balances)
+		cnyAmount := cnyPrices.Mul(balances)
+		usdAmount := usdPrices.Mul(balances)
 
 		typeAssetMap, ok := chainTypeAssetMap[userAsset.ChainName]
 		if !ok {
@@ -197,6 +224,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				ChainName: userAsset.ChainName,
 				UidType:   userAsset.UidType,
 				CnyAmount: cnyAmount,
+				UsdAmount: usdAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
@@ -209,12 +237,14 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 					ChainName: userAsset.ChainName,
 					UidType:   userAsset.UidType,
 					CnyAmount: cnyAmount,
+					UsdAmount: usdAmount,
 					Dt:        dt,
 					CreatedAt: nowTime,
 					UpdatedAt: nowTime,
 				}
 			} else {
 				chainTypeAsset.CnyAmount = chainTypeAsset.CnyAmount.Add(cnyAmount)
+				chainTypeAsset.UsdAmount = chainTypeAsset.UsdAmount.Add(usdAmount)
 			}
 		}
 
@@ -224,12 +254,14 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				ChainName: userAsset.ChainName,
 				UidType:   0,
 				CnyAmount: cnyAmount,
+				UsdAmount: usdAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
 			}
 		} else {
 			chainNameUserAsset.CnyAmount = chainNameUserAsset.CnyAmount.Add(cnyAmount)
+			chainNameUserAsset.UsdAmount = chainNameUserAsset.UsdAmount.Add(usdAmount)
 		}
 
 		uidTypeUserAsset, uok := chainTypeAssetUidTypeMap[userAsset.UidType]
@@ -238,15 +270,18 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				ChainName: "",
 				UidType:   userAsset.UidType,
 				CnyAmount: cnyAmount,
+				UsdAmount: usdAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
 			}
 		} else {
 			uidTypeUserAsset.CnyAmount = uidTypeUserAsset.CnyAmount.Add(cnyAmount)
+			uidTypeUserAsset.UsdAmount = uidTypeUserAsset.UsdAmount.Add(usdAmount)
 		}
 
 		chainTypeAssetDt.CnyAmount = chainTypeAssetDt.CnyAmount.Add(cnyAmount)
+		chainTypeAssetDt.UsdAmount = chainTypeAssetDt.UsdAmount.Add(usdAmount)
 	}
 
 	for _, typeAssetMap := range chainTypeAssetMap {

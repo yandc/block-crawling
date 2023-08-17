@@ -11,6 +11,8 @@ import "validate/validate.proto";
 service Transaction {
   rpc CreateRecordFromWallet(TransactionReq) returns (CreateResponse);
   //分页查询交易记录列表
+  rpc PageLists(PageListRequest) returns (PageListResponse);
+  //分页查询交易记录列表(原交易、加速和取消的会折叠处理)
   rpc PageList(PageListRequest) returns (PageListResponse);
   //查询pending状态的总金额
   rpc GetAmount(AmountRequest) returns (AmountResponse);

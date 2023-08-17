@@ -34,7 +34,7 @@ func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb
 	return result, err
 }
 
-func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
+func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -92,6 +92,214 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	}
 
 	result, err := s.ts.PageList(subctx, req)
+	if result != nil && len(result.List) > 0 {
+		for _, record := range result.List {
+			if record == nil {
+				continue
+			}
+
+			if record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
+				record.Status = biz.FAIL
+			}
+			if record.Status == biz.NO_STATUS {
+				record.Status = biz.PENDING
+			}
+			for _, operateRecord := range record.OperateRecordList {
+				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
+					operateRecord.Status = biz.FAIL
+				}
+				if operateRecord.Status == biz.NO_STATUS {
+					operateRecord.Status = biz.PENDING
+				}
+			}
+
+			if record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+				if record.Amount == "" || record.Amount == "0" {
+					var data = record.Data
+					if data == "" {
+						if record.ClientData != "" {
+							clientData := make(map[string]interface{})
+							if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
+								dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+								if dok {
+									data, _ = dappTxinfoMap["data"].(string)
+								}
+							}
+						}
+					}
+
+					if data == "" {
+						if record.TransactionType == biz.APPROVE {
+							record.TransactionType = biz.CANCELAPPROVE
+						} else if record.TransactionType == biz.APPROVENFT {
+							record.TransactionType = biz.CANCELAPPROVENFT
+						}
+					} else {
+						switch chainType {
+						case biz.EVM, biz.TVM:
+							if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+								if record.TransactionType == biz.APPROVE {
+									record.TransactionType = biz.CANCELAPPROVE
+								} else if record.TransactionType == biz.APPROVENFT {
+									record.TransactionType = biz.CANCELAPPROVENFT
+								}
+							}
+						}
+					}
+				}
+			}
+			for _, operateRecord := range record.OperateRecordList {
+				if operateRecord.TransactionType == biz.APPROVE || operateRecord.TransactionType == biz.APPROVENFT {
+					if operateRecord.Amount == "" || operateRecord.Amount == "0" {
+						var data = operateRecord.Data
+						if data == "" {
+							if operateRecord.ClientData != "" {
+								clientData := make(map[string]interface{})
+								if jsonErr := json.Unmarshal([]byte(operateRecord.ClientData), &clientData); jsonErr == nil {
+									dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+									if dok {
+										data, _ = dappTxinfoMap["data"].(string)
+									}
+								}
+							}
+						}
+
+						if data == "" {
+							if operateRecord.TransactionType == biz.APPROVE {
+								operateRecord.TransactionType = biz.CANCELAPPROVE
+							} else if operateRecord.TransactionType == biz.APPROVENFT {
+								operateRecord.TransactionType = biz.CANCELAPPROVENFT
+							}
+						} else {
+							switch chainType {
+							case biz.EVM, biz.TVM:
+								if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+									if operateRecord.TransactionType == biz.APPROVE {
+										operateRecord.TransactionType = biz.CANCELAPPROVE
+									} else if operateRecord.TransactionType == biz.APPROVENFT {
+										operateRecord.TransactionType = biz.CANCELAPPROVENFT
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
+				if req.OsVersion < 2023040601 {
+					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+						continue
+					}
+					if platInfo, ok := biz.PlatInfoMap[req.ChainName]; ok {
+						mainDecimals := platInfo.Decimal
+						mainSymbol := platInfo.NativeCurrency
+						eventLogStr := record.EventLog
+						var eventLogs []*types.EventLogUid
+						err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+						if err != nil {
+							continue
+						}
+						for _, eventLog := range eventLogs {
+							if eventLog.Token.Address == "" {
+								eventLog.Token.Address = "0x0000000000000000000000000000000000000000"
+								eventLog.Token.Amount = eventLog.Amount.String()
+								eventLog.Token.Decimals = int64(mainDecimals)
+								eventLog.Token.Symbol = mainSymbol
+							}
+						}
+						eventLogStr, _ = utils.JsonEncode(eventLogs)
+						record.EventLog = eventLogStr
+					}
+				}
+
+				if req.OsVersion < 2023052301 {
+					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+						continue
+					}
+					eventLogStr := record.EventLog
+					var eventLogs []*types.EventLogUid
+					var newEventLogs []*types.EventLogUid
+					err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
+					if err != nil {
+						continue
+					}
+					for _, eventLog := range eventLogs {
+						if eventLog.Token.TokenType == "" || eventLog.Token.TokenType == biz.ERC20 {
+							newEventLogs = append(newEventLogs, eventLog)
+						}
+					}
+					if newEventLogs != nil {
+						eventLogStr, _ = utils.JsonEncode(newEventLogs)
+					} else {
+						eventLogStr = ""
+					}
+					record.EventLog = eventLogStr
+				}
+			}
+		}
+	}
+	return result, err
+}
+
+func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
+	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	chainType := biz.ChainNameType[req.ChainName]
+
+	if req.Platform == biz.WEB {
+		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
+	} else if req.Platform == biz.ANDROID {
+		if req.OsVersion > 2022101201 {
+			req.TransactionTypeNotInList = []string{biz.EVENTLOG}
+		} else {
+			req.TransactionTypeNotInList = []string{biz.CONTRACT}
+		}
+
+		if req.OsVersion < 2023052301 {
+			req.TransactionTypeNotInList = append(req.TransactionTypeNotInList, []string{biz.APPROVENFT, biz.TRANSFERNFT}...)
+		}
+	} else if req.Platform == biz.IOS {
+		if req.OsVersion >= 2022101501 {
+			req.TransactionTypeNotInList = []string{biz.EVENTLOG}
+		} else {
+			req.TransactionTypeNotInList = []string{biz.CONTRACT}
+		}
+
+		if req.OsVersion < 2023052301 {
+			req.TransactionTypeNotInList = append(req.TransactionTypeNotInList, []string{biz.APPROVENFT, biz.TRANSFERNFT}...)
+		}
+	}
+	for _, transactionType := range req.TransactionTypeList {
+		if transactionType == biz.OTHER {
+			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN,
+				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP)
+			break
+		}
+	}
+
+	if req.OrderBy == "" {
+		req.OrderBy = "tx_time desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
+	if len(req.StatusList) > 0 {
+		for _, status := range req.StatusList {
+			if status == biz.PENDING {
+				req.StatusList = append(req.StatusList, biz.NO_STATUS)
+			} else if status == biz.FAIL {
+				req.StatusList = append(req.StatusList, biz.DROPPED_REPLACED, biz.DROPPED)
+			}
+		}
+	}
+
+	result, err := s.ts.ClientPageList(subctx, req)
 	if result != nil && len(result.List) > 0 {
 		for _, record := range result.List {
 			if record == nil {

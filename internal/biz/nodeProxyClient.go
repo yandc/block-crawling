@@ -103,6 +103,22 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 	return price, nil
 }
 
+func GetTokensPriceRetryAlert(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
+	price, err := GetTokensPrice(ctx, currency, chainNameTokenAddressMap)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i*1) * time.Second)
+		price, err = GetTokensPrice(ctx, currency, chainNameTokenAddressMap)
+	}
+	if err != nil {
+		// 调用nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：批量查询nodeProxy中代币价格失败，currency:%s", currency)
+		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("node-proxy")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return price, err
+}
+
 func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
 	var coinNames []string
 	var coinNameMap = make(map[string]string)
