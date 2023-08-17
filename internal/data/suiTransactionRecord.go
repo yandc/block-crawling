@@ -166,7 +166,7 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
 			"fee_amount":       clause.Column{Table: "excluded", Name: "fee_amount"},
 			"amount":           gorm.Expr("case when excluded.status = 'success' or (excluded.amount != '' and excluded.amount != '0') then excluded.amount else " + tableName + ".amount end"),
-			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') then " + tableName + ".status else excluded.status end"),
+			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
 			"parse_data":       gorm.Expr("case when excluded.status = 'success' or excluded.parse_data != '{\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}' then excluded.parse_data else " + tableName + ".parse_data end"),

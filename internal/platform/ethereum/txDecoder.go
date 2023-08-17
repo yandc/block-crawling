@@ -321,33 +321,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	}
 
 	platformUserCount := len(eventLogs)
-	/*var platformUserCount int
-	if len(eventLogs) > 0 {
-		for _, eventLog := range eventLogs {
-			var err error
-			var fromAddressExist, toAddressExist bool
-			fromAddress := eventLog.From
-			toAddress := eventLog.To
-			if fromAddress != "" {
-				fromAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
-					return err
-				}
-			}
-
-			if toAddress != "" {
-				toAddressExist, _, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
-				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("txHash", transactionHash), zap.Any("error", err))
-					return err
-				}
-			}
-			if fromAddressExist || toAddressExist {
-				platformUserCount++
-			}
-		}
-	}*/
 
 	isPlatformUser := false
 	if platformUserCount > 0 {
@@ -1541,7 +1514,7 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	//兜底时，成功后 执行 a 一样的步骤
 
 	log.Info(
-		"PENDING TX COULD NOT FOUND ON THE CHAIN",
+		"pending tx could not found on the chain",
 		zap.String("chainName", h.chainName),
 		zap.Uint64("height", tx.BlockNumber),
 		zap.String("nodeUrl", c.URL()),
@@ -1553,18 +1526,22 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		zap.Int64("recordNonce", record.Nonce),
 	)
 
+	recordNonce := record.Nonce
+	var dbTxHash string
+	var dbNonce int64
 	//判断nonce 是否小于当前数据库中保存的nonce，需要排除掉transfer和eventLog类型的，transfer类型的有可能不是自己发送的，例如：https://etherscan.io/tx/0xfd16650aae9125b98c9dc9f78b2b04deed5279eeedabf72d254af3e9a881ffbf
 	result, err := data.EvmTransactionRecordRepoClient.FindLastNonce(nil, biz.GetTableName(h.chainName), record.FromAddress)
 	if err == nil && result != nil {
-		if record.TransactionHash == result.TransactionHash {
+		dbTxHash = result.TransactionHash
+		if record.TransactionHash == dbTxHash {
 			//updateMap := map[string]interface{}{}
 			//updateMap["sign_status"] = "2"
 			//updateMap["tx_time"] = record.TxTime
 			//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil, record.TransactionHash, updateMap, -1, "")
 			return nil
 		}
-		nonce := uint64(result.Nonce)
-		if nonce > 0 && uint64(record.Nonce) <= nonce {
+		dbNonce = result.Nonce
+		if dbNonce > 0 && recordNonce <= dbNonce {
 			record.Status = biz.DROPPED_REPLACED
 
 			var ssr []biz.SignStatusRequest
@@ -1580,10 +1557,13 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
 			log.Info(
-				"更新 PENDING txhash对象为丢弃置换状态",
-				zap.Any("txId", record.TransactionHash),
-				zap.Int64("recordNonce", record.Nonce),
-				zap.Uint64("chainNonce", nonce),
+				"更新pending状态交易为dropped_replaced状态",
+				zap.String("chainName", h.chainName),
+				zap.Any("txHash", record.TransactionHash),
+				zap.Any("dbTxHash", dbTxHash),
+				zap.Int64("recordNonce", recordNonce),
+				zap.Int64("dbNonce", dbNonce),
+				zap.Int64("now", h.now),
 			)
 			return nil
 		}
@@ -1598,8 +1578,8 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	if err != nil {
 		return nil
 	}
-	nonce := result1.(uint64)
-	if uint64(record.Nonce) < nonce {
+	chainNonce := result1.(uint64)
+	if uint64(recordNonce) < chainNonce {
 		record.Status = biz.DROPPED_REPLACED
 		var ssr []biz.SignStatusRequest
 		ssr = append(ssr, biz.SignStatusRequest{
@@ -1613,10 +1593,14 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
 		log.Info(
-			"更新 PENDING txhash对象为丢弃置换状态",
-			zap.Any("txId", record.TransactionHash),
-			zap.Int64("recordNonce", record.Nonce),
-			zap.Uint64("chainNonce", nonce),
+			"更新pending状态交易为dropped_replaced状态",
+			zap.String("chainName", h.chainName),
+			zap.Any("txHash", record.TransactionHash),
+			zap.Any("dbTxHash", dbTxHash),
+			zap.Int64("recordNonce", recordNonce),
+			zap.Int64("dbNonce", dbNonce),
+			zap.Uint64("chainNonce", chainNonce),
+			zap.Int64("now", h.now),
 		)
 		return nil
 	}
@@ -1628,10 +1612,14 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
 			log.Info(
-				"更新 PENDING txhash对象无状态",
-				zap.Any("txId", record.TransactionHash),
+				"更新pending状态交易为no_status状态",
+				zap.String("chainName", h.chainName),
+				zap.Any("txHash", record.TransactionHash),
+				zap.Any("dbTxHash", dbTxHash),
 				zap.Int64("recordNonce", record.Nonce),
-				zap.Uint64("chainNonce", nonce),
+				zap.Int64("dbNonce", dbNonce),
+				zap.Uint64("chainNonce", chainNonce),
+				zap.Int64("now", h.now),
 				zap.Int64("nowTime", nowTime),
 				zap.Int64("createTime", record.CreatedAt),
 			)
@@ -1651,10 +1639,14 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
 		log.Info(
-			"更新 PENDING txhash对象为终态:交易被抛弃",
-			zap.Any("txId", record.TransactionHash),
+			"更新pending状态交易为dropped状态",
+			zap.String("chainName", h.chainName),
+			zap.Any("txHash", record.TransactionHash),
+			zap.Any("dbTxHash", dbTxHash),
 			zap.Int64("recordNonce", record.Nonce),
-			zap.Uint64("chainNonce", nonce),
+			zap.Int64("dbNonce", dbNonce),
+			zap.Uint64("chainNonce", chainNonce),
+			zap.Int64("now", h.now),
 			zap.Int64("nowTime", nowTime),
 			zap.Int64("createTime", record.CreatedAt),
 		)
