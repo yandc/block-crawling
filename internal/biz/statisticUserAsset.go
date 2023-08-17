@@ -54,16 +54,23 @@ func HandleUserAssetStatistic(chainName string, txRecords []UserAssetStatistic) 
 			fundDirection = 3
 		}
 
-		price, err := GetTokenPriceRetryAlert(nil, chainName, CNY, tokenAddress)
+		cnyPrice, err := GetTokenPriceRetryAlert(nil, chainName, CNY, tokenAddress)
 		if err != nil {
-			log.Error(chainName+"交易记录统计，从nodeProxy中获取代币价格失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-			return
+			log.Error("交易记录统计，从nodeProxy中获取代币价格失败", zap.Any("chainName", chainName), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+			continue
+		}
+		usdPrice, err := GetTokenPriceRetryAlert(nil, chainName, USD, tokenAddress)
+		if err != nil {
+			log.Error("交易记录统计，从nodeProxy中获取代币价格失败", zap.Any("chainName", chainName), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+			continue
 		}
 
-		prices, _ := decimal.NewFromString(price)
+		cnyPrices, _ := decimal.NewFromString(cnyPrice)
+		usdPrices, _ := decimal.NewFromString(usdPrice)
 		balance := utils.StringDecimals(amount.String(), int(decimals))
 		balances, _ := decimal.NewFromString(balance)
-		cnyAmount = prices.Mul(balances)
+		cnyAmount = cnyPrices.Mul(balances)
+		usdAmount = usdPrices.Mul(balances)
 		if cnyAmount.LessThan(decimal.NewFromInt(1000)) {
 			fundType = 1
 		} else if cnyAmount.LessThan(decimal.NewFromInt(10000)) {
@@ -114,9 +121,9 @@ func HandleUserAssetStatistic(chainName string, txRecords []UserAssetStatistic) 
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
+		alarmMsg := fmt.Sprintf("请注意：%s交易记录统计，将数据插入到数据库中失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"交易记录统计，将数据插入到数据库中失败", zap.Any("error", err))
+		log.Error("交易记录统计，将数据插入到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 	}
 }
