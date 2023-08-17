@@ -281,7 +281,7 @@ func FixNftInfo() {
 		}
 	}()
 
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Conflux", "Aptos", "SUI", "SUITEST", "Solana", "ScrollL2TEST", "zkSync", "Ronin", "Sei", "SeiTEST"}
+	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Conflux", "Aptos", "SUI", "SUITEST", "Solana", "ScrollL2TEST", "zkSync", "Ronin", "Sei", "SeiTEST", "Fantom", "xDai"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
 		chainType := biz.ChainNameType[chainName]
