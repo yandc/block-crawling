@@ -471,6 +471,10 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 		db = db.Where("created_at < ?", req.StopTime)
 	}
 
+	if req.OrderBy != "" {
+		db = db.Order(req.OrderBy)
+	}
+
 	ret := db.Find(&userNftAssetList)
 	err := ret.Error
 	if err != nil {

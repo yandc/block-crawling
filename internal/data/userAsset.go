@@ -456,6 +456,10 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 		db = db.Where("created_at < ?", req.StopTime)
 	}
 
+	if req.OrderBy != "" {
+		db = db.Order(req.OrderBy)
+	}
+
 	ret := db.Find(&userAssetList)
 	err := ret.Error
 	if err != nil {

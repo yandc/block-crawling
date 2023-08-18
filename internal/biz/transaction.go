@@ -2830,6 +2830,7 @@ func (s *TransactionUsecase) AssetHistoryFundAmount(ctx context.Context, req *pb
 		UidType:   req.AddressType,
 		StartTime: req.StartTime,
 		StopTime:  req.StopTime,
+		OrderBy:   "dt asc",
 	}
 	var result = &pb.AssetHistoryFundAmountListResponse{}
 	var list []*pb.AssetHistoryFundAmountResponse
@@ -2853,6 +2854,7 @@ func (s *TransactionUsecase) AssetHistoryAddressAmount(ctx context.Context, req 
 		UidType:   req.AddressType,
 		StartTime: req.StartTime,
 		StopTime:  req.StopTime,
+		OrderBy:   "dt asc",
 	}
 	var result = &pb.AssetHistoryAddressAmountListResponse{}
 	var list []*pb.AssetHistoryAddressAmountResponse

@@ -290,6 +290,10 @@ func (r *ChainTypeAddressAmountRepoImpl) List(ctx context.Context, req *AssetReq
 		db = db.Where("dt < ?", req.StopTime)
 	}
 
+	if req.OrderBy != "" {
+		db = db.Order(req.OrderBy)
+	}
+
 	ret := db.Find(&chainTypeAddressAmountList)
 	err := ret.Error
 	if err != nil {
