@@ -1258,6 +1258,21 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.BytesToAddress(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[96:128])
 			tokenAddress = ""
+		} else if topic0 == SOLDLISTING_TOPIC {
+			//https://cronoscan.com/tx/0xe30b613e03e7ee2fb136a5f93f4af25ce3cb2305212ea7d024a0725b168e25a5
+			if len(receipt.Logs) > 2 {
+				continue
+			}
+			if methodId != "0d7bb214" {
+				continue
+			}
+			if len(log_.Data) < 128 {
+				continue
+			}
+			fromAddress = transaction.From.String()
+			toAddress = common.BytesToAddress(log_.Data[:32]).String()
+			amount = new(big.Int).SetBytes(log_.Data[96:128])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
