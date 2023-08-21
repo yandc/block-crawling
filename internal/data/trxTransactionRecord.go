@@ -723,7 +723,7 @@ func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 
 // CountOut implements AtomTransactionRecordRepo
 func (r *TrxTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
+	return countOutTx(r.gormDB, ctx, tableName, address, toAddress, "eventLog")
 }
 func (r *TrxTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
 	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
