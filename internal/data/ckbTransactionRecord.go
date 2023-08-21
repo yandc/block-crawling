@@ -164,7 +164,7 @@ func (r *CkbTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"status":           gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
 			"tx_time":          clause.Column{Table: "excluded", Name: "tx_time"},
 			"contract_address": clause.Column{Table: "excluded", Name: "contract_address"},
-			"parse_data":       clause.Column{Table: "excluded", Name: "parse_data"},
+			"parse_data":       gorm.Expr("case when excluded.status = 'success' or excluded.parse_data not like '%\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}' or " + tableName + ".parse_data = '' then excluded.parse_data else " + tableName + ".parse_data end"),
 			"confirm_count":    clause.Column{Table: "excluded", Name: "confirm_count"},
 			"event_log":        clause.Column{Table: "excluded", Name: "event_log"},
 			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
