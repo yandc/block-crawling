@@ -1239,6 +1239,21 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.BytesToAddress(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[96:128])
 			tokenAddress = ""
+		} else if topic0 == FILL_TOPIC {
+			//https://bscscan.com/tx/0xd882bdcde047e7429653090e2f531e4130c46babba6e4b5952a7c80fe5cd9411
+			if len(receipt.Logs) > 2 {
+				continue
+			}
+			if methodId != "e98b3b7e" {
+				continue
+			}
+			if len(log_.Data) < 192 {
+				continue
+			}
+			fromAddress = transaction.From.String()
+			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			amount = new(big.Int).SetBytes(log_.Data[160:192])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
