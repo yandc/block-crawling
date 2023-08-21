@@ -8,7 +8,6 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -47,9 +46,9 @@ type txDecoder struct {
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
-	transaction := tx.Raw.(*Transaction)
-	txhash := transaction.Hash().String()
 	client := c.(*Client)
+	transaction := tx.Raw.(*Transaction)
+	txHash := transaction.Hash().String()
 	maxFeePerGasNode := ""
 	maxPriorityFeePerGasNode := ""
 	gpi := transaction.GasPrice()
@@ -76,7 +75,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	}
 
 	if h.chainName == "ETH" || h.chainName == "Polygon" || h.chainName == "ScrollL2TEST" || h.chainName == "BSC" || h.chainName == "Optimism" {
-		go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode, block.Number, txhash)
+		go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode, block.Number, txHash)
 	}
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
@@ -145,30 +144,12 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 
-	job := &txHandleJob{
-		block:       block,
-		tx:          tx,
-		transaction: transaction,
-		meta:        meta,
-		receipt:     receipt,
-	}
-
-	return h.handleEachTransaction(client, job)
+	err = h.handleEachTransaction(client, block, tx, receipt, meta)
+	return err
 }
 
-type txHandleJob struct {
-	block       *chain.Block
-	tx          *chain.Transaction
-	transaction *Transaction
-	meta        *pCommon.TxMeta
-	receipt     *Receipt
-}
-
-func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) error {
-	block := job.block
-	transaction := job.transaction
-	meta := job.meta
-	receipt := job.receipt
+func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx *chain.Transaction, receipt *Receipt, meta *pCommon.TxMeta) error {
+	transaction := tx.Raw.(*Transaction)
 
 	if receipt.ContractAddress != "" && receipt.To == "" {
 		meta.TransactionType = biz.CREATECONTRACT
@@ -177,11 +158,8 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 	var feeAmount decimal.Decimal
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
-	var eventLogs []types.EventLogUid
+	var eventLogs []*types.EventLogUid
 	var contractAddress, tokenId string
-	if meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CREATECONTRACT {
-		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
-	}
 	status := biz.PENDING
 	if receipt.Status == "0x0" || receipt.Status == "0x00" {
 		status = biz.FAIL
@@ -189,6 +167,11 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		status = biz.SUCCESS
 	}
 	transactionHash := transaction.Hash().String()
+	hexData := hex.EncodeToString(transaction.Data())
+
+	if meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CREATECONTRACT {
+		eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
+	}
 
 	if transaction.To() != nil {
 		toAddress := transaction.To().String()
@@ -207,6 +190,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			if meta.TransactionType == biz.NATIVE {
 				meta.TransactionType = biz.CONTRACT
 				eventLogs, tokenId = h.extractEventLogs(client, meta, receipt, transaction)
+				log.Info(h.chainName+"扫块，将native交易类型修正为contract", zap.Any("chainName", h.chainName), zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId))
 			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
 				if status == biz.FAIL && tokenId == "" {
 					tokenType, tokenTypeErr = GetTokenType(client, h.chainName, contractAddress, codeAt)
@@ -225,9 +209,15 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					if err != nil {
 						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 					}
-					tokenInfo.TokenType = biz.ERC721
 					amount = "1"
 					tokenInfo.Amount = amount
+					tokenInfo.Address = contractAddress
+					if tokenInfo.TokenType == "" {
+						tokenInfo.TokenType = biz.ERC721
+					}
+					if tokenInfo.TokenId == "" {
+						tokenInfo.TokenId = tokenId
+					}
 				} else {
 					if meta.TransactionType == biz.TRANSFERFROM {
 						meta.TransactionType = biz.TRANSFER
@@ -246,6 +236,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 							log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 						}
 						tokenInfo.Amount = amount
+						tokenInfo.Address = contractAddress
 					}
 				}
 			} else if meta.TransactionType == biz.SETAPPROVALFORALL {
@@ -255,15 +246,16 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
 			} else if meta.TransactionType == biz.SAFETRANSFERFROM {
 				meta.TransactionType = biz.TRANSFERNFT
-				if !strings.Contains(meta.Value, ",") {
+				if !strings.Contains(meta.Value, ":") {
 					tokenType = biz.ERC721
 					tokenId = meta.Value
 					amount = "1"
 				} else {
 					tokenType = biz.ERC1155
-					values := strings.Split(meta.Value, ",")
+					values := strings.Split(meta.Value, ":")
 					tokenId = values[0]
 					amount = values[1]
 				}
@@ -272,12 +264,75 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 				if err != nil {
 					log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 				}
-				tokenInfo.TokenType = tokenType
 				tokenInfo.Amount = amount
+				tokenInfo.Address = contractAddress
+				if tokenInfo.TokenType == "" {
+					tokenInfo.TokenType = tokenType
+				}
+				if tokenInfo.TokenId == "" {
+					tokenInfo.TokenId = tokenId
+				}
 			} else if meta.TransactionType == biz.SAFEBATCHTRANSFERFROM {
 				meta.TransactionType = biz.TRANSFERNFT
-				tokenInfo.TokenType = biz.ERC1155
-				// TODO
+				valueList := strings.Split(meta.Value, ",")
+				if len(valueList) <= 1 {
+					if len(valueList) == 0 {
+						amount = "0"
+						tokenId = ""
+					} else {
+						values := strings.Split(valueList[0], ":")
+						tokenId = values[0]
+						amount = values[1]
+						tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
+						if err != nil {
+							log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						}
+					}
+					tokenInfo.Amount = amount
+					tokenInfo.Address = contractAddress
+					if tokenInfo.TokenType == "" {
+						tokenInfo.TokenType = biz.ERC1155
+					}
+					if tokenInfo.TokenId == "" {
+						tokenInfo.TokenId = tokenId
+					}
+				} else {
+					meta.TransactionType = biz.CONTRACT
+					if len(eventLogs) == 0 {
+						for _, valueArr := range valueList {
+							values := strings.Split(valueArr, ":")
+							tokenId = values[0]
+							amount = values[1]
+							tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(ctx, h.chainName, contractAddress, tokenId)
+							if err != nil {
+								log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+							}
+							tokenInfo.Amount = amount
+							tokenInfo.Address = contractAddress
+							if tokenInfo.TokenType == "" {
+								tokenInfo.TokenType = biz.ERC1155
+							}
+							if tokenInfo.TokenId == "" {
+								tokenInfo.TokenId = tokenId
+							}
+
+							amountInt, _ := new(big.Int).SetString(amount, 0)
+							eventLogInfo := &types.EventLogUid{
+								EventLog: types.EventLog{
+									From:   meta.FromAddress,
+									To:     meta.ToAddress,
+									Amount: amountInt,
+									Token:  tokenInfo,
+								},
+								FromUid: meta.User.FromUid,
+								ToUid:   meta.User.ToUid,
+							}
+
+							eventLogs = append(eventLogs, eventLogInfo)
+						}
+					}
+					amount = "0"
+				}
 			}
 
 			if err != nil || (meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CONTRACT &&
@@ -302,20 +357,14 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 						tokenInfo.TokenId = tokenId
 					}
 				} else if tokenTypeErr == nil {
+					if meta.TransactionType != biz.CONTRACT {
+						amount = "0"
+					}
 					meta.TransactionType = biz.CONTRACT
 					tokenInfo.Address = ""
 					tokenInfo.TokenId = ""
 					tokenInfo.Symbol = ""
 				}
-			}
-		} else {
-			//Polygon链的主币地址为空或0x0000000000000000000000000000000000001010
-			//zkSync链的主币地址为空或0x000000000000000000000000000000000000800A
-			if meta.TransactionType == biz.TRANSFER &&
-				((strings.HasPrefix(h.chainName, "Polygon") && (contractAddress == POLYGON_CODE || len(eventLogs) == 0)) ||
-					(strings.HasPrefix(h.chainName, "zkSync") && (contractAddress == ZKSYNC_CODE || len(eventLogs) == 0))) {
-				meta.TransactionType = biz.NATIVE
-				contractAddress = ""
 			}
 		}
 	}
@@ -329,7 +378,9 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 	if platformUserCount > 1 && meta.TransactionType != biz.CONTRACT {
 		meta.TransactionType = biz.CONTRACT
-		amount = transaction.Value().String()
+		amount = "0"
+	}
+	if meta.TransactionType == biz.CONTRACT {
 		tokenInfo = types.TokenInfo{}
 	}
 
@@ -380,32 +431,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 
 	var logAddress datatypes.JSON
 	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
-		logFromAddressMap := make(map[string]string)
-		logAddressMap := make(map[string]string)
-		var oneLogFromAddress []string
-		var logFromAddress []string
-		var logToAddress []string
-		for _, log := range eventLogs {
-			_, fromOk := logFromAddressMap[log.From]
-			if !fromOk {
-				logFromAddressMap[log.From] = ""
-				oneLogFromAddress = append(oneLogFromAddress, log.From)
-			}
-
-			key := log.From + log.To
-			_, ok := logAddressMap[key]
-			if !ok {
-				logAddressMap[key] = ""
-				logFromAddress = append(logFromAddress, log.From)
-				logToAddress = append(logToAddress, log.To)
-			}
-		}
-		if len(oneLogFromAddress) == 1 {
-			logFromAddress = oneLogFromAddress
-		}
-		logAddressList := [][]string{logFromAddress, logToAddress}
-		logAddress, _ = json.Marshal(logAddressList)
-
+		logAddress = biz.GetLogAddressFromEventLogUid(eventLogs)
 		// database btree index maximum is 2704
 		logAddressLen := len(logAddress)
 		if logAddressLen > 2704 {
@@ -435,7 +461,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		BaseFee:              block.BaseFee,
 		MaxFeePerGas:         maxFeePerGas,
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
-		Data:                 hex.EncodeToString(transaction.Data()),
+		Data:                 hexData,
 		EventLog:             eventLog,
 		LogAddress:           logAddress,
 		TransactionType:      meta.TransactionType,
@@ -494,7 +520,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 			BaseFee:              block.BaseFee,
 			MaxFeePerGas:         maxFeePerGas,
 			MaxPriorityFeePerGas: maxPriorityFeePerGas,
-			Data:                 hex.EncodeToString(transaction.Data()),
+			Data:                 hexData,
 			TransactionType:      txType,
 			OperateType:          "",
 			DappData:             "",
@@ -518,114 +544,54 @@ func (h *txDecoder) handleEachTransaction(client *Client, job *txHandleJob) erro
 		}
 	}
 
-	if isMint {
-		evmTransactionRecord.TransactionType = biz.MINT
-	} else {
-		eventLogLen := len(eventLogs)
-		if eventLogLen == 1 && evmTransactionRecord.FromAddress == eventLogs[0].To && evmTransactionRecord.Amount.String() != "0" && eventLogs[0].Token.Address != "" {
-			evmTransactionRecord.TransactionType = biz.SWAP
-		} else if eventLogLen == 2 && ((evmTransactionRecord.FromAddress == eventLogs[0].From && evmTransactionRecord.FromAddress == eventLogs[1].To) ||
-			(evmTransactionRecord.FromAddress == eventLogs[0].To && evmTransactionRecord.FromAddress == eventLogs[1].From)) {
-			if evmTransactionRecord.Amount.String() == "0" {
+	var contractEventLogs []*types.EventLogUid
+	if evmTransactionRecord.TransactionType == biz.CONTRACT {
+		if evmTransactionRecord.Amount.String() != "" && evmTransactionRecord.Amount.String() != "0" {
+			contractEventLogs = biz.HandleEventLogUid(h.chainName, evmTransactionRecord.FromAddress, evmTransactionRecord.ToAddress, evmTransactionRecord.Amount.String(), eventLogs)
+		} else {
+			contractEventLogs = eventLogs
+		}
+		eventLogLen := len(contractEventLogs)
+
+		if eventLogLen == 1 {
+			if evmTransactionRecord.FromAddress == contractEventLogs[0].To &&
+				(contractEventLogs[0].From == "" || contractEventLogs[0].From == "0x0000000000000000000000000000000000000000") &&
+				(contractEventLogs[0].Token.TokenType == biz.ERC721 || contractEventLogs[0].Token.TokenType == biz.ERC1155) {
+				evmTransactionRecord.TransactionType = biz.MINT
+			}
+		} else if eventLogLen == 2 {
+			if (evmTransactionRecord.FromAddress == contractEventLogs[0].To &&
+				(contractEventLogs[0].From == "" || contractEventLogs[0].From == "0x0000000000000000000000000000000000000000") &&
+				(contractEventLogs[0].Token.TokenType == biz.ERC721 || contractEventLogs[0].Token.TokenType == biz.ERC1155)) ||
+				(evmTransactionRecord.FromAddress == contractEventLogs[1].To &&
+					(contractEventLogs[1].From == "" || contractEventLogs[1].From == "0x0000000000000000000000000000000000000000") &&
+					(contractEventLogs[1].Token.TokenType == biz.ERC721 || contractEventLogs[1].Token.TokenType == biz.ERC1155)) {
+				evmTransactionRecord.TransactionType = biz.MINT
+			} else if (evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[1].To) ||
+				(evmTransactionRecord.FromAddress == contractEventLogs[0].To && evmTransactionRecord.FromAddress == contractEventLogs[1].From) {
 				evmTransactionRecord.TransactionType = biz.SWAP
-			} else {
-				var hasMain bool
-				var mainTotal int
-				for _, eventLog := range eventLogs {
-					if evmTransactionRecord.FromAddress == eventLog.From {
-						if eventLog.Token.Address == "" {
-							mainTotal++
-							if evmTransactionRecord.ToAddress == eventLog.To || evmTransactionRecord.Amount.String() == eventLog.Amount.String() {
-								hasMain = true
-								break
-							}
-						} else {
-							var mainSymbol string
-							if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
-								mainSymbol = platInfo.NativeCurrency
-							}
-							if evmTransactionRecord.ToAddress == eventLog.To && evmTransactionRecord.Amount.String() == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
-								hasMain = true
-								break
-							}
-						}
-					}
-				}
-				if !hasMain && mainTotal == 1 {
-					hasMain = true
-				}
-				if hasMain {
-					evmTransactionRecord.TransactionType = biz.SWAP
-				}
 			}
 		}
+	}
+	if evmTransactionRecord.TransactionType == biz.CONTRACT && isMint {
+		evmTransactionRecord.TransactionType = biz.MINT
 	}
 	return nil
 }
 
-func (h *txDecoder) Save(client chain.Clienter) error {
-	txRecords := h.txRecords
-	txNonceRecords := h.txNonceRecords
-
-	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
-		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-			return err
-		}
-	}
-
-	// Id may be setted when save to kanban, we need to reset it to zero to avoid conflict.
-	for _, item := range txRecords {
-		item.Id = 0
-	}
-
-	if txRecords != nil && len(txRecords) > 0 {
-		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName), false)
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
-			return err
-		}
-		if h.newTxs {
-			go HandleRecord(h.chainName, *(client.(*Client)), txRecords)
-		} else {
-			go HandleUserNonce(h.chainName, *(client.(*Client)), txNonceRecords)
-			go HandlePendingRecord(h.chainName, *(client.(*Client)), txRecords)
-		}
-
-		if h.newTxs {
-			records := make([]interface{}, 0, len(txRecords))
-			for _, r := range txRecords {
-				records = append(records, r)
-			}
-			pCommon.SetResultOfTxs(h.block, records)
-		} else {
-			pCommon.SetTxResult(h.txByHash, txRecords[0])
-		}
-	}
-	return nil
-}
-
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []types.EventLogUid, eventLogTokenId string) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []*types.EventLogUid, eventLogTokenId string) {
 	var eventLogs []*types.EventLogUid
 	arbitrumAmount := big.NewInt(0)
 	transactionHash := transaction.Hash().String()
+	txData := transaction.Data()
 	gmxSwapFlag := false
 	gmxFromAddress := ""
 	gmxAmount := big.NewInt(0)
 	xDaiDapp := false
 	contractAddress := receipt.To
 	var methodId string
-	if len(transaction.Data()) >= 4 {
-		methodId = hex.EncodeToString(transaction.Data()[:4])
+	if len(txData) >= 4 {
+		methodId = hex.EncodeToString(txData[:4])
 	} else {
 		log.Warn("transaction data is illegal", zap.String("chainName", h.chainName), zap.String("txHash", transactionHash))
 	}
@@ -924,8 +890,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if strings.HasPrefix(h.chainName, "Polygon") {
 				//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
 				if contractAddress == "0xc1dcb196ba862b337aa23eda1cb9503c0801b955" && methodId == "439dff06" {
-					if len(transaction.Data()) >= 100 {
-						toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[68:100])).String()
+					if len(txData) >= 100 {
+						toAddress = common.HexToAddress(hex.EncodeToString(txData[68:100])).String()
 					}
 				}
 			}
@@ -1068,7 +1034,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//无转出地址
 			fromAddress = common.HexToAddress(receipt.To).String()
 			amount = new(big.Int).SetBytes(log_.Data)
-			toAddress = common.BytesToAddress(transaction.Data()[4:36]).String()
+			toAddress = common.BytesToAddress(txData[4:36]).String()
 			tokenAddress = ""
 		} else if topic0 == OPTIMISM_FANTOM_LOGANYSWAPIN {
 			fromAddress = tokenAddress
@@ -1105,7 +1071,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 
 				fromAddress = transaction.To().String()
-				toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
+				toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
 				amount = new(big.Int).SetBytes(log_.Data[32:64])
 				tokenAddress = ""
 			} else {
@@ -1200,9 +1166,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
-			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
-			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(txData[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
 			tokenAddress = ""
 		} else if topic0 == REDEEM_TOPIC {
@@ -1281,9 +1247,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过log获取
 		if contractAddress == "0x0460352b91d7cf42b0e1c1c30f06b602d9ef2238" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
-			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
-			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(txData[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
 			/*tokenAddress = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"
 			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
@@ -1301,9 +1267,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
 		if contractAddress == "0x83f6244bd87662118d96d9a6d44f09dfff14b30e" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(transaction.Data()[4:36])).String()
-			amountTotal := new(big.Int).SetBytes(transaction.Data()[36:68])
-			bonderFeeAmount := new(big.Int).SetBytes(transaction.Data()[100:132])
+			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			amountTotal := new(big.Int).SetBytes(txData[36:68])
+			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
 			xDaiDapp = true
 			tokenAddress = ""
@@ -1452,7 +1418,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 	for _, eventLog := range eventLogs {
 		if eventLog != nil {
-			eventLogList = append(eventLogList, *eventLog)
+			eventLogList = append(eventLogList, eventLog)
 		}
 	}
 	return
@@ -1460,29 +1426,25 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) error {
 	client := c.(*Client)
-	raw := txByHash.Raw.([]interface{})
-	rawTransaction := raw[0].(*Transaction)
-	rawReceipt := raw[1].(*Receipt)
+	rawReceipt := txByHash.Raw.(*Receipt)
+	txHash := txByHash.Hash
 
-	meta, err := pCommon.AttemptMatchUser(h.chainName, txByHash)
+	curHeight := txByHash.BlockNumber
+	block, err := client.GetBlockTransaction(curHeight, txHash)
 	if err != nil {
 		return err
 	}
+	var tx *chain.Transaction
+	for _, tx = range block.Transactions {
+		if tx.Hash == txHash {
+			break
+		}
+	}
 
-	// Ignore this transaction.
-	//if !(meta.User.MatchFrom || meta.User.MatchTo) {
-	//	log.Warn(
-	//		"PENDING TX COULD NOT MATCH USER",
-	//		meta.WrapFields(
-	//			zap.String("chainName", h.chainName),
-	//			zap.Uint64("height", txByHash.BlockNumber),
-	//			zap.String("nodeUrl", client.URL()),
-	//			zap.String("txHash", txByHash.Hash),
-	//		)...,
-	//	)
-	//	return nil
-	//}
-
+	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
+	if err != nil {
+		return err
+	}
 	log.Info(
 		"PENDING TX HAS SEALED",
 		meta.WrapFields(
@@ -1493,31 +1455,10 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 		)...,
 	)
 
-	var block *chain.Block
-	curHeight := txByHash.BlockNumber
-	if blk, ok := h.blocksStore[curHeight]; ok {
-		block = blk
-	} else {
-		var err error
-		block, err = client.GetBlock(curHeight)
-		if err != nil {
-			return err
-		}
-		h.blocksStore[curHeight] = block
-	}
-
-	job := &txHandleJob{
-		block:       block,
-		tx:          txByHash,
-		transaction: rawTransaction,
-		meta:        meta,
-		receipt:     rawReceipt,
-	}
 	h.block = block // to let below invocation work.
-	if err := h.handleEachTransaction(c.(*Client), job); err != nil {
-		return err
-	}
-	return nil
+
+	err = h.handleEachTransaction(client, block, tx, rawReceipt, meta)
+	return err
 }
 
 func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
@@ -1665,6 +1606,57 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 			zap.Int64("nowTime", nowTime),
 			zap.Int64("createTime", record.CreatedAt),
 		)
+	}
+	return nil
+}
+
+func (h *txDecoder) Save(client chain.Clienter) error {
+	txRecords := h.txRecords
+	txNonceRecords := h.txNonceRecords
+
+	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
+		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			return err
+		}
+	}
+
+	// Id may be setted when save to kanban, we need to reset it to zero to avoid conflict.
+	for _, item := range txRecords {
+		item.Id = 0
+	}
+
+	if txRecords != nil && len(txRecords) > 0 {
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName), false)
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("error", err))
+			return err
+		}
+		if h.newTxs {
+			go HandleRecord(h.chainName, *(client.(*Client)), txRecords)
+		} else {
+			go HandleUserNonce(h.chainName, *(client.(*Client)), txNonceRecords)
+			go HandlePendingRecord(h.chainName, *(client.(*Client)), txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			pCommon.SetResultOfTxs(h.block, records)
+		} else {
+			pCommon.SetTxResult(h.txByHash, txRecords[0])
+		}
 	}
 	return nil
 }

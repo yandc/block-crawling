@@ -12,7 +12,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gorm.io/datatypes"
 	"math"
+	"math/big"
 	"regexp"
 	"strconv"
 	"sync"
@@ -1232,4 +1234,94 @@ func ParseDevice(s string) Device {
 		Id:        deviceId,
 		UserAgent: s,
 	}
+}
+
+func GetLogAddressFromEventLogUid(eventLogs []*types.EventLogUid) datatypes.JSON {
+	var logAddress datatypes.JSON
+	logFromAddressMap := make(map[string]string)
+	logAddressMap := make(map[string]string)
+	var oneLogFromAddress []string
+	var logFromAddress []string
+	var logToAddress []string
+	for _, log := range eventLogs {
+		_, fromOk := logFromAddressMap[log.From]
+		if !fromOk {
+			logFromAddressMap[log.From] = ""
+			oneLogFromAddress = append(oneLogFromAddress, log.From)
+		}
+
+		key := log.From + log.To
+		_, ok := logAddressMap[key]
+		if !ok {
+			logAddressMap[key] = ""
+			logFromAddress = append(logFromAddress, log.From)
+			logToAddress = append(logToAddress, log.To)
+		}
+	}
+	if len(oneLogFromAddress) == 1 {
+		logFromAddress = oneLogFromAddress
+	}
+	logAddressList := [][]string{logFromAddress, logToAddress}
+	logAddress, _ = json.Marshal(logAddressList)
+
+	return logAddress
+}
+
+func HandleEventLogUid(chainName, recordFromAddress, recordToAddress, recordAmount string, eventLogs []*types.EventLogUid) []*types.EventLogUid {
+	if recordAmount == "" || recordAmount == "0" {
+		return eventLogs
+	}
+
+	if len(eventLogs) > 0 {
+		var hasMain bool
+		var mainTotal int
+		//https://polygonscan.com/tx/0x8b455005112a9e744ec143ccfa81d4185fbc936162367eb33d8e9f6f704a6ec2
+		mainAmount := new(big.Int)
+		for _, eventLog := range eventLogs {
+			if recordFromAddress == eventLog.From {
+				if eventLog.Token.Address == "" {
+					mainTotal++
+					mainAmount = mainAmount.Add(mainAmount, eventLog.Amount)
+					if recordToAddress == eventLog.To || recordAmount == eventLog.Amount.String() {
+						hasMain = true
+						break
+					}
+				} else {
+					var mainSymbol string
+					if platInfo, ok := PlatInfoMap[chainName]; ok {
+						mainSymbol = platInfo.NativeCurrency
+					}
+					if recordToAddress == eventLog.To && recordAmount == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
+						hasMain = true
+						break
+					}
+				}
+			}
+		}
+		if !hasMain && (mainTotal == 1 || recordAmount == mainAmount.String()) {
+			hasMain = true
+		}
+		if !hasMain {
+			amount, _ := new(big.Int).SetString(recordAmount, 0)
+			eventLog := &types.EventLogUid{
+				EventLog: types.EventLog{
+					From:   recordFromAddress,
+					To:     recordToAddress,
+					Amount: amount,
+				},
+			}
+			eventLogs = append(eventLogs, eventLog)
+		}
+	} else {
+		amount, _ := new(big.Int).SetString(recordAmount, 0)
+		eventLog := &types.EventLogUid{
+			EventLog: types.EventLog{
+				From:   recordFromAddress,
+				To:     recordToAddress,
+				Amount: amount,
+			},
+		}
+		eventLogs = append(eventLogs, eventLog)
+	}
+	return eventLogs
 }

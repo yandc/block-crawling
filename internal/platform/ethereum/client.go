@@ -141,6 +141,54 @@ func (c *Client) GetBlock(height uint64) (*chain.Block, error) {
 	}, nil
 }
 
+func (c *Client) GetBlockTransaction(height uint64, txHash string) (*chain.Block, error) {
+	start := time.Now()
+
+	block, err := c.GetBlockByNumber(context.Background(), big.NewInt(int64(height)))
+	if err != nil {
+		if err == ethereum.NotFound /* && isNonstandardEVM(c.chainName)*/ {
+			return nil, pcommon.BlockNotFound // retry on next node
+		}
+
+		log.Debug(
+			"RETRIEVED BLOCK FROM CHAIN FAILED WITH ERROR",
+			zap.String("chainName", c.chainName),
+			zap.Uint64("height", height),
+			zap.String("nodeUrl", c.url),
+			zap.String("elapsed", time.Now().Sub(start).String()),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+	txs := make([]*chain.Transaction, 0, len(block.Transactions()))
+	for _, tx := range block.Transactions() {
+		if tx.Hash().String() == txHash {
+			txc := &chain.Transaction{
+				Hash:        tx.Hash().String(),
+				Nonce:       tx.Nonce(),
+				BlockNumber: height,
+				Raw:         tx,
+			}
+			c.parseTxMeta(txc, tx)
+			txs = append(txs, txc)
+			break
+		}
+	}
+	var baseFee string
+	if block.BaseFee() != nil {
+		baseFee = block.BaseFee().String()
+	}
+	return &chain.Block{
+		Hash:         block.Hash().Hex(),
+		ParentHash:   block.ParentHash().Hex(),
+		Number:       block.NumberU64(),
+		Nonce:        block.Nonce(),
+		BaseFee:      baseFee,
+		Time:         int64(block.Time()),
+		Transactions: txs,
+	}, nil
+}
+
 func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error) {
 	fromAddress := tx.From.String()
 	var toAddress string
@@ -150,8 +198,11 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 	value := tx.Value().String()
 	transactionType := biz.NATIVE
 	data := tx.Data()
+	var methodId string
+	if len(data) >= 4 {
+		methodId = hex.EncodeToString(data[:4])
+	}
 	if len(data) >= 68 && tx.To() != nil {
-		methodId := hex.EncodeToString(data[:4])
 		if methodId == "a9059cbb" || methodId == "095ea7b3" || methodId == "a22cb465" {
 			toAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			amount := new(big.Int).SetBytes(data[36:])
@@ -180,23 +231,8 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 			}
 			transactionType = biz.TRANSFERFROM
 			value = amountOrTokenId.String()
-		} else if methodId == "42842e0e" { // ERC721
+		} else if methodId == "42842e0e" || methodId == "b88d4fde" { // ERC721
 			//safeTransferFrom(address from, address to, uint256 tokenId)
-			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-			var tokenId *big.Int
-			if len(data) > 68 {
-				if len(data) <= 100 {
-					tokenId = new(big.Int).SetBytes(data[68:])
-				} else {
-					tokenId = new(big.Int).SetBytes(data[68:100])
-				}
-			} else {
-				tokenId = new(big.Int)
-			}
-			transactionType = biz.SAFETRANSFERFROM
-			value = tokenId.String()
-		} else if methodId == "b88d4fde" { // ERC721
 			//safeTransferFrom(address from, address to, uint256 tokenId, bytes _data)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
@@ -237,321 +273,314 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				amount = new(big.Int)
 			}
 			transactionType = biz.SAFETRANSFERFROM
-			value = tokenId.String() + "," + amount.String()
+			value = tokenId.String() + ":" + amount.String()
 		} else if methodId == "2eb2c2d6" { // ERC1155
+			//https://etherscan.io/tx/0x228391a15896826e31d41f2c7627d693ed5d4832aad0429a65063399aaecb621
 			//safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)
 			fromAddress = common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 			toAddress = common.HexToAddress(hex.EncodeToString(data[36:68])).String()
 			transactionType = biz.SAFEBATCHTRANSFERFROM
-			// TODO
-		} else {
-			if methodId == "e7acab24" { // Seaport 1.1 Contract
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "ETH") { //BSC链 Galxe: Space Station
-					if len(data) >= 324 {
-						realFromAddress := common.HexToAddress(hex.EncodeToString(data[296:324])).String()
-						fromAddress = fromAddress + "," + realFromAddress
+			value = ""
+			if len(data) >= 292 {
+				var tokenId string
+				var amount *big.Int
+				tokenNumIndex := new(big.Int).SetBytes(data[68:100]).Int64()
+				tokenNumIndex += 4
+				tokenNum := int(new(big.Int).SetBytes(data[tokenNumIndex : tokenNumIndex+32]).Int64())
+				amountNumIndex := new(big.Int).SetBytes(data[100:132]).Int64()
+				amountNumIndex += 4
+				amountNum := int(new(big.Int).SetBytes(data[amountNumIndex : amountNumIndex+32]).Int64())
+				if tokenNum == amountNum {
+					tokenIdIndex := tokenNumIndex + 32
+					amountIndex := amountNumIndex + 32
+					for i := 0; i < tokenNum; i++ {
+						tokenId = new(big.Int).SetBytes(data[tokenIdIndex : tokenIdIndex+32]).String()
+						amount = new(big.Int).SetBytes(data[amountIndex : amountIndex+32])
+						amountStr := amount.String()
+						if amountStr == "0" {
+							continue
+						}
+
+						value = value + tokenId + ":" + amountStr + ","
+						tokenIdIndex += 32
+						amountIndex += 32
 					}
-					if len(data) >= 132 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
-					if len(data) >= 324 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[292:324])).String()
-						toAddress = toAddress + "," + realToAddress
+					if strings.HasSuffix(value, ",") {
+						value = value[:len(value)-1]
 					}
 				}
-			} else if methodId == "fb0f3ee1" { // Seaport 1.1 Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 164 {
-					realFromAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
-					fromAddress = fromAddress + "," + realFromAddress
-				}
-			} else if methodId == "357a150b" { // X2Y2: Exchange Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 516 {
-					realFromAddress := common.HexToAddress(hex.EncodeToString(data[484:516])).String()
-					fromAddress = fromAddress + "," + realFromAddress
-				}
-				if len(data) >= 260 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "b4e4b296" { // LooksRare: Exchange Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 356 {
-					realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
+			}
+		}
+	}
+
+	if transactionType == biz.NATIVE && methodId != "" {
+		transactionType = biz.CONTRACT
+		if methodId == "e7acab24" { // Seaport 1.1 Contract
+			if strings.HasPrefix(c.chainName, "ETH") { //BSC链 Galxe: Space Station
+				if len(data) >= 324 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[296:324])).String()
 					fromAddress = fromAddress + "," + realFromAddress
 				}
 				if len(data) >= 132 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "0175b1c4" { // Multichain: Router V4 Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 68 {
-					realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-					fromAddress = fromAddress + "," + realFromAddress
-				}
-				if len(data) >= 100 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "5dea8376" { // NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 68 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "252f7b01" { // Optimism和BSC链 Contract
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "Optimism") {
-					if len(data) >= 68 {
-						realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-						fromAddress = fromAddress + "," + realFromAddress
-					}
-					if len(data) >= 389 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "BSC") {
-					if len(data) >= 790 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[758:790])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				}
-			} else if methodId == "f2b1251b" { //BSC链 Galxe: Space Station
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "BSC") { //BSC链 Galxe: Space Station
-					if len(data) >= 196 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
-					transactionType = biz.CONTRACT
-					if len(data) >= 196 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				}
-			} else if methodId == "ef6c5996" { //BSC和Polygon链 NFT Contract
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "BSC") { //BSC链 Galxe: Space Station
-					if len(data) >= 164 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
-					transactionType = biz.CONTRACT
-					if len(data) >= 164 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				}
-			} else if methodId == "6a627842" { //BSC链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "afd76a0b" { //BSC和Avalanche链 NFT Contract
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "BSC") { //BSC链 NFT Contract
-					if len(data) >= 36 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
-					transactionType = biz.CONTRACT
-					if len(data) >= 36 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				}
-			} else if methodId == "a8809485" { //BSC链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 292 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[260:292])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "eb31403f" || methodId == "74a8f103" || methodId == "d3fc9864" { //BSC链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "a5599dfe" { //BSC链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 132 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "32389b71" { //Polygon和Avalanche链 NFT Contract
-				transactionType = biz.CONTRACT
-				if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
-					if len(data) >= 196 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
-					transactionType = biz.CONTRACT
-					if len(data) >= 196 {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
-						toAddress = toAddress + "," + realToAddress
-					}
-				}
-			} else if methodId == "a8174404" { //Polygon链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 1412 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[1380:1412])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "c4605394" || methodId == "00d26c0c" { //Polygon链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "9c2605a5" || methodId == "41706c4e" { //Polygon链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 164 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "53d4c775" { //Optimism链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 68 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "c725e054" { //Optimism链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "26fb76c2" || methodId == "50bb4e7f" { //Klaytn链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "3cbf4f8a" { //ETH链 X2Y2: ERC721 Delegate
-				transactionType = biz.CONTRACT
-				if len(data) >= 68 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "89d56c84" { //ETH链 Element: Marketplace
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "4c674c2d" { //ETH链 Element: Element Swap 2
-				transactionType = biz.CONTRACT
-				if len(data) >= 452 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[420:452])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "9a1fc3a7" { //ETH链 Blur.io: Marketplace
-				transactionType = biz.CONTRACT
+			} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
 				if len(data) >= 324 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[292:324])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "8a9c2d65" { //BSC链 NFT Contract
-				transactionType = biz.CONTRACT
-				dl := len(data)
-				if dl >= 164 {
-					i := 100
-					dl = dl/2 + i/2 - 32
-					for i < dl {
-						realToAddress := common.HexToAddress(hex.EncodeToString(data[i : i+32])).String()
-						toAddress = toAddress + "," + realToAddress
-						i += 32
-					}
+			}
+		} else if methodId == "fb0f3ee1" { // Seaport 1.1 Contract
+			if len(data) >= 164 {
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			}
+		} else if methodId == "357a150b" { // X2Y2: Exchange Contract
+			if len(data) >= 516 {
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[484:516])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			}
+			if len(data) >= 260 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[228:260])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "b4e4b296" { // LooksRare: Exchange Contract
+			if len(data) >= 356 {
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[324:356])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			}
+			if len(data) >= 132 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "0175b1c4" { // Multichain: Router V4 Contract
+			if len(data) >= 68 {
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			}
+			if len(data) >= 100 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "5dea8376" { // NFT Contract
+			if len(data) >= 68 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "252f7b01" { // Optimism和BSC链 Contract
+			if strings.HasPrefix(c.chainName, "Optimism") {
+				if len(data) >= 68 {
+					realFromAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+					fromAddress = fromAddress + "," + realFromAddress
 				}
-			} else if methodId == "00000000" { //Arbitrum链 Seaport 1.4
-				transactionType = biz.CONTRACT
-				if len(data) >= 164 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+				if len(data) >= 389 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[357:389])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "8171e632" { //Polygon链 NFT Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 100 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+			} else if strings.HasPrefix(c.chainName, "BSC") {
+				if len(data) >= 790 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[758:790])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "439dff06" { //Polygon链 Contract
-				transactionType = biz.CONTRACT
-				if len(data) >= 100 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "23c452cd" { //ETH链 Hop Protocol: Ethereum or MATIC Bridge
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "a4d73041" { //zkSync链 NFT
-				transactionType = biz.CONTRACT
-				if len(data) >= 36 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "87201b41" { //Polygon链 NFT
-				transactionType = biz.CONTRACT
+			}
+		} else if methodId == "f2b1251b" { //BSC链 Galxe: Space Station
+			if strings.HasPrefix(c.chainName, "BSC") { //BSC链 Galxe: Space Station
 				if len(data) >= 196 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "4782f779" { //Arbitrum, Optimism, Fantom, BSC链 Contract
-				//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb
-				//https://optimistic.etherscan.io/tx/0x1de553537b19e29619da0112c688ce4ecc5e185c2e289d757084148f6d4c6d6c
-				//https://ftmscan.com/tx/0xce25179db51f9ee48fbdc518b96d2cf584af655a34b95bc535544c1a653be9a8
-				//https://bscscan.com/tx/0x076501069df7ab50acb5244bcefcfe8940d970095a93a5287b75ae8fb3d9269b
-				transactionType = biz.CONTRACT
+			} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
+				if len(data) >= 196 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			}
+		} else if methodId == "ef6c5996" { //BSC和Polygon链 NFT Contract
+			if strings.HasPrefix(c.chainName, "BSC") { //BSC链 Galxe: Space Station
+				if len(data) >= 164 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
+				if len(data) >= 164 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			}
+		} else if methodId == "6a627842" { //BSC链 NFT Contract
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "afd76a0b" { //BSC和Avalanche链 NFT Contract
+			if strings.HasPrefix(c.chainName, "BSC") { //BSC链 NFT Contract
 				if len(data) >= 36 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "4630a0d8" { //Polygon链 Contract
-				//https://polygonscan.com/tx/0xf8c87e264fb54d02a625d8c1f1af4ec0109126127d11daebea046a8210ea71f1
-				transactionType = biz.CONTRACT
-				if len(data) >= 132 {
-					realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
-					toAddress = toAddress + "," + realToAddress
-				}
-			} else if methodId == "cc29a306" { //Arbitrum链 Contract
-				//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
-				transactionType = biz.CONTRACT
+			} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
 				if len(data) >= 36 {
 					realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 					toAddress = toAddress + "," + realToAddress
 				}
-			} else if methodId == "ca350aa6" { //ETH链 Coinbase: Deposit
-				//https://cn.etherscan.com/tx/0xad7dc826dfb58dcf31cd550f24180c16746621ad5844731bcf7e4441ae65230f
-				transactionType = biz.CONTRACT
-				dl := len(data)
-				if dl >= 196 {
-					start := 100
-					stop := start + 96
-					num := int(new(big.Int).SetBytes(data[68:100]).Int64())
-					for i := 0; i < num; i++ {
-						if stop > dl {
-							break
-						}
-						d := data[start:stop]
-						addressData := d[32:64]
-						realToAddress := common.HexToAddress(hex.EncodeToString(addressData)).String()
-						toAddress = toAddress + "," + realToAddress
-						start = stop
-						stop += 96
+			}
+		} else if methodId == "a8809485" { //BSC链 NFT Contract
+			if len(data) >= 292 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[260:292])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "eb31403f" || methodId == "74a8f103" || methodId == "d3fc9864" { //BSC链 NFT Contract
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "a5599dfe" { //BSC链 NFT Contract
+			if len(data) >= 132 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "32389b71" { //Polygon和Avalanche链 NFT Contract
+			if strings.HasPrefix(c.chainName, "Polygon") { //Polygon链 NFT Contract
+				if len(data) >= 196 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			} else if strings.HasPrefix(c.chainName, "Avalanche") { //Avalanche链 NFT Contract
+				if len(data) >= 196 {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+					toAddress = toAddress + "," + realToAddress
+				}
+			}
+		} else if methodId == "a8174404" { //Polygon链 NFT Contract
+			if len(data) >= 1412 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[1380:1412])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "c4605394" || methodId == "00d26c0c" { //Polygon链 NFT Contract
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "9c2605a5" || methodId == "41706c4e" { //Polygon链 NFT Contract
+			if len(data) >= 164 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "53d4c775" { //Optimism链 NFT Contract
+			if len(data) >= 68 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "c725e054" { //Optimism链 NFT Contract
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "26fb76c2" || methodId == "50bb4e7f" { //Klaytn链 NFT Contract
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "3cbf4f8a" { //ETH链 X2Y2: ERC721 Delegate
+			if len(data) >= 68 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[36:68])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "89d56c84" { //ETH链 Element: Marketplace
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "4c674c2d" { //ETH链 Element: Element Swap 2
+			if len(data) >= 452 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[420:452])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "9a1fc3a7" { //ETH链 Blur.io: Marketplace
+			if len(data) >= 324 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[292:324])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "8a9c2d65" { //BSC链 NFT Contract
+			dl := len(data)
+			if dl >= 164 {
+				i := 100
+				dl = dl/2 + i/2 - 32
+				for i < dl {
+					realToAddress := common.HexToAddress(hex.EncodeToString(data[i : i+32])).String()
+					toAddress = toAddress + "," + realToAddress
+					i += 32
+				}
+			}
+		} else if methodId == "00000000" { //Arbitrum链 Seaport 1.4
+			if len(data) >= 164 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[132:164])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "8171e632" { //Polygon链 NFT Contract
+			if len(data) >= 100 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "439dff06" { //Polygon链 Contract
+			if len(data) >= 100 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "23c452cd" { //ETH链 Hop Protocol: Ethereum or MATIC Bridge
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "a4d73041" { //zkSync链 NFT
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "87201b41" { //Polygon链 NFT
+			if len(data) >= 196 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[164:196])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "4782f779" { //Arbitrum, Optimism, Fantom, BSC链 Contract
+			//https://arbiscan.io/tx/0xf65c3b8a2a31754059a90fcf65ed3ff7a672c46abf84d30d80dd7d09c8a9d3bb
+			//https://optimistic.etherscan.io/tx/0x1de553537b19e29619da0112c688ce4ecc5e185c2e289d757084148f6d4c6d6c
+			//https://ftmscan.com/tx/0xce25179db51f9ee48fbdc518b96d2cf584af655a34b95bc535544c1a653be9a8
+			//https://bscscan.com/tx/0x076501069df7ab50acb5244bcefcfe8940d970095a93a5287b75ae8fb3d9269b
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "4630a0d8" { //Polygon链 Contract
+			//https://polygonscan.com/tx/0xf8c87e264fb54d02a625d8c1f1af4ec0109126127d11daebea046a8210ea71f1
+			if len(data) >= 132 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "cc29a306" { //Arbitrum链 Contract
+			//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
+		} else if methodId == "ca350aa6" { //ETH链 Coinbase: Deposit
+			//https://cn.etherscan.com/tx/0xad7dc826dfb58dcf31cd550f24180c16746621ad5844731bcf7e4441ae65230f
+			dl := len(data)
+			if dl >= 196 {
+				start := 100
+				stop := start + 96
+				num := int(new(big.Int).SetBytes(data[68:100]).Int64())
+				for i := 0; i < num; i++ {
+					if stop > dl {
+						break
 					}
+					d := data[start:stop]
+					addressData := d[32:64]
+					realToAddress := common.HexToAddress(hex.EncodeToString(addressData)).String()
+					toAddress = toAddress + "," + realToAddress
+					start = stop
+					stop += 96
 				}
 			}
 		}
@@ -587,16 +616,7 @@ func (c *Client) GetBlockByNumber(ctx context.Context, number *big.Int) (*Block,
 // 2. 返回 nil tx 表示调用 TxHandler.OnDroppedTx（兜底方案）
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	txHash = strings.Split(txHash, "#")[0]
-	txByHash, _, err := c.GetTransactionByHash(context.Background(), common.HexToHash(txHash))
-	if err != nil {
-		if err == ethereum.NotFound {
-			return nil, pcommon.TransactionNotFound
-		}
-		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
-		return nil, err
-	}
-
-	receipt, err := c.GetTransactionReceipt(context.Background(), txByHash.Hash())
+	receipt, err := c.GetTransactionReceipt(context.Background(), common.HexToHash(txHash))
 	if err != nil {
 		if err == ethereum.NotFound {
 			return nil, pcommon.TransactionNotFound
@@ -607,19 +627,15 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 
 	intBlockNumber, _ := utils.HexStringToUint64(receipt.BlockNumber)
 	tx = &chain.Transaction{
-		Hash:        txByHash.Hash().Hex(),
-		Nonce:       txByHash.Nonce(),
+		Hash:        txHash,
 		BlockNumber: intBlockNumber,
-
 		TxType:      "",
 		FromAddress: "",
 		ToAddress:   "",
 		Value:       "",
-
-		Raw:    []interface{}{txByHash, receipt},
-		Record: nil,
+		Raw:         receipt,
+		Record:      nil,
 	}
-	c.parseTxMeta(tx, txByHash)
 	return tx, nil
 }
 
