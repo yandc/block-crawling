@@ -222,7 +222,7 @@ func (p *NodeDefaultIn) Recover(r interface{}) (err error) {
 	}
 
 	// 程序出错 接入lark报警
-	alarmMsg := fmt.Sprintf("请注意：%s链爬块失败, error：%s", p.ChainName, fmt.Sprintf("%s", r))
+	alarmMsg := fmt.Sprintf("请注意：%s链服务内部异常, error：%s", p.ChainName, fmt.Sprintf("%s", r))
 	alarmOpts := biz.WithMsgLevel("FATAL")
 	alarmOpts = biz.WithAlarmChainName(p.ChainName)
 	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)

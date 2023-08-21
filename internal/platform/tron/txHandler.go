@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 	"math/big"
 	"strconv"
 )
@@ -250,6 +251,17 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if eventLogs != nil {
 		eventLog, _ = utils.JsonEncode(eventLogs)
 	}
+
+	var logAddress datatypes.JSON
+	if isPlatformUser && meta.TransactionType == biz.CONTRACT {
+		logAddress = biz.GetLogAddressFromEventLogUid(eventLogs)
+		// database btree index maximum is 2704
+		logAddressLen := len(logAddress)
+		if logAddressLen > 2704 {
+			log.Error(h.chainName+"扫块，logAddress长度超过最大限制", zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
+			logAddress = nil
+		}
+	}
 	rawBlock := block.Raw.(*types.BlockResponse)
 	trxContractRecord := &data.TrxTransactionRecord{
 		BlockHash:       block.Hash,
@@ -264,6 +276,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		Status:          status,
 		TxTime:          exTime,
 		EventLog:        eventLog,
+		LogAddress:      logAddress,
 		ContractAddress: rawTx.contractAddress,
 		ParseData:       parseData,
 		NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),

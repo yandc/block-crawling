@@ -823,37 +823,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	return nil
 }
 
-func (h *txDecoder) Save(client chain.Clienter) error {
-	txRecords := h.txRecords
-	if txRecords != nil && len(txRecords) > 0 {
-		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.ChainName))
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.ChainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
-			return err
-		}
-		if h.newTxs {
-			go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
-		} else {
-			go HandlePendingRecord(h.ChainName, *(client.(*Client)), txRecords)
-		}
-
-		if h.newTxs {
-			records := make([]interface{}, 0, len(txRecords))
-			for _, r := range txRecords {
-				records = append(records, r)
-			}
-			common.SetResultOfTxs(h.block, records)
-		} else {
-			common.SetTxResult(h.txByHash, txRecords[0])
-		}
-	}
-	return nil
-}
-
 func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction) error {
 	var err error
 	client := c.(*Client)
@@ -894,6 +863,37 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		h.txRecords = append(h.txRecords, record)
 	}
 
+	return nil
+}
+
+func (h *txDecoder) Save(client chain.Clienter) error {
+	txRecords := h.txRecords
+	if txRecords != nil && len(txRecords) > 0 {
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.ChainName))
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.ChainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+			return err
+		}
+		if h.newTxs {
+			go HandleRecord(h.ChainName, *(client.(*Client)), txRecords)
+		} else {
+			go HandlePendingRecord(h.ChainName, *(client.(*Client)), txRecords)
+		}
+
+		if h.newTxs {
+			records := make([]interface{}, 0, len(txRecords))
+			for _, r := range txRecords {
+				records = append(records, r)
+			}
+			common.SetResultOfTxs(h.block, records)
+		} else {
+			common.SetTxResult(h.txByHash, txRecords[0])
+		}
+	}
 	return nil
 }
 
