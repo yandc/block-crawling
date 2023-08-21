@@ -34,7 +34,7 @@ type KVPair struct {
 
 const SOL_CODE = "11111111111111111111111111111111"
 
-func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, c *conf.PlatInfo, nodeURL []string) *Platform {
 	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler
 	chainName := c.Chain
@@ -43,7 +43,6 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		CoinIndex: coins.HandleMap[handler],
 		NodeURL:   nodeURL[0],
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(c.GetMonitorHeightAlarmThr()),
@@ -108,12 +107,12 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)
@@ -122,11 +121,11 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 
 var monitorHeightSeq uint64
 
-func (p *Platform) MonitorHeight() {
+func (p *Platform) MonitorHeight(f func(bool)) {
 	// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
 	seq := atomic.AddUint64(&monitorHeightSeq, 1)
 	if seq == 60 {
-		p.CommPlatform.MonitorHeight()
+		p.CommPlatform.MonitorHeight(f)
 		atomic.StoreUint64(&monitorHeightSeq, 0)
 	}
 }

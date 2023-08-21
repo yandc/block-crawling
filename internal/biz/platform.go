@@ -6,18 +6,18 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 type Platform interface {
 	Coin() coins.Coin
-	SetRedisHeight()
-	MonitorHeight()
+	MonitorHeight(onAvailablityChanged func(bool))
 
 	CreateStateStore() chain.StateStore
 	CreateClient(url string) chain.Clienter
@@ -27,22 +27,15 @@ type Platform interface {
 }
 
 type CommPlatform struct {
-	Height    int
 	Chain     string
 	ChainName string
 	Lock      sync.RWMutex
 
 	HeightAlarmThr int
-
 	heightAlarmSeq uint64
-	Source string
 }
 
-func (p *CommPlatform) SetRedisHeight() {
-	data.RedisClient.Set(data.CHAINNAME+p.ChainName, p.Height, 0)
-}
-
-func (p *CommPlatform) MonitorHeight() {
+func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -92,20 +85,12 @@ func (p *CommPlatform) MonitorHeight() {
 		alarmOpts := WithMsgLevel("FATAL")
 		alarmOpts = WithAlarmChainName(p.ChainName)
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		if onAvailablityChanged != nil {
+			onAvailablityChanged(false)
+		}
+	} else {
+		if onAvailablityChanged != nil {
+			onAvailablityChanged(false)
+		}
 	}
-}
-
-func (p *CommPlatform) GetHeight() int {
-	p.Lock.Lock()
-	defer p.Lock.Unlock()
-	return p.Height
-}
-
-func (p *CommPlatform) HandlerHeight(height int) int {
-	p.Lock.Lock()
-	defer p.Lock.Unlock()
-	oldHeight := p.Height
-	p.Height = height
-	data.RedisClient.Set(data.CHAINNAME+p.ChainName, height, 0)
-	return oldHeight
 }

@@ -30,7 +30,7 @@ type KVPair struct {
 }
 
 // 精度 9
-func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, c *conf.PlatInfo, nodeURL []string) *Platform {
 	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler
 	chainName := c.Chain
@@ -38,7 +38,6 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(c.GetMonitorHeightAlarmThr()),
@@ -98,12 +97,12 @@ func BatchSaveOrUpdate(txRecords []*data.CsprTransactionRecord, tableName string
 	}
 
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)

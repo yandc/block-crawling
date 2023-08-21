@@ -21,14 +21,13 @@ type Platform struct {
 
 const STC_CODE = biz.STC_CODE
 
-func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := value.Handler
 	chainName := value.Chain
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
@@ -87,13 +86,13 @@ func BatchSaveOrUpdate(txRecords []*data.StcTransactionRecord, table string) err
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			Nonce           :r.Nonce,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			Nonce:           r.Nonce,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)

@@ -32,14 +32,13 @@ const APT_CLAIM_NFT = "0x3::token_transfers::claim_script"
 const APT_CANCEL_OFFER_NFT = "0x3::token_transfers::cancel_offer_script"
 const APT_DIRECT_TRANSFER = "0x3::token::opt_in_direct_transfer"
 
-func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	log.Info(value.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType, chainName := value.Handler, value.Chain
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
@@ -99,13 +98,13 @@ func BatchSaveOrUpdate(txRecords []*data.AptTransactionRecord, tableName string)
 	}
 
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			Nonce           :r.Nonce,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			Nonce:           r.Nonce,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)

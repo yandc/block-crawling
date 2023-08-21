@@ -28,13 +28,15 @@ type DetectorZapWatcher struct {
 
 	numOfContinualFailed int32
 
-	lastNotifiedTx string
+	lastNotifiedTx       string
+	onAvailablityChanged func(bool)
 }
 
 // NewDectorZapWatcher create watcher.
-func NewDectorZapWatcher(chainName string) *DetectorZapWatcher {
+func NewDectorZapWatcher(chainName string, onAvailablityChanged func(bool)) *DetectorZapWatcher {
 	return &DetectorZapWatcher{
-		chainName: chainName,
+		chainName:            chainName,
+		onAvailablityChanged: onAvailablityChanged,
 	}
 }
 
@@ -77,6 +79,9 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		alarmOpts = biz.WithAlarmChainName(d.chainName)
 		biz.LarkClient.NotifyLark(alarmMsg, nil, d.urls, alarmOpts)
+		if d.onAvailablityChanged != nil {
+			d.onAvailablityChanged(false)
+		}
 	}
 }
 

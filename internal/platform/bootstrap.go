@@ -14,12 +14,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -27,16 +29,19 @@ import (
 )
 
 type Bootstrap struct {
-	ChainName   string
-	Conf        *conf.PlatInfo
-	Platform    biz.Platform
-	Spider      *chain.BlockSpider
-	cancel      func()
-	ctx         context.Context
-	pending     *time.Ticker
-	inerPending *time.Ticker
+	ChainName string
+	Conf      *conf.PlatInfo
+	Platform  biz.Platform
+	Spider    *chain.BlockSpider
+	cancel    func()
+	ctx       context.Context
 
-	db *gorm.DB
+	pCtx    context.Context
+	pCancel func()
+
+	db         *gorm.DB
+	available  int32
+	stateStore chain.StateStore
 }
 
 var startChainMap = &sync.Map{}
@@ -45,49 +50,51 @@ var chainLock sync.RWMutex
 
 func NewBootstrap(p biz.Platform, value *conf.PlatInfo, db *gorm.DB) *Bootstrap {
 	ctx, cancel := context.WithCancel(context.Background())
+	pCtx, pCancel := context.WithCancel(context.Background())
 	nodeURL := value.RpcURL
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
 		clients = append(clients, p.CreateClient(url))
 	}
-	spider := chain.NewBlockSpider(p.CreateStateStore(), clients...)
+	bootstrap := &Bootstrap{
+		ChainName:  value.Chain,
+		Platform:   p,
+		Conf:       value,
+		cancel:     cancel,
+		ctx:        ctx,
+		db:         db,
+		pCtx:       pCtx,
+		pCancel:    pCancel,
+		available:  1,
+		stateStore: p.CreateStateStore(),
+	}
+
+	bootstrap.Spider = chain.NewBlockSpider(bootstrap.stateStore, clients...)
 	if len(value.StandbyRPCURL) > 0 {
 		standby := make([]chain.Clienter, 0, len(value.StandbyRPCURL))
 		for _, url := range value.StandbyRPCURL {
 			c := p.CreateClient(url)
 			standby = append(standby, c)
 		}
-		spider.AddStandby(standby...)
+		bootstrap.Spider.AddStandby(standby...)
 	}
-	spider.Watch(common.NewDectorZapWatcher(value.Chain))
+	bootstrap.Spider.Watch(common.NewDectorZapWatcher(value.Chain, bootstrap.onAvailablityChanged))
 
 	if value.GetRoundRobinConcurrent() {
-		spider.EnableRoundRobin()
+		bootstrap.Spider.EnableRoundRobin()
 	}
-	p.SetBlockSpider(spider)
-	spider.SetHandlingTxsConcurrency(int(value.GetHandlingTxConcurrency()))
-	return &Bootstrap{
-		ChainName: value.Chain,
-		Platform:  p,
-		Spider:    spider,
-		Conf:      value,
-		cancel:    cancel,
-		ctx:       ctx,
-		db:        db,
-	}
+	p.SetBlockSpider(bootstrap.Spider)
+	bootstrap.Spider.SetHandlingTxsConcurrency(int(value.GetHandlingTxConcurrency()))
+	return bootstrap
 }
 
 func (b *Bootstrap) Stop() {
 	b.cancel()
-	if b.pending != nil {
-		b.pending.Stop()
-	}
-	if b.inerPending != nil {
-		b.inerPending.Stop()
-	}
+	b.pCancel()
 }
 
 func (b *Bootstrap) Start() {
+	b.setAvailablity(true)
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("main panic:", zap.Any("", err))
@@ -108,17 +115,111 @@ func (b *Bootstrap) Start() {
 	// get inner memerypool
 	go func() {
 		time.Sleep(time.Duration(utils.RandInt32(0, 300)) * time.Second)
-		log.Info("start main", zap.Any("platform", b))
+		log.Info("start main BACKGROUND PENDING AND MONITORING", zap.Any("platform", b))
+		defer log.Info("stop main BACKGROUND PENDING AND MONITORING", zap.Any("platform", b))
 		// get result
 		go b.GetTransactionResultByTxhash()
 
 		resultPlan := time.NewTicker(time.Duration(5) * time.Minute)
-		b.pending = resultPlan
-		for range resultPlan.C {
-			go b.GetTransactionResultByTxhash()
-			go b.Platform.MonitorHeight()
+		for {
+			select {
+			case <-resultPlan.C:
+				go b.GetTransactionResultByTxhash()
+				if b.isAvailable() {
+					go b.Platform.MonitorHeight(b.onAvailablityChanged)
+				}
+			case <-b.pCtx.Done():
+				resultPlan.Stop()
+				return
+			}
 		}
 	}()
+}
+
+func (b *Bootstrap) onAvailablityChanged(available bool) {
+	key := b.Conf.Type + b.Conf.ChainId
+	if _, loaded := startCustomChainMap.Load(key); !loaded {
+		log.WarnS(
+			"IGNORE AVAILABLITY CHANGED",
+			zap.String("chainName", b.ChainName),
+			zap.Bool("available", available),
+		)
+		return
+	}
+
+	current := atomic.LoadInt32(&b.available) == 1
+	if current == available {
+		log.InfoS(
+			"AVAILABLITY NOT CHANGED",
+			zap.String("chainName", b.ChainName),
+			zap.Bool("available", available),
+		)
+	}
+
+	// Setting is not affected, somewhere else may already be affected.
+	if !b.setAvailablity(available) {
+		return
+	}
+
+	log.Info(
+		"AVAILABLITY CHANGED",
+		zap.Bool("current", current),
+		zap.Bool("new", available),
+		zap.String("chainName", b.ChainName),
+	)
+	if available {
+		var height uint64
+		var err error
+		err = b.Platform.GetBlockSpider().WithRetry(func(client chain.Clienter) error {
+			height, err = client.GetBlockHeight()
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			log.Error(
+				"AVAILABLITY CHANGED: RESUME BLOCKS CRAWL TO THE NEWEST BLOCK FAILED",
+				zap.String("chainName", b.ChainName),
+				zap.Error(err),
+			)
+			return
+		}
+		if err := b.stateStore.StoreHeight(height); err != nil {
+			log.Error(
+				"AVAILABLITY CHANGED: RESUME BLOCKS CRAWL TO THE NEWEST BLOCK FAILED",
+				zap.String("chainName", b.ChainName),
+				zap.Error(err),
+			)
+			return
+		}
+
+		log.Info(
+			"AVAILABLITY CHANGED: RESUME BLOCKS CRAWL TO THE NEWEST BLOCK",
+			zap.String("chainName", b.ChainName),
+			zap.Uint64("nodeHeight", height),
+		)
+		go b.GetTransactions()
+	} else {
+		log.Warn(
+			"AVAILABLITY CHANGED: SUSPEND BLOCKS CRAWL ONLY KEEP THE PENDING TXS HANDLING",
+			zap.String("chainName", b.ChainName),
+		)
+		b.cancel()
+		b.ctx, b.cancel = context.WithCancel(context.Background())
+	}
+}
+
+func (b *Bootstrap) isAvailable() bool {
+	return atomic.LoadInt32(&b.available) == 1
+}
+
+func (b *Bootstrap) setAvailablity(val bool) bool {
+	if val {
+		return atomic.CompareAndSwapInt32(&b.available, 0, 1)
+	} else {
+		return atomic.CompareAndSwapInt32(&b.available, 1, 0)
+	}
 }
 
 func (b *Bootstrap) GetTransactions() {
@@ -128,7 +229,8 @@ func (b *Bootstrap) GetTransactions() {
 		zap.String("liveInterval", liveInterval.String()),
 		zap.Bool("roundRobinConcurrent", b.Conf.GetRoundRobinConcurrent()),
 	)
-	b.Spider.StartIndexBlockWithContext(b.ctx,
+	b.Spider.StartIndexBlockWithContext(
+		b.ctx,
 		b.Platform.CreateBlockHandler(liveInterval),
 		int(b.Conf.GetSafelyConcurrentBlockDelta()),
 		int(b.Conf.GetMaxConcurrency()),
@@ -152,7 +254,10 @@ func (b *Bootstrap) GetTransactionResultByTxhash() {
 		}
 	}()
 	liveInterval := b.liveInterval()
-	b.Spider.SealPendingTransactions(b.Platform.CreateBlockHandler(liveInterval))
+	n := b.Spider.SealPendingTransactions(b.Platform.CreateBlockHandler(liveInterval))
+	if n > 0 {
+		b.onAvailablityChanged(true)
+	}
 }
 func GetCoinPriceInfo() {
 	defer func() {
@@ -696,6 +801,7 @@ func customChainRun() {
 				sccm.Stop()
 				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+chainInfo.Chain, height, 0).Err()
 				sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
+				sccm.pCtx, sccm.pCancel = context.WithCancel(context.Background())
 				log.Info("拉取配置启动bnb 重启", zap.Any("", sccm))
 
 				sccm.Start()
@@ -722,6 +828,7 @@ func customChainRun() {
 		}
 	}
 }
+
 func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
 	var mhat int32 = 1000
 	var mc int32 = 1

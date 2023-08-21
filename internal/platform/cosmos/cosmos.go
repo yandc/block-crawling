@@ -23,7 +23,7 @@ type Platform struct {
 	spider    *chain.BlockSpider
 }
 
-func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	log.Info(value.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType, chainName := value.Handler, value.Chain
 
@@ -31,7 +31,6 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		CoinIndex: coins.HandleMap[handler],
 		conf:      value,
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
@@ -105,14 +104,14 @@ func BatchSaveOrUpdate(txRecords []*data.AtomTransactionRecord, tableName string
 
 var monitorHeightSeq uint64
 
-func (p *Platform) MonitorHeight() {
+func (p *Platform) MonitorHeight(f func(bool)) {
 	if p.ChainName == "Cosmos" {
-		p.CommPlatform.MonitorHeight()
+		p.CommPlatform.MonitorHeight(f)
 	} else {
 		// 每 6 小时监控一次
 		seq := atomic.AddUint64(&monitorHeightSeq, 1)
 		if seq == 360 {
-			p.CommPlatform.MonitorHeight()
+			p.CommPlatform.MonitorHeight(f)
 			atomic.StoreUint64(&monitorHeightSeq, 0)
 		}
 	}
