@@ -21,14 +21,13 @@ type Platform struct {
 const SUI_CODE = "0x2::sui::SUI"
 const SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
 
-func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := value.Handler
 	chainName := value.Chain
 
 	return &Platform{
 		CoinIndex: coins.HandleMap[handler],
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
@@ -87,12 +86,12 @@ func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string)
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TransactionType :r.TransactionType,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TransactionType: r.TransactionType,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)

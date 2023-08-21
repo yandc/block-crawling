@@ -16,7 +16,6 @@ import (
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/tron"
-	"strconv"
 )
 
 var InnerPlatforms []biz.Platform
@@ -38,12 +37,7 @@ func NewInnerNodeList(bc *conf.Bootstrap, bundle *data.Bundle) InnerPlatformCont
 }
 
 func GetInnerPlatform(value *conf.PlatInfo) biz.Platform {
-	typ, chainName, nodeURL := value.Type, value.Chain, value.RpcURL[0]
-	height := -1
-	redisHeight, _ := data.RedisClient.Get(data.CHAINNAME + chainName).Result()
-	if redisHeight != "" {
-		height, _ = strconv.Atoi(redisHeight)
-	}
+	typ, nodeURL := value.Type, value.RpcURL[0]
 
 	var nodeURLS []string
 	nodeURLS = make([]string, 0)
@@ -51,27 +45,27 @@ func GetInnerPlatform(value *conf.PlatInfo) biz.Platform {
 
 	switch typ {
 	case biz.STC:
-		return starcoin.Init(coins.Starcoin().Handle, value, nodeURLS, height)
+		return starcoin.Init(coins.Starcoin().Handle, value, nodeURLS)
 	case biz.EVM:
-		return ethereum.Init(coins.Ethereum().Handle, value, nodeURLS, height)
+		return ethereum.Init(coins.Ethereum().Handle, value, nodeURLS)
 	case biz.BTC:
-		return bitcoin.Init(coins.Bitcoin().Handle, value, nodeURLS, height)
+		return bitcoin.Init(coins.Bitcoin().Handle, value, nodeURLS)
 	case biz.TVM:
-		return tron.Init(coins.Tron().Handle, value, nodeURLS, height)
+		return tron.Init(coins.Tron().Handle, value, nodeURLS)
 	case biz.APTOS:
-		return aptos.Init(coins.Aptos().Handle, value, nodeURLS, height)
+		return aptos.Init(coins.Aptos().Handle, value, nodeURLS)
 	case biz.SUI:
-		return sui.Init(coins.Sui().Handle, value, nodeURLS, height)
+		return sui.Init(coins.Sui().Handle, value, nodeURLS)
 	case biz.SOLANA:
-		return solana.Init(coins.Solana().Handle, value, nodeURLS, height)
+		return solana.Init(coins.Solana().Handle, value, nodeURLS)
 	case biz.NERVOS:
-		return nervos.Init(coins.Nervos().Handle, value, nodeURLS, height)
+		return nervos.Init(coins.Nervos().Handle, value, nodeURLS)
 	case biz.COSMOS:
-		return cosmos.Init(coins.Cosmos().Handle, value, nodeURLS, height)
+		return cosmos.Init(coins.Cosmos().Handle, value, nodeURLS)
 	case biz.POLKADOT:
-		return polkadot.Init(coins.Polkadot().Handle, value, nodeURLS, height)
+		return polkadot.Init(coins.Polkadot().Handle, value, nodeURLS)
 	case biz.KASPA:
-		return kaspa.Init(coins.Kaspa().Handle, value, nodeURLS, height)
+		return kaspa.Init(coins.Kaspa().Handle, value, nodeURLS)
 	}
 	return nil
 }

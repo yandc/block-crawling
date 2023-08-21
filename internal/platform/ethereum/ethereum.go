@@ -175,7 +175,7 @@ type KVPair struct {
 	Val int
 }
 
-func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, c *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := c.Handler // ethereum
 	chainName := c.Chain   // ETH
 
@@ -183,10 +183,8 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string, height int) *Platf
 		CoinIndex:     coins.HandleMap[handler],
 		kanbanEnabled: c.GetEnableKanban(),
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
-			Source:         c.Source,
 			HeightAlarmThr: int(c.GetMonitorHeightAlarmThr()),
 		},
 	}

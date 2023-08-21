@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/model"
+
 	ncommon "gitlab.bixin.com/mili/node-driver/common"
 
 	in "block-crawling/internal/types"
@@ -27,7 +28,7 @@ type Platform struct {
 	spider    *chain.BlockSpider
 }
 
-func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *Platform {
+func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := value.Handler
 	chainName := value.Chain
 
@@ -35,7 +36,6 @@ func Init(handler string, value *conf.PlatInfo, nodeURL []string, height int) *P
 		CoinIndex: coins.HandleMap[handler],
 		client:    NewClient(nodeURL[0], chainName),
 		CommPlatform: biz.CommPlatform{
-			Height:         height,
 			Chain:          chainType,
 			ChainName:      chainName,
 			HeightAlarmThr: int(value.GetMonitorHeightAlarmThr()),
@@ -330,11 +330,11 @@ func BatchSaveOrUpdate(txRecords []*data.BtcTransactionRecord, table string) err
 		}
 	}
 	var ssr []biz.SignStatusRequest
-	for _ , r := range txRecords {
-		ssr = append(ssr,biz.SignStatusRequest{
-			TransactionHash :r.TransactionHash,
-			Status          :r.Status,
-			TxTime          :r.TxTime,
+	for _, r := range txRecords {
+		ssr = append(ssr, biz.SignStatusRequest{
+			TransactionHash: r.TransactionHash,
+			Status:          r.Status,
+			TxTime:          r.TxTime,
 		})
 	}
 	go biz.SyncStatus(ssr)
