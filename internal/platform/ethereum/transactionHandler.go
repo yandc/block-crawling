@@ -74,6 +74,8 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(true, chainName, client, txRecords)
 	go HandleUserStatus(chainName, client, txRecords)
+
+
 }
 func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
@@ -334,11 +336,15 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	if len(userAssetMap) == 0 {
 		return
 	}
+	for _, userAsset := range userAssetMap {
+		uidType, _ := biz.GetUidTypeCode(userAsset.Address)
+		userAsset.UidType = uidType
+		userAssets = append(userAssets, userAsset)
+	}
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
-		data.UserAssetHistoryRepoClient.PageBatchSaveOrUpdate(nil, userAssetHistorys, biz.PAGE_SIZE)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
@@ -918,7 +924,7 @@ func HandleMarketCoinHistory(chainName string, txRecords []*data.EvmTransactionR
 				HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, record.Amount)
 			}
 			if toUid != "" {
-				HandlerNativePriceHistory(chainName, toAddress, fromUid, dt, false, record.FeeAmount, record.Amount)
+				HandlerNativePriceHistory(chainName, toAddress, toUid, dt, false, record.FeeAmount, record.Amount)
 			}
 		}
 
@@ -1107,7 +1113,10 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 			UpdatedAt:           now,
 			TransactionBalance:  totalNum.Abs().String(),
 		}
-		data.MarketCoinHistoryRepoClient.Save(nil, msh)
+
+		r ,e := data.MarketCoinHistoryRepoClient.Save(nil, msh)
+		log.Info("what native",zap.Any("msh",msh),zap.Any("r",r),zap.Error(e))
+
 	} else if len(mcs) == 1 {
 		marketCoinHistory := mcs[0]
 		marketCoinHistory.TransactionQuantity = marketCoinHistory.TransactionQuantity + 1

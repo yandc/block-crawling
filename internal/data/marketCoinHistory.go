@@ -92,7 +92,7 @@ func (r *MarketCoinHistoryRepoImpl) SaveOrUpdate(ctx context.Context, marketCoin
 }
 func (r *MarketCoinHistoryRepoImpl) ListByCondition(ctx context.Context, req *MarketCoinHistory) ([]*MarketCoinHistory, error) {
 	var dars []*MarketCoinHistory
-	tx := r.gormDB
+	tx := r.gormDB.Table("market_coin_history").Where("dt >= 1692633600")
 	if req != nil {
 		if req.ChainName != "" {
 			tx = tx.Where("chain_name = ?", req.ChainName)
@@ -102,6 +102,8 @@ func (r *MarketCoinHistoryRepoImpl) ListByCondition(ctx context.Context, req *Ma
 		}
 		if req.TokenAddress != "" {
 			tx = tx.Where("token_address = ?", req.TokenAddress)
+		}else {
+			tx = tx.Where("token_address = '' ")
 		}
 
 	}
@@ -139,7 +141,7 @@ func (r *MarketCoinHistoryRepoImpl) ListByTimeRanges(ctx context.Context, addres
 }
 func (r *MarketCoinHistoryRepoImpl) ListByTimeRangesAll(ctx context.Context, address string, chainName string) ([]*MarketCoinHistory, error) {
 	var dars []*MarketCoinHistory
-	ret := r.gormDB.WithContext(ctx).Model(&MarketCoinHistory{}).Where("address = ?  and chain_name = ? ", address, chainName).Order("dt desc").Find(&dars)
+	ret := r.gormDB.WithContext(ctx).Model(&MarketCoinHistory{}).Where(" dt >= 1692633600  and address = ?  and chain_name = ? ", address, chainName).Order("dt desc").Find(&dars)
 	err := ret.Error
 	if err != nil {
 		log.Errore("ListByTimeRangesGroupByDt failed", err)
