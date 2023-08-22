@@ -20,9 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/shopspring/decimal"
-
+	
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
