@@ -688,7 +688,6 @@ func GetPriceFromMarket(tokenAddress []*v1.Tokens, coinIds []string) (*v1.Descri
 		CoinIDs: coinIds,
 		Tokens:  tokenAddress,
 	})
-	log.Info("调用用户中心", zap.Any("request-tokenAddress", tokenAddress), zap.Any("request-coin", coinIds), zap.Any("result", result), zap.Error(err))
 	if err != nil {
 		// nodeProxy出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))

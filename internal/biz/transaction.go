@@ -3635,17 +3635,31 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 			AddressAssetTypeList: make([]AddressAssetType, 0),
 		}, e
 	}
-	if uahrs == nil || len(uahrs) == 0 {
+	var request = &data.AssetRequest{
+		ChainName:    req.ChainName,
+		Address:      req.Address,
+		SelectColumn: "id, chain_name, token_address, balance",
+		OrderBy:      "id asc",
+		Total:        false,
+	}
+	userAssets, _, err := data.UserAssetRepoClient.PageList(nil, request)
+	if err != nil {
+		// postgres出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产价值数据失败", req.ChainName, req.Address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
 		return &AddressAssetResponse{
-			Ok:                   true,
+			Ok:                   false,
 			Proportion:           "0",
 			Negative:             "0",
 			ProceedsUsd:          "0",
 			ProceedsCny:          "0",
 			StartTime:            endTime,
 			EndTime:              endTime,
+			ErrorMessage:         e.Error(),
 			AddressAssetTypeList: make([]AddressAssetType, 0),
-		}, nil
+		}, e
 	}
 
 	tokens := make([]*v1.Tokens, 0)
@@ -3658,49 +3672,47 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 	//按天 排序 map
 	var assetDtMap = make(map[int64]AddressAssetType)
 	for _, uahr := range uahrs {
-		if uahr.Dt == dt {
-			//zhubi
-			if uahr.TokenAddress == "" {
-				coinIds = append(coinIds, getPriceKey)
-				coinAndBalance[getPriceKey] = uahr.Balance
-			} else {
-				//daibi
-				tokens = append(tokens, &v1.Tokens{
-					Chain:   req.ChainName,
-					Address: uahr.TokenAddress,
-				})
-				tokenAndBalance[uahr.TokenAddress] = uahr.Balance
-			}
-			if _, ok := dtsMap[int(uahr.Dt)]; !ok {
-				dts = append(dts, int(uahr.Dt))
-				dtsMap[int(uahr.Dt)] = uahr.Address
-			}
+		//已计算过，就继续累加
+		if ad, ok := assetDtMap[uahr.Dt]; ok {
+			cad := ad.CnyAmountDecimal.Add(uahr.CnyAmount).Round(2)
+			ad.CnyAmountDecimal = cad
+			ad.CnyAmount = cad.String()
+
+			uad := ad.UsdAmountDecimal.Add(uahr.UsdAmount).Round(2)
+			ad.UsdAmountDecimal = uad
+			ad.UsdAmount = uad.String()
+			assetDtMap[uahr.Dt] = ad
 
 		} else {
-			//已计算过，就继续累加
-			if ad, ok := assetDtMap[uahr.Dt]; ok {
-				cad := ad.CnyAmountDecimal.Add(uahr.CnyAmount).Round(2)
-				ad.CnyAmountDecimal = cad
-				ad.CnyAmount = cad.String()
-
-				uad := ad.UsdAmountDecimal.Add(uahr.UsdAmount).Round(2)
-				ad.UsdAmountDecimal = uad
-				ad.UsdAmount = uad.String()
-				assetDtMap[uahr.Dt] = ad
-
-			} else {
-				assetDtMap[uahr.Dt] = AddressAssetType{
-					CnyAmount:        uahr.CnyAmount.Round(2).String(),
-					UsdAmount:        uahr.UsdAmount.Round(2).String(),
-					Dt:               int(uahr.Dt),
-					CnyAmountDecimal: uahr.CnyAmount.Round(2),
-					UsdAmountDecimal: uahr.UsdAmount.Round(2),
-				}
+			assetDtMap[uahr.Dt] = AddressAssetType{
+				CnyAmount:        uahr.CnyAmount.Round(2).String(),
+				UsdAmount:        uahr.UsdAmount.Round(2).String(),
+				Dt:               int(uahr.Dt),
+				CnyAmountDecimal: uahr.CnyAmount.Round(2),
+				UsdAmountDecimal: uahr.UsdAmount.Round(2),
 			}
-			if _, ok := dtsMap[int(uahr.Dt)]; !ok {
-				dts = append(dts, int(uahr.Dt))
-				dtsMap[int(uahr.Dt)] = uahr.Address
-			}
+		}
+		if _, ok := dtsMap[int(uahr.Dt)]; !ok {
+			dts = append(dts, int(uahr.Dt))
+			dtsMap[int(uahr.Dt)] = uahr.Address
+		}
+	}
+	//zhubi
+	for _, ua := range userAssets {
+		if ua.TokenAddress == "" {
+			coinIds = append(coinIds, getPriceKey)
+			coinAndBalance[getPriceKey] = ua.Balance
+		} else {
+			//daibi
+			tokens = append(tokens, &v1.Tokens{
+				Chain:   req.ChainName,
+				Address: ua.TokenAddress,
+			})
+			tokenAndBalance[ua.TokenAddress] = ua.Balance
+		}
+		if _, ok := dtsMap[int(dt)]; !ok {
+			dts = append(dts, int(dt))
+			dtsMap[int(dt)] = ua.Address
 		}
 	}
 
