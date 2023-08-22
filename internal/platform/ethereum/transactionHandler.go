@@ -193,7 +193,6 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
-	var userAssetHistorys []*data.UserAssetHistory
 	userAssetMap := make(map[string]*data.UserAsset)
 	addressTokenMap := make(map[string]map[string]int)
 	tokenSymbolMap := make(map[string]string)
