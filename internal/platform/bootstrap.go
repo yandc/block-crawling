@@ -259,115 +259,6 @@ func (b *Bootstrap) GetTransactionResultByTxhash() {
 		b.onAvailablityChanged(true)
 	}
 }
-func GetCoinPriceInfo() {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("GetCoinPriceInfo error", e)
-			} else {
-				log.Errore("GetCoinPriceInfo panic", errors.New(fmt.Sprintf("%s", err)))
-			}
-
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：定时查询币价信息失败, error：%s", fmt.Sprintf("%s", err))
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-	tm := time.Now()
-	var dt = utils.GetDayTime(&tm)
-	preDt := dt - 86400
-	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum"}
-
-	var uas []*data.UserAssetHistory
-	//复制资产表
-	userAssets, _ := data.UserAssetRepoClient.ListByChainNames(nil, chainNames)
-	for _, userAsset := range userAssets {
-		uas = append(uas, &data.UserAssetHistory{
-			ChainName:    userAsset.ChainName,
-			Uid:          userAsset.Uid,
-			Address:      userAsset.Address,
-			TokenAddress: userAsset.TokenAddress,
-			Balance:      userAsset.Balance,
-			Decimals:     userAsset.Decimals,
-			Symbol:       userAsset.Symbol,
-			Dt:           dt,
-			CreatedAt:    tm.Unix(),
-			UpdatedAt:    tm.Unix(),
-		})
-	}
-	data.UserAssetHistoryRepoClient.BatchSaveOrUpdate(nil, uas)
-
-	//查询 history表所有的币价  复制资产表
-	userAssetHistorys, e1 := data.UserAssetHistoryRepoClient.ListByChainNameAndDt(nil, chainNames, preDt)
-	if e1 != nil {
-		log.Errore("GetCoinPriceInfo error", e1)
-		return
-	}
-
-	if userAssetHistorys == nil || len(userAssetHistorys) == 0 {
-		return
-	}
-
-	//主币获取 币价 ARB ETH
-	//BSC、Polygon
-	ethCoinId := "ethereum"
-	bscCoinId := "binancecoin"
-	polygonCoinId := "matic-network"
-
-	tokens := make([]*v1.Tokens, 0)
-	for _, uah := range userAssetHistorys {
-		if uah.TokenAddress != "" {
-			tokens = append(tokens, &v1.Tokens{
-				Chain:   uah.ChainName,
-				Address: uah.TokenAddress,
-			})
-		}
-	}
-	coinIds := []string{ethCoinId, bscCoinId, polygonCoinId}
-	//查询币价
-	nowPrice, err := biz.GetPriceFromMarket(tokens, coinIds)
-	if err != nil {
-		log.Info("查询币价失败", zap.Any("error", err))
-		return
-	}
-	//platInfo := biz.PlatInfoMap[req.ChainName]
-	for _, userAH := range userAssetHistorys {
-		if userAH.TokenAddress != "" {
-		a:
-			for _, t := range nowPrice.Tokens {
-				if t.Chain == userAH.ChainName && userAH.TokenAddress == t.Address {
-					cnyPrice := strconv.FormatFloat(t.Price.Cny, 'f', 2, 64)
-					cpd, _ := decimal.NewFromString(cnyPrice)
-					usdPrice := strconv.FormatFloat(t.Price.Usd, 'f', 2, 64)
-					upd, _ := decimal.NewFromString(usdPrice)
-					balance, _ := decimal.NewFromString(userAH.Balance)
-					userAH.CnyAmount = balance.Mul(cpd)
-					userAH.UsdAmount = balance.Mul(upd)
-					break a
-				}
-			}
-		} else {
-			nativeSymbol := biz.PlatInfoMap[userAH.ChainName].GetPriceKey
-		b:
-			for _, c := range nowPrice.Coins {
-				if c.CoinID == nativeSymbol {
-					cnyPrice := strconv.FormatFloat(c.Price.Cny, 'f', 2, 64)
-					cpd, _ := decimal.NewFromString(cnyPrice)
-					usdPrice := strconv.FormatFloat(c.Price.Usd, 'f', 2, 64)
-					upd, _ := decimal.NewFromString(usdPrice)
-					balance, _ := decimal.NewFromString(userAH.Balance)
-					userAH.CnyAmount = balance.Mul(cpd)
-					userAH.UsdAmount = balance.Mul(upd)
-					break b
-				}
-			}
-
-		}
-	}
-	data.UserAssetHistoryRepoClient.BatchSaveOrUpdate(nil, userAssetHistorys)
-}
 
 func FixNftInfo() {
 	defer func() {
@@ -717,26 +608,19 @@ func (bs Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	go func() {
-		coinPlan := time.NewTicker(utils.ZeroPoint())
-		for true {
-			select {
-			case <-coinPlan.C:
-				log.Info("零点获取币价")
-				go GetCoinPriceInfo()
-				time.Sleep(time.Duration(10) * time.Minute)
-				coinPlan = time.NewTicker(utils.ZeroPoint())
-			case <-quit:
-				coinPlan.Stop()
-				return
-			}
-		}
-	}()
+
 
 	//定时  已启动的 ==  拉取内存 配置
 	InitCustomePlan()
+	//添加定时任务（每天23:55:00）执行
+	_, err1 := scheduling.Task.AddTask("55 23 * * *", scheduling.NewAssetEvmTask())
+	if err1 != nil {
+		log.Error("add AssetEvmTask error", zap.Any("", err1))
+		return err1
+	}
 
 	//添加定时任务（每天23:58:00）执行
+
 	_, err := scheduling.Task.AddTask("58 23 * * *", scheduling.NewStatisticUserAssetTask())
 	if err != nil {
 		log.Error("add statisticUserAssetTask error", zap.Any("", err))

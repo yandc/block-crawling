@@ -334,28 +334,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	if len(userAssetMap) == 0 {
 		return
 	}
-	tm := time.Now()
-	var dt = utils.GetDayTime(&tm)
-	for _, userAsset := range userAssetMap {
-		uidType, _ := biz.GetUidTypeCode(userAsset.Address)
-		userAsset.UidType = uidType
-		userAssets = append(userAssets, userAsset)
-
-		userAssetHistorys = append(userAssetHistorys, &data.UserAssetHistory{
-			ChainName:    userAsset.ChainName,
-			Uid:          userAsset.Uid,
-			Address:      userAsset.Address,
-			TokenAddress: userAsset.TokenAddress,
-			Balance:      userAsset.Balance,
-			Decimals:     userAsset.Decimals,
-			Symbol:       userAsset.Symbol,
-			Dt:           dt,
-			CreatedAt:    userAsset.CreatedAt,
-			UpdatedAt:    userAsset.UpdatedAt,
-		})
-	}
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
-	data.UserAssetHistoryRepoClient.PageBatchSaveOrUpdate(nil, userAssetHistorys, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
 		_, err = data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
