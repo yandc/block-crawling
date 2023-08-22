@@ -20,7 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	
+
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -606,10 +606,9 @@ func (bs Server) Start(ctx context.Context) error {
 		}
 	}()
 
-
-
 	//定时  已启动的 ==  拉取内存 配置
 	InitCustomePlan()
+
 	//添加定时任务（每天23:55:00）执行
 	_, err1 := scheduling.Task.AddTask("55 23 * * *", scheduling.NewAssetEvmTask())
 	if err1 != nil {
@@ -618,7 +617,6 @@ func (bs Server) Start(ctx context.Context) error {
 	}
 
 	//添加定时任务（每天23:58:00）执行
-
 	_, err := scheduling.Task.AddTask("58 23 * * *", scheduling.NewStatisticUserAssetTask())
 	if err != nil {
 		log.Error("add statisticUserAssetTask error", zap.Any("", err))

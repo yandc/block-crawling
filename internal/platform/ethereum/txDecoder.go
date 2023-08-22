@@ -896,42 +896,61 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 			}
 		} else if topic0 == DEPOSIT_TOPIC {
-			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
 			if strings.HasPrefix(h.chainName, "zkSync") {
 				continue
 			}
 
-			//兑换时判断 交易金额不能为 0
 			//判断 value是否为0 不为 0 则增加记录
 			if meta.Value != "0" {
 				fromAddress = meta.FromAddress
-				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-					token.Symbol = token.Symbol[1:]
-				}*/
-				if len(receipt.Logs) == 1 {
+				if len(log_.Topics) == 1 {
+					//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
+					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+				} else if len(log_.Topics) == 2 {
+					//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
+					toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				}
+				if strings.HasPrefix(h.chainName, "OEC") && methodId == "d0e30db0" && len(receipt.Logs) == 1 {
 					//https://www.oklink.com/cn/oktc/tx/0xc98b6d13535bbad27978b1c09185c32641604d6c580dfc1df894f6449f075c81
 					fromAddress = meta.ToAddress
 				} else {
 					tokenAddress = ""
 				}
 			} else {
-				fromAddress = meta.ToAddress
+				if len(log_.Topics) == 1 {
+					fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+				} else if len(log_.Topics) == 2 {
+					fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+				}
+				toAddress = meta.ToAddress
 			}
 
 			if len(log_.Topics) == 1 {
-				//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
-				if len(log_.Data) >= 32 {
-					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-				}
 				if len(log_.Data) >= 64 {
 					amount = new(big.Int).SetBytes(log_.Data[32:64])
 				}
-			}
-
-			if len(log_.Topics) >= 2 {
-				toAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			} else if len(log_.Topics) >= 2 {
 				if len(log_.Data) >= 32 {
 					amount = new(big.Int).SetBytes(log_.Data[:32])
+				}
+			}
+
+			//https://etherscan.io/tx/0x45c6a74bcbfb54c22e86900a946d7838f620cdccd513a86f27df4d31b09a6ab4
+			//https://etherscan.io/tx/0xbf636bee525f33c492be4175617a1054c22ca01f69b2ed567c52967d09d26b3b
+			//https://bscscan.com/tx/0x7e011215ceb9c3318c75a3d0604b9a936141935e801c5e2080659349fe67c1a0
+			//https://arbiscan.io/tx/0x4e56cc436b8ef723574bb707e261e3d7ec8285dc3227bb74ac202b6904f5479a
+			//https://arbiscan.io/tx/0x053c7d07c1409ca8c0905fbb6e7f5570394f8ae56571f27a8420e764c17b03f5
+			//https://arbiscan.io/tx/0xe099fa3c525f236a2406f6bbffbdce0f699073bfae78cd510febc088a5a7ef8a
+			if len(eventLogs) > 0 {
+				haveTransfer := false
+				for _, eventLog := range eventLogs {
+					if eventLog != nil && eventLog.From == fromAddress && eventLog.To == toAddress && eventLog.Amount.Cmp(amount) == 0 {
+						haveTransfer = true
+						break
+					}
+				}
+				if haveTransfer {
+					continue
 				}
 			}
 
@@ -941,22 +960,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				}
 				token.Amount = amount.String()
-			}
-
-			if strings.HasPrefix(h.chainName, "BSC") {
-				//https://bscscan.com/tx/0x7e011215ceb9c3318c75a3d0604b9a936141935e801c5e2080659349fe67c1a0
-				if len(eventLogs) > 0 {
-					haveTransfer := false
-					for _, eventLog := range eventLogs {
-						if eventLog != nil && eventLog.From == toAddress && eventLog.To == fromAddress && eventLog.Amount.Cmp(amount) == 0 {
-							haveTransfer = true
-							break
-						}
-					}
-					if haveTransfer {
-						continue
-					}
-				}
 			}
 		} else if topic0 == BRIDGE_TRANSFERNATIVE {
 			//https://optimistic.etherscan.io/tx/0xc94501aeaf350dc5a5e4ecddc5f2d5dba090255a7057d60f16d9f115655f46cf
@@ -1108,7 +1111,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				gmxAmount = new(big.Int).SetBytes(xx)
 				continue
 			}
-		} else if topic0 == ARBITRUM_GMX_EXECUTEDECREASEPOSITION && gmxSwapFlag {
+		} else if topic0 == ARBITRUM_GMX_EXECUTEDECREASEPOSITION {
+			if !gmxSwapFlag {
+				//https://arbiscan.io/tx/0x9b3c991d268c5f19d95ec586993cb50e51371ee607910f18612f5c7708235b2c
+				continue
+			}
 			fromAddress = gmxFromAddress
 			amount = gmxAmount
 			if len(log_.Data) >= 192 {
