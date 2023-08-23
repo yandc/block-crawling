@@ -25,7 +25,7 @@ type TransactionClient interface {
 	CreateRecordFromWallet(ctx context.Context, in *TransactionReq, opts ...grpc.CallOption) (*CreateResponse, error)
 	//分页查询交易记录列表
 	PageLists(ctx context.Context, in *PageListRequest, opts ...grpc.CallOption) (*PageListResponse, error)
-	//分页查询交易记录列表(原交易、加速和取消的会折叠)
+	//分页查询交易记录列表(原交易、加速和取消的会折叠处理)
 	PageList(ctx context.Context, in *PageListRequest, opts ...grpc.CallOption) (*PageListResponse, error)
 	//查询pending状态的总金额
 	GetAmount(ctx context.Context, in *AmountRequest, opts ...grpc.CallOption) (*AmountResponse, error)
@@ -342,7 +342,7 @@ type TransactionServer interface {
 	CreateRecordFromWallet(context.Context, *TransactionReq) (*CreateResponse, error)
 	//分页查询交易记录列表
 	PageLists(context.Context, *PageListRequest) (*PageListResponse, error)
-	//分页查询交易记录列表(原交易、加速和取消的会折叠)
+	//分页查询交易记录列表(原交易、加速和取消的会折叠处理)
 	PageList(context.Context, *PageListRequest) (*PageListResponse, error)
 	//查询pending状态的总金额
 	GetAmount(context.Context, *AmountRequest) (*AmountResponse, error)

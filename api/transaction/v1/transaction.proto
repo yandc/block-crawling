@@ -312,6 +312,7 @@ message PageListRequest {
   repeated string operateTypeList = 24;
   string tokenAddress = 25;
   string assetType = 26;
+  optional int64 nonce = 27;
 }
 
 message PageListResponse {

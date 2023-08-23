@@ -3256,6 +3256,10 @@ func (m *PageListRequest) validate(all bool) error {
 
 	// no validation rules for AssetType
 
+	if m.Nonce != nil {
+		// no validation rules for Nonce
+	}
+
 	if len(errors) > 0 {
 		return PageListRequestMultiError(errors)
 	}

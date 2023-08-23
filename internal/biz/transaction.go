@@ -1180,7 +1180,9 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 	var request *data.TransactionRequest
 	utils.CopyProperties(req, &request)
-	request.Nonce = -1
+	if req.Nonce == nil {
+		request.Nonce = -1
+	}
 
 	var result = &pb.PageListResponse{}
 	var total int64
@@ -1438,7 +1440,9 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 
 	var request *data.TransactionRequest
 	utils.CopyProperties(req, &request)
-	request.Nonce = -1
+	if req.Nonce == nil {
+		request.Nonce = -1
+	}
 
 	var result = &pb.PageListResponse{}
 	var total int64
