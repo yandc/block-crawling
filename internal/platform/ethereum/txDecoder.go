@@ -942,10 +942,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//https://arbiscan.io/tx/0x053c7d07c1409ca8c0905fbb6e7f5570394f8ae56571f27a8420e764c17b03f5
 			//https://arbiscan.io/tx/0xe099fa3c525f236a2406f6bbffbdce0f699073bfae78cd510febc088a5a7ef8a
 			//https://arbiscan.io/tx/0xd642ab8eb4d67473b958f3bfbfb848d1a1553a62c7f1eb99785a4db963f9afdc
+			//https://arbiscan.io/tx/0x9606d01664471f434c7cb3c66cee4feb29ce968a1db4e758aa763b0924a2a79d
 			if len(eventLogs) > 0 {
 				haveTransfer := false
 				for _, eventLog := range eventLogs {
-					if eventLog != nil && eventLog.From == fromAddress && (eventLog.To == toAddress || len(receipt.Logs) == 2) && eventLog.Amount.Cmp(amount) == 0 {
+					if eventLog != nil && eventLog.From == fromAddress && (eventLog.To == toAddress || len(receipt.Logs) == 2 || contractAddress == "0x28114a7cfac7d617f4de0325997a1f2726af95ea") && eventLog.Amount.Cmp(amount) == 0 {
 						haveTransfer = true
 						break
 					}
