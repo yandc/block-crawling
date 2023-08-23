@@ -74,9 +74,8 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(true, chainName, client, txRecords)
 	go HandleUserStatus(chainName, client, txRecords)
-
-
 }
+
 func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -117,7 +116,7 @@ func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTran
 		}
 		if ets > 0 {
 			rs, _ := data.EvmTransactionRecordRepoClient.FindNonceAndAddressAndStatus(nil, biz.GetTableName(chainName), record.FromAddress, record.Nonce)
-			for _ , r := range rs {
+			for _, r := range rs {
 				var ssr []biz.SignStatusRequest
 				ssr = append(ssr, biz.SignStatusRequest{
 					TransactionHash: r.TransactionHash,
@@ -130,6 +129,7 @@ func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTran
 		}
 	}
 }
+
 func HandleUserNonce(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
 	doneNonce := make(map[string]int)
 	doneNonceTotal := make(map[string]int)
@@ -1018,7 +1018,7 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 			marketCoinHistory.UsdPrice = usdTokenPrice
 			marketCoinHistory.CnyAmount = cnyTokenAmount
 			marketCoinHistory.UsdAmount = usdTokenAmount
-		}else {
+		} else {
 			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyTokenAmount)
 			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdTokenAmount)
 			if tokenBalanceDecimal.Cmp(decimal.Zero) != 0 {
@@ -1026,8 +1026,6 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 				marketCoinHistory.UsdPrice = marketCoinHistory.UsdAmount.DivRound(tokenBalanceDecimal, 2).String()
 			}
 		}
-
-
 
 		marketCoinHistory.UpdatedAt = now
 
@@ -1113,8 +1111,8 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 			TransactionBalance:  totalNum.Abs().String(),
 		}
 
-		r ,e := data.MarketCoinHistoryRepoClient.Save(nil, msh)
-		log.Info("what native",zap.Any("msh",msh),zap.Any("r",r),zap.Error(e))
+		r, e := data.MarketCoinHistoryRepoClient.Save(nil, msh)
+		log.Info("what native", zap.Any("msh", msh), zap.Any("r", r), zap.Error(e))
 
 	} else if len(mcs) == 1 {
 		marketCoinHistory := mcs[0]
@@ -1131,7 +1129,7 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 			marketCoinHistory.UsdPrice = usdPrice
 			marketCoinHistory.CnyAmount = cnyFee
 			marketCoinHistory.UsdAmount = usdFee
-		}else {
+		} else {
 			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyFee)
 			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdFee)
 			if balanceDecimal.Cmp(decimal.Zero) != 0 {
