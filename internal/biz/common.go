@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -695,7 +696,14 @@ func GetUidType(address string) (string, error) {
 	}
 	return uidType, nil
 }
-
+func ChainTypeAdd(chainName string) map[string]string{
+	chainType := ChainNameType[chainName]
+	if chainType == "" && strings.Contains(chainName, "evm") {
+		chainType = EVM
+		ChainNameType[chainName] = EVM
+	}
+	return ChainNameType
+}
 func GetUidTypeCode(address string) (int8, error) {
 	if address == "" {
 		return 0, nil

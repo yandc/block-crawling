@@ -28,6 +28,7 @@ func NewTransactionService(ts *biz.TransactionUsecase, p platform.Server, ip pla
 
 func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb.TransactionReq) (*pb.CreateResponse, error) {
 	log.Info("request", zap.Any("request", req))
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	result, err := s.ts.CreateRecordFromWallet(subctx, req)
@@ -38,8 +39,7 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	chainType := biz.ChainNameType[req.ChainName]
-
+	chainType := biz.ChainTypeAdd(req.ChainName)[req.ChainName]
 	if req.Platform == biz.WEB {
 		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
 	} else if req.Platform == biz.ANDROID {
@@ -245,9 +245,7 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-
-	chainType := biz.ChainNameType[req.ChainName]
-
+	chainType := biz.ChainTypeAdd(req.ChainName)[req.ChainName]
 	if req.Platform == biz.WEB {
 		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
 	} else if req.Platform == biz.ANDROID {
@@ -451,11 +449,13 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 }
 
 func (s *TransactionService) GetAmount(ctx context.Context, req *pb.AmountRequest) (*pb.AmountResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	result, err := s.ts.GetAmount(ctx, req)
 	return result, err
 }
 
 func (s *TransactionService) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
@@ -468,6 +468,7 @@ func (s *TransactionService) GetDappList(ctx context.Context, req *pb.DappListRe
 }
 
 func (s *TransactionService) GetAllOpenAmount(ctx context.Context, req *pb.OpenAmountReq) (*pb.OpenAmoutResp, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetAllOpenAmount(subctx, req)
@@ -475,6 +476,7 @@ func (s *TransactionService) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 }
 
 func (s *TransactionService) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetNonce(subctx, req)
@@ -482,6 +484,7 @@ func (s *TransactionService) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 }
 
 func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) (*pb.DappPageListResp, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
@@ -500,7 +503,9 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 	return result, err
 }
 
+
 func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")
 	}
@@ -523,6 +528,7 @@ func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageList
 }
 
 func (s *TransactionService) PageListAssetGroup(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.OrderBy == "" {
 		req.OrderBy = "currencyAmount desc"
 	}
@@ -538,6 +544,7 @@ func (s *TransactionService) PageListAssetGroup(ctx context.Context, req *pb.Pag
 }
 
 func (s *TransactionService) ClientPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.ChainName == "" {
 		return nil, errors.New("chainName is required")
 	}
@@ -563,11 +570,13 @@ func (s *TransactionService) ClientPageListAsset(ctx context.Context, req *pb.Pa
 }
 
 func (s *TransactionService) GetBalance(ctx context.Context, req *pb.AssetRequest) (*pb.ListBalanceResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	result, err := s.ts.GetBalance(ctx, req)
 	return result, err
 }
 
 func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb.ListAmountUidDimensionRequest) (*pb.ListAmountUidDimensionResponse, error) {
+	
 	if len(req.UidList) == 0 {
 		return nil, errors.New("uidList is required")
 	}
@@ -580,6 +589,7 @@ func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb
 }
 
 func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req *pb.ListHasBalanceUidDimensionRequest) (*pb.ListHasBalanceUidDimensionResponse, error) {
+
 	if len(req.UidList) == 0 {
 		return nil, errors.New("uidList is required")
 	}
@@ -588,7 +598,10 @@ func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req
 	return result, err
 }
 
+
 func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryFundAmountListResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
+	log.Info("AssetHistoryFundAmount request", zap.Any("request", req))
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -603,6 +616,8 @@ func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb
 }
 
 func (s *TransactionService) AssetHistoryAddressAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryAddressAmountListResponse, error) {
+
+	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -630,7 +645,7 @@ func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, re
 	} else if req.PageSize > data.MAX_PAGE_SIZE {
 		req.PageSize = data.MAX_PAGE_SIZE
 	}
-
+	biz.ChainTypeAdd(req.ChainName)
 	result, err := s.ts.ClientPageListNftAssetGroup(ctx, req)
 	return result, err
 }
@@ -649,17 +664,20 @@ func (s *TransactionService) ClientPageListNftAsset(ctx context.Context, req *pb
 	} else if req.PageSize > data.MAX_PAGE_SIZE {
 		req.PageSize = data.MAX_PAGE_SIZE
 	}
+	biz.ChainTypeAdd(req.ChainName)
 
 	result, err := s.ts.ClientPageListNftAsset(ctx, req)
 	return result, err
 }
 
 func (s *TransactionService) GetNftBalance(ctx context.Context, req *pb.NftAssetRequest) (*pb.NftBalanceResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	result, err := s.ts.GetNftBalance(ctx, req)
 	return result, err
 }
 
 func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.PageListStatisticRequest) (*pb.PageListStatisticResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -668,6 +686,7 @@ func (s *TransactionService) PageListStatistic(ctx context.Context, req *pb.Page
 }
 
 func (s *TransactionService) StatisticFundAmount(ctx context.Context, req *pb.StatisticFundRequest) (*pb.FundAmountListResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -676,6 +695,7 @@ func (s *TransactionService) StatisticFundAmount(ctx context.Context, req *pb.St
 }
 
 func (s *TransactionService) StatisticFundRate(ctx context.Context, req *pb.StatisticFundRequest) (*pb.FundRateListResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -683,12 +703,14 @@ func (s *TransactionService) StatisticFundRate(ctx context.Context, req *pb.Stat
 	return result, err
 }
 func (s *TransactionService) GetUnspentTx(ctx context.Context, req *pb.UnspentReq) (*pb.UnspentResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetUnspentTx(subctx, req)
 	return result, err
 }
 func (s *TransactionService) GetNftRecord(ctx context.Context, req *pb.NftRecordReq) (*pb.NftRecordResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	subctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	result, err := s.ts.GetNftRecord(subctx, req)
@@ -696,6 +718,7 @@ func (s *TransactionService) GetNftRecord(ctx context.Context, req *pb.NftRecord
 }
 
 func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.JsonResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	started := time.Now()
 	subctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -715,6 +738,7 @@ func (s *TransactionService) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 }
 
 func (s *TransactionService) KanbanSummary(ctx context.Context, req *pb.KanbanSummaryRequest) (*pb.KanbanSummaryResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	log.Info("KanbanSummary", zap.Any("request", req))
 	subctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
@@ -723,6 +747,7 @@ func (s *TransactionService) KanbanSummary(ctx context.Context, req *pb.KanbanSu
 
 // 看板交易数据
 func (s *TransactionService) KanbanTxChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	log.Info("KanbanTxChart", zap.Any("request", req))
 	subctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
@@ -731,6 +756,7 @@ func (s *TransactionService) KanbanTxChart(ctx context.Context, req *pb.KanbanCh
 
 // 看板合约数据
 func (s *TransactionService) KanbanContractChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	log.Info("KanbanContractChart", zap.Any("request", req))
 	subctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()

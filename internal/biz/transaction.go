@@ -256,9 +256,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	var err error
 	var a, fa decimal.Decimal
 	chainType := ChainNameType[pbb.ChainName]
-	if chainType == "" && strings.Contains(pbb.ChainName, "evm"){
-		chainType = EVM
-	}
 
 	p1 := decimal.NewFromInt(100000000)
 
@@ -1158,9 +1155,6 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	chainType := ChainNameType[req.ChainName]
-	if chainType == "" && strings.Contains(req.ChainName, "evm"){
-		chainType = EVM
-	}
 	switch chainType {
 	case EVM:
 		if req.ContractAddress != "" {
