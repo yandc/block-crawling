@@ -596,7 +596,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		log.Warn("transaction data is illegal", zap.String("chainName", h.chainName), zap.String("txHash", transactionHash))
 	}
 	// token 地址 一样  toaddress 一样 amount 一样 则 不添加transfer  判断 logswap 有咩有 ，有 则判断这三个
-	for _, log_ := range receipt.Logs {
+	for index, log_ := range receipt.Logs {
 		if len(log_.Topics) < 1 {
 			continue
 		}
@@ -751,7 +751,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 						continue
 					}
 					//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d
-
 					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == contractAddress && strings.HasPrefix(h.chainName, "Fantom") {
 						log.Info("9999999", zap.Any(contractAddress, "0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == contractAddress), zap.Any(toAddress, toAddress == "0x0000000000000000000000000000000000000000"), zap.Any("", strings.HasPrefix(h.chainName, "Fantom")))
 						toAddress = common.HexToAddress(receipt.From).String()
@@ -830,36 +829,44 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
 		} else if topic0 == WITHDRAWAL_TOPIC {
+			if strings.HasPrefix(h.chainName, "ETH") && contractAddress == "0x7a250d5630b4cf539739df2c5dacb4c659f2488d" && methodId == "791ac947" && len(receipt.Logs) != index+1 {
+				//https://etherscan.io/tx/0x8cbd92071ccf7faeea8258e4fb350dec5554532fa85edcc96e4fdbe01aafb3f6
+				continue
+			}
+
 			//https://etherscan.io/tx/0xe510a2d99d95a6974e5f95a3a745b2ffe873bf6645b764658d978856ac180cd2
-			//https://polygonscan.com/tx/0x72ce3718c81bae2c888d0403d33d2f9e5c533c601c90aaaa4158a8439c6f7630
+			//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
+			//https://polygonscan.com/tx/0xcfe4c0f8208ef8ff7c12ffa99bf9dfe3236f867176c6730a04cdaf11bd640fd8
 			//提现，判断 用户无需话费value 判断value是否为0
 			if meta.Value == "0" {
-				if contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8" {
-					continue
-				}
+				fromAddress = meta.ToAddress
 				toAddress = meta.FromAddress
-				/*if strings.HasPrefix(token.Symbol, "W") || strings.HasPrefix(token.Symbol, "w") {
-					token.Symbol = token.Symbol[1:]
-				}*/
-				tokenAddress = ""
+				//https://polygonscan.com/tx/0x42b89465a8c6a10321dc9b0eb7f483d912d1a0397631be1c76e8846bba359f26
+				if !(strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270" && methodId == "2e1a7d4d") {
+					tokenAddress = ""
+				}
 			} else {
 				toAddress = meta.ToAddress
+				log.Warn(h.chainName+"扫块，Withdrawal事件value不为0", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash))
 			}
 
 			if len(log_.Topics) == 1 {
-				//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
-				if len(log_.Data) >= 32 {
-					fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-				}
 				if len(log_.Data) >= 64 {
 					amount = new(big.Int).SetBytes(log_.Data[32:64])
 				}
-			}
-
-			if len(log_.Topics) >= 2 {
-				//fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			} else if len(log_.Topics) >= 2 {
 				if len(log_.Data) >= 32 {
 					amount = new(big.Int).SetBytes(log_.Data[:32])
+				}
+			}
+
+			if strings.HasPrefix(h.chainName, "Polygon") {
+				if contractAddress == "0xc1dcb196ba862b337aa23eda1cb9503c0801b955" && methodId == "439dff06" {
+					//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
+					fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
+					if len(txData) >= 100 {
+						toAddress = common.HexToAddress(hex.EncodeToString(txData[68:100])).String()
+					}
 				}
 			}
 
@@ -870,46 +877,23 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 				token.Amount = amount.String()
 			}
-
-			if strings.HasPrefix(h.chainName, "BSC") {
-				//https://bscscan.com/tx/0x538168688bcdb857bb0fd00d586b79be0ef17e6188f68d50dfbc829e2b40e890
-				if len(eventLogs) > 0 {
-					haveTransfer := false
-					for _, eventLog := range eventLogs {
-						if eventLog != nil && eventLog.From == toAddress && eventLog.To == fromAddress && eventLog.Amount.Cmp(amount) == 0 {
-							haveTransfer = true
-							break
-						}
-					}
-					if haveTransfer {
-						continue
-					}
-				}
-			}
-
-			if strings.HasPrefix(h.chainName, "Polygon") {
-				//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
-				if contractAddress == "0xc1dcb196ba862b337aa23eda1cb9503c0801b955" && methodId == "439dff06" {
-					if len(txData) >= 100 {
-						toAddress = common.HexToAddress(hex.EncodeToString(txData[68:100])).String()
-					}
-				}
-			}
 		} else if topic0 == DEPOSIT_TOPIC {
 			if strings.HasPrefix(h.chainName, "zkSync") {
 				continue
 			}
+			if strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0x2967e7bb9daa5711ac332caf874bd47ef99b3820" && methodId == "eedfa7cd" {
+				//https://polygonscan.com/tx/0x25c01773d91cccf45c3dfc7d25e6598204ac9dc6355ed7c7dce6046f5513432c
+				continue
+			}
 
+			//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
+			//https://etherscan.io/tx/0xc71fabfc3f65a180eb30d2f47c88837dda08d9535718ab3e12e1eee3ca287bd8
+			//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
+			//https://polygonscan.com/tx/0xf42c21bd7df31b2fc75139c2d20b42b38462b9f0269e198a21b59ec273013eb2
 			//判断 value是否为0 不为 0 则增加记录
 			if meta.Value != "0" {
 				fromAddress = meta.FromAddress
-				if len(log_.Topics) == 1 {
-					//https://explorer.roninchain.com/tx/0x0b93df20612bdd000e23f9e3158325fcec6c0459ea90ce30420a6380e6b706a7
-					toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-				} else if len(log_.Topics) == 2 {
-					//https://etherscan.io/tx/0x763f368cd98ebca2bda591ab610aa5b6dc6049fadae9ce04394fc7a8b7304976
-					toAddress = common.HexToAddress(log_.Topics[1].String()).String()
-				}
+				toAddress = meta.ToAddress
 				if strings.HasPrefix(h.chainName, "OEC") && methodId == "d0e30db0" && len(receipt.Logs) == 1 {
 					//https://www.oklink.com/cn/oktc/tx/0xc98b6d13535bbad27978b1c09185c32641604d6c580dfc1df894f6449f075c81
 					fromAddress = meta.ToAddress
@@ -918,7 +902,9 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 			} else {
 				if len(log_.Topics) == 1 {
-					fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+					if len(log_.Data) >= 32 {
+						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+					}
 				} else if len(log_.Topics) == 2 {
 					fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 				}
@@ -1148,6 +1134,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				tokenAddress = ""
 			}
 		} else if topic0 == MATIC_BRIDGE {
+			if strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8" {
+				//https://polygonscan.com/tx/0xcfe4c0f8208ef8ff7c12ffa99bf9dfe3236f867176c6730a04cdaf11bd640fd8
+				//https://polygonscan.com/tx/0xf42c21bd7df31b2fc75139c2d20b42b38462b9f0269e198a21b59ec273013eb2
+				continue
+			}
 			fromAddress = tokenAddress
 			if len(log_.Topics) >= 4 {
 				toAddress = common.HexToAddress(log_.Topics[3].String()).String()
