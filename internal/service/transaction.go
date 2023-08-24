@@ -503,7 +503,6 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 	return result, err
 }
 
-
 func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
 	biz.ChainTypeAdd(req.ChainName)
 	if req.Uid == "" && len(req.AddressList) == 0 {
@@ -576,7 +575,6 @@ func (s *TransactionService) GetBalance(ctx context.Context, req *pb.AssetReques
 }
 
 func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb.ListAmountUidDimensionRequest) (*pb.ListAmountUidDimensionResponse, error) {
-	
 	if len(req.UidList) == 0 {
 		return nil, errors.New("uidList is required")
 	}
@@ -589,7 +587,6 @@ func (s *TransactionService) ListAmountUidDimension(ctx context.Context, req *pb
 }
 
 func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req *pb.ListHasBalanceUidDimensionRequest) (*pb.ListHasBalanceUidDimensionResponse, error) {
-
 	if len(req.UidList) == 0 {
 		return nil, errors.New("uidList is required")
 	}
@@ -598,10 +595,8 @@ func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req
 	return result, err
 }
 
-
 func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryFundAmountListResponse, error) {
 	biz.ChainTypeAdd(req.ChainName)
-	log.Info("AssetHistoryFundAmount request", zap.Any("request", req))
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
 	}
@@ -616,7 +611,6 @@ func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb
 }
 
 func (s *TransactionService) AssetHistoryAddressAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryAddressAmountListResponse, error) {
-
 	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
 		return nil, errors.New("startTime is greater than stopTime")
@@ -632,6 +626,7 @@ func (s *TransactionService) AssetHistoryAddressAmount(ctx context.Context, req 
 }
 
 func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")
 	}
@@ -645,12 +640,13 @@ func (s *TransactionService) ClientPageListNftAssetGroup(ctx context.Context, re
 	} else if req.PageSize > data.MAX_PAGE_SIZE {
 		req.PageSize = data.MAX_PAGE_SIZE
 	}
-	biz.ChainTypeAdd(req.ChainName)
+
 	result, err := s.ts.ClientPageListNftAssetGroup(ctx, req)
 	return result, err
 }
 
 func (s *TransactionService) ClientPageListNftAsset(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
 	if req.Uid == "" && len(req.AddressList) == 0 {
 		return nil, errors.New("uid or addressList is required")
 	}
@@ -664,7 +660,6 @@ func (s *TransactionService) ClientPageListNftAsset(ctx context.Context, req *pb
 	} else if req.PageSize > data.MAX_PAGE_SIZE {
 		req.PageSize = data.MAX_PAGE_SIZE
 	}
-	biz.ChainTypeAdd(req.ChainName)
 
 	result, err := s.ts.ClientPageListNftAsset(ctx, req)
 	return result, err
