@@ -1158,6 +1158,9 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	chainType := ChainNameType[req.ChainName]
+	if chainType == "" && strings.Contains(req.ChainName, "evm"){
+		chainType = EVM
+	}
 	switch chainType {
 	case EVM:
 		if req.ContractAddress != "" {
@@ -4255,7 +4258,9 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		}
 		addChainName := chainName + "-" + add
 		chainType := ChainNameType[chainName]
-
+		if chainType == "" && strings.Contains(chainName, "evm"){
+			chainType = EVM
+		}
 		switch chainType {
 		case EVM:
 			if add != "" {
@@ -4364,7 +4369,12 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 
 		// 主币 精度
 		platInfo := PlatInfoMap[chainName]
-		decimals := platInfo.Decimal
+		var decimals int32
+		if platInfo != nil {
+			decimals = platInfo.Decimal
+		}else {
+			decimals = 18
+		}
 		if len(list) == 0 {
 			result[chainName+"-"+strings.ToLower(add)] = CreatePendingInfo("0", "0", "1", nil)
 		}
