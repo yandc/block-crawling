@@ -256,6 +256,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	var err error
 	var a, fa decimal.Decimal
 	chainType := ChainNameType[pbb.ChainName]
+	if chainType == "" && strings.Contains(pbb.ChainName, "evm"){
+		chainType = EVM
+	}
 
 	p1 := decimal.NewFromInt(100000000)
 
@@ -501,6 +504,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
 	case EVM:
+
 		parseDataMap := make(map[string]interface{})
 		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
@@ -560,6 +564,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
+
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
