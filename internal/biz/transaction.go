@@ -501,7 +501,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
 	case EVM:
-
 		parseDataMap := make(map[string]interface{})
 		var nonce int64
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
@@ -561,7 +560,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
-
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -4252,7 +4250,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		}
 		addChainName := chainName + "-" + add
 		chainType := ChainNameType[chainName]
-		if chainType == "" && strings.Contains(chainName, "evm"){
+		if chainType == "" && strings.Contains(chainName, "evm") {
 			chainType = EVM
 		}
 		switch chainType {
@@ -4366,7 +4364,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		var decimals int32
 		if platInfo != nil {
 			decimals = platInfo.Decimal
-		}else {
+		} else {
 			decimals = 18
 		}
 		if len(list) == 0 {
