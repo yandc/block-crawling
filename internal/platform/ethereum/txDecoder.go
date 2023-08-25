@@ -833,6 +833,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				//https://etherscan.io/tx/0x8cbd92071ccf7faeea8258e4fb350dec5554532fa85edcc96e4fdbe01aafb3f6
 				continue
 			}
+			if strings.HasPrefix(h.chainName, "BSC") && contractAddress == "0x3a23f943181408eac424116af7b7790c94cb97a5" && methodId == "00000003" {
+				//https://bscscan.com/tx/0xbf03de9d2c1c5869e854510d3d88e2b86df33b12a3f83eeac831e02190d11a23
+				continue
+			}
 
 			//https://etherscan.io/tx/0xe510a2d99d95a6974e5f95a3a745b2ffe873bf6645b764658d978856ac180cd2
 			//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
