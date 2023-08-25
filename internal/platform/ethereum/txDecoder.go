@@ -1258,6 +1258,15 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[160:192])
 			tokenAddress = ""
+		} else if topic0 == SEND_TOPIC {
+			//https://zkevm.polygonscan.com/tx/0xd2b8469b94f2795cb52e486c440f1215f02b0dd5e5720e37880085a1795e9699
+			if len(log_.Data) < 64 {
+				continue
+			}
+			fromAddress = transaction.From.String()
+			toAddress =  common.BytesToAddress(log_.Data[:32]).String()
+			amount = new(big.Int).SetBytes(log_.Data[32:64])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {

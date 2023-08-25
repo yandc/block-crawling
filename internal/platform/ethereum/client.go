@@ -583,6 +583,24 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					stop += 96
 				}
 			}
+		} else if methodId == "0ddedd84" { //evm1101(Polygon zkEVM)
+			//https://zkevm.polygonscan.com/tx/0xd2b8469b94f2795cb52e486c440f1215f02b0dd5e5720e37880085a1795e9699
+			dl := len(data)
+			if dl >= 324 {
+				start := 196
+				stop := start + 32
+				num := int(new(big.Int).SetBytes(data[164:196]).Int64())
+				for i := 0; i < num; i++ {
+					if stop > dl {
+						break
+					}
+					addressData := data[start:stop]
+					realToAddress := common.HexToAddress(hex.EncodeToString(addressData)).String()
+					toAddress = toAddress + "," + realToAddress
+					start = stop
+					stop += 32
+				}
+			}
 		}
 	}
 	txc.FromAddress = fromAddress
