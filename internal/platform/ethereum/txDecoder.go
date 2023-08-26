@@ -837,6 +837,10 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				//https://bscscan.com/tx/0xbf03de9d2c1c5869e854510d3d88e2b86df33b12a3f83eeac831e02190d11a23
 				continue
 			}
+			if strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0x3a23f943181408eac424116af7b7790c94cb97a5" && methodId == "00000007" {
+				//https://polygonscan.com/tx/0xf05bb66381f26d8b1003a5672923a614ece772ae875de90ae95a557b48be4bd4
+				continue
+			}
 
 			//https://etherscan.io/tx/0xe510a2d99d95a6974e5f95a3a745b2ffe873bf6645b764658d978856ac180cd2
 			//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
@@ -1264,7 +1268,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				continue
 			}
 			fromAddress = transaction.From.String()
-			toAddress =  common.BytesToAddress(log_.Data[:32]).String()
+			toAddress = common.BytesToAddress(log_.Data[:32]).String()
 			amount = new(big.Int).SetBytes(log_.Data[32:64])
 			tokenAddress = ""
 		}
