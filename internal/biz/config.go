@@ -8,7 +8,6 @@ import (
 	"github.com/nervosnetwork/ckb-sdk-go/types"
 )
 
-var PlatInfos []*conf.PlatInfo
 var PlatInfoMap map[string]*conf.PlatInfo
 var ChainNameType map[string]string
 var PlatformMap = make(map[string]Platform)

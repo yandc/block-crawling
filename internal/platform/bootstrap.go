@@ -2,7 +2,6 @@ package platform
 
 import (
 	"block-crawling/internal/biz"
-	v1 "block-crawling/internal/client"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
@@ -14,13 +13,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/transport"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -532,9 +531,24 @@ func (b *Bootstrap) liveInterval() time.Duration {
 	return time.Duration(b.Platform.Coin().LiveInterval) * time.Millisecond
 }
 
-type Server map[string]*Bootstrap
+type Server interface {
+	transport.Server
+}
 
-func (bs Server) Start(ctx context.Context) error {
+type serverImpl struct {
+	inner map[string]*Bootstrap
+
+	customProvider CustomConfigProvider
+}
+
+func newServer(customProvider CustomConfigProvider) *serverImpl {
+	return &serverImpl{
+		inner:          make(map[string]*Bootstrap),
+		customProvider: customProvider,
+	}
+}
+
+func (bs *serverImpl) Start(ctx context.Context) error {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("main panic:", zap.Any("", err))
@@ -547,7 +561,7 @@ func (bs Server) Start(ctx context.Context) error {
 	//本地配置 链的爬取
 	log.Info("BOOTSTRAP CHAINS", zap.String("stage", "before"))
 	var wg sync.WaitGroup
-	for _, b := range bs {
+	for _, b := range bs.inner {
 		wg.Add(1)
 		go func(b *Bootstrap) {
 			defer wg.Done()
@@ -606,8 +620,9 @@ func (bs Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	//定时  已启动的 ==  拉取内存 配置
-	InitCustomePlan()
+	for i := 0; i < 8; i++ {
+		go customChainRun(bs.customProvider)
+	}
 
 	//添加定时任务（每天23:55:00）执行
 	_, err1 := scheduling.Task.AddTask("55 23 * * *", scheduling.NewAssetEvmTask())
@@ -628,50 +643,23 @@ func (bs Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func InitCustomePlan() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Error("main panic:", zap.Any("", err))
-		}
-	}()
-
-	go func() {
-		customChainPlan := time.NewTicker(time.Duration(10) * time.Second)
-		for true {
-			select {
-			case <-customChainPlan.C:
-				customChainRun()
-			}
-		}
-	}()
-}
-
-func customChainRun() {
-	//定是拉取 调用 grpc node-proxy
-	//la := []string{"BSC","ETH"}
-	chainNodeInUsedList, err := biz.GetCustomChainList(nil)
-
-	if err != nil {
-		log.Error("获取自定义链信息失败", zap.Error(err))
-		return
-	}
-
-	for _, chainInfo := range chainNodeInUsedList.Data {
-		if chainInfo != nil && len(chainInfo.Urls) == 0 {
+func customChainRun(provider CustomConfigProvider) {
+	for cp := range provider.Updated() {
+		if len(cp.RpcURL) == 0 {
 			continue
 		}
 
-		//已启动 本地爬块
-		k := chainInfo.Type + chainInfo.ChainId
+		// 已启动 本地爬块
+		k := cp.Type + cp.ChainId
 		if v, loaded := startChainMap.Load(k); loaded && v != nil {
 			continue
 		}
-		if sl, ok := startCustomChainMap.LoadOrStore(k, GetBootStrap(chainInfo)); ok {
+		if sl, ok := startCustomChainMap.LoadOrStore(k, customBootStrap(cp)); ok {
 			sccm := sl.(*Bootstrap)
 			chainLock.Lock()
 			//校验块高差 1000  停止爬块 更新块高
-			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + chainInfo.Chain).Result()
-			redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + chainInfo.Chain).Result()
+			nodeRedisHeight, _ := data.RedisClient.Get(biz.BLOCK_NODE_HEIGHT_KEY + cp.Chain).Result()
+			redisHeight, _ := data.RedisClient.Get(biz.BLOCK_HEIGHT_KEY + cp.Chain).Result()
 
 			oldHeight, _ := strconv.Atoi(redisHeight)
 			height, _ := strconv.Atoi(nodeRedisHeight)
@@ -679,66 +667,38 @@ func customChainRun() {
 			ret := height - oldHeight
 			if ret > 1000 {
 				sccm.Stop()
-				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+chainInfo.Chain, height, 0).Err()
+				data.RedisClient.Set(biz.BLOCK_HEIGHT_KEY+cp.Chain, height, 0).Err()
 				sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
 				sccm.pCtx, sccm.pCancel = context.WithCancel(context.Background())
-				log.Info("拉取配置启动bnb 重启", zap.Any("", sccm))
+				log.Info("CUSTOM-CHAIN: 拉取配置启动bnb 重启", zap.Any("", sccm))
 
 				sccm.Start()
 			}
 			chainLock.Unlock()
-			if !reflect.DeepEqual(sccm.Conf.RpcURL, chainInfo.Urls) {
-				//sccm.Stop()
-				sccm.Conf.RpcURL = chainInfo.Urls
-				//sccm.ctx, sccm.cancel = context.WithCancel(context.Background())
-				//sccm.Start()
-				nodeURL := chainInfo.Urls
-				cs := make([]chain.Clienter, 0, len(nodeURL))
-				for _, url := range nodeURL {
-					cs = append(cs, sccm.Platform.CreateClient(url))
-				}
-				sccm.Spider.ReplaceClients(cs...)
-				startCustomChainMap.Store(k, sccm)
+			sccm.Conf.RpcURL = cp.RpcURL
+			nodeURL := cp.RpcURL
+			cs := make([]chain.Clienter, 0, len(nodeURL))
+			for _, url := range nodeURL {
+				cs = append(cs, sccm.Platform.CreateClient(url))
 			}
+			sccm.Spider.ReplaceClients(cs...)
+			startCustomChainMap.Store(k, sccm)
 		} else {
 			sccm := sl.(*Bootstrap)
 			sccm.Start()
-			log.Info("拉取配置启动bnb", zap.Any("", sccm))
-
+			log.Info("CUSTOM-CHAIN: 拉取配置启动bnb", zap.Any("", sccm))
 		}
 	}
 }
 
-func GetBootStrap(chainInfo *v1.GetChainNodeInUsedListResp_Data) *Bootstrap {
-	var mhat int32 = 1000
-	var mc int32 = 1
-	var scbd int32 = 500
-	cp := &conf.PlatInfo{
-		Chain:                      chainInfo.Chain,
-		Type:                       chainInfo.Type,
-		RpcURL:                     chainInfo.Urls,
-		ChainId:                    chainInfo.ChainId,
-		Decimal:                    int32(chainInfo.Decimals),
-		NativeCurrency:             chainInfo.CurrencyName,
-		Source:                     biz.SOURCE_REMOTE,
-		MonitorHeightAlarmThr:      &mhat,
-		MaxConcurrency:             &mc,
-		SafelyConcurrentBlockDelta: &scbd,
-		Handler:                    chainInfo.Chain,
+func customBootStrap(cp *conf.PlatInfo) *Bootstrap {
+	if v, ok := customBootstrapMap.Load(cp.Chain); ok {
+		return v.(*Bootstrap)
 	}
-	var PlatInfos []*conf.PlatInfo
-	PlatInfos = append(PlatInfos, cp)
-	platform := GetPlatform(cp)
-	bt := NewBootstrap(platform, cp, data.BlockCreawlingDB)
-
-	biz.PlatInfos = PlatInfos
-	biz.ChainNameType[cp.Chain] = cp.Type
-	biz.PlatformMap[cp.Chain] = platform
-	biz.PlatInfoMap[cp.Chain] = cp
-	//bt.Start()
-	return bt
+	platform := biz.PlatformMap[cp.Chain]
+	return NewBootstrap(platform, cp, data.BlockCreawlingDB)
 }
-func (bs Server) Stop(ctx context.Context) error {
+func (bs *serverImpl) Stop(ctx context.Context) error {
 	return nil
 }
 
