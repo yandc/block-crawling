@@ -74,6 +74,8 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.EvmT
 	go HandleNftRecord(chainName, client, txRecords)
 	go HandleUserNftAsset(true, chainName, client, txRecords)
 	go HandleUserStatus(chainName, client, txRecords)
+	go biz.DappApproveFilter(chainName, txRecords)
+
 }
 
 func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTransactionRecord) {
