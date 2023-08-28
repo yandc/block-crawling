@@ -171,6 +171,24 @@ var (
 	}
 )
 
+func TestEvmV1NonHexMessage(t *testing.T) {
+	rawReq := `{
+  "sessionId": "661c9b61e22f4739ad262e7799ab8426",
+  "address": "0xE8e3d1031b6316136df77B01BcF01C151C14A53A",
+  "chainName": "ETH",
+  "chainId": 1,
+  "application": "https://unibot.app/dashboard",
+  "method": "personal_sign",
+  "message": "Verify wallet ownership to view and claim Unibot revenue share rewards."
+}`
+	var r *SignMessageRequest
+	_ = json.Unmarshal([]byte(rawReq), &r)
+	s := &evmSignHash{}
+	h, err := s.Hash(r)
+	assert.NoError(t, err)
+	t.Log(h)
+}
+
 func TestEvmV1(t *testing.T) {
 	byts, err := json.Marshal(signTypedData)
 	assert.NoError(t, err)

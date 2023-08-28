@@ -46,7 +46,6 @@ type evmSignHash struct {
 }
 
 func (s *evmSignHash) Hash(req *SignMessageRequest) (string, error) {
-
 	var msg string
 	if err := json.Unmarshal(req.Message, &msg); err != nil {
 		return "", err
@@ -59,10 +58,24 @@ func (s *evmSignHash) Hash(req *SignMessageRequest) (string, error) {
 		return hex.EncodeToString(accounts.TextHash(message)), nil
 	}
 
+	if !s.isJSONObject(msg) {
+		return hex.EncodeToString(accounts.TextHash([]byte(msg))), nil
+	}
+
 	if r, err := s.signTypedDataV1(json.RawMessage(msg)); err == nil {
 		return r, nil
 	}
 	return s.signTypedDataV3V4(json.RawMessage(msg))
+}
+
+func (s *evmSignHash) isJSONObject(v string) bool {
+	if strings.HasPrefix(v, "[") {
+		return true
+	}
+	if strings.HasPrefix(v, "{") {
+		return true
+	}
+	return false
 }
 
 // https://github.com/MetaMask/eth-sig-util/blob/c3da17cf7e9d428e4a70d15370f188a36a15a794/src/sign-typed-data.ts#L457-L506
