@@ -1172,6 +1172,13 @@ func HashSignMessage(chainName string, req *signhash.SignMessageRequest) (string
 	if v, ok := PlatInfoMap[chainName]; ok {
 		rawMsg, err := signhash.Hash(v.Type, req)
 		if err != nil {
+			reqStr, _ := json.Marshal(req)
+			msg := fmt.Sprintf(
+				"%s 链生成签名哈希失败。\nRequest: %s\n错误消息：%s",
+				chainName, reqStr, err.Error(),
+			)
+			alarmOpts := WithAlarmChannel("kanban")
+			LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 			return "", err
 		}
 		ret := data.RedisClient.Set(fmt.Sprintf("signing-message:%s", req.SessionId), rawMsg, time.Hour*24*7)
