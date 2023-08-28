@@ -66,7 +66,7 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 	d.rwLock.RLock()
 	defer d.rwLock.RUnlock()
 	if int(numOfContinualFailed) >= len(d.urls) {
-		if !strings.HasSuffix(d.chainName, "TEST") {
+		if !biz.IsTestNet(d.chainName) {
 			log.Error(
 				"ALL NODES HAD BEEN FAILOVERED",
 				zap.String("chainName", d.chainName),

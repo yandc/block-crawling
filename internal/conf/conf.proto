@@ -110,48 +110,47 @@ message PlatInfo {
   string nativeCurrency = 6;
   string symbol = 7;
   string type = 8;
-  repeated string rpcURL = 9;
-  repeated string httpURL = 10;
-  string tokenPrice = 11;
-
+  string netType = 9;
+  repeated string rpcURL = 10;
+  repeated string httpURL = 11;
+  string tokenPrice = 12;
 
   // chainId 区分链唯一标识
-  string chainId = 12;
+  string chainId = 13;
   //本地配置文件不需要配置，用户自定义 remote
-  string source = 13;
+  string source = 14;
 
   // 可以安全的进行并发爬块的高度差（即不用考虑分叉的高度），即：
   // 「链上高度 - 当前高度」大于此值才开始并发爬块。
-  optional int32 safelyConcurrentBlockDelta = 14;
+  optional int32 safelyConcurrentBlockDelta = 15;
 
   // 爬块最大并发
-  optional int32 maxConcurrency = 15;
+  optional int32 maxConcurrency = 16;
 
   // 块高差报警阈值，爬块高度和链上高度的差大于此值进行报警。
-  optional int32 monitorHeightAlarmThr = 16;
+  optional int32 monitorHeightAlarmThr = 17;
 
   // 多个节点轮询并发，否则每次只使用一个节点进行并发。
-  optional bool roundRobinConcurrent = 17;
+  optional bool roundRobinConcurrent = 18;
 
   // 备用节点，用于特定错误重试。
-  repeated string standbyRPCURL = 18;
+  repeated string standbyRPCURL = 19;
 
   // 是否启动代理，启用后将依次使用代理池中的代理进行访问节点。
-  optional bool enableProxy = 19;
+  optional bool enableProxy = 20;
 
   // 处理交易的并发，实际会开启的 Goroutine 最大可能达到 maxConcurrency * handlingTxConcurrency。
-  optional int32 handlingTxConcurrency = 20;
+  optional int32 handlingTxConcurrency = 21;
 
   // 从数据库读取块高时允许和链上块高的最大间隔值，超过当前阈值则直接使用链上块高。
-  optional int32 maxAllowedHeightGap = 21;
+  optional int32 maxAllowedHeightGap = 22;
 
   // 启用看板全量存储交易数据。
-  optional bool enableKanban = 22;
+  optional bool enableKanban = 23;
 
   // 全节点：用于补全看板数据的 RPC 节点。
-  repeated string kanbanFullRPCURL = 23;
+  repeated string kanbanFullRPCURL = 24;
 }
-
 
 message LarkSubscription {
   repeated string uids = 1;

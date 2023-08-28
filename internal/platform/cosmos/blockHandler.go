@@ -5,7 +5,6 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"fmt"
-	"strings"
 	"time"
 
 	pcommon "block-crawling/internal/platform/common"
@@ -107,7 +106,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 		return err
 	}
 
-	if !strings.HasSuffix(h.chainName, "TEST") {
+	if !biz.IsTestNet(h.chainName) {
 		log.ErrorS(
 			"error occurred then retry",
 			zap.String("chainName", h.chainName),

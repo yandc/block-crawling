@@ -416,7 +416,7 @@ func DeleteRecordData() {
 
 	var total int
 	for chainName, chainType := range biz.ChainNameType {
-		if !strings.HasSuffix(chainName, "TEST") && chainType == "EVM" {
+		if !biz.IsTestNet(chainName) && chainType == "EVM" {
 			log.Info("清除非平台用户的交易记录数据中", zap.Any("chainName", chainName))
 			tableName := biz.GetTableName(chainName)
 			contractRecordList, err := getTxRecords(dbSource, tableName, "contract", limit)
@@ -7120,7 +7120,7 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 			marketCoinHistory.UsdPrice = usdTokenPrice
 			marketCoinHistory.CnyAmount = cnyTokenAmount
 			marketCoinHistory.UsdAmount = usdTokenAmount
-		}else {
+		} else {
 			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyTokenAmount)
 			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdTokenAmount)
 			if oldBalance.Add(tokenAmountDecimal).Cmp(decimal.Zero) != 0 {
@@ -7170,11 +7170,11 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 		fs = utils.StringDecimals(totalAmount.String(), decimals)
 	}
 	totalNum, _ := decimal.NewFromString(fs)
-	log.Info("此次交易金额",zap.Any("totalNum",totalNum))
+	log.Info("此次交易金额", zap.Any("totalNum", totalNum))
 	cnyFee := totalNum.Mul(cnyPriceDecimal)
 	usdFee := totalNum.Mul(usdPriceDecimal)
-	log.Info("此次交易金额",zap.Any("cnyFee",cnyFee))
-	log.Info("此次交易金额u",zap.Any("usdFee",usdFee))
+	log.Info("此次交易金额", zap.Any("cnyFee", cnyFee))
+	log.Info("此次交易金额u", zap.Any("usdFee", usdFee))
 
 	//查询 余额
 	mcs, _ := data.MarketCoinHistoryRepoClient.ListByCondition(nil, &data.MarketCoinHistory{
@@ -7220,7 +7220,7 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 			marketCoinHistory.UsdPrice = usdPrice
 			marketCoinHistory.CnyAmount = cnyFee
 			marketCoinHistory.UsdAmount = usdFee
-		}else {
+		} else {
 			marketCoinHistory.CnyAmount = marketCoinHistory.CnyAmount.Add(cnyFee)
 			marketCoinHistory.UsdAmount = marketCoinHistory.UsdAmount.Add(usdFee)
 			if oldBalance.Add(totalNum).Cmp(decimal.Zero) != 0 {
@@ -7236,7 +7236,7 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 			data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 		} else {
 			marketCoinHistory.Dt = dt
-			marketCoinHistory.TransactionQuantity =  1
+			marketCoinHistory.TransactionQuantity = 1
 			marketCoinHistory.Id = 0
 			data.MarketCoinHistoryRepoClient.SaveOrUpdate(nil, marketCoinHistory)
 		}

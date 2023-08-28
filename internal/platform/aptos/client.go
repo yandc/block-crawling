@@ -1,6 +1,7 @@
 package aptos
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
@@ -292,7 +293,7 @@ type TokenErrorData struct {
 
 func (c *Client) GetEventTransfer(tokenId string, offset int, limit int, chainName string) (tar TokenActivitiesResponse, err error) {
 	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
-	if strings.HasSuffix(c.ChainName, "TEST") {
+	if biz.IsTestNet(chainName) {
 		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
 	}
 	tokenRequest := TokenRequest{
@@ -311,7 +312,7 @@ func (c *Client) GetEventTransfer(tokenId string, offset int, limit int, chainNa
 
 func (c *Client) Erc1155BalanceByName(address string, creatorAddress string, collectionName string, name string, propertyVersion int) (string, error) {
 	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
-	if strings.HasSuffix(c.ChainName, "TEST") {
+	if biz.IsTestNet(c.ChainName) {
 		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
 	}
 	tokenRequest := TokenVersionRequest{
@@ -350,7 +351,7 @@ func (c *Client) Erc1155BalanceByName(address string, creatorAddress string, col
 
 func (c *Client) Erc1155BalanceByTokenId(address string, tokenId string, propertyVersion int) (string, error) {
 	url := "https://wqb9q2zgw7i7-mainnet.hasura.app/v1/graphql"
-	if strings.HasSuffix(c.ChainName, "TEST") {
+	if biz.IsTestNet(c.ChainName) {
 		url = "https://knmpjhsurbz8-testnet.hasura.app/v1/graphql"
 	}
 	tokenRequest := TokenVersionRequest{
@@ -563,7 +564,7 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
 	timeoutMS := 5_000 * time.Millisecond
 	statusCode, err := httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS, nil)
-	if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+	if statusCode == 429 && biz.IsTestNet(c.ChainName) {
 		// on test we only sleep for 3 seconds when we meet 429
 		c.SetRetryAfter(time.Second * 3)
 	}

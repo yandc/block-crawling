@@ -6,7 +6,6 @@ import (
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
 	"context"
-	"strings"
 	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -96,7 +95,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 		return err
 	}
 
-	if !strings.HasSuffix(h.ChainName, "TEST") {
+	if !biz.IsTestNet(h.ChainName) {
 		log.ErrorS(
 			"error occurred then retry",
 			zap.String("chainName", h.ChainName),

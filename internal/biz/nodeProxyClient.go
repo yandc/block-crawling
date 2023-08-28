@@ -50,7 +50,7 @@ func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency str
 }
 
 func GetTokenPrice(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
-	if strings.HasSuffix(chainName, "TEST") {
+	if IsTestNet(chainName) {
 		return "", nil
 	}
 
@@ -128,7 +128,7 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 	var resultMap = make(map[string]map[string]string)
 
 	for chainName, tokenAddressList := range chainNameTokenAddressMap {
-		if strings.HasSuffix(chainName, "TEST") {
+		if IsTestNet(chainName) {
 			continue
 		}
 		if platInfo, ok := PlatInfoMap[chainName]; ok {

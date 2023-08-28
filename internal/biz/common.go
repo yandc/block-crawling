@@ -596,6 +596,23 @@ func GetAlarmTimestamp(key string) (int64, error) {
 	return timestamp, nil
 }
 
+func IsTestNet(chainName string) bool {
+	if platInfo, ok := PlatInfoMap[chainName]; ok {
+		netType := platInfo.NetType
+		if netType != "" {
+			if netType == "test" {
+				return true
+			}
+		} else if strings.HasSuffix(chainName, "TEST") {
+			return true
+		}
+	} else if strings.HasSuffix(chainName, "TEST") {
+		return true
+	}
+
+	return false
+}
+
 func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error) {
 	if address == "" {
 		return false, "", nil
