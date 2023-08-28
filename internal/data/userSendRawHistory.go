@@ -157,10 +157,13 @@ func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, signReqPage S
 	if signReqPage.SignType != "" {
 		db = db.Where("sign_type = ?", signReqPage.SignType)
 	} else {
-		db = db.Where("sign_type in ('1','2')")
+		db = db.Where("(sign_type = '1' or (sign_type= '2' and sign_status = '2'))")
 	}
 	if signReqPage.SignType == "1"{
 		db = db.Where(" transaction_hash != '' ")
+	}
+	if signReqPage.SignType == "2"{
+		db = db.Where(" sign_status = '2' ")
 	}
 
 	if len(signReqPage.TransactionTypeList) > 0 {
