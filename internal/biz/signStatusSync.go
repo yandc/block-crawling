@@ -37,18 +37,18 @@ func SyncStatus(request []SignStatusRequest) {
 			continue
 		}
 		if record.Status == SUCCESS || record.Status == FAIL {
-			r.SignStatus = "2"
+			r.SignStatus = SIGNRECORD_CONFIRM
 			r.TxTime = record.TxTime
 		}
 		if record.Status == PENDING || record.Status == NO_STATUS {
-			r.SignStatus = "1"
+			r.SignStatus = SIGNRECORD_BROADCASTED
 		}
 		if record.Status == DROPPED_REPLACED {
 			r.Nonce = record.Nonce
-			r.SignStatus = "4"
+			r.SignStatus = SIGNRECORD_DROPPED_REPLACED
 		}
 		if record.Status == DROPPED {
-			r.SignStatus = "3"
+			r.SignStatus = SIGNRECORD_DROPPED
 		}
 
 		r.TransactionType = record.TransactionType

@@ -89,12 +89,16 @@ const (
 )
 
 const (
-	SUCCESS          = "success"
-	FAIL             = "fail"
-	PENDING          = "pending"          //-- 中间状态
-	NO_STATUS        = "no_status"        //-- 中间状态
-	DROPPED_REPLACED = "dropped_replaced" //--被丢弃或被置换 -- fail
-	DROPPED          = "dropped"          //--被丢弃 -- fail
+	SUCCESS                     = "success"
+	FAIL                        = "fail"
+	PENDING                     = "pending"          //-- 中间状态
+	NO_STATUS                   = "no_status"        //-- 中间状态
+	DROPPED_REPLACED            = "dropped_replaced" //--被丢弃或被置换 -- fail
+	DROPPED                     = "dropped"          //--被丢弃 -- fail
+	SIGNRECORD_CONFIRM          = "2"
+	SIGNRECORD_BROADCASTED      = "1"
+	SIGNRECORD_DROPPED_REPLACED = "4"
+	SIGNRECORD_DROPPED          = "3"
 )
 
 const (
@@ -349,6 +353,11 @@ type BroadcastRequest struct {
 type BroadcastResponse struct {
 	Ok      bool   `json:"ok,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+type SignTypeMessageRequest struct {
+	SessionId  string `json:"sessionId"`
+	SignStatus string `json:"signStatus"`
 }
 
 type DataDictionary struct {

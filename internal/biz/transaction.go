@@ -4652,11 +4652,11 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 		userSendRawHistory.UserAgent = device.UserAgent
 	}
 	if req.ErrMsg != "" {
-		userSendRawHistory.SignStatus = "3"
+		userSendRawHistory.SignStatus = SIGNRECORD_DROPPED
 		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
 	}
 	if req.SignStatus == "" {
-		userSendRawHistory.SignStatus = "3"
+		userSendRawHistory.SignStatus = SIGNRECORD_DROPPED
 	}
 	if req.TxInputList != nil && len(req.TxInputList) > 0 {
 		userSendRawHistory.TxInput = strings.Join(req.TxInputList, ",")
@@ -5128,5 +5128,33 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		Total:     int(total),
 		Page:      req.Page,
 		Limit:     req.Limit,
+	}, nil
+}
+func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignTypeMessageRequest) (*BroadcastResponse, error) {
+	if req == nil || req.SessionId == "" || req.SignStatus == "" {
+
+	}
+	var rr []*data.UserSendRawHistory
+	rr = append(rr, &data.UserSendRawHistory{
+		SessionId:  req.SessionId,
+		SignStatus: req.SignStatus,
+	})
+
+	result , err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(nil, rr)
+
+	if err != nil {
+		return &BroadcastResponse{
+			Ok:      false,
+			Message: err.Error(),
+		}, err
+	}
+	if result == 1 {
+		return &BroadcastResponse{
+			Ok: true ,
+		}, nil
+	}
+	return &BroadcastResponse{
+		Ok: false ,
+		Message: req.SessionId + "消息签名未更新成功",
 	}, nil
 }
