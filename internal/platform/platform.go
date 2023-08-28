@@ -30,7 +30,7 @@ var Platforms []biz.Platform
 
 type PlatformContainer []biz.Platform
 
-func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker) Server {
+func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker, provider CustomConfigProvider) Server {
 	log.Info("BOOTSTRAP", zap.String("stage", "before"))
 	defer log.Info("BOOTSTRAP", zap.String("stage", "after"))
 	c := bc.Platform
@@ -64,7 +64,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		}
 	}
 
-	bs := make(Server)
+	bs := newServer(provider)
 
 	var PlatInfos []*conf.PlatInfo
 	var chainNameType = make(map[string]string)
@@ -74,7 +74,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 
 		platform := GetPlatform(value)
 		bt := NewBootstrap(platform, value, db)
-		bs[value.Chain] = bt
+		bs.inner[value.Chain] = bt
 		Platforms = append(Platforms, platform)
 		if p, ok := platform.(*nervos.Platform); ok {
 			biz.GetNervosUTXOTransaction = func(txHash string) (tx *types.TransactionWithStatus, err error) {
@@ -95,7 +95,6 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		chainNameType[value.Chain] = value.Type
 		platformMap[value.Chain] = platform
 	}
-	biz.PlatInfos = PlatInfos
 	biz.ChainNameType = chainNameType
 	biz.PlatInfoMap = c
 	biz.PlatformMap = platformMap

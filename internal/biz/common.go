@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/datatypes"
 	"math"
 	"math/big"
 	"regexp"
@@ -20,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"gorm.io/datatypes"
 
 	"github.com/shopspring/decimal"
 
@@ -696,7 +697,7 @@ func GetUidType(address string) (string, error) {
 	}
 	return uidType, nil
 }
-func ChainTypeAdd(chainName string) map[string]string{
+func ChainTypeAdd(chainName string) map[string]string {
 	chainType := ChainNameType[chainName]
 	if chainType == "" && strings.Contains(chainName, "evm") {
 		chainType = EVM
@@ -1124,6 +1125,16 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device 
 }
 
 func ExecuteRetry(chainName string, fc func(client chain.Clienter) (interface{}, error)) (interface{}, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("ExecuteRetry error, chainName:"+chainName, e)
+			} else {
+				log.Errore("ExecuteRetry panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+			return
+		}
+	}()
 	var result interface{}
 	var err error
 
@@ -1139,6 +1150,16 @@ func ExecuteRetry(chainName string, fc func(client chain.Clienter) (interface{},
 }
 
 func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(url string) (chain.Clienter, error), fc func(client chain.Clienter) (interface{}, error)) (interface{}, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("ExecuteRetrys error, chainName:"+chainName, e)
+			} else {
+				log.Errore("ExecuteRetrys panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+			return
+		}
+	}()
 	var result interface{}
 	var err error
 

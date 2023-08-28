@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/conf"
 	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
+	"block-crawling/internal/scheduling"
 	"flag"
 	"os"
 
@@ -32,7 +33,7 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
 }
 
-func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, bs platform.Server) *kratos.App {
+func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, bs platform.Server, cs platform.CustomConfigProvider, task *scheduling.ScheduledTask) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
@@ -41,6 +42,7 @@ func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, bs platform.Ser
 		kratos.Logger(logger),
 		kratos.Server(
 			bs,
+			cs,
 			// gs,
 			// hs,
 		),
