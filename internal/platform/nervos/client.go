@@ -43,7 +43,7 @@ func NewClient(chainName, nodeURL string) (*Client, error) {
 		return nil, err
 	}
 	mode := address.Mainnet
-	if strings.HasSuffix(chainName, "TEST") {
+	if biz.IsTestNet(chainName) {
 		mode = address.Testnet
 	}
 	return &Client{

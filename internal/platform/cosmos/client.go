@@ -565,7 +565,7 @@ func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error)
 	} else {
 		var statusCode int
 		statusCode, err = httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS, c.ProxyTransport(nil))
-		if statusCode == 429 && strings.HasSuffix(c.ChainName, "TEST") {
+		if statusCode == 429 && biz.IsTestNet(c.ChainName) {
 			// on test we only sleep for 3 seconds when we meet 429
 			c.SetRetryAfter(time.Second * 3)
 		}

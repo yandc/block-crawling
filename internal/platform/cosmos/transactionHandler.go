@@ -822,7 +822,7 @@ func GetChainName(chainName string, address string) string {
 		realChainName = strings.ToUpper(chain[:1]) + chain[1:]
 	}
 
-	if strings.HasSuffix(chainName, "TEST") {
+	if biz.IsTestNet(chainName) {
 		realChainName += "TEST"
 	}
 	return realChainName

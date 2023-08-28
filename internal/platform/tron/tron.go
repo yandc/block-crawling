@@ -64,7 +64,7 @@ func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHan
 
 func GetTokenInfo(chainName, token string) (types.TokenInfo, error) {
 	var url string
-	if strings.Contains(chainName, "TEST") {
+	if biz.IsTestNet(chainName) {
 		url = "https://shastapi.tronscan.org/api/contract"
 	} else {
 		url = "https://apilist.tronscan.org/api/contract"

@@ -1,6 +1,7 @@
 package sui
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
@@ -579,7 +580,7 @@ type Options struct {
 
 func (c *Client) GetEventTransfer(tokenId string) (tar SuiObjectChanges, err error) {
 	url := "https://explorer-rpc.testnet.sui.io/"
-	if strings.HasSuffix(c.ChainName, "TEST") {
+	if biz.IsTestNet(c.ChainName) {
 		url = "https://explorer-rpc.testnet.sui.io/"
 	}
 
