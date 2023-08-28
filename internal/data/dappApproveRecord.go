@@ -38,7 +38,7 @@ type DappApproveRecordRepo interface {
 	GetDappListPageCount(ctx context.Context, req *pb.DappPageListReq) int64
 	GetDappListByToken(ctx context.Context, req *pb.DappPageListReq) ([]*DappApproveRecord, error)
 	FindByLasTxtHash(context.Context, string) (*DappApproveRecord, error)
-	UpdateAddressBalanceByTokenAndContract(ctx context.Context, fromAddress string, tokenAddress string, toAddress string, amount string,chainName string) (int64, error)
+	UpdateAddressBalanceByTokenAndContract(ctx context.Context, fromAddress string, tokenAddress string, toAddress string, amount string, chainName string) (int64, error)
 	FindAddressGroup(ctx context.Context) ([]string, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
 }
@@ -75,7 +75,7 @@ func (r *DappApproveRecordRepoImpl) UpdateAmout(ctx context.Context, dappApprove
 	for _, dar := range dappApproveRecords {
 		var dappApproveRecord *DappApproveRecord
 		r.gormDB.Where(" address = ? and token = ? and to_address = ? ", dar.Address, dar.Token, dar.ToAddress).Find(&dappApproveRecord)
-		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40 || dappApproveRecord.Amount == "0" {
+		if dappApproveRecord.Amount == "" || len(dappApproveRecord.Amount) > 40 || dappApproveRecord.Amount == "0" || dappApproveRecord.LastTxhash == dar.LastTxhash {
 			continue
 		}
 		//dappApproveRecord.Amount
@@ -236,8 +236,8 @@ func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txhash
 	}
 	return dar, nil
 }
-func (r *DappApproveRecordRepoImpl) UpdateAddressBalanceByTokenAndContract(ctx context.Context, fromAddress string, tokenAddress string, toAddress string, amount string,chainName string) (int64, error) {
-	ret := r.gormDB.Model(&DappApproveRecord{}).Where("chain_name = ? and address = ? and token = ? and to_address = ? ", chainName,fromAddress,tokenAddress,toAddress).Update("amount",amount)
+func (r *DappApproveRecordRepoImpl) UpdateAddressBalanceByTokenAndContract(ctx context.Context, fromAddress string, tokenAddress string, toAddress string, amount string, chainName string) (int64, error) {
+	ret := r.gormDB.Model(&DappApproveRecord{}).Where("chain_name = ? and address = ? and token = ? and to_address = ? ", chainName, fromAddress, tokenAddress, toAddress).Update("amount", amount)
 	err := ret.Error
 	if err != nil {
 		log.Errore("UpdateAddressBalanceByTokenAndContract failed", err)
@@ -252,7 +252,7 @@ func (r *DappApproveRecordRepoImpl) FindAddressGroup(ctx context.Context) ([]str
 	ret := r.gormDB.Model(&DappApproveRecord{}).Select("address").Where("address != '' ").Group("address").Find(&ncr)
 	err := ret.Error
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 	return ncr, nil
 
@@ -268,4 +268,3 @@ func (r *DappApproveRecordRepoImpl) UpdateUidByAddress(ctx context.Context, addr
 	affected := ret.RowsAffected
 	return affected, nil
 }
-
