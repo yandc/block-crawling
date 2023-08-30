@@ -442,6 +442,18 @@ type CountOutTxResponse struct {
 	Count int64 `json:"count"`
 }
 
+type CreateUtxoPendingReq struct {
+	CreateUtxoPendingList []CreateUtxoPending `json:"createUtxoPendingList,omitempty"`
+}
+
+type CreateUtxoPending struct {
+	Uid       string `json:"uid,omitempty"`
+	ChainName string `json:"chainName"`
+	Address   string `json:"address"`
+	N         int    `json:"n"`
+	Hash      string `json:"hash"`
+}
+
 func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
 	return PendingInfo{
 		Amount:        amount,

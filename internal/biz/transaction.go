@@ -5130,6 +5130,32 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		Limit:     req.Limit,
 	}, nil
 }
+func (s *TransactionUsecase) ChangeUtxoPending(ctx context.Context, req *CreateUtxoPendingReq) (*pb.CreateResponse, error) {
+	if req == nil || len(req.CreateUtxoPendingList) == 0 {
+		return &pb.CreateResponse{
+			Status: true,
+			Code:   uint64(200),
+			Mes:    "传入参数为空！",
+		}, nil
+	}
+
+	for _, utxo := range req.CreateUtxoPendingList {
+		//更新 状态为pending
+		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(ctx, utxo.Uid, utxo.ChainName, utxo.Address, utxo.N, utxo.Hash)
+		if err != nil || ret == 0 {
+			log.Error(utxo.Hash, zap.Any("更新数据库失败！", err))
+			return &pb.CreateResponse{
+				Status: false,
+				Code:   uint64(200),
+				Mes:    "更新数据库失败！",
+			}, err
+		}
+	}
+	return &pb.CreateResponse{
+		Status: true,
+		Code:   uint64(200),
+	}, nil
+}
 func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignTypeMessageRequest) (*BroadcastResponse, error) {
 	if req == nil || req.SessionId == "" || req.SignStatus == "" {
 
