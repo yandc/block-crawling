@@ -18,6 +18,8 @@ import (
 )
 
 type SolTransactionRecord struct {
+	DefaultVersionMarkerIn
+
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	SlotNumber      int             `json:"slotNumber" form:"slotNumber"`
 	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`

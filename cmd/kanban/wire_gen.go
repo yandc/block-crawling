@@ -21,19 +21,20 @@ import (
 
 // wireApp init kratos application.
 func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressServer *conf.AddressServer, lark *conf.Lark, logger *conf.Logger, transaction *conf.Transaction, bootstrap *conf.Bootstrap, logLogger log.Logger, subcommand Subcommand, options *kanban.Options) (*kratos.App, func(), error) {
-	kanbanGormDB, cleanup, err := kanban2.NewGormDB(confData)
+	db, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
+		return nil, nil, err
+	}
+	migrationRepo := data.NewMigrationRepo(db)
+	kanbanGormDB, cleanup2, err := kanban2.NewGormDB(confData)
+	if err != nil {
+		cleanup()
 		return nil, nil, err
 	}
 	evmTransactionRecordRepo := kanban2.NewEvmTransactionRecordRepo(kanbanGormDB)
 	walletRepo := kanban2.NewWalletRepo(kanbanGormDB)
 	trendingRepo := kanban2.NewTrendingRepo(kanbanGormDB)
 	bundle := kanban2.NewBundle(evmTransactionRecordRepo, walletRepo, trendingRepo)
-	db, cleanup2, err := data.NewGormDB(confData)
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
 	bizLark := biz.NewLark(lark)
 	atomTransactionRecordRepo := data.NewAtomTransactionRecordRepo(db)
 	btcTransactionRecordRepo := data.NewBtcTransactionRecordRepo(db)
@@ -69,12 +70,12 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
 	dataBundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, dataEvmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, dataBundle, bundle)
-	migrateScheduler := kanban.NewMigrateScheduler(bootstrap, bundle, transactionUsecase, kanbanGormDB, options)
+	migrateScheduler := kanban.NewMigrateScheduler(migrationRepo, bootstrap, bundle, transactionUsecase, kanbanGormDB, options)
 	aggerator := kanban.NewAggerator(bootstrap, bundle, options)
 	appConf := biz.NewConfig(app)
-	customConfigProvider := platform.NewCustomConfigProvider(db)
-	platformServer := platform.NewPlatform(bootstrap, dataBundle, appConf, db, bizLark, customConfigProvider)
-	timeMachine := kanban.NewTimeMachine(bootstrap, kanbanGormDB, platformServer, bundle, options)
+	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
+	platformServer := platform.NewPlatform(bootstrap, dataBundle, appConf, db, bizLark, customConfigProvider, migrationRepo)
+	timeMachine := kanban.NewTimeMachine(migrationRepo, bootstrap, kanbanGormDB, platformServer, bundle, options)
 	recordSync := kanban.NewRecordSync(bootstrap, dataBundle, bundle, options)
 	kratosApp := newApp(logLogger, migrateScheduler, aggerator, timeMachine, recordSync, subcommand)
 	return kratosApp, func() {

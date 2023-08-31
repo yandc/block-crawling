@@ -21,11 +21,12 @@ import (
 
 // wireApp init kratos application.
 func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressServer *conf.AddressServer, lark *conf.Lark, logger *conf.Logger, transaction *conf.Transaction, bootstrap *conf.Bootstrap, logLogger log.Logger, options *kanban.Options) (*kratos.App, func(), error) {
-	kanbanGormDB, cleanup, err := kanban2.NewGormDB(confData)
+	db, cleanup, err := data.NewGormDB(confData)
 	if err != nil {
 		return nil, nil, err
 	}
-	db, cleanup2, err := data.NewGormDB(confData)
+	migrationRepo := data.NewMigrationRepo(db)
+	kanbanGormDB, cleanup2, err := kanban2.NewGormDB(confData)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
@@ -65,13 +66,13 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	appConf := biz.NewConfig(app)
 	bizLark := biz.NewLark(lark)
-	customConfigProvider := platform.NewCustomConfigProvider(db)
-	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider)
+	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
+	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider, migrationRepo)
 	kanbanEvmTransactionRecordRepo := kanban2.NewEvmTransactionRecordRepo(kanbanGormDB)
 	walletRepo := kanban2.NewWalletRepo(kanbanGormDB)
 	trendingRepo := kanban2.NewTrendingRepo(kanbanGormDB)
 	kanbanBundle := kanban2.NewBundle(kanbanEvmTransactionRecordRepo, walletRepo, trendingRepo)
-	timeMachine := kanban.NewTimeMachine(bootstrap, kanbanGormDB, platformServer, kanbanBundle, options)
+	timeMachine := kanban.NewTimeMachine(migrationRepo, bootstrap, kanbanGormDB, platformServer, kanbanBundle, options)
 	kratosApp := newApp(logLogger, timeMachine)
 	return kratosApp, func() {
 		cleanup3()

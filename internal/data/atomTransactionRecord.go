@@ -18,6 +18,8 @@ import (
 
 // AtomTransactionRecord is a AtomTransactionRecord model.
 type AtomTransactionRecord struct {
+	DefaultVersionMarkerIn
+
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	BlockHash       string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
 	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`

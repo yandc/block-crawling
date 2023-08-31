@@ -2,35 +2,71 @@ package biz
 
 import (
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
+	"context"
+	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-func DynamicCreateTable(gormDb *gorm.DB, table string, chainType string) {
+func DynamicCreateTable(mr data.MigrationRepo, gormDb *gorm.DB, table string, chainType string) {
+	var record interface{}
 	switch chainType {
 	case STC:
-		gormDb.Table(table).AutoMigrate(&data.StcTransactionRecord{})
+		record = &data.StcTransactionRecord{}
 	case EVM:
-		gormDb.Table(table).AutoMigrate(&data.EvmTransactionRecord{})
+		record = &data.EvmTransactionRecord{}
 	case BTC:
-		gormDb.Table(table).AutoMigrate(&data.BtcTransactionRecord{})
+		record = &data.BtcTransactionRecord{}
 	case TVM:
-		gormDb.Table(table).AutoMigrate(&data.TrxTransactionRecord{})
+		record = &data.TrxTransactionRecord{}
 	case APTOS:
-		gormDb.Table(table).AutoMigrate(&data.AptTransactionRecord{})
+		record = &data.AptTransactionRecord{}
 	case SUI:
-		gormDb.Table(table).AutoMigrate(&data.SuiTransactionRecord{})
+		record = &data.SuiTransactionRecord{}
 	case SOLANA:
-		gormDb.Table(table).AutoMigrate(&data.SolTransactionRecord{})
+		record = &data.SolTransactionRecord{}
 	case NERVOS:
-		gormDb.Table(table).AutoMigrate(&data.CkbTransactionRecord{})
+		record = &data.CkbTransactionRecord{}
 	case CASPER:
-		gormDb.Table(table).AutoMigrate(&data.CsprTransactionRecord{})
+		record = &data.CsprTransactionRecord{}
 	case COSMOS:
-		gormDb.Table(table).AutoMigrate(&data.AtomTransactionRecord{})
+		record = &data.AtomTransactionRecord{}
 	case POLKADOT:
-		gormDb.Table(table).AutoMigrate(&data.DotTransactionRecord{})
+		record = &data.DotTransactionRecord{}
 	case KASPA:
-		gormDb.Table(table).AutoMigrate(&data.KasTransactionRecord{})
+		record = &data.KasTransactionRecord{}
 	}
+	if record == nil {
+		// Should we panic here?
+		return
+	}
+	if v, ok := record.(data.VersionMarker); ok {
+		version := v.Version()
+		migrated, err := mr.FindOne(context.Background(), table, version)
+		if err == nil && migrated != nil {
+			log.Info(
+				"TABLE WITH VERSION HAS ALREADY MIGRATED",
+				zap.String("table", table),
+				zap.String("version", version),
+				zap.Int64("createdAt", migrated.CreatedAt),
+			)
+			return
+		}
+		log.Info(
+			"TABLE WITH VERSION HASN'T MIGRATED",
+			zap.String("table", table),
+			zap.String("version", version),
+			zap.Error(err),
+		)
+		gormDb.Table(table).AutoMigrate(record)
+		mr.Create(context.Background(), &data.Migration{
+			Table:     table,
+			Version:   version,
+			CreatedAt: time.Now().Unix(),
+		})
+		return
+	}
+	gormDb.Table(table).AutoMigrate(record)
 }

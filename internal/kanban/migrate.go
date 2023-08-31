@@ -45,12 +45,14 @@ type MigrateScheduler struct {
 	chains  []*conf.PlatInfo
 	db      *gorm.DB
 	options *Options
+	m       data.MigrationRepo
 }
 
-func NewMigrateScheduler(bc *conf.Bootstrap, bundle *kanban.Bundle, s *biz.TransactionUsecase, db kanban.KanbanGormDB, options *Options) *MigrateScheduler {
+func NewMigrateScheduler(m data.MigrationRepo, bc *conf.Bootstrap, bundle *kanban.Bundle, s *biz.TransactionUsecase, db kanban.KanbanGormDB, options *Options) *MigrateScheduler {
 	return &MigrateScheduler{
 		chains:  iterChains(bc),
 		db:      db,
+		m:       m,
 		options: options,
 	}
 }
@@ -83,8 +85,8 @@ func (s *MigrateScheduler) schudule(ctx context.Context) error {
 		tableName := biz.GetTableName(platInfo.Chain)
 		today := time.Now().Unix()
 		tomorrow := today + 3600*24
-		biz.DynamicCreateTable(s.db, kanban.GetShardingTable(tableName, today), platInfo.Type)
-		biz.DynamicCreateTable(s.db, kanban.GetShardingTable(tableName, tomorrow), platInfo.Type)
+		biz.DynamicCreateTable(s.m, s.db, kanban.GetShardingTable(tableName, today), platInfo.Type)
+		biz.DynamicCreateTable(s.m, s.db, kanban.GetShardingTable(tableName, tomorrow), platInfo.Type)
 	}
 	return nil
 }
