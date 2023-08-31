@@ -759,10 +759,10 @@ platform:
     proxyCacheTime: 0
     rpcURL:
       - https://api.cosmos.network
-      - https://cosmos-mainnet-rpc.allthatnode.com:1317
-      - https://us-atom-restapi.binancechain.io
       - https://lcd-cosmoshub.keplr.app
       - https://rest.cosmos.directory/cosmoshub
+#      - https://cosmos-mainnet-rpc.allthatnode.com:1317
+#      - https://us-atom-restapi.binancechain.io
     httpURL:
       - https://api.mintscan.io/v1/cosmos/account/
     symbol: Cosmos
