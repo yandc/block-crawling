@@ -68,10 +68,6 @@ func (h *txHandler) onTx(
 	feeAmount := fmt.Sprint(totalInput - rawTx.totalOutput)
 	fromUid, matchFrom, err := common.MatchAddress(fromAddr, h.chainName)
 	for i, toAddr := range rawTx.toAddresses {
-		if fromAddr == toAddr {
-			continue
-		}
-
 		toUid, matchTo := matchedToAddresses[toAddr]
 		if !matchTo {
 			toUid, matchTo, err = common.MatchAddress(toAddr, h.chainName)
@@ -227,7 +223,6 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 		h.txRecords = append(h.txRecords, record)
 		return nil
 	}
-
 	return h.onTx(
 		c,
 		txByHash,
