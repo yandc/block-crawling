@@ -3,6 +3,7 @@ package kanban
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
+	"block-crawling/internal/data"
 	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform"
@@ -22,15 +23,17 @@ type TimeMachine struct {
 	bundle  *kanban.Bundle
 	plats   []*timeMachineBootstrap
 	options *Options
+	mr      data.MigrationRepo
 }
 
-func NewTimeMachine(bc *conf.Bootstrap, db kanban.KanbanGormDB, s platform.Server, bundle *kanban.Bundle, options *Options) *TimeMachine {
+func NewTimeMachine(mr data.MigrationRepo, bc *conf.Bootstrap, db kanban.KanbanGormDB, s platform.Server, bundle *kanban.Bundle, options *Options) *TimeMachine {
 	return &TimeMachine{
 		bc:      bc,
 		db:      db,
 		bundle:  bundle,
 		plats:   make([]*timeMachineBootstrap, 0, 4),
 		options: options,
+		mr:      mr,
 	}
 }
 
@@ -42,7 +45,7 @@ func (tm *TimeMachine) Start(ctx context.Context) error {
 		}
 
 		log.Info("START TIMEMACHINE", zap.String("chainName", item.Chain))
-		p := newTimeMachineBootstrap(tm.db, 1, item, tm.bundle, tm.options)
+		p := newTimeMachineBootstrap(tm.mr, tm.db, 1, item, tm.bundle, tm.options)
 		tm.plats = append(tm.plats, p)
 		p.Start(ctx)
 
@@ -54,7 +57,7 @@ func (tm *TimeMachine) Stop(ctx context.Context) error {
 	return nil
 }
 
-func newTimeMachineBootstrap(db *gorm.DB, startHeight int64, conf *conf.PlatInfo, bundle *kanban.Bundle, options *Options) *timeMachineBootstrap {
+func newTimeMachineBootstrap(mr data.MigrationRepo, db *gorm.DB, startHeight int64, conf *conf.PlatInfo, bundle *kanban.Bundle, options *Options) *timeMachineBootstrap {
 	plat := biz.PlatformMap[conf.Chain]
 	tp := &timeMachinePlatform{
 		bundle:      bundle,
@@ -65,6 +68,7 @@ func newTimeMachineBootstrap(db *gorm.DB, startHeight int64, conf *conf.PlatInfo
 		chainType:   conf.Type,
 		startHeight: uint64(startHeight),
 		stop:        options.Cancel,
+		mr:          mr,
 	}
 	return &timeMachineBootstrap{
 		platform: tp,
@@ -121,6 +125,7 @@ type timeMachinePlatform struct {
 	startHeight uint64
 	stopHeight  uint64
 	stop        func()
+	mr          data.MigrationRepo
 }
 
 func (tp *timeMachinePlatform) CreateStateStore() chain.StateStore {
@@ -147,6 +152,7 @@ func (tp *timeMachinePlatform) CreateBlockHandler(liveInterval time.Duration) ch
 		stopHeight:   tp.stopHeight,
 		stop:         tp.stop,
 		lock:         &sync.Mutex{},
+		mr:           tp.mr,
 		migrated:     make(map[string]bool),
 		agger:        createChainAggerator(tp.conf, tp.bundle),
 	}
@@ -165,6 +171,7 @@ type timeMachineHandler struct {
 	lock       *sync.Mutex
 	migrated   map[string]bool
 	agger      *chainCursorAggerator
+	mr         data.MigrationRepo
 }
 
 // OnNewBlock implements chain.BlockHandler
@@ -186,7 +193,7 @@ func (h *timeMachineHandler) OnNewBlock(client chain.Clienter, chainHeight uint6
 		}
 
 		h.migrated[table] = true
-		biz.DynamicCreateTable(h.db, table, h.chainType)
+		biz.DynamicCreateTable(h.mr, h.db, table, h.chainType)
 	}
 	h.lock.Unlock()
 

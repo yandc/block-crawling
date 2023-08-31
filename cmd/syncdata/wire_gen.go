@@ -56,8 +56,9 @@ func wireApp(logger *conf.Logger, confData *conf.Data, lark *conf.Lark, app *con
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	appConf := biz.NewConfig(app)
 	bizLark := biz.NewLark(lark)
-	customConfigProvider := platform.NewCustomConfigProvider(db)
-	server := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider)
+	migrationRepo := data.NewMigrationRepo(db)
+	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
+	server := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider, migrationRepo)
 	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
 	kratosApp := newApp(bundle, server, innerPlatformContainer)
 	return kratosApp, func() {

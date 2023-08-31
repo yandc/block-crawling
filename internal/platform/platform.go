@@ -30,7 +30,7 @@ var Platforms []biz.Platform
 
 type PlatformContainer []biz.Platform
 
-func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker, provider CustomConfigProvider) Server {
+func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf, db *gorm.DB, l biz.Larker, provider CustomConfigProvider, mr data.MigrationRepo) Server {
 	log.Info("BOOTSTRAP", zap.String("stage", "before"))
 	defer log.Info("BOOTSTRAP", zap.String("stage", "after"))
 	c := bc.Platform
@@ -64,7 +64,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		}
 	}
 
-	bs := newServer(provider)
+	bs := newServer(provider, mr)
 
 	var PlatInfos []*conf.PlatInfo
 	var chainNameType = make(map[string]string)
@@ -73,7 +73,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		PlatInfos = append(PlatInfos, value)
 
 		platform := GetPlatform(value)
-		bt := NewBootstrap(platform, value, db)
+		bt := NewBootstrap(platform, value, db, mr)
 		bs.inner[value.Chain] = bt
 		Platforms = append(Platforms, platform)
 		if p, ok := platform.(*nervos.Platform); ok {

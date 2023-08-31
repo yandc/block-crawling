@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/biz"
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/conf"
+	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"context"
 	"reflect"
@@ -32,6 +33,7 @@ type customConfigProviderImpl struct {
 	updatedPlat map[string]*conf.PlatInfo
 	updateCh    chan *conf.PlatInfo
 	db          *gorm.DB
+	mr          data.MigrationRepo
 }
 
 // Start implements CustomConfigProvider
@@ -90,7 +92,7 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 		biz.ChainNameType[cp.Chain] = cp.Type
 		platform := GetPlatform(cp)
 		biz.PlatformMap[cp.Chain] = platform
-		bt := NewBootstrap(platform, cp, p.db)
+		bt := NewBootstrap(platform, cp, p.db, p.mr)
 		customBootstrapMap.Store(cp.Chain, bt)
 		biz.PlatInfoMap[cp.Chain] = cp
 		platInfos = append(platInfos, cp)
@@ -127,7 +129,7 @@ func (p *customConfigProviderImpl) Updated() <-chan *conf.PlatInfo {
 	return p.updateCh
 }
 
-func NewCustomConfigProvider(db *gorm.DB) CustomConfigProvider {
+func NewCustomConfigProvider(db *gorm.DB, mr data.MigrationRepo) CustomConfigProvider {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &customConfigProviderImpl{
 		ctx:         ctx,
@@ -135,6 +137,7 @@ func NewCustomConfigProvider(db *gorm.DB) CustomConfigProvider {
 		updateCh:    make(chan *conf.PlatInfo, 512),
 		updatedPlat: make(map[string]*conf.PlatInfo),
 		db:          db,
+		mr:          mr,
 	}
 	return p
 }

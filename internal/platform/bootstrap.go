@@ -36,6 +36,7 @@ type Bootstrap struct {
 	pCancel func()
 
 	db         *gorm.DB
+	mr         data.MigrationRepo
 	available  int32
 	stateStore chain.StateStore
 }
@@ -44,7 +45,7 @@ var startChainMap = &sync.Map{}
 var startCustomChainMap = &sync.Map{}
 var chainLock sync.RWMutex
 
-func NewBootstrap(p biz.Platform, value *conf.PlatInfo, db *gorm.DB) *Bootstrap {
+func NewBootstrap(p biz.Platform, value *conf.PlatInfo, db *gorm.DB, mr data.MigrationRepo) *Bootstrap {
 	ctx, cancel := context.WithCancel(context.Background())
 	pCtx, pCancel := context.WithCancel(context.Background())
 	nodeURL := value.RpcURL
@@ -63,6 +64,7 @@ func NewBootstrap(p biz.Platform, value *conf.PlatInfo, db *gorm.DB) *Bootstrap 
 		pCancel:    pCancel,
 		available:  1,
 		stateStore: p.CreateStateStore(),
+		mr:         mr,
 	}
 
 	bootstrap.Spider = chain.NewBlockSpider(bootstrap.stateStore, clients...)
@@ -98,7 +100,7 @@ func (b *Bootstrap) Start() {
 	}()
 
 	table := strings.ToLower(b.Conf.Chain) + biz.TABLE_POSTFIX
-	biz.DynamicCreateTable(b.db, table, b.Conf.Type)
+	biz.DynamicCreateTable(b.mr, b.db, table, b.Conf.Type)
 
 	go func() {
 		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
@@ -270,9 +272,10 @@ type serverImpl struct {
 	inner map[string]*Bootstrap
 
 	customProvider CustomConfigProvider
+	mr             data.MigrationRepo
 }
 
-func newServer(customProvider CustomConfigProvider) *serverImpl {
+func newServer(customProvider CustomConfigProvider, mr data.MigrationRepo) *serverImpl {
 	return &serverImpl{
 		inner:          make(map[string]*Bootstrap),
 		customProvider: customProvider,
@@ -341,7 +344,7 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 	}()
 
 	for i := 0; i < 8; i++ {
-		go customChainRun(bs.customProvider)
+		go customChainRun(bs.customProvider, bs.mr)
 	}
 
 	//添加定时任务（每天23:55:00）执行
@@ -370,7 +373,7 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 	return nil
 }
 
-func customChainRun(provider CustomConfigProvider) {
+func customChainRun(provider CustomConfigProvider, mr data.MigrationRepo) {
 	for cp := range provider.Updated() {
 		if len(cp.RpcURL) == 0 {
 			continue
@@ -381,7 +384,7 @@ func customChainRun(provider CustomConfigProvider) {
 		if v, loaded := startChainMap.Load(k); loaded && v != nil {
 			continue
 		}
-		if sl, ok := startCustomChainMap.LoadOrStore(k, customBootStrap(cp)); ok {
+		if sl, ok := startCustomChainMap.LoadOrStore(k, customBootStrap(cp, mr)); ok {
 			sccm := sl.(*Bootstrap)
 			chainLock.Lock()
 			//校验块高差 1000  停止爬块 更新块高
@@ -418,12 +421,12 @@ func customChainRun(provider CustomConfigProvider) {
 	}
 }
 
-func customBootStrap(cp *conf.PlatInfo) *Bootstrap {
+func customBootStrap(cp *conf.PlatInfo, mr data.MigrationRepo) *Bootstrap {
 	if v, ok := customBootstrapMap.Load(cp.Chain); ok {
 		return v.(*Bootstrap)
 	}
 	platform := biz.PlatformMap[cp.Chain]
-	return NewBootstrap(platform, cp, data.BlockCreawlingDB)
+	return NewBootstrap(platform, cp, data.BlockCreawlingDB, mr)
 }
 func (bs *serverImpl) Stop(ctx context.Context) error {
 	return nil

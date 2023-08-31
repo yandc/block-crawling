@@ -272,19 +272,21 @@ type Runner struct {
 	preparation  Preparation
 	bootstrap    *platform.Bootstrap
 	cancellation *Cancellation
+	mr           data.MigrationRepo
 }
 
-func NewRunner(bs platform.Server, preparation Preparation, usecase *biz.TransactionUsecase, cancellation *Cancellation) *Runner {
+func NewRunner(bs platform.Server, preparation Preparation, usecase *biz.TransactionUsecase, cancellation *Cancellation, mr data.MigrationRepo) *Runner {
 	return &Runner{
 		preparation:  preparation,
 		bootstrap:    bs.Find(preparation.ChainName),
 		usecase:      usecase,
 		cancellation: cancellation,
+		mr:           mr,
 	}
 }
 
 func (r *Runner) Start(ctx context.Context) error {
-	biz.DynamicCreateTable(data.BlockCreawlingDB, biz.GetTableName(r.bootstrap.ChainName), r.bootstrap.Conf.Type)
+	biz.DynamicCreateTable(r.mr, data.BlockCreawlingDB, biz.GetTableName(r.bootstrap.ChainName), r.bootstrap.Conf.Type)
 
 	if !r.preparation.prepare(r.usecase, r.bootstrap) {
 		r.cancellation.Cancel(&r.preparation)
