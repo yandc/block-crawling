@@ -60,7 +60,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo)
 	appConf := biz.NewConfig(app)
 	ptestingDummyLark := NewDummyLark()
-	customConfigProvider := platform.NewCustomConfigProvider()
+	customConfigProvider := platform.NewCustomConfigProvider(db)
 	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, ptestingDummyLark, customConfigProvider)
 	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
 	if err != nil {

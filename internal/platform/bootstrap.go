@@ -262,6 +262,8 @@ func (b *Bootstrap) liveInterval() time.Duration {
 
 type Server interface {
 	transport.Server
+
+	Find(string) *Bootstrap
 }
 
 type serverImpl struct {
@@ -275,6 +277,10 @@ func newServer(customProvider CustomConfigProvider) *serverImpl {
 		inner:          make(map[string]*Bootstrap),
 		customProvider: customProvider,
 	}
+}
+
+func (bs *serverImpl) Find(chainName string) *Bootstrap {
+	return bs.inner[chainName]
 }
 
 func (bs *serverImpl) Start(ctx context.Context) error {

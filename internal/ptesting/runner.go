@@ -277,13 +277,15 @@ type Runner struct {
 func NewRunner(bs platform.Server, preparation Preparation, usecase *biz.TransactionUsecase, cancellation *Cancellation) *Runner {
 	return &Runner{
 		preparation:  preparation,
-		bootstrap:    bs[preparation.ChainName],
+		bootstrap:    bs.Find(preparation.ChainName),
 		usecase:      usecase,
 		cancellation: cancellation,
 	}
 }
 
 func (r *Runner) Start(ctx context.Context) error {
+	biz.DynamicCreateTable(data.BlockCreawlingDB, biz.GetTableName(r.bootstrap.ChainName), r.bootstrap.Conf.Type)
+
 	if !r.preparation.prepare(r.usecase, r.bootstrap) {
 		r.cancellation.Cancel(&r.preparation)
 	}
