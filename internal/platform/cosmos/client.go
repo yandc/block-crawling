@@ -40,7 +40,7 @@ type CosmosBadResp struct {
 	Code    int           `json:"code"`
 	Message string        `json:"message"`
 	Details []interface{} `json:"details"`
-	Error   string        `json:"error"`
+	Error   interface{}   `json:"error"`
 }
 
 type CosmosBalanceResp struct {
@@ -241,8 +241,8 @@ func (c *Client) GetBlockNumber() (int, error) {
 	if chain.Message != "" {
 		return 0, errors.New(chain.Message)
 	}
-	if chain.Error != "" {
-		return 0, errors.New(chain.Error)
+	if chain.Error != nil {
+		return 0, errors.New(utils.GetString(chain.Error))
 	}
 	height, err := strconv.Atoi(chain.Height)
 	if err != nil {
@@ -471,6 +471,12 @@ func (c *Client) GetTransactionByHash(hash string) (tx TransactionInfo, err erro
 		return
 	}
 	err = c.getResponse(u, &tx)
+	if err != nil {
+		return
+	}
+	if tx.Error != nil {
+		return tx, errors.New(utils.GetString(tx.Error))
+	}
 	return tx, err
 }
 
