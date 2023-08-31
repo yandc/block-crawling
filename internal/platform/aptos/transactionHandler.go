@@ -165,7 +165,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.AptTrans
 				txTime, _ := strconv.ParseInt(tx.Timestamp, 10, 64)
 				txTime = txTime / 1000
 
-				sk := tx.Hash + e.TransferType + fromAddress + toAddress
+				sk := chainName + fromAddress + toAddress + tokenAddress + tokenId
 				_, ok1 := userNftMap[sk]
 				if ok1 {
 					continue
