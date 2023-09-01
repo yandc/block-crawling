@@ -191,7 +191,7 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
 						continue
 					}
-					if platInfo, ok := biz.PlatInfoMap[req.ChainName]; ok {
+					if platInfo, ok := biz.GetChainPlatInfo(req.ChainName); ok {
 						mainDecimals := platInfo.Decimal
 						mainSymbol := platInfo.NativeCurrency
 						eventLogStr := record.EventLog
@@ -397,7 +397,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
 						continue
 					}
-					if platInfo, ok := biz.PlatInfoMap[req.ChainName]; ok {
+					if platInfo, ok := biz.GetChainPlatInfo(req.ChainName); ok {
 						mainDecimals := platInfo.Decimal
 						mainSymbol := platInfo.NativeCurrency
 						eventLogStr := record.EventLog

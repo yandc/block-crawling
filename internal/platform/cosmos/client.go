@@ -152,7 +152,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 	}
 	var decimal int32
 	var denom string
-	if platInfo, ok := biz.PlatInfoMap[c.ChainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(c.ChainName); ok {
 		decimal = platInfo.Decimal
 		denom = strings.ToLower(platInfo.NativeCurrency)
 	} else {

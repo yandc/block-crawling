@@ -89,12 +89,12 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 			SafelyConcurrentBlockDelta: &scbd,
 			Handler:                    chainInfo.Chain,
 		}
-		biz.ChainNameType[cp.Chain] = cp.Type
+		biz.SetChainNameType(cp.Chain, cp.Type)
 		platform := GetPlatform(cp)
-		biz.PlatformMap[cp.Chain] = platform
+		biz.SetChainPlatform(cp.Chain, platform)
 		bt := NewBootstrap(platform, cp, p.db, p.mr)
 		customBootstrapMap.Store(cp.Chain, bt)
-		biz.PlatInfoMap[cp.Chain] = cp
+		biz.SetChainPlatInfo(cp.Chain, cp)
 		platInfos = append(platInfos, cp)
 
 		if !reflect.DeepEqual(oldUrls, chainInfo.Urls) {

@@ -37,7 +37,7 @@ type StateStore struct {
 func NewStateStore(chainName string, dbHeightLoader DBHeightLoader) *StateStore {
 	maxAllowedGapFromDB := 2_000
 
-	if c, ok := biz.PlatInfoMap[chainName]; ok {
+	if c, ok := biz.GetChainPlatInfo(chainName); ok {
 		if c.GetMaxAllowedHeightGap() > 0 {
 			maxAllowedGapFromDB = int(c.GetMaxAllowedHeightGap())
 		}

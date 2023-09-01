@@ -6,10 +6,11 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.StcTransactionRecord) {
@@ -190,7 +191,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.StcTrans
 
 		fromUserAssetKey := chainName + record.FromAddress
 		if _, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 				mainDecimals = platInfo.Decimal
 				mainSymbol = platInfo.NativeCurrency
 			} else {

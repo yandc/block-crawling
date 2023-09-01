@@ -6,9 +6,10 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
+	"time"
+
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
-	"time"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.KasTransactionRecord) {
@@ -75,7 +76,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.KasTrans
 	userAssetMap := make(map[string]*data.UserAsset)
 	var decimals int32
 	var symbol string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		decimals = platInfo.Decimal
 		symbol = platInfo.NativeCurrency
 	} else {
@@ -198,7 +199,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.KasT
 	}()
 
 	var decimals int32
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		decimals = platInfo.Decimal
 	}
 

@@ -3,6 +3,7 @@ package nervos
 import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/biz"
+
 	"gitlab.bixin.com/mili/node-driver/chain"
 
 	"block-crawling/internal/data"
@@ -11,10 +12,11 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/nervosnetwork/ckb-sdk-go/address"
-	"github.com/nervosnetwork/ckb-sdk-go/types"
 	"strings"
 	"time"
+
+	"github.com/nervosnetwork/ckb-sdk-go/address"
+	"github.com/nervosnetwork/ckb-sdk-go/types"
 
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -68,7 +70,6 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.CkbT
 		HandleUTXO(chainName, client, txRecords)
 	}()
 }
-
 
 func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresses []string) {
 	defer func() {
@@ -124,7 +125,7 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 			decimals = tokenInfo.Decimals
 			symbol = tokenInfo.Symbol
 		} else {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 				decimals = int64(platInfo.Decimal)
 				symbol = platInfo.NativeCurrency
 			} else {

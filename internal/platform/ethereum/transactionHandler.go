@@ -9,12 +9,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/shopspring/decimal"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
+	"gitlab.bixin.com/mili/node-driver/chain"
 
 	"go.uber.org/zap"
 )
@@ -277,7 +278,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 		if record.FromAddress != "" && record.FromUid != "" {
 			if _, ok := addressUidMap[record.FromAddress]; !ok {
-				if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+				if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 					mainDecimals = platInfo.Decimal
 					mainSymbol = platInfo.NativeCurrency
 				} else {
@@ -1037,7 +1038,7 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFlag bool, feeAmount, amount decimal.Decimal) {
 	now := time.Now().Unix()
 	var cnyPrice, usdPrice string
-	platInfo := biz.PlatInfoMap[chainName]
+	platInfo, _ := biz.GetChainPlatInfo(chainName)
 	decimals := int(platInfo.Decimal)
 	symbol := platInfo.NativeCurrency
 	getPriceKey := platInfo.GetPriceKey

@@ -171,7 +171,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						tokenDenom := messageAmount["denom"].(string)
 						amount = messageAmount["amount"].(string)
 						var denom string
-						if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+						if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 							denom = strings.ToLower(platInfo.NativeCurrency)
 						}
 						subTokenDenom := tokenDenom[1:]
@@ -312,7 +312,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					tokenDenom := messageAmount["denom"].(string)
 					amount = messageAmount["amount"].(string)
 					var denom string
-					if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+					if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 						denom = strings.ToLower(platInfo.NativeCurrency)
 					}
 					subTokenDenom := tokenDenom[1:]
@@ -503,7 +503,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					tokenDenom := messageAmount["denom"].(string)
 					tokenAmount := messageAmount["amount"].(string)
 					var denom string
-					if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+					if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 						denom = strings.ToLower(platInfo.NativeCurrency)
 					}
 					subTokenDenom := tokenDenom[1:]
@@ -526,7 +526,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							tokenDenom := messageAmount["denom"].(string)
 							tokenAmount := messageAmount["amount"].(string)
 							var denom string
-							if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+							if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 								denom = strings.ToLower(platInfo.NativeCurrency)
 							}
 							subTokenDenom := tokenDenom[1:]
@@ -822,7 +822,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 							amount = tvalue[:tokenDenomIndex]
 							tokenDenom := tvalue[tokenDenomIndex:]
 							var denom string
-							if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+							if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 								denom = strings.ToLower(platInfo.NativeCurrency)
 							}
 							subTokenDenom := tokenDenom[1:]

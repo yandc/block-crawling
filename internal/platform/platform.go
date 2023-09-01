@@ -66,12 +66,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 
 	bs := newServer(provider, mr)
 
-	var PlatInfos []*conf.PlatInfo
-	var chainNameType = make(map[string]string)
-	var platformMap = make(map[string]biz.Platform)
 	for _, value := range c {
-		PlatInfos = append(PlatInfos, value)
-
 		platform := GetPlatform(value)
 		bt := NewBootstrap(platform, value, db, mr)
 		bs.inner[value.Chain] = bt
@@ -92,12 +87,10 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 			}
 		}
 
-		chainNameType[value.Chain] = value.Type
-		platformMap[value.Chain] = platform
+		biz.SetChainNameType(value.Chain, value.Type)
+		biz.SetChainPlatform(value.Chain, platform)
+		biz.SetChainPlatInfo(value.Chain, value)
 	}
-	biz.ChainNameType = chainNameType
-	biz.PlatInfoMap = c
-	biz.PlatformMap = platformMap
 	return bs
 }
 

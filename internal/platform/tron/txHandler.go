@@ -8,12 +8,13 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
+	"math/big"
+	"strconv"
+
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
-	"math/big"
-	"strconv"
 )
 
 const TRANSFER_TOPIC = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -351,7 +352,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 						}
 					} else {
 						var mainSymbol string
-						if platInfo, ok := biz.PlatInfoMap[h.chainName]; ok {
+						if platInfo, ok := biz.GetChainPlatInfo(h.chainName); ok {
 							mainSymbol = platInfo.NativeCurrency
 						}
 						if trxContractRecord.ToAddress == eventLog.To && trxContractRecord.Amount.String() == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {

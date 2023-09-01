@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -56,7 +57,7 @@ func GetTokenPrice(ctx context.Context, chainName string, currency string, token
 
 	var getPriceKey string
 	var handler string
-	if platInfo, ok := PlatInfoMap[chainName]; ok {
+	if platInfo, ok := GetChainPlatInfo(chainName); ok {
 		handler = platInfo.Handler
 		getPriceKey = platInfo.GetPriceKey
 	} else {
@@ -131,7 +132,7 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 		if IsTestNet(chainName) {
 			continue
 		}
-		if platInfo, ok := PlatInfoMap[chainName]; ok {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
 			getPriceKey := platInfo.GetPriceKey
 			handler := platInfo.Handler
 			chainNames, ok := getPriceKeyMap[getPriceKey]
@@ -224,7 +225,7 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 	tokenInfo := types.TokenInfo{}
 	var err error
 	if tokenAddress == "" {
-		if platInfo, ok := PlatInfoMap[chainName]; ok {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
 			decimals := platInfo.Decimal
 			symbol := platInfo.NativeCurrency
 			tokenInfo = types.TokenInfo{Decimals: int64(decimals), Symbol: symbol}

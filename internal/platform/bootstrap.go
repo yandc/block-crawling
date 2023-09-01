@@ -425,7 +425,7 @@ func customBootStrap(cp *conf.PlatInfo, mr data.MigrationRepo) *Bootstrap {
 	if v, ok := customBootstrapMap.Load(cp.Chain); ok {
 		return v.(*Bootstrap)
 	}
-	platform := biz.PlatformMap[cp.Chain]
+	platform, _ := biz.GetChainPlatform(cp.Chain)
 	return NewBootstrap(platform, cp, data.BlockCreawlingDB, mr)
 }
 func (bs *serverImpl) Stop(ctx context.Context) error {

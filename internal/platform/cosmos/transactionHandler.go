@@ -8,11 +8,12 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 func HandleRecord(chainName string, client Client, txRecords []*data.AtomTransactionRecord) {
@@ -272,7 +273,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.AtomTran
 
 		var tokenAddress = record.ContractAddress
 		var denom string
-		if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 			denom = strings.ToLower(platInfo.NativeCurrency)
 		}
 		if tokenAddress == denom {
@@ -340,7 +341,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.AtomTran
 
 		fromUserAssetKey := chainName + record.FromAddress
 		if _, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 				mainDecimals = platInfo.Decimal
 				mainSymbol = platInfo.NativeCurrency
 			} else {
@@ -394,7 +395,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	}
 
 	var tokenDenom string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
 	}
 	realChainName := GetChainName(chainName, address)
@@ -456,7 +457,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.Atom
 		}
 
 		var denom string
-		if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 			denom = strings.ToLower(platInfo.NativeCurrency)
 		}
 		var tokenAddress = record.ContractAddress
@@ -530,7 +531,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AtomTran
 		address := record.ToAddress
 		uid := record.ToUid
 		var tokenDenom string
-		if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+		if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 			tokenDenom = "u" + strings.ToLower(platInfo.NativeCurrency)
 		}
 		realChainName := GetChainName(chainName, address)
