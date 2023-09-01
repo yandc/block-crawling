@@ -45,7 +45,7 @@ func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBun
 }
 
 func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenAmountReq) (*pb.OpenAmoutResp, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -132,7 +132,7 @@ func (s *TransactionUsecase) GetAllOpenAmount(ctx context.Context, req *pb.OpenA
 }
 
 func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListReq) (*pb.DappListResp, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.Addresses = utils.HexToAddress(req.Addresses)
@@ -161,7 +161,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 		dappInfo := ""
 		parseData := ""
 		transcationType := ""
-		chainType := ChainNameType[da.ChainName]
+		chainType, _ := GetChainNameType(da.ChainName)
 		switch chainType {
 		case EVM:
 			evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
@@ -255,7 +255,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	var result int64
 	var err error
 	var a, fa decimal.Decimal
-	chainType := ChainNameType[pbb.ChainName]
+	chainType, _ := GetChainNameType(pbb.ChainName)
 
 	p1 := decimal.NewFromInt(100000000)
 
@@ -1010,7 +1010,7 @@ func UpdateTransactionType(pbb *pb.TransactionReq) {
 			return
 		}
 	}()
-	chainType := ChainNameType[pbb.ChainName]
+	chainType, _ := GetChainNameType(pbb.ChainName)
 
 	transactionType := pbb.TransactionType
 	if (len(pbb.Data) >= 10 && strings.HasPrefix(pbb.Data, "0x")) || (len(pbb.Data) >= 8 && !strings.HasPrefix(pbb.Data, "0x")) {
@@ -1152,7 +1152,7 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 }
 
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.ContractAddress != "" {
@@ -1411,7 +1411,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 }
 
 func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.ContractAddress != "" {
@@ -1900,7 +1900,7 @@ func handleEventLog(chainName, recordFromAddress, recordToAddress, recordAmount,
 					}
 				} else {
 					var mainSymbol string
-					if platInfo, ok := PlatInfoMap[chainName]; ok {
+					if platInfo, ok := GetChainPlatInfo(chainName); ok {
 						mainSymbol = platInfo.NativeCurrency
 					}
 					if recordToAddress == eventLog.To && recordAmount == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
@@ -1943,7 +1943,7 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 	var amount string
 	var err error
 
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.FromAddressList = utils.HexToAddress(req.FromAddressList)
@@ -1974,7 +1974,7 @@ func (s *TransactionUsecase) GetAmount(ctx context.Context, req *pb.AmountReques
 }
 
 func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) (*pb.DappPageListResp, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.ContractAddress != "" {
@@ -2008,7 +2008,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		var trs []*pb.TransactionRecord
 		for _, value := range dapps {
 			tokenAddress := value.Token
-			chainType := ChainNameType[value.ChainName]
+			chainType, _ := GetChainNameType(value.ChainName)
 			feeData := make(map[string]string)
 			switch chainType {
 			case BTC:
@@ -2148,7 +2148,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 }
 
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -2200,7 +2200,7 @@ func findNonce(start int, req *pb.NonceReq) (*pb.NonceResp, error) {
 }
 
 func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -2334,7 +2334,7 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 }
 
 func (s *TransactionUsecase) PageListAssetGroup(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -2501,7 +2501,7 @@ func (s *TransactionUsecase) PageListAssetGroup(ctx context.Context, req *pb.Pag
 }
 
 func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -2687,7 +2687,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 }
 
 func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetRequest) (*pb.ListBalanceResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -2877,7 +2877,7 @@ func (s *TransactionUsecase) AssetHistoryAddressAmount(ctx context.Context, req 
 }
 
 func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetGroupResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -2949,7 +2949,7 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 }
 
 func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb.PageListNftAssetRequest) (*pb.ClientPageListNftAssetResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		req.AddressList = utils.HexToAddress(req.AddressList)
@@ -3043,7 +3043,7 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 }
 
 func (s *TransactionUsecase) GetNftBalance(ctx context.Context, req *pb.NftAssetRequest) (*pb.NftBalanceResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -3409,7 +3409,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 	//var dt = utils.GetDayTime(&tm)
 	var checkDirection = make(map[int]int)
 	var tokenCheck = make(map[string]string)
-	platInfo := PlatInfoMap[req.ChainName]
+	platInfo, _ := GetChainPlatInfo(req.ChainName)
 	getPriceKey := platInfo.GetPriceKey
 	var mcs []*data.MarketCoinHistory
 	mcsDb, e := data.MarketCoinHistoryRepoClient.ListByTimeRangesAll(ctx, req.Address, req.ChainName)
@@ -3616,7 +3616,7 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *TransactionTypeReq) (*AddressAssetResponse, error) {
 	tm := time.Now()
 	var dt = utils.GetDayTime(&tm)
-	platInfo := PlatInfoMap[req.ChainName]
+	platInfo, _ := GetChainPlatInfo(req.ChainName)
 	getPriceKey := platInfo.GetPriceKey
 	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
 	uahrs, e := data.UserAssetHistoryRepoClient.ListByRangeTimeAndAddressAndChainName(ctx, startTime, endTime, req.Address, req.ChainName)
@@ -3896,7 +3896,7 @@ func (s *TransactionUsecase) GetAssetByAddressAndTime(ctx context.Context, req *
 			TotalTransactionQuantity: totalTransactionQuantity,
 		}, nil
 	}
-	platInfo := PlatInfoMap[req.ChainName]
+	platInfo, _ := GetChainPlatInfo(req.ChainName)
 	symbol := platInfo.NativeCurrency
 	getPriceKey := platInfo.GetPriceKey
 	totalTransactionq, ctnaa, totalCnyAmount, totalUsdAmount, err := HandleCoinPrice(mcs, getPriceKey, symbol, req.OrderField, req.ChainName)
@@ -4249,7 +4249,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			continue
 		}
 		addChainName := chainName + "-" + add
-		chainType := ChainNameType[chainName]
+		chainType, _ := GetChainNameType(chainName)
 		if chainType == "" && strings.Contains(chainName, "evm") {
 			chainType = EVM
 		}
@@ -4360,7 +4360,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		}
 
 		// 主币 精度
-		platInfo := PlatInfoMap[chainName]
+		platInfo, _ := GetChainPlatInfo(chainName)
 		var decimals int32
 		if platInfo != nil {
 			decimals = platInfo.Decimal
@@ -4509,7 +4509,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		return struct{}{}, nil
 	}
 
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -4567,7 +4567,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		}
 	}
 	if diffBet {
-		platInfo := PlatInfoMap[req.ChainName]
+		platInfo, _ := GetChainPlatInfo(req.ChainName)
 		if platInfo != nil {
 			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL)
 		}
@@ -4618,7 +4618,7 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 	now := time.Now().Unix()
 	var usrhs []*data.UserSendRawHistory
 
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	var userSendRawHistory = &data.UserSendRawHistory{}
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
@@ -4640,7 +4640,7 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 		userSendRawHistory.TransactionHash = strings.Join(req.TransactionHashList, ",")
 		info, _ := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, req.SessionId)
 		if info != nil {
-			if ChainNameType[info.ChainName] == COSMOS {
+			if v, _ := GetChainNameType(info.ChainName); v == COSMOS {
 				userSendRawHistory.TransactionHash = strings.ToUpper(userSendRawHistory.TransactionHash)
 			}
 
@@ -4711,7 +4711,7 @@ func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequ
 	}
 	//查询 所有 处于pending 和 no_status 的交易记录，并更新 from to 地址 及 from_uid (不用考虑to_uid) 切割字符，然后  把交易状态改成drrop_replace
 	//删除所有 该地址 的所有 redis pending的 key
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -4906,7 +4906,7 @@ func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChar
 }
 
 func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequest) (*CountOutTxResponse, error) {
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	var counter data.OutTxCounter
 	switch chainType {
 	case STC:
@@ -4948,7 +4948,7 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
 
-	chainType := ChainNameType[req.ChainName]
+	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -5166,7 +5166,7 @@ func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignT
 		SignStatus: req.SignStatus,
 	})
 
-	result , err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(nil, rr)
+	result, err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(nil, rr)
 
 	if err != nil {
 		return &BroadcastResponse{
@@ -5176,11 +5176,11 @@ func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignT
 	}
 	if result == 1 {
 		return &BroadcastResponse{
-			Ok: true ,
+			Ok: true,
 		}, nil
 	}
 	return &BroadcastResponse{
-		Ok: false ,
+		Ok:      false,
 		Message: req.SessionId + "消息签名未更新成功",
 	}, nil
 }

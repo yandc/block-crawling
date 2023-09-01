@@ -7,8 +7,9 @@ import (
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type FixNftInfoTask struct {
@@ -43,7 +44,7 @@ func FixNftInfo() {
 	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum", "Avalanche", "Optimism", "Klaytn", "ArbitrumNova", "Conflux", "Aptos", "SUI", "SUITEST", "Solana", "ScrollL2TEST", "zkSync", "Ronin", "Sei", "SeiTEST", "Fantom", "xDai", "Cronos", "ETC", "evm534351"}
 	for _, chainName := range chainNames {
 		tableName := biz.GetTableName(chainName)
-		chainType := biz.ChainNameType[chainName]
+		chainType, _ := biz.GetChainNameType(chainName)
 		transactionRequest := &data.TransactionRequest{
 			StatusNotInList:          []string{biz.PENDING},
 			TransactionTypeNotInList: []string{biz.CONTRACT},

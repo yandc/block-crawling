@@ -58,7 +58,7 @@ func (tm *TimeMachine) Stop(ctx context.Context) error {
 }
 
 func newTimeMachineBootstrap(mr data.MigrationRepo, db *gorm.DB, startHeight int64, conf *conf.PlatInfo, bundle *kanban.Bundle, options *Options) *timeMachineBootstrap {
-	plat := biz.PlatformMap[conf.Chain]
+	plat, _ := biz.GetChainPlatform(conf.Chain)
 	tp := &timeMachinePlatform{
 		bundle:      bundle,
 		conf:        conf,

@@ -350,7 +350,7 @@ func initEvmModel(record *data.TBTransactionRecord) *data.EvmTransactionRecord {
 	}
 }
 func DappReset() {
-	for key, platform := range biz.PlatInfoMap {
+	for key, platform := range biz.GetChainPlatInfoMap() {
 		switch platform.Type {
 
 		case biz.EVM:
@@ -364,7 +364,7 @@ func DappReset() {
 }
 
 func CheckNonce() {
-	for key, platform := range biz.PlatInfoMap {
+	for key, platform := range biz.GetChainPlatInfoMap() {
 		switch platform.Type {
 
 		case biz.EVM:
@@ -392,7 +392,7 @@ func CheckNonce() {
 }
 
 func BtcReset() {
-	for key, platform := range biz.PlatInfoMap {
+	for key, platform := range biz.GetChainPlatInfoMap() {
 		switch platform.Type {
 
 		case biz.BTC:
@@ -415,7 +415,7 @@ func DeleteRecordData() {
 	limit := data.MAX_PAGE_SIZE
 
 	var total int
-	for chainName, chainType := range biz.ChainNameType {
+	for chainName, chainType := range biz.GetChainNameTypeMap() {
 		if !biz.IsTestNet(chainName) && chainType == "EVM" {
 			log.Info("清除非平台用户的交易记录数据中", zap.Any("chainName", chainName))
 			tableName := biz.GetTableName(chainName)
@@ -4483,7 +4483,7 @@ func HandleTokenInfo() {
 	limit := biz.PAGE_SIZE
 
 	for chainName, tokenParams := range tokenParamMap {
-		chainType := biz.ChainNameType[chainName]
+		chainType, _ := biz.GetChainNameType(chainName)
 		switch chainType {
 		case biz.EVM:
 			for _, tokenParam := range tokenParams {
@@ -4574,7 +4574,7 @@ func doHandleTokenInfo(dbSource *gorm.DB, chainName string, tokenParams []*Token
 
 func getTxRecord(dbSource *gorm.DB, chainName string, tokenParam *TokenParam, limit int) ([]*TxRecord, error) {
 	tableName := biz.GetTableName(chainName)
-	chainType := biz.ChainNameType[chainName]
+	chainType, _ := biz.GetChainNameType(chainName)
 	var sqlStr string
 
 	var txRecords []*TxRecord
@@ -4632,7 +4632,7 @@ func HandleTokenUri() {
 	}
 	limit := biz.PAGE_SIZE
 
-	for chainName, _ := range biz.ChainNameType {
+	for chainName, _ := range biz.GetChainNameTypeMap() {
 		log.Info("处理交易记录TokenInfo中tokenUri中", zap.Any("chainName", chainName))
 		doHandleTokenUri(dbSource, chainName, limit)
 		log.Info("处理交易记录TokenInfo中tokenUri完成", zap.Any("chainName", chainName))
@@ -4711,7 +4711,7 @@ func doHandleTokenUri(dbSource *gorm.DB, chainName string, limit int) {
 
 func tokenUriGetTxRecord(dbSource *gorm.DB, chainName string, limit int) ([]*TxRecord, error) {
 	tableName := biz.GetTableName(chainName)
-	chainType := biz.ChainNameType[chainName]
+	chainType, _ := biz.GetChainNameType(chainName)
 	var sqlStr string
 
 	var txRecords []*TxRecord
@@ -4761,7 +4761,7 @@ func tokenUriGetSqlNoEventLog(tableName string, id, limit int) string {
 
 func pageBatchUpdateSelectiveById(chainName string, txRecords []*TxRecord, pageSize int) (int64, error) {
 	tableName := biz.GetTableName(chainName)
-	chainType := biz.ChainNameType[chainName]
+	chainType, _ := biz.GetChainNameType(chainName)
 
 	var count int64 = 0
 	var err error
@@ -4896,7 +4896,7 @@ func UpdateAsset() {
 	}
 
 	for _, userAsset := range list {
-		if platInfo, ok := biz.PlatInfoMap[userAsset.ChainName]; ok {
+		if platInfo, ok := biz.GetChainPlatInfo(userAsset.ChainName); ok {
 			userAsset.Decimals = platInfo.Decimal
 			userAsset.Symbol = platInfo.NativeCurrency
 		}
@@ -5022,7 +5022,7 @@ func DeleteAsset() {
 		}
 		if err == nil {
 			if userAddress {
-				chainType := biz.ChainNameType[userAsset.ChainName]
+				chainType, _ := biz.GetChainNameType(userAsset.ChainName)
 				switch chainType {
 				case biz.EVM:
 					address := userAsset.Address
@@ -5303,7 +5303,7 @@ func HandleAsset() {
 
 	var userAssetMap = make(map[string]*data.UserAsset)
 	for _, userAsset := range userAssetList {
-		chainType := biz.ChainNameType[userAsset.ChainName]
+		chainType, _ := biz.GetChainNameType(userAsset.ChainName)
 		switch chainType {
 		case biz.EVM:
 			if userAsset.Address != "" {
@@ -5424,7 +5424,7 @@ func GetBalance(chainName string, uid string, address string, tokenAddress strin
 	var err error
 
 	var nodeURL []string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		nodeURL = platInfo.RpcURL
 	} else {
 		return nil, errors.New("chain " + chainName + " is not support")
@@ -5529,7 +5529,7 @@ func doHandleUserTokenAsset(chainName string, client ethereum.Client, uid string
 func GetStcBalance(chainName string, uid string, address string, tokenAddress string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
 	var nodeURL []string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		nodeURL = platInfo.RpcURL
 	} else {
 		return nil, errors.New("chain " + chainName + " is not support")
@@ -5656,7 +5656,7 @@ func doHandleTrxUserAsset(chainName string, client tron.Client, uid string, addr
 func GetBtcBalance(chainName string, uid string, address string) (*data.UserAsset, error) {
 	nowTime := time.Now().Unix()
 	var nodeURL []string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		nodeURL = platInfo.RpcURL
 	} else {
 		return nil, errors.New("chain " + chainName + " is not support")
@@ -5784,7 +5784,7 @@ func GetRecordL1Fee(chainName string, txHash string) (string, error) {
 	var err error
 
 	var nodeURL []string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		nodeURL = platInfo.RpcURL
 	} else {
 		return "", errors.New("chain " + chainName + " is not support")
@@ -5861,7 +5861,7 @@ func HandleUserAsset(startTime, stopTime int64) {
 			var uid string
 
 			address := userAsset.Address
-			chainType := biz.ChainNameType[userAsset.ChainName]
+			chainType, _ := biz.GetChainNameType(userAsset.ChainName)
 			switch chainType {
 			case biz.APTOS, biz.SUI:
 				if address != "" {
@@ -5932,7 +5932,7 @@ func HandleUserNftAsset(startTime, stopTime int64) {
 			var uid string
 
 			address := userNftAsset.Address
-			chainType := biz.ChainNameType[userNftAsset.ChainName]
+			chainType, _ := biz.GetChainNameType(userNftAsset.ChainName)
 			switch chainType {
 			case biz.APTOS, biz.SUI:
 				if address != "" {
@@ -6093,7 +6093,7 @@ func ReplaceUtxoUnspentRecord() {
 func HandleTransactionRecord(startTime, stopTime int64) {
 	log.Info("修改企业钱包地址对应的uid，处理交易记录表开始")
 
-	for _, platInfo := range biz.PlatInfoMap {
+	for _, platInfo := range biz.GetChainPlatInfoMap() {
 		chainName := platInfo.Chain
 		chainType := platInfo.Type
 		tableName := biz.GetTableName(chainName)
@@ -6950,7 +6950,7 @@ func SyncChainNames(chainNames []string) {
 	}
 }
 
-//每分钟 200 请求 调用币价服务那边 api 限频
+// 每分钟 200 请求 调用币价服务那边 api 限频
 func SyncCoinMarket(chainName string) int {
 	// 	chainNames := []string{"ETH", "BSC", "Polygon", "Arbitrum"}
 	//chainName1 := "ETH"
@@ -7146,7 +7146,7 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFlag bool, feeAmount, amount decimal.Decimal) {
 	now := time.Now().Unix()
 	var cnyPrice, usdPrice string
-	platInfo := biz.PlatInfoMap[chainName]
+	platInfo, _ := biz.GetChainPlatInfo(chainName)
 	decimals := int(platInfo.Decimal)
 	symbol := platInfo.NativeCurrency
 	getPriceKey := platInfo.GetPriceKey

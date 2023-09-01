@@ -174,7 +174,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.DotTrans
 
 		fromUserAssetKey = chainName + record.FromAddress
 		if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 				decimals = int(platInfo.Decimal)
 				symbol = platInfo.NativeCurrency
 			} else {
@@ -268,7 +268,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.DotT
 	}()
 
 	var decimals int32
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		decimals = platInfo.Decimal
 	}
 

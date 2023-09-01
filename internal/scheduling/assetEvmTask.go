@@ -8,10 +8,11 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type AssetEvmTask struct {
@@ -165,7 +166,8 @@ func AssetEvm() {
 
 			}
 		} else {
-			nativeSymbol := biz.PlatInfoMap[userAssert.ChainName].GetPriceKey
+			platInfo, _ := biz.GetChainPlatInfo(userAssert.ChainName)
+			nativeSymbol := platInfo.GetPriceKey
 			cp := coinPriceMap[nativeSymbol]
 			if cp != nil {
 				cnyPrice := strconv.FormatFloat(cp.Cny, 'f', 2, 64)
@@ -193,7 +195,7 @@ func AssetEvm() {
 			}
 		}
 	}
-	for _,ua := range chainAndAddressMap {
+	for _, ua := range chainAndAddressMap {
 		userAssetHistorys = append(userAssetHistorys, ua)
 	}
 	t, _ := data.UserAssetHistoryRepoClient.PageBatchSaveOrUpdate(nil, userAssetHistorys, 200)

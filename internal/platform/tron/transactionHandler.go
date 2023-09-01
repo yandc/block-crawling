@@ -6,8 +6,9 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 
 	"go.uber.org/zap"
 )
@@ -63,7 +64,7 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxT
 
 	}()
 }
-func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord){
+func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -84,7 +85,7 @@ func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord){
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		if record.FromUid == ""{
+		if record.FromUid == "" {
 			continue
 		}
 		//更新签约记录状态
@@ -179,7 +180,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 		fromUserAssetKey := chainName + record.FromAddress
 		if _, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 				mainDecimals = platInfo.Decimal
 				mainSymbol = platInfo.NativeCurrency
 			} else {

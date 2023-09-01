@@ -8,10 +8,11 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 var urlMap = map[string]string{
@@ -411,7 +412,7 @@ func handleUserAsset(chainName string, client Client, txRecords []*data.BtcTrans
 	userAssetMap := make(map[string]*data.UserAsset)
 	var decimals int32
 	var symbol string
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		decimals = platInfo.Decimal
 		symbol = platInfo.NativeCurrency
 	} else {
@@ -532,7 +533,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.BtcT
 	}()
 
 	var decimals int32
-	if platInfo, ok := biz.PlatInfoMap[chainName]; ok {
+	if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
 		decimals = platInfo.Decimal
 	}
 

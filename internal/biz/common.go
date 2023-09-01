@@ -525,7 +525,7 @@ func (o *alarmOptions) getChannel() string {
 		return o.channel
 	}
 	if o.chainName != "" {
-		if c, ok := PlatInfoMap[o.chainName]; ok {
+		if c, ok := GetChainPlatInfo(o.chainName); ok {
 			return c.Type
 		}
 	}
@@ -609,7 +609,7 @@ func GetAlarmTimestamp(key string) (int64, error) {
 }
 
 func IsTestNet(chainName string) bool {
-	if platInfo, ok := PlatInfoMap[chainName]; ok {
+	if platInfo, ok := GetChainPlatInfo(chainName); ok {
 		netType := platInfo.NetType
 		if netType != "" {
 			if netType == "test" {
@@ -736,12 +736,12 @@ func GetUidType(address string) (string, error) {
 	return uidType, nil
 }
 func ChainTypeAdd(chainName string) map[string]string {
-	chainType := ChainNameType[chainName]
+	chainType, _ := GetChainNameType(chainName)
 	if chainType == "" && strings.Contains(chainName, "evm") {
 		chainType = EVM
-		ChainNameType[chainName] = EVM
+		SetChainNameType(chainName, EVM)
 	}
-	return ChainNameType
+	return GetChainNameTypeMap()
 }
 func GetUidTypeCode(address string) (int8, error) {
 	if address == "" {
@@ -1012,7 +1012,7 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 		symbol = tokenInfo["symbol"].(string)
 	}
 	if address == "" {
-		if platInfo, ok := PlatInfoMap[chainName]; ok {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
 			decimals = platInfo.Decimal
 			symbol = platInfo.NativeCurrency
 		} else {
@@ -1025,7 +1025,7 @@ func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 func ParseGetTokenInfo(chainName, parseData string) (*types.TokenInfo, error) {
 	tokenInfo, err := ParseTokenInfo(parseData)
 	if err == nil && tokenInfo.Address == "" {
-		if platInfo, ok := PlatInfoMap[chainName]; ok {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
 			tokenInfo.Decimals = int64(platInfo.Decimal)
 			tokenInfo.Symbol = platInfo.NativeCurrency
 		} else {
@@ -1176,7 +1176,11 @@ func ExecuteRetry(chainName string, fc func(client chain.Clienter) (interface{},
 	var result interface{}
 	var err error
 
-	spider := PlatformMap[chainName].GetBlockSpider()
+	plat, ok := GetChainPlatform(chainName)
+	if !ok {
+		return nil, errors.New("no platform initialized")
+	}
+	spider := plat.GetBlockSpider()
 	err = spider.WithRetry(func(client chain.Clienter) error {
 		result, err = fc(client)
 		if err != nil {
@@ -1202,7 +1206,7 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 	var err error
 
 	var nodeURL []string
-	if platInfo, ok := PlatInfoMap[chainName]; ok {
+	if platInfo, ok := GetChainPlatInfo(chainName); ok {
 		nodeURL = platInfo.RpcURL
 	} else {
 		return nil, errors.New("chain " + chainName + " is not support")
@@ -1228,7 +1232,7 @@ func ExecuteRetrys(chainName string, chainStateStore chain.StateStore, cfc func(
 }
 
 func HashSignMessage(chainName string, req *signhash.SignMessageRequest) (string, error) {
-	if v, ok := PlatInfoMap[chainName]; ok {
+	if v, ok := GetChainPlatInfo(chainName); ok {
 		rawMsg, err := signhash.Hash(v.Type, req)
 		if err != nil {
 			reqStr, _ := json.Marshal(req)
@@ -1262,7 +1266,7 @@ type RPCAccountHash interface {
 }
 
 func IsNative(chainName string, tokenAddress string) bool {
-	if v, ok := PlatInfoMap[chainName]; ok {
+	if v, ok := GetChainPlatInfo(chainName); ok {
 		if v.Type == BTC {
 			return true
 		}
@@ -1362,7 +1366,7 @@ func HandleEventLogUid(chainName, recordFromAddress, recordToAddress, recordAmou
 					}
 				} else {
 					var mainSymbol string
-					if platInfo, ok := PlatInfoMap[chainName]; ok {
+					if platInfo, ok := GetChainPlatInfo(chainName); ok {
 						mainSymbol = platInfo.NativeCurrency
 					}
 					if recordToAddress == eventLog.To && recordAmount == eventLog.Amount.String() && eventLog.Token.Symbol == mainSymbol {
