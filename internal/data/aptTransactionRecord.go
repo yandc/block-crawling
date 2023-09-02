@@ -873,6 +873,18 @@ func (r *AptTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		") and (" +
 		"event_log like '%\"token_type\":\"AptosNFT\"%'" +
 		")" +
+		") or (" +
+		"(" +
+		"parse_data like '%\"token_id\":\"% #%\",\"item_name\":\"%'" +
+		") and (" +
+		"parse_data like '%\"token_type\":\"AptosNFT\"%'" +
+		")" +
+		") or (" +
+		"(" +
+		"event_log like '%\"token_id\":\"% #%\",\"item_name\":\"%'" +
+		") and (" +
+		"event_log like '%\"token_type\":\"AptosNFT\"%'" +
+		")" +
 		")" +
 		")"
 

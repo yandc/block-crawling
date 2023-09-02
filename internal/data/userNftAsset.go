@@ -52,25 +52,28 @@ type UserNftAssetGroup struct {
 }
 
 type NftAssetRequest struct {
-	ChainName                    string
-	Uid                          string
-	UidList                      []string
-	Address                      string
-	AddressList                  []string
-	TokenAddressList             []string
-	TokenIdList                  []string
-	AmountType                   int32
-	CollectionNameLike           string
-	CollectionNameLikeIgnoreCase string
-	StartTime                    int64
-	StopTime                     int64
-	GroupBy                      string
-	OrderBy                      string
-	DataDirection                int32
-	StartIndex                   int64
-	PageNum                      int32
-	PageSize                     int32
-	Total                        bool
+	ChainName                               string
+	Uid                                     string
+	UidList                                 []string
+	Address                                 string
+	AddressList                             []string
+	TokenAddress                            string
+	TokenAddressList                        []string
+	TokenId                                 string
+	TokenIdList                             []string
+	AmountType                              int32
+	CollectionNameLike                      string
+	CollectionNameLikeIgnoreCase            string
+	ChainNameAddressTokenAddressTokenIdList []*NftAssetRequest
+	StartTime                               int64
+	StopTime                                int64
+	GroupBy                                 string
+	OrderBy                                 string
+	DataDirection                           int32
+	StartIndex                              int64
+	PageNum                                 int32
+	PageSize                                int32
+	Total                                   bool
 }
 
 func (userNftAsset UserNftAsset) TableName() string {
@@ -381,6 +384,16 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *NftAssetReques
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
 	}
+	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
+		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
+		chainNameAddressTokenAddressTokenId := "("
+		for _, record := range chainNameAddressTokenAddressTokenIdList {
+			chainNameAddressTokenAddressTokenId += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "','" + record.TokenId + "'),"
+		}
+		chainNameAddressTokenAddressTokenId = chainNameAddressTokenAddressTokenId[:len(chainNameAddressTokenAddressTokenId)-1]
+		chainNameAddressTokenAddressTokenId += ")"
+		db = db.Where("(chain_name, address, token_address, token_id) in" + chainNameAddressTokenAddressTokenId)
+	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
 	}
@@ -463,6 +476,16 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	}
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
+	}
+	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
+		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
+		chainNameAddressTokenAddressTokenId := "("
+		for _, record := range chainNameAddressTokenAddressTokenIdList {
+			chainNameAddressTokenAddressTokenId += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "','" + record.TokenId + "'),"
+		}
+		chainNameAddressTokenAddressTokenId = chainNameAddressTokenAddressTokenId[:len(chainNameAddressTokenAddressTokenId)-1]
+		chainNameAddressTokenAddressTokenId += ")"
+		db = db.Where("(chain_name, address, token_address, token_id) in" + chainNameAddressTokenAddressTokenId)
 	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
@@ -687,6 +710,22 @@ func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest)
 	}
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
+	}
+	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
+		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
+		chainNameAddressTokenAddressTokenId := "("
+		for _, record := range chainNameAddressTokenAddressTokenIdList {
+			chainNameAddressTokenAddressTokenId += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "','" + record.TokenId + "'),"
+		}
+		chainNameAddressTokenAddressTokenId = chainNameAddressTokenAddressTokenId[:len(chainNameAddressTokenAddressTokenId)-1]
+		chainNameAddressTokenAddressTokenId += ")"
+		db = db.Where("(chain_name, address, token_address, token_id) in" + chainNameAddressTokenAddressTokenId)
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
 	ret := db.Delete(&UserNftAsset{})
