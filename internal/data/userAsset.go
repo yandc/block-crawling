@@ -353,6 +353,16 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
 		}
 	}
+	if len(req.ChainNameAddressTokenAddressList) > 0 {
+		chainNameAddressTokenAddressList := req.ChainNameAddressTokenAddressList
+		chainNameAddressTokenAddress := "("
+		for _, record := range chainNameAddressTokenAddressList {
+			chainNameAddressTokenAddress += "('" + record.ChainName + "','" + record.Address + "','" + record.TokenAddress + "'),"
+		}
+		chainNameAddressTokenAddress = chainNameAddressTokenAddress[:len(chainNameAddressTokenAddress)-1]
+		chainNameAddressTokenAddress += ")"
+		db = db.Where("(chain_name, address, token_address) in" + chainNameAddressTokenAddress)
+	}
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
 	}
@@ -790,6 +800,12 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 		chainNameAddressTokenAddress = chainNameAddressTokenAddress[:len(chainNameAddressTokenAddress)-1]
 		chainNameAddressTokenAddress += ")"
 		db = db.Where("(chain_name, address, token_address) in" + chainNameAddressTokenAddress)
+	}
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
+	}
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
 	ret := db.Delete(&UserAsset{})

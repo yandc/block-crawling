@@ -748,17 +748,51 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 	for _, userAsset := range userAssetMap {
 		userAssets = append(userAssets, userAsset)
 	}
-	_, err := data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+	count, err := data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
-		_, err = data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
+		count, err = data.UserNftAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，将数据插入到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error("更新用户NFT资产，将数据插入到数据库中失败", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+	}
+	if count > 0 {
+		var chainNameAddressTokenAddressTokenIdList []*data.NftAssetRequest
+		for _, record := range userAssets {
+			if len(record.TokenId) != 64 || strings.Contains(record.TokenId, " #") {
+				continue
+			}
+			chainNameAddressTokenAddressTokenIdList = append(chainNameAddressTokenAddressTokenIdList, &data.NftAssetRequest{
+				ChainName:    record.ChainName,
+				Address:      record.Address,
+				TokenAddress: record.TokenAddress,
+				TokenId:      record.ItemName,
+			})
+		}
+
+		if len(chainNameAddressTokenAddressTokenIdList) == 0 {
+			return
+		}
+		var assetRequest = &data.NftAssetRequest{
+			ChainNameAddressTokenAddressTokenIdList: chainNameAddressTokenAddressTokenIdList,
+		}
+		count, err = data.UserNftAssetRepoClient.Delete(nil, assetRequest)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = data.UserNftAssetRepoClient.Delete(nil, assetRequest)
+		}
+		log.Info("更新用户NFT资产，删除数据库中重复NFT资产信息", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("count", count))
+		if err != nil {
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，删除数据库中重复NFT资产信息失败", chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("更新用户NFT资产，删除数据库中重复NFT资产信息失败", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		}
 	}
 }
 
