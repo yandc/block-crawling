@@ -61,6 +61,7 @@ const RUN_METHOD_TOPIC = "0x5beea7b3b87c573953fec05007114d17712e5775d364acc106d8
 const SOLDLISTING_TOPIC = "0xa803ea994bad68b4565b18fffd9978cdc51c754097460d94eb39a3412eb31a3b"
 const FILL_TOPIC = "0x35d3c32d322e234e99b7f37b3ff4cb69c8a4027a04bee33d3a716da66ee1e6a1"
 const SEND_TOPIC = "0x2f824f69f211e444df15d741157e83cdf23c50f39399b9523853a84b91379ca6"
+const BASE_TOPIC = "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31"
 
 // dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
@@ -156,9 +157,10 @@ var WhiteListTopicMap = map[string][]string{
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,
 		"0x86232f68b5bf2a3a03851d98556352512a3b12b9_ba847759_" + RUN_METHOD_TOPIC,
 		"0x39523401c0fc321660dc8fb37f285cdc141faa41_0d7bb214_" + SOLDLISTING_TOPIC,
-		"0xbf6bfe5d6b86308cf3b7f147dd03ef11f80bfde3_e98b3b7e_" + FILL_TOPIC},
+		"0xbf6bfe5d6b86308cf3b7f147dd03ef11f80bfde3_e98b3b7e_" + FILL_TOPIC,
+		"0x00000000000000adc04c56bf30ac9d3c0aaf14dc_00000000_" + BASE_TOPIC},
 	//支持所有链所有合约
-	"Method_Topic": {"4782f779_" + WITHDRAWETH_TOPIC,"0ddedd84_" + SEND_TOPIC},
+	"Method_Topic": {"4782f779_" + WITHDRAWETH_TOPIC, "0ddedd84_" + SEND_TOPIC},
 }
 
 type Platform struct {

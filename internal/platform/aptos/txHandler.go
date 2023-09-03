@@ -359,9 +359,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if tokenInfo.TokenId == "" {
 				tokenInfo.TokenId = itemName
 			}
-			if tokenInfo.ItemName == "" {
+			/*if tokenInfo.ItemName == "" {
 				tokenInfo.ItemName = itemName
-			}
+			}*/
 		}
 		aptosMap := map[string]interface{}{
 			"aptos": map[string]string{
@@ -691,9 +691,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						if tokenInfo.TokenId == "" {
 							tokenInfo.TokenId = itemName
 						}
-						if tokenInfo.ItemName == "" {
+						/*if tokenInfo.ItemName == "" {
 							tokenInfo.ItemName = itemName
-						}
+						}*/
 					}
 				}
 			}
