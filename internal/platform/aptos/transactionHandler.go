@@ -683,6 +683,10 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 				NftName:        tokenInfo.ItemName,
 				TokenType:      tokenType,
 			}
+			if nftInfo.NftName == "" && (len(tokenInfo.TokenId) != 64 || strings.Contains(tokenInfo.TokenId, " ") ||
+				strings.Contains(tokenInfo.TokenId, "#") || strings.Contains(tokenInfo.TokenId, ".")) {
+				nftInfo.NftName = tokenInfo.TokenId
+			}
 		}
 		if nftInfo.TokenType == "" {
 			nftInfo.TokenType = tokenType
@@ -763,7 +767,8 @@ func HandleUserNftAsset(chainName string, client Client, txRecords []*data.AptTr
 	if count > 0 {
 		var chainNameAddressTokenAddressTokenIdList []*data.NftAssetRequest
 		for _, record := range userAssets {
-			if len(record.TokenId) != 64 || strings.Contains(record.TokenId, " #") {
+			if len(record.TokenId) != 64 || strings.Contains(record.TokenId, " ") ||
+				strings.Contains(record.TokenId, "#") || strings.Contains(record.TokenId, ".") {
 				continue
 			}
 			chainNameAddressTokenAddressTokenIdList = append(chainNameAddressTokenAddressTokenIdList, &data.NftAssetRequest{
