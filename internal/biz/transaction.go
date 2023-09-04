@@ -347,7 +347,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.CsprTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), casperRecord)
+		result, err = data.CsprTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), casperRecord)
 	case STC:
 		parseDataMap := make(map[string]interface{})
 		var nonce int64
@@ -444,7 +444,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.StcTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), stcRecord)
+		result, err = data.StcTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), stcRecord)
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -499,7 +499,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.DotTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
+		result, err = data.DotTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
 	case EVM:
 		parseDataMap := make(map[string]interface{})
 		var nonce int64
@@ -585,7 +585,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.BtcTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), btcTransactionRecord)
+		result, err = data.BtcTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), btcTransactionRecord)
 		if result > 0 {
 			go UpdateUtxo(pbb)
 		}
@@ -635,10 +635,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(ctx, GetTableName(pbb.ChainName), trxRecord)
+		result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), trxRecord)
 		for i := 0; i < 3 && err != nil; i++ {
 			time.Sleep(time.Duration(i*1) * time.Second)
-			result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdate(nil, GetTableName(pbb.ChainName), trxRecord)
+			result, err = data.TrxTransactionRecordRepoClient.SaveOrUpdateClient(nil, GetTableName(pbb.ChainName), trxRecord)
 		}
 		if result == 1 && pbb.TransactionType == CONTRACT {
 			go UpdateTransactionType(pbb)
@@ -733,7 +733,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
-		result, err = data.AptTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), aptRecord)
+		result, err = data.AptTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), aptRecord)
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -781,7 +781,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.SuiTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), suiRecord)
+		result, err = data.SuiTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), suiRecord)
 	case SOLANA:
 		parseDataMap := make(map[string]interface{})
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
@@ -826,7 +826,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
-		result, err = data.SolTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), solRecord)
+		result, err = data.SolTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), solRecord)
 	case NERVOS:
 		parseDataMap := make(map[string]interface{})
 		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
@@ -868,7 +868,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.CkbTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), ckbTransactionRecord)
+		result, err = data.CkbTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), ckbTransactionRecord)
 		if result > 0 {
 			//修改 未花费
 			tx, err := GetNervosUTXOTransaction(pbb.TransactionHash)
@@ -948,7 +948,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.AtomTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), atomRecord)
+		result, err = data.AtomTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), atomRecord)
 		if result == 1 {
 			key := pendingNonceKey + strconv.Itoa(int(nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
@@ -971,7 +971,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
-		result, err = data.KasTransactionRecordRepoClient.Save(ctx, GetTableName(pbb.ChainName), kasTransactionRecord)
+		result, err = data.KasTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), kasTransactionRecord)
 		if result > 0 {
 			//修改 未花费
 			go KaspaUpdateUtxo(pbb)

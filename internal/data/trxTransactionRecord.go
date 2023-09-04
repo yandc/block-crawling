@@ -52,7 +52,7 @@ type TrxTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
-	SaveOrUpdate(context.Context, string, *TrxTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *TrxTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*TrxTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*TrxTransactionRecord) (int64, error)
@@ -108,7 +108,7 @@ func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-func (r *TrxTransactionRecordRepoImpl) SaveOrUpdate(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
+func (r *TrxTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,

@@ -49,6 +49,7 @@ type DotTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *DotTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *DotTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*DotTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*DotTransactionRecord) (int64, error)
@@ -105,7 +106,25 @@ func (r *DotTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+func (r *DotTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, dotTransactionRecord *DotTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&dotTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新dot "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
 
+}
 func (r *DotTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, dotTransactionRecord []*DotTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(dotTransactionRecord, len(dotTransactionRecord))
 	err := ret.Error

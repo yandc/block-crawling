@@ -43,6 +43,7 @@ type BtcTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *BtcTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *BtcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*BtcTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*BtcTransactionRecord) (int64, error)
@@ -97,7 +98,24 @@ func (r *BtcTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *BtcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&btcTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新btc "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *BtcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(btcTransactionRecords, len(btcTransactionRecords))
 	err := ret.Error
