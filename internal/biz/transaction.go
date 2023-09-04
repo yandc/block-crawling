@@ -5069,7 +5069,7 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			}
-			if err == nil && (record.Amount == "" || record.Amount == "0") {
+			if err == nil && record != nil && (record.Amount == "" || record.Amount == "0") {
 				var data = record.Data
 				if data == "" {
 					if record.ClientData != "" {
