@@ -50,6 +50,7 @@ type SuiTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *SuiTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *SuiTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SuiTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SuiTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*SuiTransactionRecord) (int64, error)
@@ -105,7 +106,24 @@ func (r *SuiTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *SuiTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, suiTransactionRecord *SuiTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&suiTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新sui "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *SuiTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, suiTransactionRecords []*SuiTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(suiTransactionRecords, len(suiTransactionRecords))
 	err := ret.Error

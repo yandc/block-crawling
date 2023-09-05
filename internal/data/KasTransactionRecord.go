@@ -43,6 +43,7 @@ type KasTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *KasTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *KasTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*KasTransactionRecord) (int64, error)
@@ -93,7 +94,24 @@ func (r *KasTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *KasTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, kasTransactionRecord *KasTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&kasTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新ksa "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *KasTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, kasTransactionRecords []*KasTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(kasTransactionRecords, len(kasTransactionRecords))
 	err := ret.Error

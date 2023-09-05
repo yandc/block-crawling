@@ -59,6 +59,7 @@ type StcTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *StcTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *StcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*StcTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*StcTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*StcTransactionRecord) (int64, error)
@@ -115,7 +116,26 @@ func (r *StcTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *StcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, stcTransactionRecord *StcTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"original_hash": gorm.Expr("excluded.original_hash"),
+			"operate_type":  gorm.Expr("excluded.operate_type"),
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&stcTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新stc "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *StcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(stcTransactionRecords, len(stcTransactionRecords))
 	err := ret.Error

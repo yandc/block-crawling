@@ -47,6 +47,7 @@ type CkbTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *CkbTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *CkbTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CkbTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*CkbTransactionRecord) (int64, error)
@@ -100,7 +101,24 @@ func (r *CkbTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *CkbTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, ckbTransactionRecord *CkbTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&ckbTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新ckb "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *CkbTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, ckbTransactionRecords []*CkbTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(ckbTransactionRecords, len(ckbTransactionRecords))
 	err := ret.Error

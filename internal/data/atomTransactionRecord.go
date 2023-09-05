@@ -53,6 +53,7 @@ type AtomTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *AtomTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *AtomTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*AtomTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*AtomTransactionRecord) (int64, error)
@@ -110,7 +111,24 @@ func (r *AtomTransactionRecordRepoImpl) Save(ctx context.Context, tableName stri
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *AtomTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, atomTransactionRecord *AtomTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&atomTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新atom "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *AtomTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, atomTransactionRecords []*AtomTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(atomTransactionRecords, len(atomTransactionRecords))
 	err := ret.Error

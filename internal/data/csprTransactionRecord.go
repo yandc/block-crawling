@@ -43,6 +43,7 @@ type CsprTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *CsprTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *CsprTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*CsprTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*CsprTransactionRecord) (int64, error)
@@ -78,13 +79,13 @@ func NewCsprTransactionRecordRepo(gormDB *gorm.DB) CsprTransactionRecordRepo {
 	return CsprTransactionRecordRepoClient
 }
 
-func (r *CsprTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, CsprTransactionRecord *CsprTransactionRecord) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Create(CsprTransactionRecord)
+func (r *CsprTransactionRecordRepoImpl) Save(ctx context.Context, tableName string, csprTransactionRecord *CsprTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Create(csprTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err), POSTGRES_DUPLICATE_KEY) {
 			err = &common.ApiResponse{Code: 200, Status: false,
-				Msg: "duplicate key value, id:" + strconv.FormatInt(CsprTransactionRecord.Id, 10), Data: 0}
+				Msg: "duplicate key value, id:" + strconv.FormatInt(csprTransactionRecord.Id, 10), Data: 0}
 			log.Warne("insert CsprTransactionRecord failed", err)
 		} else {
 			log.Errore("insert CsprTransactionRecord failed", err)
@@ -96,6 +97,26 @@ func (r *CsprTransactionRecordRepoImpl) Save(ctx context.Context, tableName stri
 	return affected, err
 }
 
+func (r *CsprTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, csprTransactionRecord *CsprTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&csprTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新csper "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+
+
+}
 func (r *CsprTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, CsprTransactionRecords []*CsprTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(CsprTransactionRecords, len(CsprTransactionRecords))
 	err := ret.Error

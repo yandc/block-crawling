@@ -50,6 +50,7 @@ type SolTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *SolTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *SolTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*SolTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*SolTransactionRecord) (int64, error)
@@ -107,7 +108,24 @@ func (r *SolTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *SolTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, solTransactionRecord *SolTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&solTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新sol "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *SolTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, solTransactionRecords []*SolTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(solTransactionRecords, len(solTransactionRecords))
 	err := ret.Error

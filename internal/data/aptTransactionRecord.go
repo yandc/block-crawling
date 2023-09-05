@@ -56,6 +56,7 @@ type AptTransactionRecordRepo interface {
 	OutTxCounter
 
 	Save(context.Context, string, *AptTransactionRecord) (int64, error)
+	SaveOrUpdateClient(context.Context, string, *AptTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AptTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*AptTransactionRecord) (int64, error)
 	BatchSaveOrIgnore(context.Context, string, []*AptTransactionRecord) (int64, error)
@@ -113,7 +114,24 @@ func (r *AptTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
-
+func (r *AptTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, aptTransactionRecord *AptTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&aptTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("更新apt "+tableName+" failed", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, err
+}
 func (r *AptTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, aptTransactionRecords []*AptTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(aptTransactionRecords, len(aptTransactionRecords))
 	err := ret.Error
