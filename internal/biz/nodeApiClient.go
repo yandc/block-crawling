@@ -676,7 +676,8 @@ chainFlag:
 			break
 		}
 		for _, browserInfo := range out {
-			txHash := browserInfo.TransactionHash
+			txHash := strings.TrimRight(browserInfo.TransactionHash, " ")
+			browserInfo.TransactionHash = txHash
 			txHeight := browserInfo.BlockNumber
 			if txHeight < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
 				break chainFlag

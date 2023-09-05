@@ -1273,7 +1273,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			tokenAddress = ""
 		} else if topic0 == BASE_TOPIC {
 			//https://base.blockscout.com/tx/0x22868b9eba4332dd06a0bbe7c26a44bd9c5b7d60128a8873d66e7ffbc509bf77
-			if len(receipt.Logs) > 2 {
+			//https://base.blockscout.com/tx/0x318e8b25d1860a7e94a63cf54e577a1a48fb980b35f55f71757358ec7357e052
+			if len(receipt.Logs) > 3 {
 				continue
 			}
 			if methodId != "00000000" {
