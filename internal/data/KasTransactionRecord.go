@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -40,19 +41,22 @@ type KasTransactionRecord struct {
 
 // KasTransactionRecordRepo is a Greater repo.
 type KasTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *KasTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *KasTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*KasTransactionRecord) (int64, error)
+	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*KasTransactionRecord) (int64, error)
+	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*KasTransactionRecord, int) (int64, error)
+	PageBatchSaveOrUpdateSelectiveById(context.Context, string, []*KasTransactionRecord, int) (int64, error)
 	Update(context.Context, string, *KasTransactionRecord) (int64, error)
 	FindByID(context.Context, string, int64) (*KasTransactionRecord, error)
 	FindByStatus(context.Context, string, string, string) ([]*KasTransactionRecord, error)
 	ListByID(context.Context, string, int64) ([]*KasTransactionRecord, error)
 	ListAll(context.Context, string) ([]*KasTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*KasTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*KasTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*KasTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*KasTransactionRecord, error)
@@ -175,6 +179,72 @@ func (r *KasTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *KasTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, btcTransactionRecords []*KasTransactionRecord) (int64, error) {
+	var columnList []clause.Column
+	for _, column := range columns {
+		columnList = append(columnList, clause.Column{Name: column})
+	}
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   columnList,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"block_hash":       gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
+			"block_number":     gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
+			"transaction_hash": gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
+			"from_address":     gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":       gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":         gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":           gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":       gorm.Expr("case when excluded.fee_amount != '' and excluded.fee_amount != '0' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":           gorm.Expr("case when excluded.amount != '' and excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
+			"status":           gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":          gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"confirm_count":    gorm.Expr("case when excluded.confirm_count != 0 then excluded.confirm_count else " + tableName + ".confirm_count end"),
+			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":       gorm.Expr("excluded.updated_at"),
+		}),
+	}).Create(&btcTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective kasTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *KasTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveByColumns(ctx context.Context, tableName string, columns []string, txRecords []*KasTransactionRecord, pageSize int) (int64, error) {
+	var totalAffected int64 = 0
+	total := len(txRecords)
+	start := 0
+	stop := pageSize
+	if stop > total {
+		stop = total
+	}
+	for start < stop {
+		subTxRecords := txRecords[start:stop]
+		start = stop
+		stop += pageSize
+		if stop > total {
+			stop = total
+		}
+
+		affected, err := r.BatchSaveOrUpdateSelectiveByColumns(ctx, tableName, columns, subTxRecords)
+		if err != nil {
+			return totalAffected, err
+		} else {
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
+}
+
+func (r *KasTransactionRecordRepoImpl) PageBatchSaveOrUpdateSelectiveById(ctx context.Context, tableName string, txRecords []*KasTransactionRecord, pageSize int) (int64, error) {
+	return r.PageBatchSaveOrUpdateSelectiveByColumns(ctx, tableName, []string{"id"}, txRecords, pageSize)
 }
 
 func (r *KasTransactionRecordRepoImpl) Update(ctx context.Context, tableName string, kasTransactionRecord *KasTransactionRecord) (int64, error) {
@@ -380,6 +450,46 @@ func (r *KasTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return kasTransactionRecordList, total, nil
 }
 
+func (r *KasTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*KasTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		kasTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(kasTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(kasTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = kasTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *KasTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*KasTransactionRecord, error) {
+	var kasTransactionRecordList []*KasTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(kasTransactionRecords []*KasTransactionRecord) error {
+		kasTransactionRecordList = append(kasTransactionRecordList, kasTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return kasTransactionRecordList, err
+}
+
 func (r *KasTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Delete(&KasTransactionRecord{}, id)
 	err := ret.Error
@@ -538,9 +648,4 @@ func (r *KasTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return kasTransactionRecordList, nil
-}
-
-// CountOut implements KasTransactionRecordRepo
-func (r *KasTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

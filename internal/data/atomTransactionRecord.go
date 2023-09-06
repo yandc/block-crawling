@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -50,8 +51,6 @@ type AtomTransactionRecord struct {
 
 // AtomTransactionRecordRepo is a Greater repo.
 type AtomTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *AtomTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *AtomTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AtomTransactionRecord) (int64, error)
@@ -73,6 +72,8 @@ type AtomTransactionRecordRepo interface {
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	FindLast(context.Context, string) (*AtomTransactionRecord, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*AtomTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*AtomTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*AtomTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
 	FindByTxhash(context.Context, string, string) (*AtomTransactionRecord, error)
@@ -116,9 +117,9 @@ func (r *AtomTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, 
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&atomTransactionRecord)
 	err := ret.Error
@@ -404,8 +405,8 @@ func (r *AtomTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -493,6 +494,46 @@ func (r *AtomTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	return atomTransactionRecordList, total, nil
 }
 
+func (r *AtomTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*AtomTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		atomTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(atomTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(atomTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = atomTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *AtomTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*AtomTransactionRecord, error) {
+	var atomTransactionRecordList []*AtomTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(atomTransactionRecords []*AtomTransactionRecord) error {
+		atomTransactionRecordList = append(atomTransactionRecordList, atomTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return atomTransactionRecordList, err
+}
+
 func (r *AtomTransactionRecordRepoImpl) List(ctx context.Context, tableName string, req *TransactionRequest) ([]*AtomTransactionRecord, error) {
 	var atomTransactionRecordList []*AtomTransactionRecord
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -539,8 +580,8 @@ func (r *AtomTransactionRecordRepoImpl) List(ctx context.Context, tableName stri
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -815,9 +856,4 @@ func (r *AtomTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, t
 		return nil, err
 	}
 	return atomTransactionRecords, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *AtomTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

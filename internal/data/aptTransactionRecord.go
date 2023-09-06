@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -53,8 +54,6 @@ type AptTransactionRecord struct {
 
 // AptTransactionRecordRepo is a Greater repo.
 type AptTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *AptTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *AptTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*AptTransactionRecord) (int64, error)
@@ -71,8 +70,10 @@ type AptTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*AptTransactionRecord, error)
 	ListAll(context.Context, string) ([]*AptTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*AptTransactionRecord, int64, error)
-	PendingByAddress(context.Context, string, string) ([]*AptTransactionRecord, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*AptTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*AptTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*AptTransactionRecord, error)
+	PendingByAddress(context.Context, string, string) ([]*AptTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
@@ -119,9 +120,9 @@ func (r *AptTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&aptTransactionRecord)
 	err := ret.Error
@@ -419,8 +420,8 @@ func (r *AptTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -508,6 +509,46 @@ func (r *AptTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return aptTransactionRecordList, total, nil
 }
 
+func (r *AptTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*AptTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		aptTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(aptTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(aptTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = aptTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *AptTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*AptTransactionRecord, error) {
+	var aptTransactionRecordList []*AptTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(evmTransactionRecords []*AptTransactionRecord) error {
+		aptTransactionRecordList = append(aptTransactionRecordList, evmTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return aptTransactionRecordList, err
+}
+
 func (r *AptTransactionRecordRepoImpl) List(ctx context.Context, tableName string, req *TransactionRequest) ([]*AptTransactionRecord, error) {
 	var aptTransactionRecordList []*AptTransactionRecord
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -554,8 +595,8 @@ func (r *AptTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -685,8 +726,8 @@ func (r *AptTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -910,9 +951,4 @@ func (r *AptTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return aptTransactionRecords, nil
-}
-
-// CountOut implements AptTransactionRecordRepo
-func (r *AptTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

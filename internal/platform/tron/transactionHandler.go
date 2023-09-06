@@ -6,9 +6,8 @@ import (
 	"block-crawling/internal/log"
 	"errors"
 	"fmt"
-	"time"
-
 	"gitlab.bixin.com/mili/node-driver/chain"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -35,9 +34,9 @@ func HandleRecord(chainName string, client Client, txRecords []*data.TrxTransact
 		HandleUserAsset(chainName, client, txRecords)
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
+	go HandleTransactionCount(chainName, client, txRecords)
 	go biz.TronDappApproveFilter(chainName, txRecords)
 	go HandleSignStatus(chainName, txRecords)
-
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
@@ -60,10 +59,11 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.TrxT
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
 		HandleUserAsset(chainName, client, txRecords)
-		go HandleSignStatus(chainName, txRecords)
-
 	}()
+	go HandleTransactionCount(chainName, client, txRecords)
+	go HandleSignStatus(chainName, txRecords)
 }
+
 func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -95,6 +95,7 @@ func HandleSignStatus(chainName string, txRecords []*data.TrxTransactionRecord) 
 		//data.UserSendRawHistoryRepoInst.UpdateSignStatusByTxHash(nil,record.TransactionHash,updateMap,-1,"")
 	}
 }
+
 func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -309,6 +310,52 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.TrxT
 		userAssetStatisticList = append(userAssetStatisticList, userAssetStatistic)
 	}
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
+}
+
+func HandleTransactionCount(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleTransactionCount error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleTransactionCount panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易次数失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var transactionInfoList []biz.TransactionInfo
+	for _, record := range txRecords {
+		if record.TransactionType != biz.NATIVE && record.TransactionType != biz.TRANSFER && record.TransactionType != biz.TRANSFERNFT &&
+			record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
+			continue
+		}
+		if record.FromAddress == "" || record.ToAddress == "" || (record.FromUid == "" && record.ToUid == "") {
+			continue
+		}
+
+		transactionType := record.TransactionType
+		if record.TransactionType != biz.NATIVE && record.TransactionType != biz.TRANSFER && record.TransactionType != biz.TRANSFERNFT {
+			transactionType = biz.CONTRACT
+		}
+		var transactionInfo = biz.TransactionInfo{
+			ChainName:       chainName,
+			FromAddress:     record.FromAddress,
+			ToAddress:       record.ToAddress,
+			TransactionType: transactionType,
+			TransactionHash: record.TransactionHash,
+		}
+		transactionInfoList = append(transactionInfoList, transactionInfo)
+	}
+	biz.HandleTransactionCount(chainName, transactionInfoList)
 }
 
 func HandleTokenPush(chainName string, client Client, txRecords []*data.TrxTransactionRecord) {

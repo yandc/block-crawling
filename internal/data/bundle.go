@@ -18,6 +18,7 @@ type Bundle struct {
 	UserNFT                UserNftAssetRepo
 	NFTHistory             NftRecordHistoryRepo
 	Stat                   TransactionStatisticRepo
+	Count                  TransactionCountRepo
 	UTXO                   UtxoUnspentRecordRepo
 	NervosCell             NervosCellRecordRepo
 	UserRecord             UserRecordRepo
@@ -48,6 +49,7 @@ func NewBundle(
 	userNFT UserNftAssetRepo,
 	nftHistory NftRecordHistoryRepo,
 	stat TransactionStatisticRepo,
+	count TransactionCountRepo,
 	nervosCell NervosCellRecordRepo,
 	utxo UtxoUnspentRecordRepo,
 	userRecord UserRecordRepo,
@@ -76,6 +78,7 @@ func NewBundle(
 		UserNFT:                userNFT,
 		NFTHistory:             nftHistory,
 		Stat:                   stat,
+		Count:                  count,
 		NervosCell:             nervosCell,
 		UTXO:                   utxo,
 		UserRecord:             userRecord,

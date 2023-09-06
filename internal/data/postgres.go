@@ -26,13 +26,19 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 
 	if err != nil {
 		log.Fatale("failed opening connection to postgres", err)
+		return nil, nil, err
 	}
 
-	gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserAssetHistory{}, &ChainTypeAsset{}, &ChainTypeAddressAmount{}, &UserNftAsset{}, &TransactionStatistic{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{}, &MarketCoinHistory{}, &Migration{})
+	err = gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserAssetHistory{}, &ChainTypeAsset{}, &ChainTypeAddressAmount{}, &UserNftAsset{}, &TransactionStatistic{}, &TransactionCount{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{}, &MarketCoinHistory{}, &Migration{})
+	if err != nil {
+		log.Fatale("failed execute autoMigrate to postgres", err)
+		return nil, nil, err
+	}
 
 	sqlDb, err := gormlDb.DB()
 	if err != nil {
-		log.Fatale("failed opening connection to postgres", err)
+		log.Fatale("failed get database from postgres", err)
+		return nil, nil, err
 	}
 
 	sqlDb.SetConnMaxLifetime(time.Minute * time.Duration(conf.Database.Pool.ConnMaxLifetime))

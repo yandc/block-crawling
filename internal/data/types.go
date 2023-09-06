@@ -16,7 +16,7 @@ type TransactionRequest struct {
 	StatusList               []string
 	StatusNotInList          []string
 	TransactionType          string
-	TransactionTypeNotEqual  string
+	TransactionTypeNotEquals string
 	TransactionTypeList      []string
 	TransactionTypeNotInList []string
 	OperateTypeEmpty         bool
