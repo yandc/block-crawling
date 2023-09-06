@@ -6098,31 +6098,23 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 		chainType := platInfo.Type
 		tableName := biz.GetTableName(chainName)
 
+		var request = &data.TransactionRequest{
+			Nonce:     -1,
+			StartTime: startTime,
+			StopTime:  stopTime,
+			OrderBy:   "id asc",
+			PageSize:  biz.PAGE_SIZE,
+		}
+		log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
+
 		switch chainType {
 		case biz.BTC:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.BtcTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.BtcTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.BtcTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.BtcTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6133,7 +6125,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6146,7 +6138,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6160,10 +6152,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.BtcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6176,29 +6169,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.EVM:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.EvmTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.EvmTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.EvmTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6209,7 +6185,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6222,7 +6198,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6236,10 +6212,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.EvmTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6252,29 +6229,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.APTOS:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.AptTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.AptTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.AptTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.AptTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6286,7 +6246,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6300,7 +6260,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6314,10 +6274,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.AptTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6330,29 +6291,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.SUI:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.SuiTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.SuiTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.SuiTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.SuiTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6364,7 +6308,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6378,7 +6322,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6392,10 +6336,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.SuiTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6408,29 +6353,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.COSMOS:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.AtomTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.AtomTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.AtomTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6441,7 +6369,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6454,7 +6382,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6468,10 +6396,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.AtomTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6484,29 +6413,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.NERVOS:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.CkbTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.CkbTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.CkbTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.CkbTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6517,7 +6429,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6530,7 +6442,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6544,10 +6456,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.CkbTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6560,29 +6473,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.CASPER:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.CsprTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.CsprTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.CsprTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.CsprTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6593,7 +6489,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6606,7 +6502,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6620,10 +6516,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.CsprTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6636,29 +6533,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.POLKADOT:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.DotTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.DotTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.DotTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.DotTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6669,7 +6549,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6682,7 +6562,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6696,10 +6576,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.DotTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6712,29 +6593,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.SOLANA:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.SolTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.SolTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.SolTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.SolTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6745,7 +6609,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6758,7 +6622,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6772,10 +6636,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.SolTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6788,29 +6653,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.STC:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.StcTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.StcTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.StcTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.StcTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6821,7 +6669,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6834,7 +6682,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6848,10 +6696,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.StcTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6864,29 +6713,12 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		case biz.TVM:
-			log.Info("修改企业钱包地址对应的uid，处理" + tableName + "表开始")
 			var transactionRecordList []*data.TrxTransactionRecord
-			var request = &data.TransactionRequest{
-				Nonce:     -1,
-				StartTime: startTime,
-				StopTime:  stopTime,
-				OrderBy:   "id asc",
-				PageNum:   1,
-				PageSize:  biz.PAGE_SIZE,
-			}
 
-			for {
-				list, _, err := data.TrxTransactionRecordRepoClient.PageList(nil, tableName, request)
-				if err != nil {
-					log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
-					return
-				}
-
-				if len(list) == 0 {
-					break
-				}
+			err := data.TrxTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.TrxTransactionRecord) error {
 				for _, record := range list {
 					var fromUid, toUid string
+					var err error
 
 					fromAddress := record.FromAddress
 					toAddress := record.ToAddress
@@ -6897,7 +6729,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[fromAddress] = fromUid
 						}
@@ -6910,7 +6742,7 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
 							if err != nil {
 								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
-								return
+								return err
 							}
 							addressUid[toAddress] = toUid
 						}
@@ -6924,10 +6756,11 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 						})
 					}
 				}
-				if len(list) < biz.PAGE_SIZE {
-					break
-				}
-				request.PageNum += 1
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
 			}
 
 			count, err := data.TrxTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
@@ -6939,9 +6772,395 @@ func HandleTransactionRecord(startTime, stopTime int64) {
 				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
 			}
 			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
+		case biz.KASPA:
+			var transactionRecordList []*data.KasTransactionRecord
+
+			err := data.KasTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.KasTransactionRecord) error {
+				for _, record := range list {
+					var fromUid, toUid string
+					var err error
+
+					fromAddress := record.FromAddress
+					toAddress := record.ToAddress
+					if fromAddress != "" {
+						var ok bool
+						fromUid, ok = addressUid[fromAddress]
+						if !ok {
+							_, fromUid, err = biz.UserAddressSwitchRetryAlert(chainName, fromAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return err
+							}
+							addressUid[fromAddress] = fromUid
+						}
+					}
+
+					if toAddress != "" {
+						var ok bool
+						toUid, ok = addressUid[toAddress]
+						if !ok {
+							_, toUid, err = biz.UserAddressSwitchRetryAlert(chainName, toAddress)
+							if err != nil {
+								log.Error("修改企业钱包地址对应的uid，从redis中获取用户地址失败", zap.Any("record", record), zap.Any("error", err))
+								return err
+							}
+							addressUid[toAddress] = toUid
+						}
+					}
+
+					if record.FromUid != fromUid || record.ToUid != toUid {
+						transactionRecordList = append(transactionRecordList, &data.KasTransactionRecord{
+							Id:      record.Id,
+							FromUid: fromUid,
+							ToUid:   toUid,
+						})
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+				return
+			}
+
+			count, err := data.KasTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.KasTransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, tableName, transactionRecordList, biz.PAGE_SIZE)
+			}
+			if err != nil {
+				log.Error("修改企业钱包地址对应的uid，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionRecordList)), zap.Any("count", count), zap.Any("error", err))
+			}
+			log.Info("修改企业钱包地址对应的uid，处理"+tableName+"表结束", zap.Any("query size", len(transactionRecordList)), zap.Any("affected count", count))
 		}
 	}
 	log.Info("修改企业钱包地址对应的uid，处理交易记录表结束")
+}
+
+func HandleTransactionRecordCount() {
+	log.Info("补交易次数统计数，处理交易记录表开始")
+
+	for _, platInfo := range biz.GetChainPlatInfoMap() {
+		chainName := platInfo.Chain
+		chainType := platInfo.Type
+		tableName := biz.GetTableName(chainName)
+
+		var err error
+		tm := time.Now()
+		nowTime := tm.Unix()
+
+		var transactionCountMap = make(map[string]*data.TransactionCount)
+		var transactionCountList []*data.TransactionCount
+
+		var request = &data.TransactionRequest{
+			Nonce:               -1,
+			TransactionTypeList: []string{biz.NATIVE, biz.TRANSFER, biz.TRANSFERNFT, biz.CONTRACT, biz.SWAP, biz.MINT},
+			StatusList:          []string{biz.SUCCESS},
+			OrderBy:             "id asc",
+			PageSize:            biz.PAGE_SIZE,
+		}
+		log.Info("补交易次数统计数，处理" + tableName + "表开始")
+
+		switch chainType {
+		case biz.BTC:
+			err = data.BtcTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.BtcTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     biz.NATIVE,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.EVM:
+			err = data.EvmTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.EvmTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.APTOS:
+			err = data.AptTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.AptTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.SUI:
+			err = data.SuiTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.SuiTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.COSMOS:
+			err = data.AtomTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.AtomTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.NERVOS:
+			err = data.CkbTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.CkbTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.CASPER:
+			err = data.CsprTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.CsprTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.POLKADOT:
+			err = data.DotTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.DotTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.SOLANA:
+			err = data.SolTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.SolTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.STC:
+			err = data.StcTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.StcTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.TVM:
+			err = data.TrxTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.TrxTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress + record.TransactionType
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     record.TransactionType,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		case biz.KASPA:
+			err = data.KasTransactionRecordRepoClient.PageListAllCallBack(nil, tableName, request, func(list []*data.KasTransactionRecord) error {
+				for _, record := range list {
+					key := chainName + record.FromAddress + record.ToAddress
+					if statistic, ok := transactionCountMap[key]; ok {
+						statistic.TransactionQuantity += 1
+					} else {
+						var transactionCount = &data.TransactionCount{
+							ChainName:           chainName,
+							FromAddress:         record.FromAddress,
+							ToAddress:           record.ToAddress,
+							TransactionType:     biz.NATIVE,
+							TransactionQuantity: 1,
+							TransactionHash:     record.TransactionHash,
+							CreatedAt:           nowTime,
+							UpdatedAt:           nowTime,
+						}
+
+						transactionCountMap[key] = transactionCount
+					}
+				}
+				return nil
+			})
+		}
+		if err != nil {
+			log.Error("补交易次数统计数，从"+tableName+"表中查询交易记录数据失败", zap.Any("request", request), zap.Any("error", err))
+			return
+		}
+
+		if len(transactionCountMap) == 0 {
+			continue
+		}
+		for _, transactionCount := range transactionCountMap {
+			transactionCountList = append(transactionCountList, transactionCount)
+		}
+		count, err := data.TransactionCountRepoClient.PageIncrementBatchSaveOrUpdate(nil, transactionCountList, biz.PAGE_SIZE)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			_, err = data.TransactionCountRepoClient.PageIncrementBatchSaveOrUpdate(nil, transactionCountList, biz.PAGE_SIZE)
+		}
+		if err != nil {
+			log.Error("补交易次数统计数，将用交易记录数据插入到"+tableName+"表中失败", zap.Any("size", len(transactionCountList)), zap.Any("count", count), zap.Any("error", err))
+		}
+		log.Info("补交易次数统计数，处理"+tableName+"表结束", zap.Any("query size", len(transactionCountList)), zap.Any("affected count", count))
+	}
+	log.Info("补交易次数统计数，处理交易记录表结束")
 }
 
 func SyncChainNames(chainNames []string) {

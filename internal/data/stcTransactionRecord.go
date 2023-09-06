@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -56,8 +57,6 @@ type StcTransactionRecordWrapper struct {
 
 // StcTransactionRecordRepo is a Greater repo.
 type StcTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *StcTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *StcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*StcTransactionRecord) (int64, error)
@@ -74,8 +73,10 @@ type StcTransactionRecordRepo interface {
 	ListAll(context.Context, string) ([]*StcTransactionRecord, error)
 	PageListRecord(context.Context, string, *TransactionRequest) ([]*StcTransactionRecordWrapper, int64, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, int64, error)
-	PendingByAddress(context.Context, string, string) ([]*StcTransactionRecord, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*StcTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*StcTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*StcTransactionRecord, error)
+	PendingByAddress(context.Context, string, string) ([]*StcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
@@ -421,8 +422,8 @@ func (r *StcTransactionRecordRepoImpl) PageListRecord(ctx context.Context, table
 	if req.TransactionType != "" {
 		sqlStr += " and transaction_type = '" + req.TransactionType + "'"
 	}
-	if req.TransactionTypeNotEqual != "" {
-		sqlStr += " and transaction_type != '" + req.TransactionTypeNotEqual + "'"
+	if req.TransactionTypeNotEquals != "" {
+		sqlStr += " and transaction_type != '" + req.TransactionTypeNotEquals + "'"
 	}
 	if len(req.TransactionTypeList) > 0 {
 		transactionTypeList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeList), "\"", "'")
@@ -607,8 +608,8 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -728,6 +729,46 @@ func (r *StcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return stcTransactionRecordList, total, nil
 }
 
+func (r *StcTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*StcTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		stcTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(stcTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(stcTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = stcTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *StcTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*StcTransactionRecord, error) {
+	var stcTransactionRecordList []*StcTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(stcTransactionRecords []*StcTransactionRecord) error {
+		stcTransactionRecordList = append(stcTransactionRecordList, stcTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return stcTransactionRecordList, err
+}
+
 func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName string, req *TransactionRequest) ([]*StcTransactionRecord, error) {
 	var stcTransactionRecordList []*StcTransactionRecord
 	db := r.gormDB.WithContext(ctx).Table(tableName).Debug()
@@ -774,8 +815,8 @@ func (r *StcTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -935,8 +976,8 @@ func (r *StcTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -1152,9 +1193,4 @@ func (r *StcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return stcTransactionRecordList, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *StcTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

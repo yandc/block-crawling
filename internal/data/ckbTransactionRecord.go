@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -44,8 +45,6 @@ type CkbTransactionRecord struct {
 
 // CkbTransactionRecordRepo is a Greater repo.
 type CkbTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *CkbTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *CkbTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CkbTransactionRecord) (int64, error)
@@ -61,6 +60,8 @@ type CkbTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*CkbTransactionRecord, error)
 	ListAll(context.Context, string) ([]*CkbTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*CkbTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*CkbTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*CkbTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*CkbTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -106,9 +107,9 @@ func (r *CkbTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&ckbTransactionRecord)
 	err := ret.Error
@@ -376,8 +377,8 @@ func (r *CkbTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -460,6 +461,46 @@ func (r *CkbTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 		return nil, 0, err
 	}
 	return ckbTransactionRecordList, total, nil
+}
+
+func (r *CkbTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*CkbTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		ckbTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(ckbTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(ckbTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = ckbTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *CkbTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*CkbTransactionRecord, error) {
+	var ckbTransactionRecordList []*CkbTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(ckbTransactionRecords []*CkbTransactionRecord) error {
+		ckbTransactionRecordList = append(ckbTransactionRecordList, ckbTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return ckbTransactionRecordList, err
 }
 
 func (r *CkbTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
@@ -604,9 +645,4 @@ func (r *CkbTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return ckbTransactionRecord, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *CkbTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

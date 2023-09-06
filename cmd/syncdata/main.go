@@ -72,12 +72,12 @@ func main() {
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
 	//platform.HandleTokenInfo()
-	platform.SyncChainNames([]string{"ETH", "Polygon", "Arbitrum","BSC"})
+	//platform.SyncChainNames([]string{"ETH", "Polygon", "Arbitrum","BSC"})
 	//platform.SyncChainNames([]string{"ETH"})
-
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
 	//platform.FixAddressToUid()
 	//biz.GetTxByAddress("osmo1hrvmdzflvfnkpjtrpsvfhvxqdrvv8td3sy8spy","https://api.mintscan.io/v1/osmosis/account/","Osmosis")
 	//platform.UpdateAssetUidType()
+	platform.HandleTransactionRecordCount()
 }

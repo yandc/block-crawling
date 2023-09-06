@@ -54,14 +54,11 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 	log.Info("统计用户资产金额，处理指标数据开始", zap.Any("dt", dt), zap.Any("nowTime", nowTime))
 
 	var request = &data.AssetRequest{
-		UidTypeList:   []int32{1, 2, 3},
-		AmountType:    2,
-		SelectColumn:  "id, chain_name, uid_type, token_address, balance",
-		OrderBy:       "id asc",
-		DataDirection: 2,
-		StartIndex:    0,
-		PageSize:      data.MAX_PAGE_SIZE,
-		Total:         false,
+		UidTypeList:  []int32{1, 2, 3},
+		AmountType:   2,
+		SelectColumn: "id, chain_name, uid_type, token_address, balance",
+		OrderBy:      "id asc",
+		PageSize:     data.MAX_PAGE_SIZE,
 	}
 	var chainTypeAssetList []*data.ChainTypeAsset
 	chainTypeAssetMap := make(map[string]map[int8]*data.ChainTypeAsset)
@@ -71,18 +68,8 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 	recordGroupMap := make(map[string]*data.UserAsset)
 	var err error
 	var total int64
-	for {
-		var userAssets []*data.UserAsset
-		userAssets, _, err = data.UserAssetRepoClient.PageList(nil, request)
-		if err != nil {
-			break
-		}
-		dataLen := int32(len(userAssets))
-		if dataLen == 0 {
-			break
-		}
-
-		total += int64(dataLen)
+	err = data.UserAssetRepoClient.PageListAllCallBack(nil, request, func(userAssets []*data.UserAsset) error {
+		total += int64(len(userAssets))
 		for _, userAsset := range userAssets {
 			key := userAsset.ChainName + strconv.Itoa(int(userAsset.UidType)) + userAsset.TokenAddress
 			oldUserAsset, ok := recordGroupMap[key]
@@ -94,12 +81,8 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				oldUserAsset.Balance = oldBalance.Add(balance).String()
 			}
 		}
-		if dataLen < request.PageSize {
-			break
-		}
-		request.StartIndex = userAssets[dataLen-1].Id
-		time.Sleep(time.Duration(1) * time.Second)
-	}
+		return nil
+	})
 	if err != nil {
 		// postgres出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：统计用户资产金额，从数据库中查询用户资产信息失败，dt：%d，total：%d", dt, total)

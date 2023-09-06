@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -40,8 +41,6 @@ type BtcTransactionRecord struct {
 
 // BtcTransactionRecordRepo is a Greater repo.
 type BtcTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *BtcTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *BtcTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*BtcTransactionRecord) (int64, error)
@@ -57,6 +56,8 @@ type BtcTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*BtcTransactionRecord, error)
 	ListAll(context.Context, string) ([]*BtcTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*BtcTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*BtcTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*BtcTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*BtcTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -465,6 +466,46 @@ func (r *BtcTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return btcTransactionRecordList, total, nil
 }
 
+func (r *BtcTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*BtcTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		btcTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(btcTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(btcTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = btcTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *BtcTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*BtcTransactionRecord, error) {
+	var btcTransactionRecordList []*BtcTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(evmTransactionRecords []*BtcTransactionRecord) error {
+		btcTransactionRecordList = append(btcTransactionRecordList, evmTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return btcTransactionRecordList, err
+}
+
 func (r *BtcTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Delete(&BtcTransactionRecord{}, id)
 	err := ret.Error
@@ -623,9 +664,4 @@ func (r *BtcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return btcTransactionRecordList, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *BtcTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

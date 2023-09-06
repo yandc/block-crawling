@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/datatypes"
 
@@ -49,8 +50,6 @@ type TrxTransactionRecord struct {
 
 // TrxTransactionRecordRepo is a Greater repo.
 type TrxTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *TrxTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *TrxTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*TrxTransactionRecord) (int64, error)
@@ -66,6 +65,8 @@ type TrxTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*TrxTransactionRecord, error)
 	ListAll(context.Context, string) ([]*TrxTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*TrxTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*TrxTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*TrxTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*TrxTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -397,8 +398,8 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -483,6 +484,46 @@ func (r *TrxTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return trxTransactionRecordList, total, nil
 }
 
+func (r *TrxTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*TrxTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		trxTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(trxTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(trxTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = trxTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *TrxTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*TrxTransactionRecord, error) {
+	var trxTransactionRecordList []*TrxTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(trxTransactionRecords []*TrxTransactionRecord) error {
+		trxTransactionRecordList = append(trxTransactionRecordList, trxTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return trxTransactionRecordList, err
+}
+
 func (r *TrxTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Delete(&TrxTransactionRecord{}, id)
 	err := ret.Error
@@ -550,8 +591,8 @@ func (r *TrxTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -734,10 +775,6 @@ func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	}
 }
 
-// CountOut implements AtomTransactionRecordRepo
-func (r *TrxTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress, "eventLog")
-}
 func (r *TrxTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
 	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
 	err := ret.Error

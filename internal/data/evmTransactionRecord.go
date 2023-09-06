@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -61,8 +62,6 @@ type EvmTransactionRecordWrapper struct {
 
 // EvmTransactionRecordRepo is a Greater repo.
 type EvmTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *EvmTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *EvmTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*EvmTransactionRecord) (int64, error)
@@ -83,9 +82,11 @@ type EvmTransactionRecordRepo interface {
 	ListAll(context.Context, string) ([]*EvmTransactionRecord, error)
 	PageListRecord(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecordWrapper, int64, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*EvmTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*EvmTransactionRecord, error)
+	List(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	PendingByFromAddress(context.Context, string, string) ([]*EvmTransactionRecord, error)
-	List(context.Context, string, *TransactionRequest) ([]*EvmTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
@@ -500,8 +501,8 @@ func (r *EvmTransactionRecordRepoImpl) PageListRecord(ctx context.Context, table
 	if req.TransactionType != "" {
 		sqlStr += " and transaction_type = '" + req.TransactionType + "'"
 	}
-	if req.TransactionTypeNotEqual != "" {
-		sqlStr += " and transaction_type != '" + req.TransactionTypeNotEqual + "'"
+	if req.TransactionTypeNotEquals != "" {
+		sqlStr += " and transaction_type != '" + req.TransactionTypeNotEquals + "'"
 	}
 	if len(req.TransactionTypeList) > 0 {
 		transactionTypeList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeList), "\"", "'")
@@ -686,8 +687,8 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -807,6 +808,46 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return evmTransactionRecordList, total, nil
 }
 
+func (r *EvmTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*EvmTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		evmTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(evmTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(evmTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = evmTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*EvmTransactionRecord, error) {
+	var evmTransactionRecordList []*EvmTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(evmTransactionRecords []*EvmTransactionRecord) error {
+		evmTransactionRecordList = append(evmTransactionRecordList, evmTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return evmTransactionRecordList, err
+}
+
 func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecordList []*EvmTransactionRecord
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -853,8 +894,8 @@ func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -1014,8 +1055,8 @@ func (r *EvmTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -1439,10 +1480,6 @@ func (r *EvmTransactionRecordRepoImpl) ListDappDataStringByTimeRanges(ctx contex
 		return nil, err
 	}
 	return dappDatas, nil
-}
-
-func (r *EvmTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }
 
 func (r *EvmTransactionRecordRepoImpl) FindByAddressCount(ctx context.Context, tableName string, address string, groupField string, startTime int, endTime int, f string) ([]EvmTransferCount, error) {

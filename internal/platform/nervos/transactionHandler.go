@@ -45,6 +45,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.CkbTransact
 		HandleUTXO(chainName, client, txRecords)
 	}()
 	go handleUserStatistic(chainName, client, txRecords)
+	go HandleTransactionCount(chainName, client, txRecords)
 }
 
 func HandlePendingRecord(chainName string, client Client, txRecords []*data.CkbTransactionRecord) {
@@ -69,6 +70,7 @@ func HandlePendingRecord(chainName string, client Client, txRecords []*data.CkbT
 		//handleUserAsset(chainName, txRecords)
 		HandleUTXO(chainName, client, txRecords)
 	}()
+	go HandleTransactionCount(chainName, client, txRecords)
 }
 
 func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresses []string) {
@@ -212,6 +214,52 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.CkbT
 		userAssetStatisticList = append(userAssetStatisticList, userAssetStatistic)
 	}
 	biz.HandleUserAssetStatistic(chainName, userAssetStatisticList)
+}
+
+func HandleTransactionCount(chainName string, client Client, txRecords []*data.CkbTransactionRecord) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("HandleTransactionCount error, chainName:"+chainName, e)
+			} else {
+				log.Errore("HandleTransactionCount panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易次数失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	var transactionInfoList []biz.TransactionInfo
+	for _, record := range txRecords {
+		if record.TransactionType != biz.NATIVE && record.TransactionType != biz.TRANSFER && record.TransactionType != biz.TRANSFERNFT &&
+			record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT {
+			continue
+		}
+		if record.Status != biz.SUCCESS {
+			continue
+		}
+		if record.FromAddress == "" || record.ToAddress == "" || (record.FromUid == "" && record.ToUid == "") {
+			continue
+		}
+
+		transactionType := record.TransactionType
+		if record.TransactionType != biz.NATIVE && record.TransactionType != biz.TRANSFER && record.TransactionType != biz.TRANSFERNFT {
+			transactionType = biz.CONTRACT
+		}
+		var transactionInfo = biz.TransactionInfo{
+			ChainName:       chainName,
+			FromAddress:     record.FromAddress,
+			ToAddress:       record.ToAddress,
+			TransactionType: transactionType,
+			TransactionHash: record.TransactionHash,
+		}
+		transactionInfoList = append(transactionInfoList, transactionInfo)
+	}
+	biz.HandleTransactionCount(chainName, transactionInfoList)
 }
 
 func handleTokenPush(chainName string, client Client, txRecords []*data.CkbTransactionRecord) {

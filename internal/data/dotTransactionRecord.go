@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -46,8 +47,6 @@ type DotTransactionRecord struct {
 }
 
 type DotTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *DotTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *DotTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*DotTransactionRecord) (int64, error)
@@ -63,6 +62,8 @@ type DotTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*DotTransactionRecord, error)
 	ListAll(context.Context, string) ([]*DotTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*DotTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*DotTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*DotTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*DotTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -111,9 +112,9 @@ func (r *DotTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecord)
 	err := ret.Error
@@ -123,8 +124,8 @@ func (r *DotTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	}
 	affected := ret.RowsAffected
 	return affected, err
-
 }
+
 func (r *DotTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, dotTransactionRecord []*DotTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(dotTransactionRecord, len(dotTransactionRecord))
 	err := ret.Error
@@ -392,8 +393,8 @@ func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -479,6 +480,46 @@ func (r *DotTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 		return nil, 0, err
 	}
 	return dotTransactionRecordList, total, nil
+}
+
+func (r *DotTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*DotTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		dotTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(dotTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(dotTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = dotTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *DotTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*DotTransactionRecord, error) {
+	var dotTransactionRecordList []*DotTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(dotTransactionRecords []*DotTransactionRecord) error {
+		dotTransactionRecordList = append(dotTransactionRecordList, dotTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return dotTransactionRecordList, err
 }
 
 func (r *DotTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
@@ -699,9 +740,4 @@ func (r *DotTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 		return nil, err
 	}
 	return dotTransactionRecordList, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *DotTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

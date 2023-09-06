@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/datatypes"
 
@@ -47,8 +48,6 @@ type SolTransactionRecord struct {
 
 // SolTransactionRecordRepo is a Greater repo.
 type SolTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *SolTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *SolTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SolTransactionRecord) (int64, error)
@@ -65,8 +64,10 @@ type SolTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*SolTransactionRecord, error)
 	ListAll(context.Context, string) ([]*SolTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*SolTransactionRecord, int64, error)
-	PendingByAddress(context.Context, string, string) ([]*SolTransactionRecord, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*SolTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*SolTransactionRecord, error)
 	List(context.Context, string, *TransactionRequest) ([]*SolTransactionRecord, error)
+	PendingByAddress(context.Context, string, string) ([]*SolTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
 	Delete(context.Context, string, *TransactionRequest) (int64, error)
@@ -113,9 +114,9 @@ func (r *SolTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&solTransactionRecord)
 	err := ret.Error
@@ -398,8 +399,8 @@ func (r *SolTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -484,6 +485,46 @@ func (r *SolTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	return solTransactionRecordList, total, nil
 }
 
+func (r *SolTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*SolTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		solTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(solTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(solTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = solTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *SolTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*SolTransactionRecord, error) {
+	var solTransactionRecordList []*SolTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(solTransactionRecords []*SolTransactionRecord) error {
+		solTransactionRecordList = append(solTransactionRecordList, solTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return solTransactionRecordList, err
+}
+
 func (r *SolTransactionRecordRepoImpl) List(ctx context.Context, tableName string, req *TransactionRequest) ([]*SolTransactionRecord, error) {
 	var solTransactionRecordList []*SolTransactionRecord
 	db := r.gormDB.WithContext(ctx).Table(tableName)
@@ -530,8 +571,8 @@ func (r *SolTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -658,8 +699,8 @@ func (r *SolTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -879,9 +920,4 @@ func (r *SolTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return solTransactionRecords, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *SolTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -40,8 +41,6 @@ type CsprTransactionRecord struct {
 }
 
 type CsprTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *CsprTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *CsprTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*CsprTransactionRecord) (int64, error)
@@ -57,6 +56,8 @@ type CsprTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*CsprTransactionRecord, error)
 	ListAll(context.Context, string) ([]*CsprTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*CsprTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*CsprTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*CsprTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*CsprTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -102,9 +103,9 @@ func (r *CsprTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, 
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&csprTransactionRecord)
 	err := ret.Error
@@ -114,9 +115,8 @@ func (r *CsprTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, 
 	}
 	affected := ret.RowsAffected
 	return affected, err
-
-
 }
+
 func (r *CsprTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, CsprTransactionRecords []*CsprTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(CsprTransactionRecords, len(CsprTransactionRecords))
 	err := ret.Error
@@ -362,8 +362,8 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -432,6 +432,46 @@ func (r *CsprTransactionRecordRepoImpl) PageList(ctx context.Context, tableName 
 		return nil, 0, err
 	}
 	return csprTransactionRecordList, total, nil
+}
+
+func (r *CsprTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*CsprTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		csprTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(csprTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(csprTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = csprTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *CsprTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*CsprTransactionRecord, error) {
+	var csprTransactionRecordList []*CsprTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(csprTransactionRecords []*CsprTransactionRecord) error {
+		csprTransactionRecordList = append(csprTransactionRecordList, csprTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return csprTransactionRecordList, err
 }
 
 func (r *CsprTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
@@ -579,9 +619,4 @@ func (r *CsprTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, ta
 		return nil, err
 	}
 	return csprTransactionRecordList, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *CsprTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

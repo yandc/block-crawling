@@ -4907,37 +4907,22 @@ func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChar
 
 func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequest) (*CountOutTxResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
-	var counter data.OutTxCounter
 	switch chainType {
-	case STC:
-		counter = data.StcTransactionRecordRepoClient
-	case BTC:
-		counter = data.BtcTransactionRecordRepoClient
 	case EVM:
-		counter = data.EvmTransactionRecordRepoClient
-	case TVM:
-		counter = data.TrxTransactionRecordRepoClient
-	case APTOS:
-		counter = data.AptTransactionRecordRepoClient
-	case SUI:
-		counter = data.SuiTransactionRecordRepoClient
-	case SOLANA:
-		counter = data.SolTransactionRecordRepoClient
-	case NERVOS:
-		counter = data.CkbTransactionRecordRepoClient
-	case CASPER:
-		counter = data.CsprTransactionRecordRepoClient
-	case COSMOS:
-		counter = data.AtomTransactionRecordRepoClient
-	case POLKADOT:
-		counter = data.DotTransactionRecordRepoClient
-	case KASPA:
-		counter = data.KasTransactionRecordRepoClient
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+		if req.ToAddress != "" {
+			req.ToAddress = types2.HexToAddress(req.ToAddress).Hex()
+		}
 	}
-	if counter == nil {
-		return nil, errors.New("Unsupported chain type")
+
+	countRequest := &data.CountRequest{
+		FromAddress:         req.Address,
+		ToAddress:           req.ToAddress,
+		TransactionTypeList: []string{NATIVE, TRANSFER, TRANSFERNFT},
 	}
-	count, err := counter.CountOut(ctx, data.GetTableName(req.ChainName), req.Address, req.ToAddress)
+	count, err := data.TransactionCountRepoClient.CountTransactionQuantity(ctx, countRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -4947,7 +4932,6 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 }
 
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
-
 	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
 	case EVM:

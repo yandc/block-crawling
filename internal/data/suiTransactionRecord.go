@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -47,8 +48,6 @@ type SuiTransactionRecord struct {
 
 // SuiTransactionRecordRepo is a Greater repo.
 type SuiTransactionRecordRepo interface {
-	OutTxCounter
-
 	Save(context.Context, string, *SuiTransactionRecord) (int64, error)
 	SaveOrUpdateClient(context.Context, string, *SuiTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*SuiTransactionRecord) (int64, error)
@@ -65,6 +64,8 @@ type SuiTransactionRecordRepo interface {
 	ListByID(context.Context, string, int64) ([]*SuiTransactionRecord, error)
 	ListAll(context.Context, string) ([]*SuiTransactionRecord, error)
 	PageList(context.Context, string, *TransactionRequest) ([]*SuiTransactionRecord, int64, error)
+	PageListAllCallBack(context.Context, string, *TransactionRequest, func(list []*SuiTransactionRecord) error, ...time.Duration) error
+	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*SuiTransactionRecord, error)
 	PendingByAddress(context.Context, string, string) ([]*SuiTransactionRecord, error)
 	DeleteByID(context.Context, string, int64) (int64, error)
 	DeleteByBlockNumber(context.Context, string, int) (int64, error)
@@ -111,9 +112,9 @@ func (r *SuiTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&suiTransactionRecord)
 	err := ret.Error
@@ -399,8 +400,8 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.TransactionType != "" {
 		db = db.Where("transaction_type = ?", req.TransactionType)
 	}
-	if req.TransactionTypeNotEqual != "" {
-		db = db.Where("transaction_type != ?", req.TransactionTypeNotEqual)
+	if req.TransactionTypeNotEquals != "" {
+		db = db.Where("transaction_type != ?", req.TransactionTypeNotEquals)
 	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
@@ -483,6 +484,46 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 		return nil, 0, err
 	}
 	return suiTransactionRecordList, total, nil
+}
+
+func (r *SuiTransactionRecordRepoImpl) PageListAllCallBack(ctx context.Context, tableName string, req *TransactionRequest, fn func(list []*SuiTransactionRecord) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		suiTransactionRecords, _, err := r.PageList(ctx, tableName, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(suiTransactionRecords))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(suiTransactionRecords)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = suiTransactionRecords[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *SuiTransactionRecordRepoImpl) PageListAll(ctx context.Context, tableName string, req *TransactionRequest, timeDuration ...time.Duration) ([]*SuiTransactionRecord, error) {
+	var suiTransactionRecordList []*SuiTransactionRecord
+	err := r.PageListAllCallBack(nil, tableName, req, func(suiTransactionRecords []*SuiTransactionRecord) error {
+		suiTransactionRecordList = append(suiTransactionRecordList, suiTransactionRecords...)
+		return nil
+	}, timeDuration...)
+	return suiTransactionRecordList, err
 }
 
 func (r *SuiTransactionRecordRepoImpl) DeleteByID(ctx context.Context, tableName string, id int64) (int64, error) {
@@ -673,9 +714,4 @@ func (r *SuiTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, ta
 		return nil, err
 	}
 	return suiTransactionRecords, nil
-}
-
-// CountOut implements AtomTransactionRecordRepo
-func (r *SuiTransactionRecordRepoImpl) CountOut(ctx context.Context, tableName string, address string, toAddress string) (int64, error) {
-	return countOutTx(r.gormDB, ctx, tableName, address, toAddress)
 }

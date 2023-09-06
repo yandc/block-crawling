@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -79,6 +80,8 @@ type UserAssetRepo interface {
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
 	PageList(context.Context, *AssetRequest) ([]*UserAsset, int64, error)
+	PageListAllCallBack(context.Context, *AssetRequest, func(list []*UserAsset) error, ...time.Duration) error
+	PageListAll(context.Context, *AssetRequest, ...time.Duration) ([]*UserAsset, error)
 	List(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalanceGroup(context.Context, *AssetRequest) ([]*UserAsset, error)
@@ -409,6 +412,46 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 		return nil, 0, err
 	}
 	return userAssetList, total, nil
+}
+
+func (r *UserAssetRepoImpl) PageListAllCallBack(ctx context.Context, req *AssetRequest, fn func(list []*UserAsset) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		userAssets, _, err := r.PageList(ctx, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(userAssets))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(userAssets)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = userAssets[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *UserAssetRepoImpl) PageListAll(ctx context.Context, req *AssetRequest, timeDuration ...time.Duration) ([]*UserAsset, error) {
+	var userAssetList []*UserAsset
+	err := r.PageListAllCallBack(nil, req, func(userAssets []*UserAsset) error {
+		userAssetList = append(userAssetList, userAssets...)
+		return nil
+	}, timeDuration...)
+	return userAssetList, err
 }
 
 func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*UserAsset, error) {
