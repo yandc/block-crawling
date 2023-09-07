@@ -63,18 +63,20 @@ const (
 )
 
 const (
-	STC      = "STC"
-	BTC      = "BTC"
-	EVM      = "EVM"
-	TVM      = "TVM"
-	APTOS    = "APTOS"
-	SUI      = "SUI"
-	SOLANA   = "SOL"
-	NERVOS   = "CKB"
-	CASPER   = "CSPR"
-	COSMOS   = "COSMOS"
-	POLKADOT = "POLKADOT"
-	KASPA    = "KASPA"
+	STC           = "STC"
+	BTC           = "BTC"
+	EVM           = "EVM"
+	TVM           = "TVM"
+	APTOS         = "APTOS"
+	SUI           = "SUI"
+	SOLANA        = "SOL"
+	NERVOS        = "CKB"
+	CASPER        = "CSPR"
+	COSMOS        = "COSMOS"
+	POLKADOT      = "POLKADOT"
+	KASPA         = "KASPA"
+	MAIN_NET_TYPE = "main"
+	TEST_NET_TYPE = "test"
 )
 
 const (
