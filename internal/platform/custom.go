@@ -72,7 +72,6 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 		if v, ok := p.updatedPlat[chainInfo.Chain]; ok {
 			oldUrls = v.RpcURL
 		}
-
 		var mhat int32 = 1000
 		var mc int32 = 1
 		var scbd int32 = 500
@@ -88,10 +87,11 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 			MaxConcurrency:             &mc,
 			SafelyConcurrentBlockDelta: &scbd,
 			Handler:                    chainInfo.Chain,
+			GetPriceKey:                chainInfo.GetPriceKey,
 		}
 		if chainInfo.IsTest {
 			cp.NetType = biz.TEST_NET_TYPE
-		}else {
+		} else {
 			cp.NetType = biz.MAIN_NET_TYPE
 		}
 		biz.SetChainNameType(cp.Chain, cp.Type)
