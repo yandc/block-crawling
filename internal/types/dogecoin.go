@@ -57,6 +57,7 @@ type TxInfo struct {
 	NumEvents   int         `json:"num_events"`
 	Meta        interface{} `json:"meta"`
 	BlockNumber int         `json:"block_number"`
+	Confirmations int `json:"confirmations"`
 	Events      []struct {
 		Id            string `json:"id"`
 		TransactionId string `json:"transaction_id"`
@@ -76,6 +77,4 @@ type TxInfo struct {
 	Code   int    `json:"code"`
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
-
 }
-

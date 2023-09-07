@@ -165,10 +165,11 @@ func GetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) 
 		}
 		return
 	}
-	if c.URL == "https://Bearer:9VpB0M4Al-RNmiOvFHwOMvNNetBfZY2mDepbbXT2ygBJ2-AG@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/" {
+	if strings.Contains(c.URL, "ubiquity.api.blockdaemon.com") {
 		utxoTxByDD, e := GetTransactionsByTXHash(hash, c)
 		if e != nil {
-			return tx, e
+			err = e
+			return
 		} else {
 			if utxoTxByDD.Detail == "The requested resource has not been found" {
 				return tx, errors.New(utxoTxByDD.Detail)

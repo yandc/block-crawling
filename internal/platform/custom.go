@@ -89,6 +89,11 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 			SafelyConcurrentBlockDelta: &scbd,
 			Handler:                    chainInfo.Chain,
 		}
+		if chainInfo.IsTest {
+			cp.NetType = biz.TEST_NET_TYPE
+		}else {
+			cp.NetType = biz.MAIN_NET_TYPE
+		}
 		biz.SetChainNameType(cp.Chain, cp.Type)
 		platform := GetPlatform(cp)
 		biz.SetChainPlatform(cp.Chain, platform)
