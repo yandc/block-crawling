@@ -251,38 +251,16 @@ type TransactionInfo struct {
 		Err                  interface{} `json:"err"`
 		Fee                  int64       `json:"fee"`
 		InnerInstructions    []struct {
-			Index        int           `json:"index"`
-			Instructions []Instruction `json:"instructions"`
+			Index        int            `json:"index"`
+			Instructions []*Instruction `json:"instructions"`
 		} `json:"innerInstructions"`
-		LogMessages       []string   `json:"logMessages"`
-		PostBalances      []*big.Int `json:"postBalances"`
-		PostTokenBalances []struct {
-			AccountIndex  int    `json:"accountIndex"`
-			Mint          string `json:"mint"`
-			Owner         string `json:"owner"`
-			ProgramId     string `json:"programId"`
-			UiTokenAmount struct {
-				Amount         string  `json:"amount"`
-				Decimals       int     `json:"decimals"`
-				UiAmount       float64 `json:"uiAmount"`
-				UiAmountString string  `json:"uiAmountString"`
-			} `json:"uiTokenAmount"`
-		} `json:"postTokenBalances"`
-		PreBalances      []*big.Int `json:"preBalances"`
-		PreTokenBalances []struct {
-			AccountIndex  int    `json:"accountIndex"`
-			Mint          string `json:"mint"`
-			Owner         string `json:"owner"`
-			ProgramId     string `json:"programId"`
-			UiTokenAmount struct {
-				Amount         string  `json:"amount"`
-				Decimals       int     `json:"decimals"`
-				UiAmount       float64 `json:"uiAmount"`
-				UiAmountString string  `json:"uiAmountString"`
-			} `json:"uiTokenAmount"`
-		} `json:"preTokenBalances"`
-		Rewards []interface{} `json:"rewards"`
-		Status  struct {
+		LogMessages       []string        `json:"logMessages"`
+		PostBalances      []*big.Int      `json:"postBalances"`
+		PostTokenBalances []*TokenBalance `json:"postTokenBalances"`
+		PreBalances       []*big.Int      `json:"preBalances"`
+		PreTokenBalances  []*TokenBalance `json:"preTokenBalances"`
+		Rewards           []interface{}   `json:"rewards"`
+		Status            struct {
 			Ok  interface{} `json:"Ok"`
 			Err interface{} `json:"Err"`
 		} `json:"status"`
@@ -290,18 +268,33 @@ type TransactionInfo struct {
 	Slot        int `json:"slot"`
 	Transaction struct {
 		Message struct {
-			AccountKeys []struct {
-				Pubkey   string `json:"pubkey"`
-				Signer   bool   `json:"signer"`
-				Source   string `json:"source"`
-				Writable bool   `json:"writable"`
-			} `json:"accountKeys"`
-			AddressTableLookups interface{}   `json:"addressTableLookups"`
-			Instructions        []Instruction `json:"instructions"`
-			RecentBlockhash     string        `json:"recentBlockhash"`
+			AccountKeys         []*AccountKey  `json:"accountKeys"`
+			AddressTableLookups interface{}    `json:"addressTableLookups"`
+			Instructions        []*Instruction `json:"instructions"`
+			RecentBlockhash     string         `json:"recentBlockhash"`
 		} `json:"message"`
 		Signatures []string `json:"signatures"`
 	} `json:"transaction"`
+}
+
+type TokenBalance struct {
+	AccountIndex  int    `json:"accountIndex"`
+	Mint          string `json:"mint"`
+	Owner         string `json:"owner"`
+	ProgramId     string `json:"programId"`
+	UiTokenAmount struct {
+		Amount         string  `json:"amount"`
+		Decimals       int     `json:"decimals"`
+		UiAmount       float64 `json:"uiAmount"`
+		UiAmountString string  `json:"uiAmountString"`
+	} `json:"uiTokenAmount"`
+}
+
+type AccountKey struct {
+	Pubkey   string `json:"pubkey"`
+	Signer   bool   `json:"signer"`
+	Source   string `json:"source"`
+	Writable bool   `json:"writable"`
 }
 
 type Instruction struct {

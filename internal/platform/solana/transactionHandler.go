@@ -114,14 +114,16 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 
 			if tokenType != biz.SOLANANFT {
 				changesPayload := make(map[string]interface{})
-				err = json.Unmarshal([]byte(record.Data), &changesPayload)
-				if err != nil {
-					// 更新用户资产出错 接入lark报警
-					alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
-					alarmOpts := biz.WithMsgLevel("FATAL")
-					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
-						zap.Any("txHash", record.TransactionHash), zap.Any("data", record.Data), zap.Any("error", err))
+				if record.Data != "" {
+					err = json.Unmarshal([]byte(record.Data), &changesPayload)
+					if err != nil {
+						// 更新用户资产出错 接入lark报警
+						alarmMsg := fmt.Sprintf("请注意：%s链解析data失败", chainName)
+						alarmOpts := biz.WithMsgLevel("FATAL")
+						biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+						log.Error(chainName+"解析data失败", zap.Any("slotNumber", record.SlotNumber), zap.Any("blockNumber", record.BlockNumber),
+							zap.Any("txHash", record.TransactionHash), zap.Any("data", record.Data), zap.Any("error", err))
+					}
 				}
 
 				accountKeyStr, accountOk := changesPayload["accountKey"]
