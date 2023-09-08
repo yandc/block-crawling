@@ -49,6 +49,8 @@ type UserSendRawHistoryRepo interface {
 	PageList(context.Context, SignReqPage) ([]*UserSendRawHistory, int64, error)
 	GetLatestOneBySessionId(ctx context.Context, sessionID string) (*UserSendRawHistory, error)
 	SelectSignStatus(ctx context.Context, signStatus []string) ([]*UserSendRawHistory, error)
+	SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error)
+
 	//UpdateSignStatusByTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
 	//UpdateSignStatusLikeTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
 	SelectByTxHash(ctx context.Context, txhash string) (*UserSendRawHistory, error)
@@ -138,6 +140,16 @@ func (r *userSendRawHistoryRepoImpl) SelectSignStatus(ctx context.Context, signS
 	err := ret.Error
 	if err != nil {
 		log.Errore("SelectSignStatus failed", err)
+		return nil, err
+	}
+	return userSendRawHistoryList, nil
+}
+func (r *userSendRawHistoryRepoImpl) SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error) {
+	var userSendRawHistoryList []*UserSendRawHistory
+	ret := r.gormDB.Table("user_sendraw_history").Where("session_id in (?)", sessionIDs).Find(&userSendRawHistoryList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("SelectBySessionIds failed", err)
 		return nil, err
 	}
 	return userSendRawHistoryList, nil
