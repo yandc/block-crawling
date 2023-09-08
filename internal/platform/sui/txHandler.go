@@ -166,11 +166,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if !ok {
 				continue
 			}
-			addressOwner := ownerMap["AddressOwner"]
-			if addressOwner == nil {
-				continue
+
+			if addressOwner, aok := ownerMap["AddressOwner"]; aok {
+				toAddress = addressOwner.(string)
+			} else if objectOwner, ook := ownerMap["ObjectOwner"]; ook {
+				toAddress = objectOwner.(string)
 			}
-			toAddress = addressOwner.(string)
 		}
 		if sender != "" && toAddress != "" && objectType != "" && objectId != "" {
 			amountChange := &AmountChange{
