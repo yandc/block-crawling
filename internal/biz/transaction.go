@@ -5141,9 +5141,6 @@ func (s *TransactionUsecase) ChangeUtxoPending(ctx context.Context, req *CreateU
 	}, nil
 }
 func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignTypeMessageRequest) (*BroadcastResponse, error) {
-	if req == nil || req.SessionId == "" || req.SignStatus == "" {
-
-	}
 	var rr []*data.UserSendRawHistory
 	rr = append(rr, &data.UserSendRawHistory{
 		SessionId:  req.SessionId,
@@ -5166,5 +5163,33 @@ func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignT
 	return &BroadcastResponse{
 		Ok:      false,
 		Message: req.SessionId + "消息签名未更新成功",
+	}, nil
+}
+func (s *TransactionUsecase) SignTXBySessionId(ctx context.Context, req *SignTxRequest) (*SignTxResponse, error) {
+	infos, err := data.UserSendRawHistoryRepoInst.SelectBySessionIds(ctx, req.SessionIds)
+	if err != nil {
+		return &SignTxResponse{
+			Ok:      false,
+			Message: err.Error(),
+		}, err
+	}
+	var sts []SessionTxhashInfo
+	if infos == nil || len(infos) == 0 {
+		return &SignTxResponse{
+			Ok:                    true,
+			SessionTxhashInfoList: sts,
+		}, nil
+	}
+	for _, signInfo := range infos {
+		if signInfo.TransactionHash != "" {
+			sts = append(sts, SessionTxhashInfo{
+				SessionId:       signInfo.SessionId,
+				TransactionHash: signInfo.TransactionHash,
+			})
+		}
+	}
+	return &SignTxResponse{
+		Ok:            true,
+		SessionTxhashInfoList: sts,
 	}, nil
 }

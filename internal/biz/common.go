@@ -361,6 +361,18 @@ type SignTypeMessageRequest struct {
 	SessionId  string `json:"sessionId"`
 	SignStatus string `json:"signStatus"`
 }
+type SignTxRequest struct {
+	SessionIds []string `json:"sessionIds"`
+}
+type SignTxResponse struct {
+	Ok                    bool                `json:"ok,omitempty"`
+	Message               string              `json:"message,omitempty"`
+	SessionTxhashInfoList []SessionTxhashInfo `json:"sessionTxhashInfoList,omitempty"`
+}
+type SessionTxhashInfo struct {
+	SessionId       string `json:"sessionId"`
+	TransactionHash string `json:"transactionHash"`
+}
 
 type DataDictionary struct {
 	Ok                     bool     `json:"ok,omitempty"`
