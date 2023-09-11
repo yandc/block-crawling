@@ -861,13 +861,20 @@ func doHandleUserNftAsset(chainName string, client Client, uid string, address s
 	for tokenAddress, tokenIdMap := range tokenAddressIdMap {
 		for tokenId, nftInfo := range tokenIdMap {
 			result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+				var balance string
+				var err error
 				if nftInfo.TokenType == biz.ERC721 {
-					return client.Erc721Balance(address, tokenAddress, tokenId)
+					balance, err = client.Erc721Balance(address, tokenAddress, tokenId)
 				} else if nftInfo.TokenType == biz.ERC1155 {
-					return client.Erc1155Balance(address, tokenAddress, tokenId)
+					balance, err = client.Erc1155Balance(address, tokenAddress, tokenId)
 				} else {
-					return "0", errors.New("chain " + chainName + ", tokenType " + nftInfo.TokenType + " is not support")
+					balance = "0"
+					err = errors.New("chain " + chainName + ", tokenType " + nftInfo.TokenType + " is not support")
 				}
+				if err != nil { //如果报错内容为：execution reverted，一般是参数错误，例如应该调Erc721Balance方法却调用了Erc1155Balance。
+					err = errors.New(err.Error() + ", nodeUrl:" + client.URL())
+				}
+				return balance, err
 			})
 			if err != nil {
 				log.Error("query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
