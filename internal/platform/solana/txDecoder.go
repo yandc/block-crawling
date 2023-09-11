@@ -244,11 +244,17 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					destination := instructionInfo["destination"].(string)
 					amount = instructionInfo["amount"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[destination].Owner
+					destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
+					if destinationTokenBalance != nil {
+						toAddress = destinationTokenBalance.Owner
+						contractAddress = destinationTokenBalance.Mint
+					}
 					if toAddress == "" {
 						toAddress = destination
 					}
-					contractAddress = tokenAccountTokenBalanceMap[destination].Mint
+					if contractAddress == "" {
+						contractAddress = "UnknownToken"
+					}
 				}
 			} else if instructionType == "transferChecked" {
 				if programId == SOL_CODE {
@@ -267,7 +273,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = tokenAmount["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[destination].Owner
+					destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
+					if destinationTokenBalance != nil {
+						toAddress = destinationTokenBalance.Owner
+					}
 					if toAddress == "" {
 						toAddress = destination
 					}
@@ -284,7 +293,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = instructionInfo["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[account].Owner
+					accountTokenBalance := tokenAccountTokenBalanceMap[account]
+					if accountTokenBalance != nil {
+						toAddress = accountTokenBalance.Owner
+					}
 					if toAddress == "" {
 						toAddress, _ = instructionInfo["multisigAuthority"].(string)
 					}
@@ -554,11 +566,17 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					destination := instructionInfo["destination"].(string)
 					amount = instructionInfo["amount"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[destination].Owner
+					destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
+					if destinationTokenBalance != nil {
+						toAddress = destinationTokenBalance.Owner
+						contractAddress = destinationTokenBalance.Mint
+					}
 					if toAddress == "" {
 						toAddress = destination
 					}
-					contractAddress = tokenAccountTokenBalanceMap[destination].Mint
+					if contractAddress == "" {
+						contractAddress = "UnknownToken"
+					}
 				}
 			} else if instructionType == "transferChecked" {
 				if programId == SOL_CODE {
@@ -577,7 +595,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = tokenAmount["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[destination].Owner
+					destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
+					if destinationTokenBalance != nil {
+						toAddress = destinationTokenBalance.Owner
+					}
 					if toAddress == "" {
 						toAddress = destination
 					}
@@ -596,7 +617,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = instructionInfo["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					toAddress = tokenAccountTokenBalanceMap[account].Owner
+					accountTokenBalance := tokenAccountTokenBalanceMap[account]
+					if accountTokenBalance != nil {
+						toAddress = accountTokenBalance.Owner
+					}
 					if toAddress == "" {
 						toAddress, _ = instructionInfo["multisigAuthority"].(string)
 					}
@@ -1213,13 +1237,15 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				destination := instructionInfo["destination"].(string)
 
 				destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
-				toAddress = destinationTokenBalance.Owner
+				//https://solscan.io/tx/2zXBRUVkGwv1u3U6kujiJg9B6jNT1p3PEhX8AywSkY1wy5CA3tM6xjDigi24hmK5aNjhw1u1HL4vknmijmWNpPU3
+				if destinationTokenBalance != nil {
+					toAddress = destinationTokenBalance.Owner
+					contractAddress = destinationTokenBalance.Mint
+				}
 				if toAddress == "" {
 					toAddress = destination
 				}
-				if destinationTokenBalance.Mint != "" {
-					contractAddress = destinationTokenBalance.Mint
-				} else {
+				if contractAddress == "" {
 					//https://solscan.io/tx/3QH3FQF9EUoU19xKPXWtFYgeuxpmUUC6UjSNVh3ZUc9qVP3UEyx6NDbdnpr9gCh1qdwEex37cGEHui3gGQhfKRdE
 					contractAddress = "UnknownToken"
 				}
@@ -1274,7 +1300,9 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				contractAddress = instructionInfo["mint"].(string)
 
 				destinationTokenBalance := tokenAccountTokenBalanceMap[destination]
-				toAddress = destinationTokenBalance.Owner
+				if destinationTokenBalance != nil {
+					toAddress = destinationTokenBalance.Owner
+				}
 				if toAddress == "" {
 					toAddress = destination
 				}
@@ -1322,7 +1350,10 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				account := instructionInfo["account"].(string)
 				contractAddress = instructionInfo["mint"].(string)
 
-				toAddress = tokenAccountTokenBalanceMap[account].Owner
+				accountTokenBalance := tokenAccountTokenBalanceMap[account]
+				if accountTokenBalance != nil {
+					toAddress = accountTokenBalance.Owner
+				}
 				if toAddress == "" {
 					toAddress, _ = instructionInfo["multisigAuthority"].(string)
 				}
