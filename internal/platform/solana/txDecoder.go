@@ -313,7 +313,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = instructionInfo["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					fromAddress = tokenAccountTokenBalanceMap[account].Owner
+					accountTokenBalance := tokenAccountTokenBalanceMap[account]
+					if accountTokenBalance != nil {
+						fromAddress = accountTokenBalance.Owner
+					}
 					if fromAddress == "" {
 						fromAddress, _ = instructionInfo["multisigAuthority"].(string)
 					}
@@ -638,7 +641,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					amount = instructionInfo["amount"].(string)
 					contractAddress = instructionInfo["mint"].(string)
 
-					fromAddress = tokenAccountTokenBalanceMap[account].Owner
+					accountTokenBalance := tokenAccountTokenBalanceMap[account]
+					if accountTokenBalance != nil {
+						fromAddress = accountTokenBalance.Owner
+					}
 					if fromAddress == "" {
 						fromAddress, _ = instructionInfo["multisigAuthority"].(string)
 					}
@@ -1400,7 +1406,11 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				account := instructionInfo["account"].(string)
 				contractAddress = instructionInfo["mint"].(string)
 
-				fromAddress = tokenAccountTokenBalanceMap[account].Owner
+				accountTokenBalance := tokenAccountTokenBalanceMap[account]
+				//https://solscan.io/tx/3ziUnrLZoC5wiGGZyh8TaTRjJ6LDQ9wwjzpDWKHL752bUQdUPuYEuauNCf1o6sxtj4z6w7CTmJkDWFFLjograaB2
+				if accountTokenBalance != nil {
+					fromAddress = accountTokenBalance.Owner
+				}
 				if fromAddress == "" {
 					fromAddress, _ = instructionInfo["multisigAuthority"].(string)
 				}
