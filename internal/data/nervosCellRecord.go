@@ -87,9 +87,9 @@ func (r *NervosCellRecordRepoImpl) FindByCondition(ctx context.Context, req *pb.
 	if req.IsUnspent != "3" {
 		tx = tx.Where("status = ?", req.IsUnspent)
 	}
-	if req.Uid != "" {
-		tx = tx.Where("uid = ?", req.Uid)
-	}
+	//if req.Uid != "" {
+	//	tx = tx.Where("uid = ?", req.Uid)
+	//}
 	if req.Address != "" {
 		tx = tx.Where("address = ?", req.Address)
 	}

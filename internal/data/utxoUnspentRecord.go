@@ -141,9 +141,9 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 		}
 	}
 
-	if req.Uid != "" {
-		tx = tx.Where("uid = ?", req.Uid)
-	}
+	//if req.Uid != "" {
+	//	tx = tx.Where("uid = ?", req.Uid)
+	//}
 	if req.ChainName != "" {
 		tx = tx.Where("chain_name = ?", req.ChainName)
 	}
