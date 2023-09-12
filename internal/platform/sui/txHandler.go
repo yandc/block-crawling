@@ -196,19 +196,27 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 
 	if len(amountChanges) == 0 && !isContract {
-		var toAddress string
+		//https://suiexplorer.com/txblock/DB85AUiCAavmVwfV8QqR8ubSysRvR4Nu48PMZwSYbnt3
+		var toAddress, value, txType string
 		inputs := tx.Data.Transaction.Inputs
 		for _, input := range inputs {
-			if input.Type == "pure" && input.ValueType == "address" {
-				toAddress = utils.GetString(input.Value)
+			if input.Type == "pure" {
+				if input.ValueType == "address" {
+					toAddress = utils.GetString(input.Value)
+				} else if input.ValueType == "u64" {
+					value = utils.GetString(input.Value)
+				}
 			}
+		}
+		if toAddress != "" && value != "" && len(inputs) == 2 {
+			txType = biz.NATIVE
 		}
 		amountChange := &AmountChange{
 			FromAddress:  tx.Data.Sender,
 			ToAddress:    toAddress,
-			TxType:       "",
+			TxType:       txType,
 			TokenAddress: "",
-			Amount:       "0",
+			Amount:       value,
 		}
 		amountChanges = append(amountChanges, amountChange)
 	}
