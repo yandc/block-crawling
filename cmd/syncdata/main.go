@@ -77,7 +77,7 @@ func main() {
 	//platform.DeleteRecordData()
 	//platform.CheckNonce()
 	//platform.FixAddressToUid()
-	//biz.GetTxByAddress("osmo1hrvmdzflvfnkpjtrpsvfhvxqdrvv8td3sy8spy","https://api.mintscan.io/v1/osmosis/account/","Osmosis")
+	//biz.GetTxByAddress("zkSync","0xb68Ad129c20d60B18c11735E16dCFd53294960BF",[]string{"https://block-explorer-api.mainnet.zksync.io/transactions"})
 	//platform.UpdateAssetUidType()
-	platform.HandleTransactionRecordCount()
+	//platform.HandleTransactionRecordCount()
 }

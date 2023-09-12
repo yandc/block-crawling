@@ -60,73 +60,39 @@ type KlaytnRecord struct {
 	Nonce       string      `json:"nonce"`
 }
 type ZksyncApiModel struct {
-	List []struct {
-		TransactionHash string `json:"transactionHash"`
-		Data            struct {
-			ContractAddress string        `json:"contractAddress"`
-			Calldata        string        `json:"calldata"`
-			Value           string        `json:"value"`
-			FactoryDeps     []interface{} `json:"factoryDeps"`
-		} `json:"data"`
+	Items []struct {
+		Hash             string    `json:"hash"`
+		To               string    `json:"to"`
+		From             string    `json:"from"`
+		Data             string    `json:"data"`
+		Value            string    `json:"value"`
 		IsL1Originated   bool      `json:"isL1Originated"`
-		Status           string    `json:"status"`
 		Fee              string    `json:"fee"`
-		Nonce            *int      `json:"nonce"`
+		Nonce            int       `json:"nonce"`
 		BlockNumber      int       `json:"blockNumber"`
 		L1BatchNumber    int       `json:"l1BatchNumber"`
 		BlockHash        string    `json:"blockHash"`
-		IndexInBlock     int       `json:"indexInBlock"`
-		InitiatorAddress string    `json:"initiatorAddress"`
+		TransactionIndex int       `json:"transactionIndex"`
 		ReceivedAt       time.Time `json:"receivedAt"`
-		EthCommitTxHash  string    `json:"ethCommitTxHash"`
-		EthProveTxHash   string    `json:"ethProveTxHash"`
-		EthExecuteTxHash string    `json:"ethExecuteTxHash"`
-		Erc20Transfers   []struct {
-			TokenInfo struct {
-				L1Address string `json:"l1Address"`
-				L2Address string `json:"l2Address"`
-				Address   string `json:"address"`
-				Symbol    string `json:"symbol"`
-				Name      string `json:"name"`
-				Decimals  int    `json:"decimals"`
-				UsdPrice  string `json:"usdPrice"`
-			} `json:"tokenInfo"`
-			From   string `json:"from"`
-			To     string `json:"to"`
-			Amount string `json:"amount"`
-		} `json:"erc20Transfers"`
-		BalanceChanges []struct {
-			TokenInfo struct {
-				L1Address string `json:"l1Address"`
-				L2Address string `json:"l2Address"`
-				Address   string `json:"address"`
-				Symbol    string `json:"symbol"`
-				Name      string `json:"name"`
-				Decimals  int    `json:"decimals"`
-				UsdPrice  string `json:"usdPrice"`
-			} `json:"tokenInfo"`
-			From   string `json:"from"`
-			To     string `json:"to"`
-			Amount string `json:"amount"`
-			Type   string `json:"type"`
-		} `json:"balanceChanges"`
-		Type     int `json:"type"`
-		Transfer struct {
-			TokenInfo struct {
-				L1Address string `json:"l1Address"`
-				L2Address string `json:"l2Address"`
-				Address   string `json:"address"`
-				Symbol    string `json:"symbol"`
-				Name      string `json:"name"`
-				Decimals  int    `json:"decimals"`
-				UsdPrice  string `json:"usdPrice"`
-			} `json:"tokenInfo"`
-			From   string `json:"from"`
-			To     string `json:"to"`
-			Amount string `json:"amount"`
-		} `json:"transfer,omitempty"`
-	} `json:"list"`
-	Total int `json:"total"`
+		Status           string    `json:"status"`
+		CommitTxHash     string    `json:"commitTxHash"`
+		ExecuteTxHash    string    `json:"executeTxHash"`
+		ProveTxHash      string    `json:"proveTxHash"`
+		IsL1BatchSealed  bool      `json:"isL1BatchSealed"`
+	} `json:"items"`
+	Meta struct {
+		TotalItems   int `json:"totalItems"`
+		ItemCount    int `json:"itemCount"`
+		ItemsPerPage int `json:"itemsPerPage"`
+		TotalPages   int `json:"totalPages"`
+		CurrentPage  int `json:"currentPage"`
+	} `json:"meta"`
+	Links struct {
+		First    string `json:"first"`
+		Previous string `json:"previous"`
+		Next     string `json:"next"`
+		Last     string `json:"last"`
+	} `json:"links"`
 }
 
 type RoninApiModel struct {
