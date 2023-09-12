@@ -32,6 +32,8 @@ service Transaction {
   rpc ListAmountUidDimension(ListAmountUidDimensionRequest) returns (ListAmountUidDimensionResponse);
   //根据uid维度查询用户是否有余额列表
   rpc ListHasBalanceUidDimension(ListHasBalanceUidDimensionRequest) returns (ListHasBalanceUidDimensionResponse);
+  //根据指定维度查询用户是否有余额列表
+  rpc ListHasBalanceDimension(ListHasBalanceDimensionRequest) returns (ListHasBalanceDimensionResponse);
   //交易数据看板查询资沉量趋势图
   rpc AssetHistoryFundAmount(AssetHistoryRequest) returns (AssetHistoryFundAmountListResponse);
   //交易数据看板查询钱包地址数趋势图
@@ -430,6 +432,7 @@ message BalanceResponse {
 message ListAmountUidDimensionRequest {
   string currency = 1;//-- 必输 // [(validate.rules).string = {in: ["CNY", "USD"]}]; //-- 币种: CNY:人民币, USD:美元
   repeated string uidList = 2 [(validate.rules).repeated = {min_items: 1}];//-- 必输
+  string chainName = 3;
 }
 
 message ListAmountUidDimensionResponse {
@@ -451,6 +454,22 @@ message ListHasBalanceUidDimensionResponse {
 
 message HasBalanceUidDimensionResponse {
   string uid = 1;
+  bool hasBalance = 2;
+}
+
+message ListHasBalanceDimensionRequest {
+  string chainName = 1;
+  repeated string uidList = 2;
+  repeated string addressList = 3;
+  string groupBy = 4;
+}
+
+message ListHasBalanceDimensionResponse {
+  repeated HasBalanceDimensionResponse list = 1;
+}
+
+message HasBalanceDimensionResponse {
+  string column = 1;
   bool hasBalance = 2;
 }
 

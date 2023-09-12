@@ -45,6 +45,8 @@ type TransactionClient interface {
 	ListAmountUidDimension(ctx context.Context, in *ListAmountUidDimensionRequest, opts ...grpc.CallOption) (*ListAmountUidDimensionResponse, error)
 	//根据uid维度查询用户是否有余额列表
 	ListHasBalanceUidDimension(ctx context.Context, in *ListHasBalanceUidDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceUidDimensionResponse, error)
+	//根据指定维度查询用户是否有余额列表
+	ListHasBalanceDimension(ctx context.Context, in *ListHasBalanceDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceDimensionResponse, error)
 	//交易数据看板查询资沉量趋势图
 	AssetHistoryFundAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryFundAmountListResponse, error)
 	//交易数据看板查询钱包地址数趋势图
@@ -209,6 +211,15 @@ func (c *transactionClient) ListHasBalanceUidDimension(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *transactionClient) ListHasBalanceDimension(ctx context.Context, in *ListHasBalanceDimensionRequest, opts ...grpc.CallOption) (*ListHasBalanceDimensionResponse, error) {
+	out := new(ListHasBalanceDimensionResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/ListHasBalanceDimension", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *transactionClient) AssetHistoryFundAmount(ctx context.Context, in *AssetHistoryRequest, opts ...grpc.CallOption) (*AssetHistoryFundAmountListResponse, error) {
 	out := new(AssetHistoryFundAmountListResponse)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/AssetHistoryFundAmount", in, out, opts...)
@@ -362,6 +373,8 @@ type TransactionServer interface {
 	ListAmountUidDimension(context.Context, *ListAmountUidDimensionRequest) (*ListAmountUidDimensionResponse, error)
 	//根据uid维度查询用户是否有余额列表
 	ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error)
+	//根据指定维度查询用户是否有余额列表
+	ListHasBalanceDimension(context.Context, *ListHasBalanceDimensionRequest) (*ListHasBalanceDimensionResponse, error)
 	//交易数据看板查询资沉量趋势图
 	AssetHistoryFundAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryFundAmountListResponse, error)
 	//交易数据看板查询钱包地址数趋势图
@@ -438,6 +451,9 @@ func (UnimplementedTransactionServer) ListAmountUidDimension(context.Context, *L
 }
 func (UnimplementedTransactionServer) ListHasBalanceUidDimension(context.Context, *ListHasBalanceUidDimensionRequest) (*ListHasBalanceUidDimensionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListHasBalanceUidDimension not implemented")
+}
+func (UnimplementedTransactionServer) ListHasBalanceDimension(context.Context, *ListHasBalanceDimensionRequest) (*ListHasBalanceDimensionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListHasBalanceDimension not implemented")
 }
 func (UnimplementedTransactionServer) AssetHistoryFundAmount(context.Context, *AssetHistoryRequest) (*AssetHistoryFundAmountListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AssetHistoryFundAmount not implemented")
@@ -742,6 +758,24 @@ func _Transaction_ListHasBalanceUidDimension_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TransactionServer).ListHasBalanceUidDimension(ctx, req.(*ListHasBalanceUidDimensionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_ListHasBalanceDimension_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListHasBalanceDimensionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).ListHasBalanceDimension(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/ListHasBalanceDimension",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).ListHasBalanceDimension(ctx, req.(*ListHasBalanceDimensionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1060,6 +1094,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListHasBalanceUidDimension",
 			Handler:    _Transaction_ListHasBalanceUidDimension_Handler,
+		},
+		{
+			MethodName: "ListHasBalanceDimension",
+			Handler:    _Transaction_ListHasBalanceDimension_Handler,
 		},
 		{
 			MethodName: "AssetHistoryFundAmount",

@@ -2721,6 +2721,7 @@ func (s *TransactionUsecase) GetBalance(ctx context.Context, req *pb.AssetReques
 
 func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb.ListAmountUidDimensionRequest) (*pb.ListAmountUidDimensionResponse, error) {
 	var request = &data.AssetRequest{
+		ChainName:  req.ChainName,
 		UidList:    req.UidList,
 		AmountType: 2,
 	}
@@ -2822,6 +2823,46 @@ func (s *TransactionUsecase) ListHasBalanceUidDimension(ctx context.Context, req
 				HasBalance: hasBalance,
 			}
 			list = append(list, hasBalanceUidDimensionResponse)
+		}
+		result.List = list
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) ListHasBalanceDimension(ctx context.Context, req *pb.ListHasBalanceDimensionRequest) (*pb.ListHasBalanceDimensionResponse, error) {
+	var request = &data.AssetRequest{
+		ChainName:   req.ChainName,
+		UidList:     req.UidList,
+		AddressList: req.AddressList,
+		GroupBy:     req.GroupBy,
+	}
+	var result = &pb.ListHasBalanceDimensionResponse{}
+	var list []*pb.HasBalanceDimensionResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, err = data.UserAssetRepoClient.ListBalanceGroup(ctx, request)
+	if err == nil && len(recordList) > 0 {
+		for _, record := range recordList {
+			if record == nil {
+				continue
+			}
+
+			var hasBalance bool
+			var column string
+			if record.Balance != "" && record.Balance != "0" {
+				hasBalance = true
+			}
+			if req.GroupBy == "uid" {
+				column = record.Uid
+			} else if req.GroupBy == "address" {
+				column = record.Address
+			}
+			hasBalanceDimensionResponse := &pb.HasBalanceDimensionResponse{
+				Column:     column,
+				HasBalance: hasBalance,
+			}
+			list = append(list, hasBalanceDimensionResponse)
 		}
 		result.List = list
 	}
