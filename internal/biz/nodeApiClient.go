@@ -1525,7 +1525,9 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 	url := urls[0]
 	//https://zksync2-mainnet-explorer.zksync.io/transactions?limit=50&direction=older&accountAddress=0xb7B4D65CB5a0c44cCB9019ca74745686188173Db
 	//只支持最新五十条
-	reqUrl := url + "?limit=50&direction=older&accountAddress=" + address
+	//https://block-explorer-api.mainnet.zksync.io/transactions?address=0xb68Ad129c20d60B18c11735E16dCFd53294960BF&pageSize=10&page=1
+
+	reqUrl := url + "?pageSize=10&page=1&address=" + address
 
 	req := &data.TransactionRequest{
 		Nonce:       -1,
@@ -1562,11 +1564,11 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 	}
 	var zkTransactionRecordList []*data.EvmTransactionRecord
-	if out.Total > 0 {
+	if len(out.Items) > 0 {
 		transactionRecordMap := make(map[string]string)
 		now := time.Now().Unix()
-		for _, zkRecord := range out.List {
-			txHash := zkRecord.TransactionHash
+		for _, zkRecord := range out.Items {
+			txHash := zkRecord.Hash
 			if _, ok := transactionRecordMap[txHash]; !ok {
 				transactionRecordMap[txHash] = ""
 			} else {
@@ -1577,6 +1579,8 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 			}
 			zkEvmRecord := &data.EvmTransactionRecord{
 				TransactionHash: txHash,
+				FromAddress:     zkRecord.From,
+				ToAddress:       zkRecord.To,
 				Status:          PENDING,
 				DappData:        "",
 				ClientData:      "",

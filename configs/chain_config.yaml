@@ -996,8 +996,8 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 160
     httpURL:
-      - https://zksync2-mainnet-explorer.zksync.io/transactions
-#      - https://zksync2-mainnet-explorer.zksync.io/transactions?limit=50&direction=older&accountAddress=0xb7B4D65CB5a0c44cCB9019ca74745686188173Db
+      - https://block-explorer-api.mainnet.zksync.io/transactions
+#      - https://block-explorer-api.mainnet.zksync.io/transactions?address=0xb68Ad129c20d60B18c11735E16dCFd53294960BF&pageSize=10&page=1
 
   SUI:
     blockExplorerAddrUrl: https://explorer.sui.io/addresses/
