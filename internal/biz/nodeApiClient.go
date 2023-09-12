@@ -52,8 +52,10 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	}()
 
 	switch chainName {
-	case "Cosmos", "Osmosis":
+	case "Cosmos":
 		err = CosmosGetTxByAddress(chainName, address, urls)
+	case "Osmosis":
+		err = OsmosisGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
 	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea":
@@ -406,6 +408,248 @@ type CosmosBrowserInfo struct {
 	} `json:"data"`
 }
 
+type OsmosisBrowserInfo struct {
+	Txs []struct {
+		Body struct {
+			Messages []struct {
+				Type        string `json:"@type"`
+				FromAddress string `json:"from_address"`
+				ToAddress   string `json:"to_address"`
+				Amount      []struct {
+					Denom  string `json:"denom"`
+					Amount string `json:"amount"`
+				} `json:"amount"`
+			} `json:"messages"`
+			Memo                        string        `json:"memo"`
+			TimeoutHeight               string        `json:"timeout_height"`
+			ExtensionOptions            []interface{} `json:"extension_options"`
+			NonCriticalExtensionOptions []interface{} `json:"non_critical_extension_options"`
+		} `json:"body"`
+		AuthInfo struct {
+			SignerInfos []struct {
+				PublicKey struct {
+					Type string `json:"@type"`
+					Key  string `json:"key"`
+				} `json:"public_key"`
+				ModeInfo struct {
+					Single struct {
+						Mode string `json:"mode"`
+					} `json:"single"`
+				} `json:"mode_info"`
+				Sequence string `json:"sequence"`
+			} `json:"signer_infos"`
+			Fee struct {
+				Amount []struct {
+					Denom  string `json:"denom"`
+					Amount string `json:"amount"`
+				} `json:"amount"`
+				GasLimit string `json:"gas_limit"`
+				Payer    string `json:"payer"`
+				Granter  string `json:"granter"`
+			} `json:"fee"`
+		} `json:"auth_info"`
+		Signatures []string `json:"signatures"`
+	} `json:"txs"`
+	TxResponses []struct {
+		Height    string `json:"height"`
+		Txhash    string `json:"txhash"`
+		Codespace string `json:"codespace"`
+		Code      int    `json:"code"`
+		Data      string `json:"data"`
+		RawLog    string `json:"raw_log"`
+		Logs      []struct {
+			MsgIndex int    `json:"msg_index"`
+			Log      string `json:"log"`
+			Events   []struct {
+				Type       string `json:"type"`
+				Attributes []struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+				} `json:"attributes"`
+			} `json:"events"`
+		} `json:"logs"`
+		Info      string `json:"info"`
+		GasWanted string `json:"gas_wanted"`
+		GasUsed   string `json:"gas_used"`
+		Tx        struct {
+			Type string `json:"@type"`
+			Body struct {
+				Messages []struct {
+					Type        string `json:"@type"`
+					FromAddress string `json:"from_address"`
+					ToAddress   string `json:"to_address"`
+					Amount      []struct {
+						Denom  string `json:"denom"`
+						Amount string `json:"amount"`
+					} `json:"amount"`
+				} `json:"messages"`
+				Memo                        string        `json:"memo"`
+				TimeoutHeight               string        `json:"timeout_height"`
+				ExtensionOptions            []interface{} `json:"extension_options"`
+				NonCriticalExtensionOptions []interface{} `json:"non_critical_extension_options"`
+			} `json:"body"`
+			AuthInfo struct {
+				SignerInfos []struct {
+					PublicKey struct {
+						Type string `json:"@type"`
+						Key  string `json:"key"`
+					} `json:"public_key"`
+					ModeInfo struct {
+						Single struct {
+							Mode string `json:"mode"`
+						} `json:"single"`
+					} `json:"mode_info"`
+					Sequence string `json:"sequence"`
+				} `json:"signer_infos"`
+				Fee struct {
+					Amount []struct {
+						Denom  string `json:"denom"`
+						Amount string `json:"amount"`
+					} `json:"amount"`
+					GasLimit string `json:"gas_limit"`
+					Payer    string `json:"payer"`
+					Granter  string `json:"granter"`
+				} `json:"fee"`
+			} `json:"auth_info"`
+			Signatures []string `json:"signatures"`
+		} `json:"tx"`
+		Timestamp time.Time `json:"timestamp"`
+		Events    []struct {
+			Type       string `json:"type"`
+			Attributes []struct {
+				Key   string `json:"key"`
+				Value string `json:"value"`
+				Index bool   `json:"index"`
+			} `json:"attributes"`
+		} `json:"events"`
+	} `json:"tx_responses"`
+	Pagination struct {
+		NextKey interface{} `json:"next_key"`
+		Total   string      `json:"total"`
+	} `json:"pagination"`
+}
+
+func OsmosisGetTxByAddress(chainName string, address string, urls []string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("OsmosisGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("OsmosisGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
+	}
+	dbLastRecords, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbLastRecordBlockNumber int
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
+		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
+	}
+
+	var starIndex = 0
+	url := urls[0]
+	url = url + "transfer.recipient='" + address + "'&"
+	var chainRecords []string
+chainFlag:
+	for {
+		var out *OsmosisBrowserInfo
+		reqUrl := url + "pagination.limit=" + strconv.Itoa(pageSize) + "&pagination.offset=" + strconv.Itoa(starIndex)
+
+		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		}
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out.TxResponses)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.TxResponses {
+			txHash := browserInfo.Txhash
+			txHeight, err := strconv.Atoi(browserInfo.Height)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, txHash)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		starIndex = starIndex + dataLen
+	}
+
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, txHash := range chainRecords {
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			DappData:        "",
+			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	if len(atomTransactionRecordList) > 0 {
+		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+
+}
+
 func CosmosGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -490,7 +734,8 @@ chainFlag:
 		if dataLen < pageSize {
 			break
 		}
-		starIndex = out[dataLen-1].Header.Id
+		starIndex = starIndex + dataLen
+
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
