@@ -595,6 +595,18 @@ func (s *TransactionService) ListHasBalanceUidDimension(ctx context.Context, req
 	return result, err
 }
 
+func (s *TransactionService) ListHasBalanceDimension(ctx context.Context, req *pb.ListHasBalanceDimensionRequest) (*pb.ListHasBalanceDimensionResponse, error) {
+	if len(req.UidList) == 0 && len(req.AddressList) == 0 {
+		return nil, errors.New("uidList or addressList is required")
+	}
+	if req.GroupBy != "uid" && req.GroupBy != "address" {
+		return nil, errors.New("groupBy must be uid or address")
+	}
+
+	result, err := s.ts.ListHasBalanceDimension(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) AssetHistoryFundAmount(ctx context.Context, req *pb.AssetHistoryRequest) (*pb.AssetHistoryFundAmountListResponse, error) {
 	biz.ChainTypeAdd(req.ChainName)
 	if req.StartTime >= req.StopTime {
