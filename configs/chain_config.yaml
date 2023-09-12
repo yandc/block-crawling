@@ -858,7 +858,7 @@ platform:
       - https://node.onekey.so/osmosis
       - https://lcd-osmosis.keplr.app/
     httpURL:
-      - https://api.mintscan.io/v1/osmosis/account/
+      - https://proxy.atomscan.com/osmo-lcd/cosmos/tx/v1beta1/txs?orderBy=ORDER_BY_DESC&events=
     symbol: Osmosis
     type: COSMOS
     safelyConcurrentBlockDelta: 20
