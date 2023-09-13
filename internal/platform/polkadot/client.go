@@ -26,6 +26,8 @@ const (
 	RPC      = "https://rpc.polkadot.io"
 )
 
+var timeout = 10_000 * time.Millisecond
+
 type Client struct {
 	*common.NodeDefaultIn
 
@@ -191,23 +193,51 @@ func (c *Client) GetBalances(address string) ([]types2.PolkadotAccountInfo, erro
 	if len(accountInfo) == 1 && accountInfo[0].Error != "" {
 		return accountInfo, errors.New(accountInfo[0].Error)
 	}
-
 	return accountInfo, nil
+}
 
+type PolkadotExploerInfo struct {
+	Data map[string]struct {
+		Address `json:"address"`
+	} `json:"data"`
+}
+type Address struct {
+	Balance `json:"balance"`
+}
+type Balance struct {
+	Free       string `json:"free"`
+	Reserved   string `json:"reserved"`
+	Frozen     int    `json:"frozen"`
+	Flags      string `json:"flags"`
+	MiscFrozen string `json:"miscFrozen"`
+	FeeFrozen  int    `json:"feeFrozen"`
+}
+
+func GetBalanceForExplorer(address string) (string, error) {
+	url := "https://api.blockchair.com/polkadot/raw/address/" + address
+	var out *PolkadotExploerInfo
+	_, err := httpclient.HttpGet(url, nil, &out, &timeout, nil)
+	if out != nil && err == nil {
+		add := out.Data[address]
+		b := utils.StringDecimals(add.Balance.Free, 10)
+		return b, nil
+	}
+	return "0", err
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
 	balances, err := c.GetBalances(address)
 	if err != nil {
-		return "0", err
+		return GetBalanceForExplorer(address)
 	}
 	if len(balances) == 0 {
-		return "0", nil
+		return GetBalanceForExplorer(address)
 	}
 	for _, balance := range balances {
 		if balance.AssetInfo.Symbol == "DOT" {
 			return strconv.FormatFloat(balance.State.Free, 'f', 10, 64), nil
 		}
 	}
-	return "0", nil
+	return GetBalanceForExplorer(address)
+
 }
