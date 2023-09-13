@@ -232,8 +232,21 @@ func (w *wrappedTypedData) IntoTypedData() (TypedData, error) {
 			VerifyingContract: w.Domain.VerifyingContract,
 			Salt:              w.Domain.Salt,
 		},
-		Message: w.Message,
+		Message: w.Domain.removeExtraFieldInMessage(w.Types[w.PrimaryType], w.Message),
 	}, nil
+}
+
+func (w *wrappedDataDomain) removeExtraFieldInMessage(fields []apitypes.Type, message map[string]interface{}) map[string]interface{} {
+	var names = make(map[string]bool)
+	for _, f := range fields {
+		names[f.Name] = true
+	}
+	for k := range message {
+		if _, ok := names[k]; !ok {
+			delete(message, k)
+		}
+	}
+	return message
 }
 
 func (wd *wrappedDataDomain) parseChainId() (*math.HexOrDecimal256, error) {
