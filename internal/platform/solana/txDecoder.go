@@ -1218,7 +1218,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1256,7 +1256,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 					contractAddress = "UnknownToken"
 				}
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1279,7 +1279,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				fromAddress = instructionInfo["source"].(string)
 				toAddress = instructionInfo["destination"].(string)
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1313,7 +1313,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 					toAddress = destination
 				}
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1336,7 +1336,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 			if programId == SOL_CODE {
 				toAddress = instructionInfo["destination"].(string)
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1364,7 +1364,8 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 					toAddress, _ = instructionInfo["multisigAuthority"].(string)
 				}
 
-				key := fromAddress + toAddress + contractAddress
+				//https://solscan.io/tx/RAEVNRjq2mTr8KGTkV6kcYdkjnpaNMpVisqQ24GoHw84uFVvTUpJYwhpmLYaX8DKGgj7qek4ggcHRYmnK8iAyXA
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1386,7 +1387,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 			if programId == SOL_CODE {
 				fromAddress = instructionInfo["source"].(string)
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1415,7 +1416,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 					fromAddress, _ = instructionInfo["multisigAuthority"].(string)
 				}
 
-				key := fromAddress + toAddress + contractAddress
+				key := fromAddress + ":" + toAddress + ":" + contractAddress
 				newInstruction, ok := instructionMap[key]
 				if !ok {
 					newInstruction = instruction
@@ -1436,7 +1437,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 			accountTotal++
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["newAccount"].(string)
-			key := fromAddress + toAddress
+			key := fromAddress + ":" + toAddress
 			if _, closeOk := closeInstructionMap[key]; closeOk {
 				delete(closeInstructionMap, key)
 			} else {
@@ -1446,7 +1447,7 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 			accountTotal++
 			fromAddress = instructionInfo["account"].(string)
 			toAddress = instructionInfo["destination"].(string)
-			key := toAddress + fromAddress
+			key := toAddress + ":" + fromAddress
 			if _, createOk := createInstructionMap[key]; createOk {
 				delete(createInstructionMap, key)
 			} else {
@@ -1487,7 +1488,7 @@ func reduceInstructions(instructions []*Instruction) []*Instruction {
 		if instructionType == "createAccount" {
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["newAccount"].(string)
-			key := fromAddress + toAddress
+			key := fromAddress + ":" + toAddress
 			if _, closeOk := closeInstructionMap[key]; closeOk {
 				delete(closeInstructionMap, key)
 			} else {
@@ -1496,7 +1497,7 @@ func reduceInstructions(instructions []*Instruction) []*Instruction {
 		} else if instructionType == "closeAccount" {
 			fromAddress = instructionInfo["account"].(string)
 			toAddress = instructionInfo["destination"].(string)
-			key := toAddress + fromAddress
+			key := toAddress + ":" + fromAddress
 			if _, createOk := createInstructionMap[key]; createOk {
 				delete(createInstructionMap, key)
 			} else {
