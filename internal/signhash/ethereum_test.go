@@ -222,6 +222,25 @@ func TestEvmV3(t *testing.T) {
 	t.Log(h)
 }
 
+const complicatedEvmV3 = `{
+  "sessionId": "439dc9d83cbd45449b9c2097ab5d580d",
+  "address": "0x601a40931c68C0D0fAC79116705e9f037ae97F89",
+  "chainName": "Polygon",
+  "chainId": 137,
+  "application": "https://opensea.io/assets/matic/0x8e0dcca4e6587d2028ed948b7285791269059a62/364009",
+  "method": "eth_signTypedData_v4",
+  "message": "{\"types\":{\"EIP712Domain\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"version\",\"type\":\"string\"},{\"name\":\"chainId\",\"type\":\"uint256\"},{\"name\":\"verifyingContract\",\"type\":\"address\"}],\"OrderComponents\":[{\"name\":\"offerer\",\"type\":\"address\"},{\"name\":\"zone\",\"type\":\"address\"},{\"name\":\"offer\",\"type\":\"OfferItem[]\"},{\"name\":\"consideration\",\"type\":\"ConsiderationItem[]\"},{\"name\":\"orderType\",\"type\":\"uint8\"},{\"name\":\"startTime\",\"type\":\"uint256\"},{\"name\":\"endTime\",\"type\":\"uint256\"},{\"name\":\"zoneHash\",\"type\":\"bytes32\"},{\"name\":\"salt\",\"type\":\"uint256\"},{\"name\":\"conduitKey\",\"type\":\"bytes32\"},{\"name\":\"counter\",\"type\":\"uint256\"}],\"OfferItem\":[{\"name\":\"itemType\",\"type\":\"uint8\"},{\"name\":\"token\",\"type\":\"address\"},{\"name\":\"identifierOrCriteria\",\"type\":\"uint256\"},{\"name\":\"startAmount\",\"type\":\"uint256\"},{\"name\":\"endAmount\",\"type\":\"uint256\"}],\"ConsiderationItem\":[{\"name\":\"itemType\",\"type\":\"uint8\"},{\"name\":\"token\",\"type\":\"address\"},{\"name\":\"identifierOrCriteria\",\"type\":\"uint256\"},{\"name\":\"startAmount\",\"type\":\"uint256\"},{\"name\":\"endAmount\",\"type\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\"}]},\"primaryType\":\"OrderComponents\",\"domain\":{\"name\":\"Seaport\",\"version\":\"1.5\",\"chainId\":\"137\",\"verifyingContract\":\"0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC\"},\"message\":{\"offerer\":\"0x601a40931c68C0D0fAC79116705e9f037ae97F89\",\"offer\":[{\"itemType\":\"2\",\"token\":\"0x8E0DCCa4E6587d2028ed948b7285791269059a62\",\"identifierOrCriteria\":\"364009\",\"startAmount\":\"1\",\"endAmount\":\"1\"}],\"consideration\":[{\"itemType\":\"0\",\"token\":\"0x0000000000000000000000000000000000000000\",\"identifierOrCriteria\":\"0\",\"startAmount\":\"97500000000000000000\",\"endAmount\":\"97500000000000000000\",\"recipient\":\"0x601a40931c68C0D0fAC79116705e9f037ae97F89\"},{\"itemType\":\"0\",\"token\":\"0x0000000000000000000000000000000000000000\",\"identifierOrCriteria\":\"0\",\"startAmount\":\"2500000000000000000\",\"endAmount\":\"2500000000000000000\",\"recipient\":\"0x0000a26b00c1F0DF003000390027140000fAa719\"}],\"startTime\":\"1694517181\",\"endTime\":\"1694520779\",\"orderType\":\"0\",\"zone\":\"0x0000000000000000000000000000000000000000\",\"zoneHash\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"salt\":\"24446860302761739304752683030156737591518664810215442929817216382650618172443\",\"conduitKey\":\"0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000\",\"totalOriginalConsiderationItems\":\"2\",\"counter\":\"0\"}}"
+}`
+
+func TestComplicatedEvmV3(t *testing.T) {
+	var req *SignMessageRequest
+	err := json.Unmarshal([]byte(complicatedEvmV3), &req)
+	assert.NoError(t, err)
+	h, err := Hash("EVM", req)
+	assert.NoError(t, err)
+	assert.Equal(t, "552dedddcfb3158d5f47e414e0a5fd8e6ab8b35d2f65017c5e6bea6d7d54c126", h)
+}
+
 func TestEvmV4(t *testing.T) {
 	byts, err := json.Marshal(signTypedDataV4)
 	assert.NoError(t, err)
