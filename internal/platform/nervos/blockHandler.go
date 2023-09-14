@@ -86,10 +86,10 @@ func (h *handler) OnForkedBlock(client chain.Clienter, block *chain.Block) error
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链删除数据库中分叉孤块数据失败", h.chainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链扫块，删除数据库中分叉孤块数据失败", h.chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(h.chainName+"扫块，从数据库中删除分叉孤块数据失败", zap.Any("current", curHeight), zap.Any("error", err))
+		log.Error("扫块，从数据库中删除分叉孤块数据失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("error", err))
 		return err
 	}
 	pcommon.NotifyForkedDelete(h.chainName, block.Number, rows)

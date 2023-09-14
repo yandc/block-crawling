@@ -109,7 +109,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -118,7 +118,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -162,7 +162,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if txType == biz.TRANSFER || (contractAddress != APT_CODE && contractAddress != "") {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
@@ -296,7 +296,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -305,7 +305,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -349,7 +349,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if contractAddress != APT_CODE && contractAddress != "" {
 			tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, itemName)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
+				log.Error("扫块，从nodeProxy中获取NFT信息失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
@@ -431,7 +431,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			fromAddress = utils.AddressAdd0(fromAddress)
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -440,7 +440,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			toAddress = utils.AddressAdd0(toAddress)
 			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 		}
@@ -484,7 +484,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if contractAddress != APT_CODE && contractAddress != "" {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
@@ -645,7 +645,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				fromAddress = utils.AddressAdd0(fromAddress)
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -654,7 +654,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				toAddress = utils.AddressAdd0(toAddress)
 				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 				if err != nil {
-					log.Error(h.chainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -669,7 +669,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				if tokenType != "" {
 					tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, itemName)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取NFT信息失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
+						log.Error("扫块，从nodeProxy中获取NFT信息失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", itemName), zap.Any("error", err))
 					}
 					functionName := mode[len(mode)-1]
 					if strings.Contains(functionName, "Mint") || strings.Contains(functionName, "_mint") || strings.HasPrefix(functionName, "mint") {
@@ -678,7 +678,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				} else {
 					tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 					if err != nil {
-						log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("new", height), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					}
 				}
 				tokenInfo.Amount = amount
@@ -829,7 +829,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 	if !transactionInfo.Success && record.TransactionHash == "" && record.TransactionVersion > 0 {
 		tx, err = client.GetTxByVersion(record.TransactionVersion)
 		if err != nil {
-			log.Error(h.chainName+"扫块，从链上获取区块信息失败", zap.Any("transactionVersion", record.TransactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
+			log.Error("扫块，从链上获取区块信息失败", zap.Any("chainName", h.chainName), zap.Any("transactionVersion", record.TransactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
 			return err
 		}
 		tx.Record = record
@@ -855,7 +855,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err err
 
 	block, err := client.GetBlockByTxVersion(transactionVersion)
 	if err != nil {
-		log.Error(h.chainName+"扫块，从链上获取区块信息失败", zap.Any("transactionVersion", transactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
+		log.Error("扫块，从链上获取区块信息失败", zap.Any("chainName", h.chainName), zap.Any("transactionVersion", transactionVersion) /*, zap.Any("new", height)*/, zap.Any("error", err))
 		return err
 	}
 	tx.BlockNumber = block.Number
@@ -883,10 +883,10 @@ func (h *txHandler) Save(c chain.Clienter) error {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.chainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+			log.Error("扫块，将数据插入到数据库中失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {

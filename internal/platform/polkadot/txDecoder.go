@@ -85,10 +85,10 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.ChainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.block.Number), zap.Any("new", h.chainHeight), zap.Any("error", err))
+			log.Error("扫块，将数据插入到数据库中失败", zap.Any("chainName", h.ChainName), zap.Any("current", h.block.Number), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {

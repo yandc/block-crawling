@@ -57,7 +57,7 @@ func FixNftInfo() {
 				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				log.Error("定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
 			}
 			txHashMap := make(map[string]string)
@@ -77,7 +77,7 @@ func FixNftInfo() {
 						token, err = biz.GetCollectionInfoDirectlyRetryAlert(nil, chainName, tokenAddress)
 					}
 					if err != nil {
-						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						log.Error("定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("chainName", chainName), zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
 					}
 					if token.Address == "" {
@@ -98,7 +98,7 @@ func FixNftInfo() {
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					log.Error("定时修复NFT信息，将数据更新到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 					return
 				}
 			}
@@ -109,7 +109,7 @@ func FixNftInfo() {
 				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				log.Error("定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
 			}
 			txHashMap := make(map[string]string)
@@ -124,7 +124,7 @@ func FixNftInfo() {
 				if _, ok := txHashMap[txHash]; !ok {
 					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						log.Error("定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("chainName", chainName), zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
 					}
 					if token.Address == "" {
@@ -145,7 +145,7 @@ func FixNftInfo() {
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					log.Error("定时修复NFT信息，将数据更新到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 					return
 				}
 			}
@@ -156,7 +156,7 @@ func FixNftInfo() {
 				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				log.Error("定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
 			}
 			txHashMap := make(map[string]string)
@@ -171,7 +171,7 @@ func FixNftInfo() {
 				if _, ok := txHashMap[txHash]; !ok {
 					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						log.Error("定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("chainName", chainName), zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
 					}
 					if token.Address == "" {
@@ -192,7 +192,7 @@ func FixNftInfo() {
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					log.Error("定时修复NFT信息，将数据更新到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 					return
 				}
 			}
@@ -203,7 +203,7 @@ func FixNftInfo() {
 				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				log.Error("定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
 			}
 			txHashMap := make(map[string]string)
@@ -218,7 +218,7 @@ func FixNftInfo() {
 				if _, ok := txHashMap[txHash]; !ok {
 					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						log.Error("定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("chainName", chainName), zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
 					}
 					if token.Address == "" {
@@ -239,7 +239,7 @@ func FixNftInfo() {
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					log.Error("定时修复NFT信息，将数据更新到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 					return
 				}
 			}
@@ -250,7 +250,7 @@ func FixNftInfo() {
 				alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，从数据库中查询交易记录信息失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("error", err))
+				log.Error("定时修复NFT信息，从数据库中查询交易记录信息失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				return
 			}
 			txHashMap := make(map[string]string)
@@ -265,7 +265,7 @@ func FixNftInfo() {
 				if _, ok := txHashMap[txHash]; !ok {
 					token, err := biz.GetNftInfoDirectlyRetryAlert(nil, chainName, tokenAddress, tokenId)
 					if err != nil {
-						log.Error(chainName+"定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+						log.Error("定时修复NFT信息，从nodeProxy中获取NFT信息失败", zap.Any("chainName", chainName), zap.Any("txHash", txHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 						continue
 					}
 					if token.Address == "" {
@@ -286,7 +286,7 @@ func FixNftInfo() {
 					alarmMsg := fmt.Sprintf("请注意：%s定时修复NFT信息，将数据更新到数据库中失败", chainName)
 					alarmOpts := biz.WithMsgLevel("FATAL")
 					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-					log.Error(chainName+"定时修复NFT信息，将数据更新到数据库中失败", zap.Any("error", err))
+					log.Error("定时修复NFT信息，将数据更新到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 					return
 				}
 			}

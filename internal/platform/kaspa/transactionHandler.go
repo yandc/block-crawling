@@ -101,10 +101,10 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.KasTrans
 			}
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，请求节点查询用户资产失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，查询用户资产失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链更新用户资产，请求节点查询用户资产失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				log.Error("更新用户资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 					zap.Any("fromAddress", record.FromAddress), zap.Any("error", err))
 				return
 			}
@@ -122,10 +122,10 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.KasTrans
 			}
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，请求节点查询用户资产失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，查询用户资产失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链更新用户资产，请求节点查询用户资产失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				log.Error("更新用户资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 					zap.Any("toAddress", record.ToAddress), zap.Any("error", err))
 				return
 			}
@@ -153,7 +153,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.KasTrans
 		alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，将数据插入到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链更新用户资产，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error("更新用户资产，将数据插入到数据库中失败", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
 }
 
@@ -166,7 +166,7 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 		return client.GetBalance(address)
 	})
 	if err != nil {
-		log.Error(chainName+"链query balance error", zap.Any("address", address), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return nil, err
 	}
 	balance := result.(string)
@@ -194,7 +194,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.KasT
 			}
 
 			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链统计交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额失败, error：%s", chainName, fmt.Sprintf("%s", err))
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			return
@@ -295,7 +295,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 			alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，请求节点查询用户UTXO失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("fromAddress", record.FromAddress), zap.Any("error", err))
+			log.Error("更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("chainName", chainName), zap.Any("fromAddress", record.FromAddress), zap.Any("error", err))
 			return
 		}
 		if fromUtxoRecords != nil {
@@ -321,7 +321,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 			alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，请求节点查询用户UTXO失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("toAddress", record.ToAddress), zap.Any("error", err))
+			log.Error("更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("chainName", chainName), zap.Any("toAddress", record.ToAddress), zap.Any("error", err))
 			return
 		}
 		if toUtxoRecords != nil {
@@ -359,7 +359,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 		alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，删除数据库中数据失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链更新用户UTXO，删除数据库中数据失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error("更新用户UTXO，删除数据库中数据失败", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
 
 	_, err = data.UtxoUnspentRecordRepoClient.PageBatchSaveOrUpdate(nil, utxoRecords, biz.PAGE_SIZE)
@@ -372,7 +372,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 		alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，将数据插入到数据库中失败", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
 		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链更新用户UTXO，将数据插入到数据库中失败", zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
+		log.Error("更新用户UTXO，将数据插入到数据库中失败", zap.Any("chainName", chainName), zap.Any("blockNumber", txRecords[0].BlockNumber), zap.Any("error", err))
 	}
 }
 
@@ -387,7 +387,7 @@ func doHandleUserUtxo(chainName string, client Client, uid string, address strin
 		return client.GetUtxo(address)
 	})
 	if err != nil {
-		log.Error(chainName+"链query utxo error", zap.Any("address", address), zap.Any("error", err))
+		log.Error("query utxo error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return nil, err
 	}
 	utxoList := result.([]*KaspaUtxoResp)

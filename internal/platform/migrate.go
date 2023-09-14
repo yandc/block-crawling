@@ -4664,7 +4664,7 @@ func doHandleTokenUri(dbSource *gorm.DB, chainName string, limit int) {
 			if tokenAddress != "" && tokenInfo.TokenType == "" && tokenInfo.TokenUri == "" {
 				token, err := biz.GetTokenInfoRetryAlert(nil, chainName, tokenAddress)
 				if err != nil {
-					log.Error(chainName+"链处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+					log.Error("处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("chainName", chainName), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 					continue
 				}
 				oldParseData := "\"}}"
@@ -4687,7 +4687,7 @@ func doHandleTokenUri(dbSource *gorm.DB, chainName string, limit int) {
 				if tokenAddress != "" && eventLog.Token.TokenType == "" && eventLog.Token.TokenUri == "" {
 					token, err := biz.GetTokenInfoRetryAlert(nil, chainName, tokenAddress)
 					if err != nil {
-						log.Error(chainName+"链处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+						log.Error("处理交易记录TokenInfo中tokenUri，从nodeProxy中获取代币精度失败", zap.Any("chainName", chainName), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						continue
 					}
 					eventLog.Token.TokenUri = token.TokenUri
@@ -5478,7 +5478,7 @@ func doHandleUserAsset(chainName string, client ethereum.Client, uid string, add
 
 	balance, err := client.GetBalance(address)
 	if err != nil {
-		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -5502,7 +5502,7 @@ func doHandleUserTokenAsset(chainName string, client ethereum.Client, uid string
 	var userAssets []*data.UserAsset
 	balanceList, err := client.BatchTokenBalance(address, tokenDecimalsMap)
 	if err != nil {
-		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
 		return nil, err
 	}
 	for tokenAddress, balancei := range balanceList {
@@ -5576,7 +5576,7 @@ func doHandleStcUserAsset(chainName string, client starcoin.Client, uid string, 
 		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
 	}
 	if err != nil {
-		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -5635,7 +5635,7 @@ func doHandleTrxUserAsset(chainName string, client tron.Client, uid string, addr
 		balance, err = client.GetTokenBalance(address, tokenAddress, int(decimals))
 	}
 	if err != nil {
-		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 		return nil, err
 	}
 
@@ -5685,7 +5685,7 @@ func doHandleBtcUserAsset(chainName string, client bitcoin.Client, uid string, a
 
 	balance, err := client.GetBalance(address)
 	if err != nil {
-		log.Error(chainName+"query balance error", zap.Any("address", address), zap.Any("error", err))
+		log.Error("query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return nil, err
 	}
 
