@@ -94,7 +94,7 @@ func (h *txHandler) onTx(
 		if txType != chain.TxTypeNative {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddr)
 			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("txHash", txHash), zap.Any("error", err))
 			}
 
 			tokenInfo.Amount = rawTx.amounts[i]
@@ -185,10 +185,10 @@ func (h *txHandler) Save(c chain.Clienter) error {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("ckb主网扫块，将数据插入到数据库中失败", zap.Any("current", curHeight), zap.Any("error", err))
+			log.Error("扫块，将数据插入到数据库中失败", zap.Any("chainName", h.chainName), zap.Any("current", curHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {

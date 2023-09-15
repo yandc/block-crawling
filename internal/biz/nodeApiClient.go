@@ -119,12 +119,13 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 	ctx := context.Background()
 	lastRecord, err := data.EvmTransactionRecordRepoClient.FindLastBlockNumberByAddress(ctx, GetTableName(chainName), address)
 	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录查询当前记录块高失败, error：%s", chainName, fmt.Sprintf("%s", err))
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return
-
 	}
+
 	var dbLastRecordSlotNumber int
 	var dbLastRecordHash string
 	if lastRecord != nil {
@@ -151,7 +152,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		alarmOpts := WithMsgLevel("FATAL")
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询, 未查出结果，但是资产有变动", chainName)
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Warn(alarmMsg, zap.Any("lastTx", lastRecord))
+		log.Warn(alarmMsg, zap.Any("chainName", chainName), zap.Any("lastTx", lastRecord))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
 		transactionRecordMap := make(map[string]string)
@@ -207,12 +208,12 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 			ta := types2.HexToAddress(intxRecord.To).Hex()
 			_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, fa)
 			if err1 != nil {
-				log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", fa), zap.Any("error", err1))
+				log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err1))
 				return
 			}
 			_, toUid, err2 := UserAddressSwitchRetryAlert(chainName, ta)
 			if err2 != nil {
-				log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", fa), zap.Any("error", err2))
+				log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err2))
 				return
 			}
 			parseData := ""
@@ -254,10 +255,10 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		if len(evmTransactionRecordList) > 0 {
 			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
 			if err != nil {
-				alarmMsg := fmt.Sprintf("请注意：%s链插入链上交易记录数据到数据库中失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 				return err
 			}
 		}
@@ -296,6 +297,7 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s, error：%s", chainName, address, fmt.Sprintf("%s", err))
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			changeUrl = true
 			break
 		}
@@ -327,6 +329,7 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s, error：%s", chainName, address, msg)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("msg", msg))
 			changeUrl = true
 			break
 		}
@@ -558,7 +561,7 @@ func OsmosisGetTxByAddress(chainName string, address string, urls []string) (err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -586,7 +589,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -601,7 +604,7 @@ chainFlag:
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Height), zap.Any("txHash", txHash), zap.Any("error", err))
 				break chainFlag
 			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
@@ -641,13 +644,12 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
 
 	return
-
 }
 
 func CosmosGetTxByAddress(chainName string, address string, urls []string) (err error) {
@@ -679,7 +681,7 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -708,7 +710,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -723,7 +725,7 @@ chainFlag:
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Data.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Data.Height), zap.Any("txHash", txHash), zap.Any("error", err))
 				break chainFlag
 			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
@@ -765,7 +767,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -843,7 +845,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordSlotNumber int
@@ -871,7 +873,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
 		return err
 	}
 
@@ -881,7 +883,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -912,7 +914,7 @@ chainFlag:
 			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break*/
 		}
 
@@ -977,7 +979,7 @@ chainFlag:
 			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break*/
 		}
 
@@ -1043,7 +1045,7 @@ chainFlag:
 			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break*/
 		}
 
@@ -1134,7 +1136,7 @@ func AptosGetTxByAddress(chainName string, address string, urls []string) (err e
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordVersion int
@@ -1168,7 +1170,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
 			break
 		}
 
@@ -1216,7 +1218,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1293,7 +1295,7 @@ func StarcoinGetTxByAddress(chainName string, address string, urls []string) (er
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -1322,7 +1324,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -1337,7 +1339,7 @@ chainFlag:
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
 				break chainFlag
 			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
@@ -1375,7 +1377,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1416,7 +1418,7 @@ func KlaytnGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -1441,7 +1443,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 		if out.Success {
@@ -1465,7 +1467,7 @@ chainFlag:
 
 	if len(klayRecords) == 0 {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询, 未查出结果，但是资产有变动", chainName)
-		log.Warn(alarmMsg, zap.Any("lastTx", klayRecords))
+		log.Warn(alarmMsg, zap.Any("chainName", chainName), zap.Any("lastTx", klayRecords))
 	} else {
 		var evmTransactionRecordList []*data.EvmTransactionRecord
 		transactionRecordMap := make(map[string]string)
@@ -1494,10 +1496,10 @@ chainFlag:
 		if len(evmTransactionRecordList) > 0 {
 			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
 			if err != nil {
-				alarmMsg := fmt.Sprintf("请注意：%s链插入链上交易记录数据到数据库中失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 				return err
 			}
 		}
@@ -1541,7 +1543,7 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -1561,7 +1563,7 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 	}
 	var zkTransactionRecordList []*data.EvmTransactionRecord
 	if len(out.Items) > 0 {
@@ -1597,7 +1599,7 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1638,7 +1640,7 @@ func RoninGetTxByAddress(chainName string, address string, urls []string) (err e
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -1662,7 +1664,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -1709,7 +1711,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1748,7 +1750,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordHash string
@@ -1811,7 +1813,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1832,7 +1834,7 @@ func CasperTransferAndextendedDeploys(url string, address string, chainName stri
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
 	}
 	if out.ItemCount > 0 {
 		for _, browserInfo := range out.Data {
@@ -1881,7 +1883,7 @@ func DogeGetTxByAddress(chainName string, address string, urls []string) (err er
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordHash string
@@ -1889,7 +1891,6 @@ func DogeGetTxByAddress(chainName string, address string, urls []string) (err er
 	if len(dbLastRecords) > 0 {
 		dbLastRecordHash = dbLastRecords[0].TransactionHash
 		txTime = dbLastRecords[0].TxTime
-
 	}
 
 	var chainRecords []*DogeApiRecord
@@ -1906,7 +1907,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -1924,9 +1925,10 @@ chainFlag:
 			}
 			pageNum++
 		} else {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询失败, error：%s", chainName, out.Error)
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常, error：%s", chainName, out.Error)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 	}
@@ -1957,7 +1959,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -1997,7 +1999,7 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordHash string
@@ -2038,7 +2040,7 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2078,7 +2080,7 @@ func DotGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordHash string
@@ -2109,7 +2111,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", baseURL), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", baseURL), zap.Any("error", err))
 			break
 		}
 
@@ -2128,9 +2130,10 @@ chainFlag:
 			}
 			pageNum++
 		} else {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s, error：%s", chainName, address, out.Message)
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s, error：%s", chainName, address, out.Message)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
 			break
 		}
 	}
@@ -2163,7 +2166,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2222,7 +2225,7 @@ func BTCGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -2247,7 +2250,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -2298,7 +2301,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2338,25 +2341,25 @@ func UtxoByAddress(chainName string, address string) (err error) {
 	}
 
 	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链, query utxo balance error", chainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，query utxo balance error", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("update utxo query balance error", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，update utxo query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, address)
 	if err1 != nil {
-		log.Error(chainName+"浏览器地址，从redis中获取用户地址失败", zap.Any("address", address), zap.Any("error", err1))
+		log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err1))
 		return
 	}
 	ret, err := data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, fromUid, chainName, address)
 
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链删除数据库utxo数据失败", chainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，链删除数据库utxo数据失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"扫块，链删除数据库utxo数据失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，链删除数据库utxo数据失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return
 	}
 	log.Info(address, zap.Any("删除utxo条数", ret))
@@ -2374,9 +2377,9 @@ func UtxoByAddress(chainName string, address string) (err error) {
 				TxTime:    int64(d.Mined.Date),
 				UpdatedAt: time.Now().Unix(),
 			}
-			log.Info(address, zap.Any("插入utxo对象", utxoUnspentRecord))
+			log.Info(address, zap.Any("chainName", chainName), zap.Any("插入utxo对象", utxoUnspentRecord))
 			r, error := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
-			log.Info(address, zap.Any("插入utxo对象结果", r), zap.Any("error", error))
+			log.Info(address, zap.Any("chainName", chainName), zap.Any("插入utxo对象结果", r), zap.Any("error", error))
 		}
 	}
 	return
@@ -2413,7 +2416,7 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var txTime int64
@@ -2474,7 +2477,7 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2600,7 +2603,7 @@ func NervosGetTxByAddress(chainName string, address string, urls []string) (err 
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -2629,7 +2632,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -2644,7 +2647,7 @@ chainFlag:
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Attributes.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Attributes.BlockNumber), zap.Any("txHash", txHash), zap.Any("error", err))
 				break chainFlag
 			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
@@ -2685,7 +2688,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2722,7 +2725,7 @@ func SuiGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -2745,7 +2748,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("error", err))
 			break
 		}
 
@@ -2766,7 +2769,7 @@ chainFlag:
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
 				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("blockNumber", browserInfo.Checkpoint), zap.Any("txHash", txHash), zap.Any("error", err))
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", url), zap.Any("blockNumber", browserInfo.Checkpoint), zap.Any("txHash", txHash), zap.Any("error", err))
 				break chainFlag
 			}
 			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
@@ -2824,7 +2827,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -2903,7 +2906,7 @@ func KaspaGetTxByAddress(chainName string, address string, urls []string) (err e
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbTxTime int64
@@ -2932,7 +2935,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break
 		}
 
@@ -2986,7 +2989,7 @@ chainFlag:
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -3136,7 +3139,7 @@ func SeiGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，链查询数据库交易记录失败", zap.Any("address", address), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
 	var dbLastRecordBlockNumber int
@@ -3162,7 +3165,7 @@ func SeiGetTxByAddress(chainName string, address string, urls []string) (err err
 		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
 		return err
 	}
 
@@ -3172,7 +3175,7 @@ func SeiGetTxByAddress(chainName string, address string, urls []string) (err err
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("address", address), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			return err
 		}
 	}
@@ -3258,7 +3261,7 @@ chainFlag:
 			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break*/
 		}
 
@@ -3325,7 +3328,7 @@ chainFlag:
 			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
 			break*/
 		}
 

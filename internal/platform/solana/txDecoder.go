@@ -328,7 +328,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if fromAddress != "" {
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -336,7 +336,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if toAddress != "" {
 				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -355,7 +355,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if contractAddress != "" {
 				tokenInfo, err = biz.GetTokenNftInfoRetryAlert(nil, h.ChainName, contractAddress, programId)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("tokenAddress", contractAddress), zap.Any("error", err))
+					log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", txHash), zap.Any("tokenAddress", contractAddress), zap.Any("error", err))
 				}
 				if txType != biz.REGISTERTOKEN {
 					tokenInfo.Amount = amount
@@ -406,7 +406,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				if fromAddress != "" {
 					fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 					if err != nil {
-						log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+						log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 						return
 					}
 				}
@@ -458,7 +458,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		for _, fromAddress = range signerAddressList {
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 			if err != nil {
-				log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("current", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("current", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
 			if fromAddressExist {
@@ -656,7 +656,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if fromAddress != "" {
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, fromAddress)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -664,7 +664,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if toAddress != "" {
 				toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.ChainName, toAddress)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从redis中获取用户地址失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
+					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
 			}
@@ -675,7 +675,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			if contractAddress != "" {
 				tokenInfo, err = biz.GetTokenNftInfoRetryAlert(nil, h.ChainName, contractAddress, programId)
 				if err != nil {
-					log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("error", err))
+					log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("error", err))
 				}
 				tokenInfo.Amount = amount
 				tokenInfo.Address = contractAddress
@@ -835,7 +835,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 						if mint != "" {
 							tokenInfo, err = biz.GetTokenNftInfoRetryAlert(nil, h.ChainName, mint, tokenBalance.ProgramId)
 							if err != nil {
-								log.Error(h.ChainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", mint), zap.Any("error", err))
+								log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.ChainName), zap.Any("curHeight", curHeight), zap.Any("new", h.chainHeight), zap.Any("curSlot", curSlot), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", mint), zap.Any("error", err))
 							}
 							tokenInfo.Amount = transferAmount.String()
 							tokenInfo.Address = mint
@@ -921,7 +921,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			// database btree index maximum is 2704
 			logAddressLen := len(logAddress)
 			if logAddressLen > 2704 {
-				log.Error(h.ChainName+"扫块，logAddress长度超过最大限制", zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
+				log.Error("扫块，logAddress长度超过最大限制", zap.Any("chainName", h.ChainName), zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
 				logAddress = nil
 			}
 			solContractRecord.LogAddress = logAddress
@@ -1029,10 +1029,10 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.ChainName))
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", h.ChainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.ChainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(h.ChainName+"扫块，将数据插入到数据库中失败", zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
+			log.Error("扫块，将数据插入到数据库中失败", zap.Any("chainName", h.ChainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("error", err))
 			return err
 		}
 		if h.newTxs {

@@ -101,13 +101,13 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 		}
 		if err != nil {
 			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，清空用户资产失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"清空用户资产，将数据插入到数据库中失败", zap.Any("error", err))
+			log.Error("更新用户资产，清空用户资产失败", zap.Any("chainName", chainName), zap.Any("error", err))
 		}
 	}
-	log.Info("DDDYYY", zap.Any("init", userAssetList))
+	log.Info("更新用户资产，DDDYYY", zap.Any("init", userAssetList))
 
 	for _, userAsset := range userAssetList {
 		if userAsset == nil {
@@ -121,7 +121,7 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 		if userAsset.TokenAddress != "" {
 			tokenInfo, err := biz.GetTokenInfoRetryAlert(nil, chainName, userAsset.TokenAddress)
 			if err != nil {
-				log.Error(chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("error", err))
+				log.Error("更新用户资产，从nodeProxy中获取代币精度失败", zap.Any("chainName", chainName), zap.Any("error", err))
 				continue
 			}
 			decimals = tokenInfo.Decimals
@@ -148,7 +148,7 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 		} else {
 			userAssetMap[userAssetKey] = userAsset
 		}
-		log.Info("DDDYYY", zap.Any("map", userAssetMap), zap.Any("len", len(userAssetMap)))
+		log.Info("更新用户资产，DDDYYY", zap.Any("chainName", chainName), zap.Any("map", userAssetMap), zap.Any("len", len(userAssetMap)))
 
 		if len(userAssetMap) == 0 {
 			return
@@ -160,10 +160,10 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 			_, err := data.UserAssetRepoClient.SaveOrUpdate(nil, u)
 			if err != nil {
 				// postgres出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链插入数据到数据库中失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，将数据插入到数据库中失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error(chainName+"更新用户资产，将数据插入到数据库中失败", zap.Any("error", err))
+				log.Error("更新用户资产，将数据插入到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 			}
 		}
 	}
@@ -179,7 +179,7 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.CkbT
 			}
 
 			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链统计交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额失败, error：%s", chainName, fmt.Sprintf("%s", err))
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			return
@@ -195,10 +195,10 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.CkbT
 		decimals, _, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 统计交易记录出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"交易记录统计，解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+			log.Error("统计交易金额，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
@@ -291,10 +291,10 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.CkbTrans
 		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析parseData失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"解析parseData失败", zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+			log.Error("推送token信息，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
 				zap.Any("parseData", record.ParseData), zap.Any("error", err))
 			continue
 		}
@@ -328,15 +328,15 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 			return client.GetUTXOByHash(ret)
 		})
 		if err != nil {
-			log.Error(chainName+"调用GetCellByHash失败！", zap.Any("error", err))
+			log.Error("更新用户UTXO，调用GetCellByHash失败！", zap.Any("chainName", chainName), zap.Any("error", err))
 			continue
 		}
 		tx := result.(*types.TransactionWithStatus)
 
 		if record.Status == "success" {
-			log.Info("zydghg", zap.Any(record.TransactionHash, tx))
+			log.Info("更新用户UTXO，zydghg", zap.Any("chainName", chainName), zap.Any(record.TransactionHash, tx))
 			if record.FromUid != "" {
-				log.Info("zydghg1", zap.Any(record.TransactionHash, tx))
+				log.Info("更新用户UTXO，zydghg1", zap.Any("chainName", chainName), zap.Any(record.TransactionHash, tx))
 
 				// 标记成 已用
 				cellInputs := tx.Transaction.Inputs
@@ -379,7 +379,7 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 					//	nervosCellRecord.TypeArgs = types.BytesToHash(output.Type.Args).String()
 					//}
 					r, _ := data.NervosCellRecordRepoClient.SaveOrUpdate(nil, nervosCellRecord)
-					log.Info("zydghg2", zap.Any(record.TransactionHash, r))
+					log.Info("更新用户UTXO，zydghg2", zap.Any("chainName", chainName), zap.Any(record.TransactionHash, r))
 				}
 				if record.FromAddress != "" {
 					addressList = append(addressList, record.FromAddress)
@@ -391,7 +391,7 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 				//判断地址是否是 用户中心
 				toAddr, err := address.ConvertScriptToAddress(client.mode, toTxOutput.Lock)
 				if err != nil {
-					log.Error("解析to地址失败", zap.Any("toAddr", toAddr))
+					log.Error("更新用户UTXO，解析to地址失败", zap.Any("chainName", chainName), zap.Any("toAddr", toAddr))
 					continue
 				}
 				var toAddrUid = ""
@@ -440,27 +440,27 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 		if record.Status == biz.FAIL || record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
 			ret, _ := data.NervosCellRecordRepoClient.UpdateStatusByUseTransactionHash(nil, record.TransactionHash, "1")
 			if ret == 0 {
-				log.Error(record.TransactionHash, zap.String(record.TransactionHash, "更新失败"))
+				log.Error("更新用户UTXO，更新状态失败", zap.Any("chainName", chainName), zap.String("txHash", record.TransactionHash))
 			}
 		}
-
 	}
+
 	//更新资产
 	tempList := utils.RemoveDuplicate(addressList)
 	var userAssets []*data.UserAsset
-	log.Info("fffff", zap.Any("地址", tempList))
+	log.Info("更新用户UTXO，fffff", zap.Any("chainName", chainName), zap.Any("地址", tempList))
 	for _, address := range tempList {
 		req := &pb.UnspentReq{}
 		req.Address = address
 		req.IsUnspent = "1"
 		cells, err := data.NervosCellRecordRepoClient.FindByCondition(nil, req)
-		log.Info("fffff", zap.Any(address, cells))
+		log.Info("更新用户UTXO，fffff", zap.Any("chainName", chainName), zap.Any(address, cells))
 
 		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链,地址%s更新资产失败失败", chainName, address)
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，查询Cell失败，address：%s", chainName, address)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error(chainName+"链，地址"+address+"资产更新失败！", zap.Any("error", err))
+			log.Error("更新用户UTXO，查询Cell失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 			continue
 		}
 		if len(cells) > 0 {
@@ -476,7 +476,7 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 			}
 		}
 	}
-	log.Info("fffff", zap.Any(chainName, userAssets))
+	log.Info("更新用户UTXO，fffff", zap.Any("chainName", chainName), zap.Any(chainName, userAssets))
 
 	go handleUserAsset(chainName, userAssets, tempList)
 }

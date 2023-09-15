@@ -213,8 +213,8 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 //
 // Note that loading full blocks requires two requests. Use HeaderByHash
 // if you don't need all transactions or uncle headers.
-func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
-	return ec.getBlock(ctx, "eth_getBlockByHash", hash, true)
+func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
+	return c.getBlock(ctx, "eth_getBlockByHash", hash, true)
 }
 
 // BlockByNumber returns a block from the current canonical chain. If number is nil, the
@@ -222,13 +222,13 @@ func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*Block, er
 //
 // Note that loading full blocks requires two requests. Use HeaderByNumber
 // if you don't need all transactions or uncle headers.
-func (ec *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
-	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
+func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, error) {
+	return c.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }
 
-func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*Block, error) {
+func (c *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*Block, error) {
 	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, method, args...)
+	err := c.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	} else if len(raw) == 0 {
@@ -341,9 +341,9 @@ func (b *Block) Time() uint64 {
 }
 
 // TransactionByHash returns the transaction with the given hash.
-func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *Transaction, isPending bool, err error) {
+func (c *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *Transaction, isPending bool, err error) {
 	var json *Transaction
-	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
+	err = c.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
 	if err != nil {
 		return nil, false, err
 	} else if json == nil {
@@ -878,9 +878,9 @@ func deriveChainId(v *big.Int) *big.Int {
 	return v.Div(v, big.NewInt(2))
 }
 
-func (ec *Client) TransactionReceipt(ctx context.Context, txHash common.Hash) (receipt *Receipt, err error) {
+func (c *Client) TransactionReceipt(ctx context.Context, txHash common.Hash) (receipt *Receipt, err error) {
 	var r *Receipt
-	err = ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	err = c.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound
