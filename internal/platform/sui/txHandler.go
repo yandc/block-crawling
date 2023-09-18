@@ -7,14 +7,11 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
-
-	"gorm.io/datatypes"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -335,8 +332,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var gasUsed string
 		var feeAmount decimal.Decimal
 		var payload string
-		var eventLogs []*types.EventLog
-		var suiTransactionRecords []*data.SuiTransactionRecord
+		var eventLogs []*types.EventLogUid
 		var suiContractRecord *data.SuiTransactionRecord
 
 		txType := biz.CONTRACT
@@ -448,9 +444,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				continue
 			}
 
-			index++
-			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
-
 			if event.TxType == biz.TRANSFER {
 				tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 				if err != nil {
@@ -473,16 +466,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					tokenInfo.TokenId = tokenId
 				}
 			}
-			suiMap := map[string]interface{}{
-				"token": tokenInfo,
-			}
-			parseData, _ := utils.JsonEncode(suiMap)
 			amountValue, _ := decimal.NewFromString(amount)
-			eventLogInfo := &types.EventLog{
-				From:   fromAddress,
-				To:     toAddress,
-				Amount: amountValue.BigInt(),
-				Token:  tokenInfo,
+			eventLogInfo := &types.EventLogUid{
+				EventLog: types.EventLog{
+					From:   fromAddress,
+					To:     toAddress,
+					Amount: amountValue.BigInt(),
+					Token:  tokenInfo,
+				},
+				FromUid: fromUid,
+				ToUid:   toUid,
 			}
 
 			var isContinue bool
@@ -497,14 +490,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						isContinue = true
 						subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
 						eventLogs[i].Amount = subAmount
-						suiTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
 					} else if cmp == 0 {
 						isContinue = true
 						eventLogs[i] = nil
-						suiTransactionRecords[i] = nil
 					} else if cmp == -1 {
 						eventLogs[i] = nil
-						suiTransactionRecords[i] = nil
 					}
 					break
 				} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
@@ -512,7 +502,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					isContinue = true
 					addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
 					eventLogs[i].Amount = addAmount
-					suiTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
 					break
 				}
 			}
@@ -520,21 +509,47 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				continue
 			}
 			eventLogs = append(eventLogs, eventLogInfo)
+		}
+
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, suiContractRecord)
+		}
+
+		if len(eventLogs) > 0 {
+			logAddress := biz.GetLogAddressFromEventLogUid(eventLogs)
+			// database btree index maximum is 2704
+			logAddressLen := len(logAddress)
+			if logAddressLen > 2704 {
+				log.Error("扫块，logAddress长度超过最大限制", zap.Any("chainName", h.chainName), zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
+				logAddress = nil
+			}
+			suiContractRecord.LogAddress = logAddress
+		}
+
+		for index, eventLog := range eventLogs {
+			eventMap := map[string]interface{}{
+				"token": tokenInfo,
+			}
+			eventParseData, _ := utils.JsonEncode(eventMap)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+			txType := biz.EVENTLOG
+			contractAddress := eventLog.Token.Address
+			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 
 			suiTransactionRecord := &data.SuiTransactionRecord{
 				BlockHash:       chainBlock.Hash,
 				BlockNumber:     int(curHeight),
 				TransactionHash: txHash,
-				FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,
+				FromAddress:     eventLog.From,
+				ToAddress:       eventLog.To,
+				FromUid:         eventLog.FromUid,
+				ToUid:           eventLog.ToUid,
 				FeeAmount:       feeAmount,
 				Amount:          amountValue,
 				Status:          status,
 				TxTime:          txTime,
 				ContractAddress: contractAddress,
-				ParseData:       parseData,
+				ParseData:       eventParseData,
 				GasLimit:        gasLimit,
 				GasUsed:         gasUsed,
 				Data:            payload,
@@ -545,45 +560,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				CreatedAt:       h.now,
 				UpdatedAt:       h.now,
 			}
-			suiTransactionRecords = append(suiTransactionRecords, suiTransactionRecord)
+			h.txRecords = append(h.txRecords, suiTransactionRecord)
 		}
+		eventLogLen := len(eventLogs)
 
-		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
-			h.txRecords = append(h.txRecords, suiContractRecord)
-		}
-		if len(eventLogs) > 0 {
-			for _, suiTransactionRecord := range suiTransactionRecords {
-				if suiTransactionRecord != nil {
-					h.txRecords = append(h.txRecords, suiTransactionRecord)
-				}
-			}
-
-			var eventLogList []*types.EventLog
-			for _, eventLog := range eventLogs {
-				if eventLog != nil {
-					eventLogList = append(eventLogList, eventLog)
-				}
-			}
-			if len(eventLogList) > 0 {
-				eventLog, _ := utils.JsonEncode(eventLogList)
-				suiContractRecord.EventLog = eventLog
-
-				var logAddress datatypes.JSON
-				var logFromAddress []string
-				var logToAddress []string
-				for _, log := range eventLogList {
-					logFromAddress = append(logFromAddress, log.From)
-					logToAddress = append(logToAddress, log.To)
-				}
-				logAddressList := [][]string{logFromAddress, logToAddress}
-				logAddress, _ = json.Marshal(logAddressList)
-				suiContractRecord.LogAddress = logAddress
-
-				if len(eventLogList) == 2 && ((suiContractRecord.FromAddress == eventLogList[0].From && suiContractRecord.FromAddress == eventLogList[1].To) ||
-					(suiContractRecord.FromAddress == eventLogList[0].To && suiContractRecord.FromAddress == eventLogList[1].From)) {
-					suiContractRecord.TransactionType = biz.SWAP
-				}
-			}
+		if eventLogLen == 2 && ((suiContractRecord.FromAddress == eventLogs[0].From && suiContractRecord.FromAddress == eventLogs[1].To) ||
+			(suiContractRecord.FromAddress == eventLogs[0].To && suiContractRecord.FromAddress == eventLogs[1].From)) {
+			suiContractRecord.TransactionType = biz.SWAP
 		}
 	}
 	return nil
