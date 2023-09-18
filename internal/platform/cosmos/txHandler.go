@@ -7,14 +7,11 @@ import (
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
-
-	"gorm.io/datatypes"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -484,8 +481,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var txTime int64
 		var feeAmount decimal.Decimal
 		var payload string
-		var eventLogs []*types.EventLog
-		var atomTransactionRecords []*data.AtomTransactionRecord
+		var eventLogs []*types.EventLogUid
 		var atomContractRecord *data.AtomTransactionRecord
 
 		txType := biz.CONTRACT
@@ -635,7 +631,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		txType = biz.EVENTLOG
-		index := 0
 
 		for _, txLog := range tx.TxResponse.Logs {
 			var fromAddress, toAddress, fromUid, toUid string
@@ -830,9 +825,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 								contractAddress = tokenDenom
 							}
 
-							index++
-							txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
-
 							if contractAddress != "" {
 								if tokenType != "" {
 									tokenInfo, err = biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, tokenId)
@@ -861,19 +853,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 									}
 								}
 							}
-							atomosMap := map[string]interface{}{
-								"cosmos": map[string]string{
-									"sequence_number": strconv.Itoa(int(nonce)),
-								},
-								"token": tokenInfo,
-							}
-							parseData, _ := utils.JsonEncode(atomosMap)
 							amountValue, _ := decimal.NewFromString(amount)
-							eventLogInfo := &types.EventLog{
-								From:   fromAddress,
-								To:     toAddress,
-								Amount: amountValue.BigInt(),
-								Token:  tokenInfo,
+							eventLogInfo := &types.EventLogUid{
+								EventLog: types.EventLog{
+									From:   fromAddress,
+									To:     toAddress,
+									Amount: amountValue.BigInt(),
+									Token:  tokenInfo,
+								},
+								FromUid: fromUid,
+								ToUid:   toUid,
 							}
 
 							var isContinue bool
@@ -888,14 +877,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 										isContinue = true
 										subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
 										eventLogs[i].Amount = subAmount
-										atomTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
 									} else if cmp == 0 {
 										isContinue = true
 										eventLogs[i] = nil
-										atomTransactionRecords[i] = nil
 									} else if cmp == -1 {
 										eventLogs[i] = nil
-										atomTransactionRecords[i] = nil
 									}
 									break
 								} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
@@ -903,7 +889,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 									isContinue = true
 									addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
 									eventLogs[i].Amount = addAmount
-									atomTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
 									break
 								}
 							}
@@ -911,34 +896,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 								continue
 							}
 							eventLogs = append(eventLogs, eventLogInfo)
-
-							atomTransactionRecord := &data.AtomTransactionRecord{
-								BlockHash:       chainBlock.Hash,
-								BlockNumber:     int(curHeight),
-								Nonce:           int64(nonce),
-								TransactionHash: txHash,
-								FromAddress:     fromAddress,
-								ToAddress:       toAddress,
-								FromUid:         fromUid,
-								ToUid:           toUid,
-								FeeAmount:       feeAmount,
-								Amount:          amountValue,
-								Status:          status,
-								TxTime:          txTime,
-								ContractAddress: contractAddress,
-								ParseData:       parseData,
-								GasLimit:        tx.TxResponse.GasWanted,
-								GasUsed:         tx.TxResponse.GasUsed,
-								GasPrice:        gasPrice,
-								Data:            payload,
-								EventLog:        "",
-								TransactionType: txType,
-								DappData:        "",
-								ClientData:      "",
-								CreatedAt:       h.now,
-								UpdatedAt:       h.now,
-							}
-							atomTransactionRecords = append(atomTransactionRecords, atomTransactionRecord)
 						}
 					}
 				} else if event.Type == "coin_spent" {
@@ -957,39 +914,64 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, atomContractRecord)
 		}
+
 		if len(eventLogs) > 0 {
-			for _, atomTransactionRecord := range atomTransactionRecords {
-				if atomTransactionRecord != nil {
-					h.txRecords = append(h.txRecords, atomTransactionRecord)
-				}
+			logAddress := biz.GetLogAddressFromEventLogUid(eventLogs)
+			// database btree index maximum is 2704
+			logAddressLen := len(logAddress)
+			if logAddressLen > 2704 {
+				log.Error("扫块，logAddress长度超过最大限制", zap.Any("chainName", h.chainName), zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
+				logAddress = nil
 			}
+			atomContractRecord.LogAddress = logAddress
+		}
 
-			var eventLogList []*types.EventLog
-			for _, eventLog := range eventLogs {
-				if eventLog != nil {
-					eventLogList = append(eventLogList, eventLog)
-				}
+		for index, eventLog := range eventLogs {
+			eventMap := map[string]interface{}{
+				"cosmos": map[string]string{
+					"sequence_number": strconv.Itoa(int(nonce)),
+				},
+				"token": tokenInfo,
 			}
-			if len(eventLogList) > 0 {
-				eventLog, _ := utils.JsonEncode(eventLogList)
-				atomContractRecord.EventLog = eventLog
+			eventParseData, _ := utils.JsonEncode(eventMap)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+			txType := biz.EVENTLOG
+			contractAddress := eventLog.Token.Address
+			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 
-				var logAddress datatypes.JSON
-				var logFromAddress []string
-				var logToAddress []string
-				for _, log := range eventLogList {
-					logFromAddress = append(logFromAddress, log.From)
-					logToAddress = append(logToAddress, log.To)
-				}
-				logAddressList := [][]string{logFromAddress, logToAddress}
-				logAddress, _ = json.Marshal(logAddressList)
-				atomContractRecord.LogAddress = logAddress
-
-				if len(eventLogList) == 2 && ((atomContractRecord.FromAddress == eventLogList[0].From && atomContractRecord.FromAddress == eventLogList[1].To) ||
-					(atomContractRecord.FromAddress == eventLogList[0].To && atomContractRecord.FromAddress == eventLogList[1].From)) {
-					atomContractRecord.TransactionType = biz.SWAP
-				}
+			atomTransactionRecord := &data.AtomTransactionRecord{
+				BlockHash:       chainBlock.Hash,
+				BlockNumber:     int(curHeight),
+				Nonce:           int64(nonce),
+				TransactionHash: txHash,
+				FromAddress:     eventLog.From,
+				ToAddress:       eventLog.To,
+				FromUid:         eventLog.FromUid,
+				ToUid:           eventLog.ToUid,
+				FeeAmount:       feeAmount,
+				Amount:          amountValue,
+				Status:          status,
+				TxTime:          txTime,
+				ContractAddress: contractAddress,
+				ParseData:       eventParseData,
+				GasLimit:        tx.TxResponse.GasWanted,
+				GasUsed:         tx.TxResponse.GasUsed,
+				GasPrice:        gasPrice,
+				Data:            payload,
+				EventLog:        "",
+				TransactionType: txType,
+				DappData:        "",
+				ClientData:      "",
+				CreatedAt:       h.now,
+				UpdatedAt:       h.now,
 			}
+			h.txRecords = append(h.txRecords, atomTransactionRecord)
+		}
+		eventLogLen := len(eventLogs)
+
+		if eventLogLen == 2 && ((atomContractRecord.FromAddress == eventLogs[0].From && atomContractRecord.FromAddress == eventLogs[1].To) ||
+			(atomContractRecord.FromAddress == eventLogs[0].To && atomContractRecord.FromAddress == eventLogs[1].From)) {
+			atomContractRecord.TransactionType = biz.SWAP
 		}
 	}
 	return nil

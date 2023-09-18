@@ -8,9 +8,7 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"gorm.io/datatypes"
 	"math/big"
 	"strconv"
 	"strings"
@@ -157,8 +155,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var feeAmount decimal.Decimal
 		var payload string
 		var status string
-		var eventLogs []*types.EventLog
-		var stcTransactionRecords []*data.StcTransactionRecord
+		var eventLogs []*types.EventLogUid
 		var stcContractRecord *data.StcTransactionRecord
 
 		/*events, err := client.GetTransactionEventByHash(transactionHash)
@@ -282,7 +279,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		txType = biz.EVENTLOG
-		index := 0
 
 		for _, event := range events {
 			var tokenInfo types.TokenInfo
@@ -336,9 +332,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				continue
 			}
 
-			index++
-			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index)
-
 			if !flag {
 				transactionInfo, err := client.GetTransactionInfoByHash(transactionHash)
 				for i := 0; i < 10 && err != nil; i++ {
@@ -382,19 +375,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				tokenInfo.Amount = amountStr
 				tokenInfo.Address = contractAddress
 			}
-			stcMap := map[string]interface{}{
-				"stc": map[string]string{
-					"sequence_number": userTransaction.RawTransaction.SequenceNumber,
+			//amountValue := decimal.NewFromBigInt(amount, 0)
+			eventLogInfo := &types.EventLogUid{
+				EventLog: types.EventLog{
+					From:   fromAddress,
+					To:     toAddress,
+					Amount: amount,
+					Token:  tokenInfo,
 				},
-				"token": tokenInfo,
-			}
-			parseData, _ := utils.JsonEncode(stcMap)
-			amountValue := decimal.NewFromBigInt(amount, 0)
-			eventLogInfo := &types.EventLog{
-				From:   fromAddress,
-				To:     toAddress,
-				Amount: amount,
-				Token:  tokenInfo,
+				FromUid: fromUid,
+				ToUid:   toUid,
 			}
 
 			var isContinue bool
@@ -409,14 +399,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						isContinue = true
 						subAmount := new(big.Int).Sub(eventLog.Amount, eventLogInfo.Amount)
 						eventLogs[i].Amount = subAmount
-						stcTransactionRecords[i].Amount = decimal.NewFromBigInt(subAmount, 0)
 					} else if cmp == 0 {
 						isContinue = true
 						eventLogs[i] = nil
-						stcTransactionRecords[i] = nil
 					} else if cmp == -1 {
 						eventLogs[i] = nil
-						stcTransactionRecords[i] = nil
 					}
 					break
 				} else if eventLog.From == eventLogInfo.From && eventLog.To == eventLogInfo.To && eventLog.Token.Address == eventLogInfo.Token.Address &&
@@ -424,7 +411,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					isContinue = true
 					addAmount := new(big.Int).Add(eventLog.Amount, eventLogInfo.Amount)
 					eventLogs[i].Amount = addAmount
-					stcTransactionRecords[i].Amount = decimal.NewFromBigInt(addAmount, 0)
 					break
 				}
 			}
@@ -432,22 +418,51 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				continue
 			}
 			eventLogs = append(eventLogs, eventLogInfo)
+		}
+
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, stcContractRecord)
+		}
+
+		if len(eventLogs) > 0 {
+			logAddress := biz.GetLogAddressFromEventLogUid(eventLogs)
+			// database btree index maximum is 2704
+			logAddressLen := len(logAddress)
+			if logAddressLen > 2704 {
+				log.Error("扫块，logAddress长度超过最大限制", zap.Any("chainName", h.chainName), zap.Any("txHash", transactionHash), zap.Any("logAddressLen", logAddressLen))
+				logAddress = nil
+			}
+			stcContractRecord.LogAddress = logAddress
+		}
+
+		for index, eventLog := range eventLogs {
+			eventMap := map[string]interface{}{
+				"stc": map[string]string{
+					"sequence_number": userTransaction.RawTransaction.SequenceNumber,
+				},
+				"token": tokenInfo,
+			}
+			eventParseData, _ := utils.JsonEncode(eventMap)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+			txType := biz.EVENTLOG
+			contractAddress := eventLog.Token.Address
+			amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
 
 			stcTransactionRecord := &data.StcTransactionRecord{
 				BlockHash:       block.BlockHeader.BlockHash,
 				BlockNumber:     curHeight,
 				Nonce:           int64(nonce),
 				TransactionHash: txHash,
-				FromAddress:     fromAddress,
-				ToAddress:       toAddress,
-				FromUid:         fromUid,
-				ToUid:           toUid,
+				FromAddress:     eventLog.From,
+				ToAddress:       eventLog.To,
+				FromUid:         eventLog.FromUid,
+				ToUid:           eventLog.ToUid,
 				FeeAmount:       feeAmount,
 				Amount:          amountValue,
 				Status:          status,
 				TxTime:          txTime,
 				ContractAddress: contractAddress,
-				ParseData:       parseData,
+				ParseData:       eventParseData,
 				GasLimit:        userTransaction.RawTransaction.MaxGasAmount,
 				GasUsed:         gasUsed,
 				GasPrice:        userTransaction.RawTransaction.GasUnitPrice,
@@ -459,45 +474,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				CreatedAt:       h.now,
 				UpdatedAt:       h.now,
 			}
-			stcTransactionRecords = append(stcTransactionRecords, stcTransactionRecord)
+			h.txRecords = append(h.txRecords, stcTransactionRecord)
 		}
+		eventLogLen := len(eventLogs)
 
-		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
-			h.txRecords = append(h.txRecords, stcContractRecord)
-		}
-		if len(eventLogs) > 0 {
-			for _, stcTransactionRecord := range stcTransactionRecords {
-				if stcTransactionRecord != nil {
-					h.txRecords = append(h.txRecords, stcTransactionRecord)
-				}
-			}
-
-			var eventLogList []*types.EventLog
-			for _, eventLog := range eventLogs {
-				if eventLog != nil {
-					eventLogList = append(eventLogList, eventLog)
-				}
-			}
-			if len(eventLogList) > 0 {
-				eventLog, _ := utils.JsonEncode(eventLogList)
-				stcContractRecord.EventLog = eventLog
-
-				var logAddress datatypes.JSON
-				var logFromAddress []string
-				var logToAddress []string
-				for _, log := range eventLogList {
-					logFromAddress = append(logFromAddress, log.From)
-					logToAddress = append(logToAddress, log.To)
-				}
-				logAddressList := [][]string{logFromAddress, logToAddress}
-				logAddress, _ = json.Marshal(logAddressList)
-				stcContractRecord.LogAddress = logAddress
-
-				if len(eventLogList) == 2 && ((stcContractRecord.FromAddress == eventLogList[0].From && stcContractRecord.FromAddress == eventLogList[1].To) ||
-					(stcContractRecord.FromAddress == eventLogList[0].To && stcContractRecord.FromAddress == eventLogList[1].From)) {
-					stcContractRecord.TransactionType = biz.SWAP
-				}
-			}
+		if eventLogLen == 2 && ((stcContractRecord.FromAddress == eventLogs[0].From && stcContractRecord.FromAddress == eventLogs[1].To) ||
+			(stcContractRecord.FromAddress == eventLogs[0].To && stcContractRecord.FromAddress == eventLogs[1].From)) {
+			stcContractRecord.TransactionType = biz.SWAP
 		}
 	}
 	return nil
