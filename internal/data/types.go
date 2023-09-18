@@ -44,6 +44,7 @@ type TransactionRequest struct {
 
 type SignReqPage struct {
 	Address             string   `json:"address"`
+	ClientAddress       string   `json:"clientAddress"`
 	ChainName           string   `json:"chainName"`
 	SignType            string   `json:"signType"`
 	SignStatus          []string `json:"signStatus"`

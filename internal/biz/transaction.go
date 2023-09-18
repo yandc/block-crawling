@@ -4974,21 +4974,24 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
+	clientAddress := ""
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
+			clientAddress = strings.ToLower(req.Address)
 		}
 	}
 
 	r := data.SignReqPage{
-		Address:    req.Address,
-		ChainName:  req.ChainName,
-		SignType:   req.SignType,
-		SignStatus: req.SignStatus,
-		PageNum:    req.Page,
-		PageSize:   req.Limit,
-		TradeTime:  req.TradeTime,
+		Address:       req.Address,
+		ChainName:     req.ChainName,
+		SignType:      req.SignType,
+		SignStatus:    req.SignStatus,
+		PageNum:       req.Page,
+		PageSize:      req.Limit,
+		TradeTime:     req.TradeTime,
+		ClientAddress: clientAddress,
 	}
 
 	if req.TransactionType != "" {
@@ -5230,7 +5233,7 @@ func (s *TransactionUsecase) SignTXBySessionId(ctx context.Context, req *SignTxR
 		}
 	}
 	return &SignTxResponse{
-		Ok:            true,
+		Ok:                    true,
 		SessionTxhashInfoList: sts,
 	}, nil
 }
