@@ -161,7 +161,7 @@ func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, signReqPage S
 
 	db := r.gormDB.Table("user_sendraw_history")
 	if signReqPage.Address != "" {
-		db = db.Where("address = ?", signReqPage.Address)
+		db = db.Where("address in (?)", []string{signReqPage.Address,signReqPage.ClientAddress})
 	}
 	if signReqPage.ChainName != "" {
 		db = db.Where("chain_name = ?", signReqPage.ChainName)
