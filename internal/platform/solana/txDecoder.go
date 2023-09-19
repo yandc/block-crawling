@@ -98,7 +98,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		preTokenBalanceMap[key] = tokenBalance
 	}
 	tokenAccountTokenBalanceMap := make(map[string]*TransferTokenBalance)
-	ownerTokenBalanceMap := make(map[string]map[string]*TransferTokenBalance)
+	ownerAccountTokenBalanceMap := make(map[string]map[string]*TransferTokenBalance)
 	for _, postTokenBalance := range postTokenBalances {
 		postAmount, _ := new(big.Int).SetString(postTokenBalance.UiTokenAmount.Amount, 0)
 		preAmount := new(big.Int)
@@ -113,10 +113,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 		tokenAccountTokenBalanceMap[tokenBalance.Pubkey] = tokenBalance
 		if tokenBalance.Owner != "" {
-			accountTokenBalanceMap, ok := ownerTokenBalanceMap[tokenBalance.Owner]
+			accountTokenBalanceMap, ok := ownerAccountTokenBalanceMap[tokenBalance.Owner]
 			if !ok {
 				accountTokenBalanceMap = make(map[string]*TransferTokenBalance)
-				ownerTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
+				ownerAccountTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
 			}
 			accountTokenBalanceMap[tokenBalance.Pubkey] = tokenBalance
 		}
@@ -134,10 +134,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			}
 			tokenAccountTokenBalanceMap[tokenBalance.Pubkey] = tokenBalance
 			if tokenBalance.Owner != "" {
-				accountTokenBalanceMap, ok := ownerTokenBalanceMap[tokenBalance.Owner]
+				accountTokenBalanceMap, ok := ownerAccountTokenBalanceMap[tokenBalance.Owner]
 				if !ok {
 					accountTokenBalanceMap = make(map[string]*TransferTokenBalance)
-					ownerTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
+					ownerAccountTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
 				}
 				accountTokenBalanceMap[tokenBalance.Pubkey] = tokenBalance
 			}
@@ -155,11 +155,11 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	}
 
 	//补全TokenBalance信息
-	plugTokenBalance(instructions, accountKeyMap, tokenAccountTokenBalanceMap, ownerTokenBalanceMap)
-	plugTokenBalance(innerInstructionList, accountKeyMap, tokenAccountTokenBalanceMap, ownerTokenBalanceMap)
+	plugTokenBalance(instructions, accountKeyMap, tokenAccountTokenBalanceMap, ownerAccountTokenBalanceMap)
+	plugTokenBalance(innerInstructionList, accountKeyMap, tokenAccountTokenBalanceMap, ownerAccountTokenBalanceMap)
 
 	ownerMintTokenBalanceMap := make(map[string]map[string]*TransferTokenBalance)
-	for owner, accountTokenBalanceMap := range ownerTokenBalanceMap {
+	for owner, accountTokenBalanceMap := range ownerAccountTokenBalanceMap {
 		mintTokenBalanceMap := make(map[string]*TransferTokenBalance)
 		for _, tokenBalance := range accountTokenBalanceMap {
 			mintTokenBalanceMap[tokenBalance.Mint] = tokenBalance
@@ -169,10 +169,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// 合并交易
 	//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
-	instructionList, transferTotal, accountTotal = mergeInstructions(instructions, tokenAccountTokenBalanceMap, ownerTokenBalanceMap)
-	innerInstructionList, innerTransferTotal, innerAccountTotal = mergeInstructions(innerInstructionList, tokenAccountTokenBalanceMap, ownerTokenBalanceMap)
+	instructionList, transferTotal, accountTotal = mergeInstructions(instructions, tokenAccountTokenBalanceMap)
+	innerInstructionList, innerTransferTotal, innerAccountTotal = mergeInstructions(innerInstructionList, tokenAccountTokenBalanceMap)
 
-	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": ownerTokenBalanceMap})
+	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": ownerMintTokenBalanceMap})
 	isContract := false
 	if innerTransferTotal > 0 || innerAccountTotal > 1 || len(instructionList) > 1 {
 		isContract = true
@@ -1054,7 +1054,7 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	return nil
 }
 
-func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*TransferAccountKey, tokenAccountTokenBalanceMap map[string]*TransferTokenBalance, ownerTokenBalanceMap map[string]map[string]*TransferTokenBalance) {
+func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*TransferAccountKey, tokenAccountTokenBalanceMap map[string]*TransferTokenBalance, ownerAccountTokenBalanceMap map[string]map[string]*TransferTokenBalance) {
 	var instructionList []*Instruction
 	for _, instruction := range instructions {
 		var contractAddress string
@@ -1105,10 +1105,10 @@ func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*Tra
 				//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
 				tokenBalance.Owner = fromAddress
 
-				accountTokenBalanceMap, ook := ownerTokenBalanceMap[tokenBalance.Owner]
+				accountTokenBalanceMap, ook := ownerAccountTokenBalanceMap[tokenBalance.Owner]
 				if !ook {
 					accountTokenBalanceMap = make(map[string]*TransferTokenBalance)
-					ownerTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
+					ownerAccountTokenBalanceMap[tokenBalance.Owner] = accountTokenBalanceMap
 				}
 				accountTokenBalanceMap[source] = tokenBalance
 			}
@@ -1143,13 +1143,13 @@ func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*Tra
 			}
 			tokenAccountTokenBalanceMap[source] = sourceTokenBalance
 
-			accountTokenBalanceMap, ook := ownerTokenBalanceMap[sourceTokenBalance.Owner]
+			accountTokenBalanceMap, ook := ownerAccountTokenBalanceMap[sourceTokenBalance.Owner]
 			if !ook {
 				accountTokenBalanceMap = make(map[string]*TransferTokenBalance)
-				ownerTokenBalanceMap[sourceTokenBalance.Owner] = accountTokenBalanceMap
+				ownerAccountTokenBalanceMap[sourceTokenBalance.Owner] = accountTokenBalanceMap
 			}
 			accountTokenBalanceMap[source] = sourceTokenBalance
-		} else if accountTokenBalanceMap, ook := ownerTokenBalanceMap[fromAddress]; ook {
+		} else if accountTokenBalanceMap, ook := ownerAccountTokenBalanceMap[fromAddress]; ook {
 			//补全缺失的中间态的TokenBalance数据
 			if tokenBalance, tok = accountTokenBalanceMap[source]; tok {
 				if tokenBalance.Owner == "" {
@@ -1182,17 +1182,17 @@ func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*Tra
 			}
 			tokenAccountTokenBalanceMap[source] = sourceTokenBalance
 
-			accountTokenBalanceMap, ook = ownerTokenBalanceMap[sourceTokenBalance.Owner]
+			accountTokenBalanceMap, ook = ownerAccountTokenBalanceMap[sourceTokenBalance.Owner]
 			if !ook {
 				accountTokenBalanceMap = make(map[string]*TransferTokenBalance)
-				ownerTokenBalanceMap[sourceTokenBalance.Owner] = accountTokenBalanceMap
+				ownerAccountTokenBalanceMap[sourceTokenBalance.Owner] = accountTokenBalanceMap
 			}
 			accountTokenBalanceMap[source] = sourceTokenBalance
 		}
 	}
 }
 
-func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap map[string]*TransferTokenBalance, ownerTokenBalanceMap map[string]map[string]*TransferTokenBalance) ([]*Instruction, int, int) {
+func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap map[string]*TransferTokenBalance) ([]*Instruction, int, int) {
 	var instructionList []*Instruction
 	var instructionMap = make(map[string]*Instruction)
 	var createInstructionMap = make(map[string]*Instruction)

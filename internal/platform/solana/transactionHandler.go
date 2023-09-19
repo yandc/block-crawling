@@ -35,7 +35,7 @@ func HandleRecord(chainName string, client Client, txRecords []*data.SolTransact
 
 	go func() {
 		HandleTokenPush(chainName, client, txRecords)
-		HandleUserAsset(false, chainName, client, txRecords)
+		HandleUserAsset(true, chainName, client, txRecords)
 	}()
 	go HandleUserStatistic(chainName, client, txRecords)
 	go HandleTransactionCount(chainName, client, txRecords)
@@ -130,7 +130,7 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 				tokenBalanceStr, tokenBalanceOk := changesPayload["tokenBalance"]
 				if !isPending && accountOk && accountKeyStr != nil && tokenBalanceOk && tokenBalanceStr != nil {
 					accountKeyMap := accountKeyStr.(map[string]interface{})
-					tokenBalanceMap := tokenBalanceStr.(map[string]interface{})
+					ownerMintTokenBalanceMap := tokenBalanceStr.(map[string]interface{})
 					if tokenAddress == "" {
 						if record.FromAddress != "" && record.FromUid != "" {
 							if changeMapi, ok := accountKeyMap[record.FromAddress]; ok {
@@ -175,49 +175,55 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 						}
 					} else {
 						if record.FromAddress != "" && record.FromUid != "" {
-							if changeMapi, ok := tokenBalanceMap[record.FromAddress]; ok {
-								changeMap := changeMapi.(map[string]interface{})
-								mint := changeMap["mint"].(string)
-								if tokenAddress == mint {
-									uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
-									balance := uiTokenAmount["uiAmountString"].(string)
-									var userAsset = &data.UserAsset{
-										ChainName:    chainName,
-										Uid:          record.FromUid,
-										Address:      record.FromAddress,
-										TokenAddress: tokenAddress,
-										Balance:      balance,
-										Decimals:     int32(decimals),
-										Symbol:       symbol,
-										CreatedAt:    now,
-										UpdatedAt:    now,
+							if mintTokenBalanceMapi, ok := ownerMintTokenBalanceMap[record.FromAddress]; ok {
+								mintTokenBalanceMap := mintTokenBalanceMapi.(map[string]interface{})
+								if tokenBalanceMapi, tok := mintTokenBalanceMap[tokenAddress]; tok {
+									tokenBalanceMap := tokenBalanceMapi.(map[string]interface{})
+									if uiTokenAmount, uok := tokenBalanceMap["uiTokenAmount"].(map[string]interface{}); uok {
+										balance, _ := uiTokenAmount["uiAmountString"].(string)
+										if balance != "" {
+											var userAsset = &data.UserAsset{
+												ChainName:    chainName,
+												Uid:          record.FromUid,
+												Address:      record.FromAddress,
+												TokenAddress: tokenAddress,
+												Balance:      balance,
+												Decimals:     int32(decimals),
+												Symbol:       symbol,
+												CreatedAt:    now,
+												UpdatedAt:    now,
+											}
+											userAssetKey := chainName + record.FromAddress + tokenAddress
+											userAssetMap[userAssetKey] = userAsset
+										}
 									}
-									userAssetKey := chainName + record.FromAddress + tokenAddress
-									userAssetMap[userAssetKey] = userAsset
 								}
 							}
 						}
 
 						if record.ToAddress != "" && record.ToUid != "" {
-							if changeMapi, ok := tokenBalanceMap[record.ToAddress]; ok {
-								changeMap := changeMapi.(map[string]interface{})
-								mint := changeMap["mint"].(string)
-								if tokenAddress == mint {
-									uiTokenAmount := changeMap["uiTokenAmount"].(map[string]interface{})
-									balance := uiTokenAmount["uiAmountString"].(string)
-									var userAsset = &data.UserAsset{
-										ChainName:    chainName,
-										Uid:          record.ToUid,
-										Address:      record.ToAddress,
-										TokenAddress: tokenAddress,
-										Balance:      balance,
-										Decimals:     int32(decimals),
-										Symbol:       symbol,
-										CreatedAt:    now,
-										UpdatedAt:    now,
+							if mintTokenBalanceMapi, ok := ownerMintTokenBalanceMap[record.ToAddress]; ok {
+								mintTokenBalanceMap := mintTokenBalanceMapi.(map[string]interface{})
+								if tokenBalanceMapi, tok := mintTokenBalanceMap[tokenAddress]; tok {
+									tokenBalanceMap := tokenBalanceMapi.(map[string]interface{})
+									if uiTokenAmount, uok := tokenBalanceMap["uiTokenAmount"].(map[string]interface{}); uok {
+										balance, _ := uiTokenAmount["uiAmountString"].(string)
+										if balance != "" {
+											var userAsset = &data.UserAsset{
+												ChainName:    chainName,
+												Uid:          record.ToUid,
+												Address:      record.ToAddress,
+												TokenAddress: tokenAddress,
+												Balance:      balance,
+												Decimals:     int32(decimals),
+												Symbol:       symbol,
+												CreatedAt:    now,
+												UpdatedAt:    now,
+											}
+											userAssetKey := chainName + record.ToAddress + tokenAddress
+											userAssetMap[userAssetKey] = userAsset
+										}
 									}
-									userAssetKey := chainName + record.ToAddress + tokenAddress
-									userAssetMap[userAssetKey] = userAsset
 								}
 							}
 						}
