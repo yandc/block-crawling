@@ -7466,49 +7466,33 @@ func UpdateAssetUidType() {
 	log.Info("填补uid对应的钱包类型，处理用户资产表开始")
 
 	var request = &data.AssetRequest{
-		GroupBy:  "uid, address",
-		PageNum:  1,
-		PageSize: data.MAX_PAGE_SIZE,
-		Total:    true,
+		SelectColumn: "id, uid, address",
+		OrderBy:      "id asc",
+		PageSize:     data.MAX_PAGE_SIZE,
 	}
 	uidUidTypeMap := make(map[string]int8)
-	var recordGroupList []*data.UserAssetWrapper
-	userAssets, total, err := data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
+	var recordGroupList []*data.UserAsset
+	recordGroupMap := make(map[string]*data.UserAsset)
+	var err error
+	var total int64
+	err = data.UserAssetRepoClient.PageListAllCallBack(nil, request, func(userAssets []*data.UserAsset) error {
+		total += int64(len(userAssets))
+		for _, userAsset := range userAssets {
+			key := userAsset.Uid + userAsset.Address
+			recordGroupMap[key] = userAsset
+		}
+		return nil
+	})
 	if err != nil {
-		log.Error("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("error", err))
+		log.Error("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
 		return
 	}
 	if total == 0 {
 		log.Info("填补uid对应的钱包类型，从数据库中查询用户资产为空", zap.Any("total", total))
 		return
 	}
-	recordGroupList = append(recordGroupList, userAssets...)
-	if total > data.MAX_PAGE_SIZE {
-		request.Total = false
-		pages := total / data.MAX_PAGE_SIZE
-		remainder := total % data.MAX_PAGE_SIZE
-		if remainder > 0 {
-			pages++
-		}
-
-		var i int64 = 2
-		for ; i <= pages; i++ {
-			log.Info("填补uid对应的钱包类型，从数据库中查询用户资产中", zap.Any("pageNum", i), zap.Any("pages", pages), zap.Any("total", total))
-			time.Sleep(time.Duration(5) * time.Second)
-			request.PageNum = int32(i)
-			userAssets, _, err = data.UserAssetRepoClient.PageListBalanceGroup(nil, request)
-			if err != nil {
-				log.Info("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("pageNum", i), zap.Any("pages", pages), zap.Any("total", total))
-				return
-			}
-			if len(userAssets) > 0 {
-				recordGroupList = append(recordGroupList, userAssets...)
-			}
-		}
-	}
-	if err != nil {
-		log.Error("填补uid对应的钱包类型，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
-		return
+	for _, userAsset := range recordGroupMap {
+		recordGroupList = append(recordGroupList, userAsset)
 	}
 
 	recordSize := len(recordGroupList)
@@ -7551,4 +7535,80 @@ func UpdateAssetUidType() {
 	}
 
 	log.Info("填补uid对应的钱包类型，处理用户资产表结束")
+}
+
+func UpdateAssetUid() {
+	log.Info("修改钱包地址对应的uid，处理用户资产表开始")
+
+	var request = &data.AssetRequest{
+		SelectColumn: "id, address",
+		Uid:          "10",
+		OrderBy:      "id asc",
+		PageSize:     data.MAX_PAGE_SIZE,
+	}
+	addressUidTypeMap := make(map[string]string)
+	var recordGroupList []*data.UserAsset
+	recordGroupMap := make(map[string]*data.UserAsset)
+	var err error
+	var total int64
+	err = data.UserAssetRepoClient.PageListAllCallBack(nil, request, func(userAssets []*data.UserAsset) error {
+		total += int64(len(userAssets))
+		for _, userAsset := range userAssets {
+			key := userAsset.Address
+			recordGroupMap[key] = userAsset
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error("修改钱包地址对应的uid，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
+		return
+	}
+	if total == 0 {
+		log.Info("修改钱包地址对应的uid，从数据库中查询用户资产为空", zap.Any("total", total))
+		return
+	}
+	for _, userAsset := range recordGroupMap {
+		recordGroupList = append(recordGroupList, userAsset)
+	}
+
+	recordSize := len(recordGroupList)
+	if recordSize == 0 {
+		log.Info("修改钱包地址对应的uid，从数据库中查询用户资产为空", zap.Any("size", recordSize), zap.Any("total", total))
+		return
+	}
+
+	log.Info("修改钱包地址对应的uid，开始执行从Redis中查询钱包类型操作", zap.Any("size", recordSize), zap.Any("total", total))
+	var num int
+	for _, userAsset := range recordGroupList {
+		uid, ok := addressUidTypeMap[userAsset.Address]
+		if ok {
+			continue
+		}
+		if num++; num%data.MAX_PAGE_SIZE == 0 {
+			log.Info("修改钱包地址对应的uid，从Redis中查询钱包类型中", zap.Any("num", num), zap.Any("size", recordSize), zap.Any("total", total))
+			time.Sleep(time.Duration(1) * time.Second)
+		}
+		_, uid, _ = biz.UserAddressSwitchRetryAlert(userAsset.ChainName, userAsset.Address)
+		addressUidTypeMap[userAsset.Address] = uid
+	}
+
+	log.Info("修改钱包地址对应的uid，开始执行修改数据库操作", zap.Any("size", len(addressUidTypeMap)))
+	num = 0
+	for address, uid := range addressUidTypeMap {
+		if num++; num%biz.PAGE_SIZE == 0 {
+			log.Info("修改钱包地址对应的uid，修改数据库中", zap.Any("num", num), zap.Any("size", len(addressUidTypeMap)))
+			time.Sleep(time.Duration(2) * time.Second)
+		}
+		var count int64
+		count, err = data.UserAssetRepoClient.UpdateUidByAddress(nil, address, uid)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = data.UserAssetRepoClient.UpdateUidByAddress(nil, address, uid)
+		}
+		if err != nil {
+			log.Error("修改钱包地址对应的uid，将数据插入到数据库中失败", zap.Any("size", len(addressUidTypeMap)), zap.Any("count", count), zap.Any("address", address), zap.Any("uid", uid), zap.Any("error", err))
+		}
+	}
+
+	log.Info("修改钱包地址对应的uid，处理用户资产表结束")
 }

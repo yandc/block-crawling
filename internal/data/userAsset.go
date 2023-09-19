@@ -76,6 +76,7 @@ type UserAssetRepo interface {
 	Update(context.Context, *UserAsset) (int64, error)
 	UpdateZeroByAddress(context.Context, string) (int64, error)
 	UpdateUidTypeByUid(context.Context, string, int8) (int64, error)
+	UpdateUidByAddress(context.Context, string, string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
@@ -85,7 +86,6 @@ type UserAssetRepo interface {
 	List(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalance(context.Context, *AssetRequest) ([]*UserAsset, error)
 	ListBalanceGroup(context.Context, *AssetRequest) ([]*UserAsset, error)
-	PageListBalanceGroup(context.Context, *AssetRequest) ([]*UserAssetWrapper, int64, error)
 	ListAddressAmountGroup(context.Context, *AssetRequest) ([]*UserAssetWrapper, error)
 	DeleteByID(context.Context, int64) (int64, error)
 	DeleteByIDs(context.Context, []int64) (int64, error)
@@ -277,6 +277,17 @@ func (r *UserAssetRepoImpl) UpdateUidTypeByUid(ctx context.Context, uid string, 
 	err := ret.Error
 	if err != nil {
 		log.Errore("update uidType by uid", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
+func (r *UserAssetRepoImpl) UpdateUidByAddress(ctx context.Context, address string, uid string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("address = ?", address).Update("uid", uid)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update uid by address", err)
 		return 0, err
 	}
 	affected := ret.RowsAffected
@@ -629,92 +640,6 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 		return nil, err
 	}
 	return userAssetList, nil
-}
-
-func (r *UserAssetRepoImpl) PageListBalanceGroup(ctx context.Context, req *AssetRequest) ([]*UserAssetWrapper, int64, error) {
-	var userAssetList []*UserAssetWrapper
-	var total int64
-
-	groupBy := req.GroupBy
-	if groupBy != "" {
-		groupBy += ", "
-	}
-	sqlStr := "with t as(" +
-		"select " + groupBy + "sum(cast(balance as numeric)) as balance "
-	sqlStr += "from user_asset " +
-		"where 1=1 "
-	if req.ChainName != "" {
-		sqlStr += " and chain_name = '" + req.ChainName + "'"
-	}
-	if req.Uid != "" {
-		sqlStr += " and uid = '" + req.Uid + "'"
-	}
-	if req.Address != "" {
-		sqlStr += " and address = '" + req.Address + "'"
-	}
-	if len(req.UidList) > 0 {
-		uidList := strings.ReplaceAll(utils.ListToString(req.UidList), "\"", "'")
-		sqlStr += " and uid in (" + uidList + ")"
-	}
-	if len(req.AddressList) > 0 {
-		addressList := strings.ReplaceAll(utils.ListToString(req.AddressList), "\"", "'")
-		sqlStr += " and address in (" + addressList + ")"
-	}
-	if len(req.TokenAddressList) > 0 {
-		tokenAddressList := strings.ReplaceAll(utils.ListToString(req.TokenAddressList), "\"", "'")
-		sqlStr += " and token_address in (" + tokenAddressList + ")"
-	}
-	if req.UidType != 0 {
-		sqlStr += " and uid_type = " + strconv.Itoa(int(req.UidType))
-	}
-	if len(req.UidTypeList) > 0 {
-		uidTypeList := strings.ReplaceAll(utils.ListToString(req.UidTypeList), "\"", "")
-		sqlStr += " and uid_type in (" + uidTypeList + ")"
-	}
-	if req.AmountType > 0 {
-		if req.AmountType == 1 {
-			sqlStr += " and (balance is null or balance = '' or balance = '0')"
-		} else if req.AmountType == 2 {
-			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
-		}
-	}
-
-	if req.GroupBy != "" {
-		sqlStr += " group by " + req.GroupBy
-	}
-	sqlStr += ")"
-
-	sqlStr += " select t.* "
-	if req.Total {
-		sqlStr += ", t1.* "
-	}
-	sqlStr += " from t "
-	if req.Total {
-		sqlStr += " inner join (select count(*) as total from t) as t1 on 1=1 "
-	}
-	if req.OrderBy != "" {
-		sqlStr += " order by t." + req.OrderBy
-	}
-
-	if req.DataDirection == 0 {
-		if req.PageNum > 0 {
-			sqlStr += " offset " + strconv.Itoa(int(req.PageNum-1)*int(req.PageSize))
-		} else {
-			sqlStr += " offset 0 "
-		}
-	}
-	sqlStr += " limit " + strconv.Itoa(int(req.PageSize))
-
-	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
-	err := ret.Error
-	if err != nil {
-		log.Errore("page query userAsset failed", err)
-		return nil, 0, err
-	}
-	if len(userAssetList) > 0 {
-		total = userAssetList[0].Total
-	}
-	return userAssetList, total, nil
 }
 
 func (r *UserAssetRepoImpl) ListAddressAmountGroup(ctx context.Context, req *AssetRequest) ([]*UserAssetWrapper, error) {
