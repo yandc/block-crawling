@@ -20,36 +20,33 @@ import (
 type AptTransactionRecord struct {
 	DefaultVersionMarkerIn
 
-	Id                  int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	BlockHash           string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
-	BlockNumber         int             `json:"blockNumber" form:"blockNumber"`
-	Nonce               int64           `json:"nonce" form:"nonce"`
-	TransactionVersion  int             `json:"transactionVersion" form:"transactionVersion"`
-	TransactionHash     string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	FromAddress         string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
-	ToAddress           string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
-	FromUid             string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid               string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
-	FeeAmount           decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
-	Amount              decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
-	Status              string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
-	TxTime              int64           `json:"txTime" form:"txTime"`
-	ContractAddress     string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(1024);index"`
-	ParseData           string          `json:"parseData" form:"parseData"`
-	StateRootHash       string          `json:"stateRootHash" form:"stateRootHash" gorm:"type:character varying(66)"`
-	EventRootHash       string          `json:"eventRootHash" form:"eventRootHash" gorm:"type:character varying(66)"`
-	AccumulatorRootHash string          `json:"accumulatorRootHash" form:"accumulatorRootHash" gorm:"type:character varying(66)"`
-	GasLimit            string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
-	GasUsed             string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
-	GasPrice            string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(20)"`
-	Data                string          `json:"data" form:"data"`
-	EventLog            string          `json:"eventLog" form:"eventLog"`
-	LogAddress          datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
-	TransactionType     string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
-	DappData            string          `json:"dappData" form:"dappData"`
-	ClientData          string          `json:"clientData" form:"clientData"`
-	CreatedAt           int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
-	UpdatedAt           int64           `json:"updatedAt" form:"updatedAt"`
+	Id                 int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	BlockHash          string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
+	BlockNumber        int             `json:"blockNumber" form:"blockNumber"`
+	Nonce              int64           `json:"nonce" form:"nonce"`
+	TransactionVersion int             `json:"transactionVersion" form:"transactionVersion"`
+	TransactionHash    string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	FromAddress        string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
+	ToAddress          string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
+	FromUid            string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
+	ToUid              string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FeeAmount          decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"` // gorm:"type:decimal.Decimal"
+	Amount             decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
+	Status             string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
+	TxTime             int64           `json:"txTime" form:"txTime"`
+	ContractAddress    string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(1024);index"`
+	ParseData          string          `json:"parseData" form:"parseData"`
+	GasLimit           string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
+	GasUsed            string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`
+	GasPrice           string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(20)"`
+	Data               string          `json:"data" form:"data"`
+	EventLog           string          `json:"eventLog" form:"eventLog"`
+	LogAddress         datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	TransactionType    string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	DappData           string          `json:"dappData" form:"dappData"`
+	ClientData         string          `json:"clientData" form:"clientData"`
+	CreatedAt          int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
+	UpdatedAt          int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 // AptTransactionRecordRepo is a Greater repo.
@@ -186,34 +183,31 @@ func (r *AptTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"block_hash":            clause.Column{Table: "excluded", Name: "block_hash"},
-			"block_number":          clause.Column{Table: "excluded", Name: "block_number"},
-			"nonce":                 clause.Column{Table: "excluded", Name: "nonce"},
-			"transaction_version":   clause.Column{Table: "excluded", Name: "transaction_version"},
-			"transaction_hash":      clause.Column{Table: "excluded", Name: "transaction_hash"},
-			"from_address":          clause.Column{Table: "excluded", Name: "from_address"},
-			"to_address":            clause.Column{Table: "excluded", Name: "to_address"},
-			"from_uid":              clause.Column{Table: "excluded", Name: "from_uid"},
-			"to_uid":                clause.Column{Table: "excluded", Name: "to_uid"},
-			"fee_amount":            clause.Column{Table: "excluded", Name: "fee_amount"},
-			"amount":                gorm.Expr("case when excluded.status = 'success' or (excluded.amount != '' and excluded.amount != '0') then excluded.amount else " + tableName + ".amount end"),
-			"status":                gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
-			"tx_time":               clause.Column{Table: "excluded", Name: "tx_time"},
-			"contract_address":      clause.Column{Table: "excluded", Name: "contract_address"},
-			"parse_data":            gorm.Expr("case when excluded.status = 'success' or excluded.parse_data not like '%\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}' or " + tableName + ".parse_data = '' then excluded.parse_data else " + tableName + ".parse_data end"),
-			"state_root_hash":       clause.Column{Table: "excluded", Name: "state_root_hash"},
-			"event_root_hash":       clause.Column{Table: "excluded", Name: "event_root_hash"},
-			"accumulator_root_hash": clause.Column{Table: "excluded", Name: "accumulator_root_hash"},
-			"gas_limit":             clause.Column{Table: "excluded", Name: "gas_limit"},
-			"gas_used":              clause.Column{Table: "excluded", Name: "gas_used"},
-			"gas_price":             clause.Column{Table: "excluded", Name: "gas_price"},
-			"data":                  clause.Column{Table: "excluded", Name: "data"},
-			"event_log":             clause.Column{Table: "excluded", Name: "event_log"},
-			"log_address":           clause.Column{Table: "excluded", Name: "log_address"},
-			"transaction_type":      gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
-			"dapp_data":             gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":           gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":            gorm.Expr("excluded.updated_at"),
+			"block_hash":          clause.Column{Table: "excluded", Name: "block_hash"},
+			"block_number":        clause.Column{Table: "excluded", Name: "block_number"},
+			"nonce":               clause.Column{Table: "excluded", Name: "nonce"},
+			"transaction_version": clause.Column{Table: "excluded", Name: "transaction_version"},
+			"transaction_hash":    clause.Column{Table: "excluded", Name: "transaction_hash"},
+			"from_address":        clause.Column{Table: "excluded", Name: "from_address"},
+			"to_address":          clause.Column{Table: "excluded", Name: "to_address"},
+			"from_uid":            clause.Column{Table: "excluded", Name: "from_uid"},
+			"to_uid":              clause.Column{Table: "excluded", Name: "to_uid"},
+			"fee_amount":          clause.Column{Table: "excluded", Name: "fee_amount"},
+			"amount":              gorm.Expr("case when excluded.status = 'success' or (excluded.amount != '' and excluded.amount != '0') then excluded.amount else " + tableName + ".amount end"),
+			"status":              gorm.Expr("case when (" + tableName + ".status in('success', 'fail', 'dropped_replaced', 'dropped') and excluded.status = 'no_status') or (" + tableName + ".status in('success', 'fail', 'dropped_replaced') and excluded.status = 'dropped') or (" + tableName + ".status in('success', 'fail') and excluded.status = 'dropped_replaced') then " + tableName + ".status else excluded.status end"),
+			"tx_time":             clause.Column{Table: "excluded", Name: "tx_time"},
+			"contract_address":    clause.Column{Table: "excluded", Name: "contract_address"},
+			"parse_data":          gorm.Expr("case when excluded.status = 'success' or excluded.parse_data not like '%\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}' or " + tableName + ".parse_data = '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"gas_limit":           clause.Column{Table: "excluded", Name: "gas_limit"},
+			"gas_used":            clause.Column{Table: "excluded", Name: "gas_used"},
+			"gas_price":           clause.Column{Table: "excluded", Name: "gas_price"},
+			"data":                clause.Column{Table: "excluded", Name: "data"},
+			"event_log":           clause.Column{Table: "excluded", Name: "event_log"},
+			"log_address":         clause.Column{Table: "excluded", Name: "log_address"},
+			"transaction_type":    gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
+			"dapp_data":           gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":         gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":          gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&aptTransactionRecords)
 	err := ret.Error
@@ -235,34 +229,31 @@ func (r *AptTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"block_hash":            gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
-			"block_number":          gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
-			"nonce":                 gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
-			"transaction_version":   gorm.Expr("case when excluded.transaction_version != 0 then excluded.transaction_version else " + tableName + ".transaction_version end"),
-			"transaction_hash":      gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
-			"from_address":          gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
-			"to_address":            gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
-			"from_uid":              gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
-			"to_uid":                gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
-			"fee_amount":            gorm.Expr("case when excluded.fee_amount != '' and excluded.fee_amount != '0' then excluded.fee_amount else " + tableName + ".fee_amount end"),
-			"amount":                gorm.Expr("case when excluded.amount != '' and excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
-			"status":                gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
-			"tx_time":               gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
-			"contract_address":      gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
-			"parse_data":            gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
-			"state_root_hash":       gorm.Expr("case when excluded.state_root_hash != '' then excluded.state_root_hash else " + tableName + ".state_root_hash end"),
-			"event_root_hash":       gorm.Expr("case when excluded.event_root_hash != '' then excluded.event_root_hash else " + tableName + ".event_root_hash end"),
-			"accumulator_root_hash": gorm.Expr("case when excluded.accumulator_root_hash != '' then excluded.accumulator_root_hash else " + tableName + ".accumulator_root_hash end"),
-			"gas_limit":             gorm.Expr("case when excluded.gas_limit != '' then excluded.gas_limit else " + tableName + ".gas_limit end"),
-			"gas_used":              gorm.Expr("case when excluded.gas_used != '' then excluded.gas_used else " + tableName + ".gas_used end"),
-			"gas_price":             gorm.Expr("case when excluded.gas_price != '' then excluded.gas_price else " + tableName + ".gas_price end"),
-			"data":                  gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
-			"event_log":             gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
-			"log_address":           gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
-			"transaction_type":      gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
-			"dapp_data":             gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
-			"client_data":           gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"updated_at":            gorm.Expr("excluded.updated_at"),
+			"block_hash":          gorm.Expr("case when excluded.block_hash != '' then excluded.block_hash else " + tableName + ".block_hash end"),
+			"block_number":        gorm.Expr("case when excluded.block_number != 0 then excluded.block_number else " + tableName + ".block_number end"),
+			"nonce":               gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
+			"transaction_version": gorm.Expr("case when excluded.transaction_version != 0 then excluded.transaction_version else " + tableName + ".transaction_version end"),
+			"transaction_hash":    gorm.Expr("case when excluded.transaction_hash != '' then excluded.transaction_hash else " + tableName + ".transaction_hash end"),
+			"from_address":        gorm.Expr("case when excluded.from_address != '' then excluded.from_address else " + tableName + ".from_address end"),
+			"to_address":          gorm.Expr("case when excluded.to_address != '' then excluded.to_address else " + tableName + ".to_address end"),
+			"from_uid":            gorm.Expr("case when excluded.from_uid != '' then excluded.from_uid else " + tableName + ".from_uid end"),
+			"to_uid":              gorm.Expr("case when excluded.to_uid != '' then excluded.to_uid else " + tableName + ".to_uid end"),
+			"fee_amount":          gorm.Expr("case when excluded.fee_amount != '' and excluded.fee_amount != '0' then excluded.fee_amount else " + tableName + ".fee_amount end"),
+			"amount":              gorm.Expr("case when excluded.amount != '' and excluded.amount != '0' then excluded.amount else " + tableName + ".amount end"),
+			"status":              gorm.Expr("case when excluded.status != '' then excluded.status else " + tableName + ".status end"),
+			"tx_time":             gorm.Expr("case when excluded.tx_time != 0 then excluded.tx_time else " + tableName + ".tx_time end"),
+			"contract_address":    gorm.Expr("case when excluded.contract_address != '' then excluded.contract_address else " + tableName + ".contract_address end"),
+			"parse_data":          gorm.Expr("case when excluded.parse_data != '' then excluded.parse_data else " + tableName + ".parse_data end"),
+			"gas_limit":           gorm.Expr("case when excluded.gas_limit != '' then excluded.gas_limit else " + tableName + ".gas_limit end"),
+			"gas_used":            gorm.Expr("case when excluded.gas_used != '' then excluded.gas_used else " + tableName + ".gas_used end"),
+			"gas_price":           gorm.Expr("case when excluded.gas_price != '' then excluded.gas_price else " + tableName + ".gas_price end"),
+			"data":                gorm.Expr("case when excluded.data != '' then excluded.data else " + tableName + ".data end"),
+			"event_log":           gorm.Expr("case when excluded.event_log != '' then excluded.event_log else " + tableName + ".event_log end"),
+			"log_address":         gorm.Expr("case when excluded.log_address is not null then excluded.log_address else " + tableName + ".log_address end"),
+			"transaction_type":    gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
+			"dapp_data":           gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
+			"client_data":         gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"updated_at":          gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&aptTransactionRecords)
 	err := ret.Error
