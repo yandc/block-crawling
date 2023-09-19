@@ -377,6 +377,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 	}
 
 	if platformUserCount > 1 && meta.TransactionType != biz.CONTRACT {
+		//https://polygonscan.com/tx/0xec7d73f2204d09fe978e0d8afb1ffea9937b2d0659ee2c5dc271bf78673a0b18
 		meta.TransactionType = biz.CONTRACT
 		amount = "0"
 	}

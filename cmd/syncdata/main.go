@@ -72,6 +72,7 @@ func main() {
 	//platform.DeleteAndUpdateAsset()
 	//platform.UpdateAsset()
 	//platform.HandleTokenInfo()
+	//platform.HandleTokenUri()
 	//platform.SyncChainNames([]string{"ETH", "Polygon", "Arbitrum","BSC"})
 	//platform.SyncChainNames([]string{"ETH"})
 	//platform.DeleteRecordData()
@@ -80,4 +81,5 @@ func main() {
 	//biz.GetTxByAddress("zkSync","0xb68Ad129c20d60B18c11735E16dCFd53294960BF",[]string{"https://block-explorer-api.mainnet.zksync.io/transactions"})
 	//platform.UpdateAssetUidType()
 	//platform.HandleTransactionRecordCount()
+	platform.UpdateAssetUid()
 }
