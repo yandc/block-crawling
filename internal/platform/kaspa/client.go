@@ -153,13 +153,16 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 	}
 	if len(rawTx.Inputs) > 0 {
 		for _, input := range rawTx.Inputs {
-			preRawTx, err := c.GetTransactionByHash(input.PreviousOutpointHash)
-			if err != nil {
-				if err.Error() == "Transaction not found" {
+			result, preErr := ExecuteRetry(c.ChainName, func(client Client) (interface{}, error) {
+				return c.GetTransactionByHash(input.PreviousOutpointHash)
+			})
+			if preErr != nil {
+				if preErr.Error() == "Transaction not found" {
 					return nil, common.TransactionNotFound
 				}
-				return nil, err
+				return nil, preErr
 			}
+			preRawTx := result.(*types.KaspaTransactionInfo)
 			index, _ := strconv.Atoi(input.PreviousOutpointIndex)
 			preOutputs := preRawTx.Outputs[index]
 			input.PreviousOutpointAmount = preOutputs.Amount
