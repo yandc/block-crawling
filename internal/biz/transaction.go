@@ -4527,13 +4527,17 @@ func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *Cha
 			GasPrice:  "150000",
 		}, nil
 	}
-	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST" && chainName != "BSC" && chainName != "Optimism") {
+	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST" && chainName != "BSC" && chainName != "Optimism" && chainName != "TRX") {
 		return nil, errors.New("unsupported chain")
 	}
 	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
+	if fmt.Sprintf("%s", err) == REDIS_NIL_KEY && chainName == "TRX"{
+		data.RedisClient.Set(TX_FEE_GAS_PRICE + chainName,"420",0).Err()
+		gasPrice = "420"
+	}
 	maxFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_FEE_PER_GAS + chainName).Result()
 	maxPriorityFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName).Result()
-	if err != nil {
+	if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY{
 		return nil, err
 	}
 	return &ChainFeeInfoResp{

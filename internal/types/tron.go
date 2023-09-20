@@ -102,7 +102,7 @@ type TronTxInfoResponse struct {
 	ContractResult  []string `json:"contractResult"`
 	ContractAddress string   `json:"contract_address"`
 	Receipt         struct {
-		EnergyUsage      int    `json:"energy_usage"`
+		EnergyUsage      int    `json:"energy_fee"`
 		EnergyUsageTotal int    `json:"energy_usage_total"`
 		NetUsage         int    `json:"net_usage"`
 		NetFee           int    `json:"net_fee"`
