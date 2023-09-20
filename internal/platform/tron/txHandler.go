@@ -33,6 +33,10 @@ type txHandler struct {
 }
 
 func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
+	rawBlock := block.Raw.(*types.BlockResponse)
+	rawTx := tx.Raw.(*RawTxWrapper)
+	transactionHash := rawTx.TxID
+
 	meta, err := common.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
@@ -52,8 +56,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
-	rawTx := tx.Raw.(*RawTxWrapper)
-	transactionHash := rawTx.TxID
+
 	client := c.(*Client)
 	status := biz.PENDING
 	if len(rawTx.Ret) > 0 {
@@ -70,7 +73,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if err != nil {
 		return err
 	}
-
+	energyFee := int64(txInfo.Receipt.EnergyUsage)
+	eneryTotal := int64(txInfo.Receipt.EnergyUsageTotal)
+	if energyFee != 0 && eneryTotal != 0 {
+		gasPrice := decimal.NewFromInt(energyFee).Div(decimal.NewFromInt(eneryTotal)).String()
+		go biz.ChainFeeSwitchRetryAlert(h.chainName, "", "", gasPrice, uint64(rawBlock.BlockHeader.RawData.Number), transactionHash)
+	}
 	if tx.TxType == biz.TRANSFER || tx.TxType == biz.APPROVE {
 		tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, rawTx.contractAddress)
 		if err != nil {
@@ -263,7 +271,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			logAddress = nil
 		}
 	}
-	rawBlock := block.Raw.(*types.BlockResponse)
 	trxContractRecord := &data.TrxTransactionRecord{
 		BlockHash:       block.Hash,
 		BlockNumber:     rawBlock.BlockHeader.RawData.Number,
