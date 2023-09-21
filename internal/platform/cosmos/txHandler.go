@@ -931,7 +931,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				"cosmos": map[string]string{
 					"sequence_number": strconv.Itoa(int(nonce)),
 				},
-				"token": tokenInfo,
+				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)

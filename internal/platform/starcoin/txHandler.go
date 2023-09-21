@@ -440,7 +440,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				"stc": map[string]string{
 					"sequence_number": userTransaction.RawTransaction.SequenceNumber,
 				},
-				"token": tokenInfo,
+				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)

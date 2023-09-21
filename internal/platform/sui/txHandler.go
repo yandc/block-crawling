@@ -528,7 +528,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 		for index, eventLog := range eventLogs {
 			eventMap := map[string]interface{}{
-				"token": tokenInfo,
+				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
