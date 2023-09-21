@@ -4978,7 +4978,7 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
-	clientAddress := ""
+	clientAddress := req.Address
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
