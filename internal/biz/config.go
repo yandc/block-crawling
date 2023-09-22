@@ -12,6 +12,7 @@ import (
 var platInfoMap = &sync.Map{}
 var chainNameType = &sync.Map{}
 var platformMap = &sync.Map{}
+var customChainMap = &sync.Map{}
 var HTTPProxies []*url.URL
 
 func GetChainPlatInfoMap() map[string]*conf.PlatInfo {
@@ -65,6 +66,15 @@ func GetChainPlatform(chainName string) (Platform, bool) {
 		return v.(Platform), ok
 	}
 	return nil, ok
+}
+
+func SetCustomChain(chainName string) {
+	customChainMap.Store(chainName, true)
+}
+
+func IsCustomChain(chainName string) bool {
+	_, loaded := customChainMap.Load(chainName)
+	return loaded
 }
 
 var AppConfig *conf.App
