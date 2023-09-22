@@ -897,10 +897,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			}
 		}
 
-		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
-			h.txRecords = append(h.txRecords, solContractRecord)
-		}
-
 		if len(eventLogs) > 0 {
 			var eventLogList []*types.EventLogUid
 			for _, eventLog := range eventLogs {
@@ -909,6 +905,10 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				}
 			}
 			eventLogs = eventLogList
+		}
+
+		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
+			h.txRecords = append(h.txRecords, solContractRecord)
 		}
 
 		if eventLogs != nil {

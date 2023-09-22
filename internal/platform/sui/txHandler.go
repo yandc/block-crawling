@@ -511,8 +511,23 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			eventLogs = append(eventLogs, eventLogInfo)
 		}
 
+		if len(eventLogs) > 0 {
+			var eventLogList []*types.EventLogUid
+			for _, eventLog := range eventLogs {
+				if eventLog != nil {
+					eventLogList = append(eventLogList, eventLog)
+				}
+			}
+			eventLogs = eventLogList
+		}
+
 		if fromAddressExist || toAddressExist || len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, suiContractRecord)
+		}
+
+		if eventLogs != nil {
+			eventLog, _ := utils.JsonEncode(eventLogs)
+			suiContractRecord.EventLog = eventLog
 		}
 
 		if len(eventLogs) > 0 {
