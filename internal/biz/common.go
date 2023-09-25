@@ -918,7 +918,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 					//}
 
 					//}
-					if dr[0] > 0{
+					if dr[0] > 0 {
 						err = data.RedisClient.Set(bizRedisKey, val, 0).Err()
 						log.Info(bizRedisKey+"推荐值", zap.Any("推荐", val), zap.Any(chainName, blockNumber))
 					}

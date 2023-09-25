@@ -75,10 +75,12 @@ func (d *DetectorZapWatcher) OnNodeFailover(current detector.Node, next detector
 				zap.Strings("nodeUrls", d.urls),
 			)
 		}
-		alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", d.chainName)
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		alarmOpts = biz.WithAlarmChainName(d.chainName)
-		biz.LarkClient.NotifyLark(alarmMsg, nil, d.urls, alarmOpts)
+		if !biz.IsCustomChain(d.chainName) {
+			alarmMsg := fmt.Sprintf("请注意：%s链目前没有可用rpcURL", d.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			alarmOpts = biz.WithAlarmChainName(d.chainName)
+			biz.LarkClient.NotifyLark(alarmMsg, nil, d.urls, alarmOpts)
+		}
 		if d.onAvailablityChanged != nil {
 			d.onAvailablityChanged(false)
 		}

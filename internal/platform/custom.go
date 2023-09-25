@@ -101,6 +101,7 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 		customBootstrapMap.Store(cp.Chain, bt)
 		biz.SetChainPlatInfo(cp.Chain, cp)
 		platInfos = append(platInfos, cp)
+		biz.SetCustomChain(cp.Chain)
 
 		if !reflect.DeepEqual(oldUrls, chainInfo.Urls) {
 			select {
