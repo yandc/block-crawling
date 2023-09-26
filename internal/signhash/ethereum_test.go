@@ -241,6 +241,35 @@ func TestComplicatedEvmV3(t *testing.T) {
 	assert.Equal(t, "552dedddcfb3158d5f47e414e0a5fd8e6ab8b35d2f65017c5e6bea6d7d54c126", h)
 }
 
+const uint160 = `{"sessionId":"16162d3efd0a478ca92e513795ae0177","address":"0xB24EDb3fF4Fb5C6B87279493eb6d50Bd5D4FC634","chainName":"Polygon","chainId":137,"application":"​https://app.uniswap.org","message":"{\"types\":{\"PermitSingle\":[{\"name\":\"details\",\"type\":\"PermitDetails\"},{\"name\":\"spender\",\"type\":\"address\"},{\"name\":\"sigDeadline\",\"type\":\"uint256\"}],\"PermitDetails\":[{\"name\":\"token\",\"type\":\"address\"},{\"name\":\"amount\",\"type\":\"uint160\"},{\"name\":\"expiration\",\"type\":\"uint48\"},{\"name\":\"nonce\",\"type\":\"uint48\"}],\"EIP712Domain\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"chainId\",\"type\":\"uint256\"},{\"name\":\"verifyingContract\",\"type\":\"address\"}]},\"domain\":{\"name\":\"Permit2\",\"chainId\":\"137\",\"verifyingContract\":\"0x000000000022d473030f116ddee9f6b43ac78ba3\"},\"primaryType\":\"PermitSingle\",\"message\":{\"details\":{\"token\":\"0xc2132d05d31c914a87c6611c10748aeb04b58e8f\",\"amount\":\"1461501637330902918203684832716283019655932542975\",\"expiration\":\"1697984162\",\"nonce\":\"0\"},\"spender\":\"0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad\",\"sigDeadline\":\"1695393962\"}}"}`
+
+func TestEvmUint160(t *testing.T) {
+	var req *SignMessageRequest
+	err := json.Unmarshal([]byte(uint160), &req)
+	assert.NoError(t, err)
+	h, err := Hash("EVM", req)
+	assert.NoError(t, err)
+	assert.Equal(t, "2f551ddf6079017f9653053d44e4c2fa948faffefd0a37e2b21c45124cb40280", h)
+}
+
+const evmChainIdAbsentInDomain = `{
+  "sessionId": "f776b0bbc55f45b18596c5043ba1e341",
+  "address": "0x5AD682366931B6973C5DF3D2ea3e71595DA29381",
+  "chainName": "Polygon",
+  "chainId": 137,
+  "application": "",
+  "message": "{\"types\":{\"EIP712Domain\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"version\",\"type\":\"string\"},{\"name\":\"verifyingContract\",\"type\":\"address\"},{\"name\":\"salt\",\"type\":\"bytes32\"}],\"Permit\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"spender\",\"type\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\"},{\"name\":\"nonce\",\"type\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\"}]},\"primaryType\":\"Permit\",\"domain\":{\"name\":\"USD Coin (PoS)\",\"salt\":\"0x0000000000000000000000000000000000000000000000000000000000000089\",\"verifyingContract\":\"0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174\",\"version\":\"1\"},\"message\":{\"deadline\":1695719257,\"nonce\":0,\"owner\":\"0xAE04C60489d65f29db0bA1b1F54553f31A8b9358\",\"spender\":\"0xC7e7Bd8b458aEdD49E8B1A1284588701921a0E9e\",\"value\":\"115792089237316195423570985008687907853269984665640564039457584007913129639935\"}}"
+}`
+
+func TestEvmChainIdAbsentInDomain(t *testing.T) {
+	var req *SignMessageRequest
+	err := json.Unmarshal([]byte(evmChainIdAbsentInDomain), &req)
+	assert.NoError(t, err)
+	h, err := Hash("EVM", req)
+	assert.NoError(t, err)
+	assert.Equal(t, "90e08aefddfe9a5ac9c4eb9bb42018248f916dade6ab43fc19f3e06639def7da", h)
+}
+
 func TestEvmV4(t *testing.T) {
 	byts, err := json.Marshal(signTypedDataV4)
 	assert.NoError(t, err)

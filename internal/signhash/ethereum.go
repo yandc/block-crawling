@@ -250,6 +250,10 @@ func (w *wrappedDataDomain) removeExtraFieldInMessage(fields []apitypes.Type, me
 }
 
 func (wd *wrappedDataDomain) parseChainId() (*math.HexOrDecimal256, error) {
+	if string(wd.ChainId) == "" {
+		return nil, nil
+	}
+
 	var r *math.HexOrDecimal256
 	if err := json.Unmarshal(wd.ChainId, &r); err == nil {
 		return r, nil

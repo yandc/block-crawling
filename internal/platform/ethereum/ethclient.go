@@ -26,11 +26,11 @@ import (
 const ArbitrumDepositTxType = 100
 
 // Arbitrum dapp 跨链时，提取交易，跟普通转账参数一致 20230801
-//https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
+// https://arbiscan.io/tx/0xed0b45e9dc70fde48288f21fdcef0d6677e84d7387ac10d5cc5130fcc22f317d
 const ArbitrumDistributeTxType = 104
 
 // zkSync 跨链转主币ETH时，跟普通转账参数一致
-//https://explorer.zksync.io/tx/0xe2e6a3fc27f5d793b50d4eb80f016fffdb7662278e0c43ab119126206c7876a2
+// https://explorer.zksync.io/tx/0xe2e6a3fc27f5d793b50d4eb80f016fffdb7662278e0c43ab119126206c7876a2
 const zkSyncTxType = 255
 const zkSyncTxType113 = 113
 
@@ -232,6 +232,8 @@ func (c *Client) getBlock(ctx context.Context, method string, args ...interface{
 	if err != nil {
 		return nil, err
 	} else if len(raw) == 0 {
+		return nil, ethereum.NotFound
+	} else if string(raw) == "null" {
 		return nil, ethereum.NotFound
 	}
 	// Decode header and transactions.

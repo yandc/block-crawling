@@ -9,7 +9,7 @@ require (
 	github.com/blockcypher/gobcy v2.0.1+incompatible
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/envoyproxy/protoc-gen-validate v0.6.7
-	github.com/ethereum/go-ethereum v1.10.22
+	github.com/ethereum/go-ethereum v1.11.4
 	github.com/go-kratos/kratos/v2 v2.4.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/google/wire v0.5.0
@@ -23,12 +23,12 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
 	github.com/stretchr/testify v1.8.1
-	github.com/urfave/cli/v2 v2.10.2
+	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	gitlab.bixin.com/mili/node-driver v0.0.0-20230818011633-772c2117488f
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/crypto v0.1.0
 	google.golang.org/grpc v1.48.0
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/protobuf v1.28.1
 	gorm.io/datatypes v1.0.7
 	gorm.io/driver/postgres v1.3.8
 	gorm.io/gorm v1.23.8
@@ -45,20 +45,19 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/deckarep/golang-set v1.8.0 // indirect
+	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/drand/kyber v1.1.4 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
-	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/subcommands v1.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -79,7 +78,6 @@ require (
 	github.com/onsi/gomega v1.10.4 // indirect
 	github.com/phoreproject/bls v0.0.0-20200525203911-a88a5ae26844 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
@@ -91,13 +89,11 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/mod v0.6.0-dev.0.20211013180041-c96bc1413d57 // indirect
-	golang.org/x/net v0.0.0-20220615171555-694bf12d69de // indirect
-	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
-	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.8-0.20211029000441-d6a9af8af023 // indirect
-	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
+	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20220719170305-83ca9fad585f // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
