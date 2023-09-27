@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gorm.io/datatypes"
 	"math/big"
 	"reflect"
 	"sort"
@@ -278,12 +279,25 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}
 	pbb.TxTime = time.Now().Unix()
 
+	// 处理eventlog数据，gas代付会传入此参数
+	var logAddress datatypes.JSON
+	if pbb.EventLog != "" {
+		var eventLogs []*types.EventLogUid
+		if jsonErr := json.Unmarshal([]byte(pbb.EventLog), &eventLogs); jsonErr == nil {
+			if pbb.TransactionType == CONTRACT {
+				logAddress = GetLogAddressFromEventLogUid(eventLogs)
+			}
+		} else {
+			log.Warn("插入pending记录，解析eventLog数据失败", zap.Any("chainName", pbb.ChainName), zap.Any("eventLog", pbb.EventLog), zap.Any("error", jsonErr))
+		}
+	}
+
 	//整理feeDate
 	//var maxFeePerGas,maxPriorityFeePerGas string
-	paseJson := make(map[string]string)
+	feeDataMap := make(map[string]string)
 	if pbb.FeeData != "" {
-		if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &paseJson); jsonErr != nil {
-			log.Warn("feedata数据解析失败", zap.Any("feeData", pbb.FeeData), zap.Any("error", jsonErr))
+		if jsonErr := json.Unmarshal([]byte(pbb.FeeData), &feeDataMap); jsonErr != nil {
+			log.Warn("插入pending记录，解析feeData数据失败", zap.Any("chainName", pbb.ChainName), zap.Any("feeData", pbb.FeeData), zap.Any("error", jsonErr))
 		}
 	}
 	pendingNonceKey := ADDRESS_PENDING_NONCE + pbb.ChainName + ":" + pbb.FromAddress + ":"
@@ -317,7 +331,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -365,7 +379,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -432,11 +446,12 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			GasLimit:        paseJson["gas_limit"],
-			GasUsed:         paseJson["gas_used"],
-			GasPrice:        paseJson["gas_price"],
+			GasLimit:        feeDataMap["gas_limit"],
+			GasUsed:         feeDataMap["gas_used"],
+			GasPrice:        feeDataMap["gas_price"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: transactionType,
 			OperateType:     pbb.OperateType,
 			DappData:        pbb.DappData,
@@ -466,7 +481,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -493,6 +508,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ParseData:       pbb.ParseData,
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -517,7 +533,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" || tokenType == "ERC20" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -543,14 +559,16 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:               pbb.TxTime,
 			ContractAddress:      pbb.ContractAddress,
 			ParseData:            pbb.ParseData,
-			GasLimit:             paseJson["gas_limit"],
-			GasUsed:              paseJson["gas_used"],
-			GasPrice:             paseJson["gas_price"],
-			BaseFee:              paseJson["base_fee"],
-			MaxFeePerGas:         paseJson["max_fee_per_gas"],
-			MaxPriorityFeePerGas: paseJson["max_priority_fee_per_gas"],
+			GasLimit:             feeDataMap["gas_limit"],
+			GasUsed:              feeDataMap["gas_used"],
+			GasPrice:             feeDataMap["gas_price"],
+			BaseFee:              feeDataMap["base_fee"],
+			MaxFeePerGas:         feeDataMap["max_fee_per_gas"],
+			MaxPriorityFeePerGas: feeDataMap["max_priority_fee_per_gas"],
+			FeeTokenInfo:         feeDataMap["fee_token_info"],
 			Data:                 pbb.Data,
 			EventLog:             pbb.EventLog,
+			LogAddress:           logAddress,
 			TransactionType:      pbb.TransactionType,
 			OperateType:          pbb.OperateType,
 			DappData:             pbb.DappData,
@@ -600,7 +618,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -624,9 +642,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			NetUsage:        paseJson["net_usage"],
-			FeeLimit:        paseJson["fee_limit"],
-			EnergyUsage:     paseJson["energy_usage"],
+			NetUsage:        feeDataMap["net_usage"],
+			FeeLimit:        feeDataMap["fee_limit"],
+			EnergyUsage:     feeDataMap["energy_usage"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
 			TransactionType: pbb.TransactionType,
@@ -660,7 +678,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -721,11 +739,12 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			GasLimit:        paseJson["gas_limit"],
-			GasUsed:         paseJson["gas_used"],
-			GasPrice:        paseJson["gas_price"],
+			GasLimit:        feeDataMap["gas_limit"],
+			GasUsed:         feeDataMap["gas_used"],
+			GasPrice:        feeDataMap["gas_price"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: transactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -749,7 +768,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -771,10 +790,11 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			GasLimit:        paseJson["gas_limit"],
-			GasUsed:         paseJson["gas_used"],
+			GasLimit:        feeDataMap["gas_limit"],
+			GasUsed:         feeDataMap["gas_used"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -793,7 +813,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -819,6 +839,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ParseData:       pbb.ParseData,
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -838,7 +859,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -873,7 +894,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			//修改 未花费
 			tx, err := GetNervosUTXOTransaction(pbb.TransactionHash)
 			if err != nil {
-				log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
+				log.Error("插入pending记录，从节点中查询UTXO失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("error", err))
 			}
 			if tx != nil {
 				cellInputs := tx.Transaction.Inputs
@@ -890,7 +911,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 						UpdatedAt:          time.Now().Unix(),
 					})
 					if err != nil {
-						log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
+						log.Error("插入pending记录，将UTXO更新到数据库中失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("error", err))
 					}
 				}
 			}
@@ -912,7 +933,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if tokenType == "" {
 						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
 						if err != nil {
-							log.Error(pbb.ChainName+"链插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
 						} else {
 							tokenMap["token_uri"] = tokenInfo.TokenUri
 							parseData, _ := utils.JsonEncode(parseDataMap)
@@ -937,11 +958,12 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TxTime:          pbb.TxTime,
 			ContractAddress: pbb.ContractAddress,
 			ParseData:       pbb.ParseData,
-			GasLimit:        paseJson["gas_limit"],
-			GasUsed:         paseJson["gas_used"],
-			GasPrice:        paseJson["gas_price"],
+			GasLimit:        feeDataMap["gas_limit"],
+			GasUsed:         feeDataMap["gas_used"],
+			GasPrice:        feeDataMap["gas_price"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
@@ -980,10 +1002,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，将数据插入到数据库中失败", pbb.ChainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，将数据插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(pbb.ChainName+"链插入pending记录，将数据插入到数据库中失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("error", err))
+		log.Error("插入pending记录，将数据插入到数据库中失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("error", err))
 	}
 
 	flag := result == 1
@@ -1026,7 +1048,7 @@ func UpdateTransactionType(pbb *pb.TransactionReq) {
 		}
 		methodName, err := GetMethodNameRetryAlert(nil, pbb.ChainName, contractAddress, methodId)
 		if err != nil {
-			log.Warn(pbb.ChainName+"链查询nodeProxy中合约ABI失败", zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
+			log.Warn("查询nodeProxy中合约ABI失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("contractAddress", contractAddress), zap.Any("methodId", methodId), zap.Any("error", err))
 		}
 
 		if strings.Contains(methodName, "Mint") || strings.Contains(methodName, "_mint") || strings.HasPrefix(methodName, "mint") {
@@ -1045,8 +1067,8 @@ func UpdateTransactionType(pbb *pb.TransactionReq) {
 			data.TrxTransactionRecordRepoClient.UpdateTransactionTypeByTxHash(nil, GetTableName(pbb.ChainName), pbb.TransactionHash, transactionType)
 		}
 	}
-
 }
+
 func UpdateUtxo(pbb *pb.TransactionReq) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -1064,11 +1086,20 @@ func UpdateUtxo(pbb *pb.TransactionReq) {
 		}
 	}()
 
-	//修改 未花费
 	time.Sleep(time.Duration(1) * time.Minute)
 	tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		tx, err = GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
+	}
 	if err != nil {
-		log.Error(pbb.TransactionHash, zap.Any("查询交易失败", err))
+		// 更新用户资产出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("插入pending记录，更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash),
+			zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
+		return
 	}
 	log.Info(pbb.ChainName, zap.Any("更新UTXO状态为pending 4", tx))
 	cellInputs := tx.Inputs
@@ -1078,7 +1109,12 @@ func UpdateUtxo(pbb *pb.TransactionReq) {
 		//更新 状态为pending
 		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(nil, pbb.Uid, pbb.ChainName, pbb.FromAddress, index, th)
 		if err != nil || ret == 0 {
-			log.Error(pbb.TransactionHash, zap.Any("更新数据库失败！", err))
+			// postgres出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，更新用户UTXO状态，将UTXO插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("插入pending记录，更新用户UTXO状态，将UTXO插入到数据库中失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash),
+				zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
 		}
 	}
 }
@@ -1108,10 +1144,10 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 	}
 	if err != nil {
 		// 更新用户资产出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(pbb.ChainName+"链插入pending交易记录时更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败", zap.Any("txHash", pbb.TransactionHash),
+		log.Error("插入pending记录，更新用户UTXO状态，请求节点查询交易记录占用的UTXO失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash),
 			zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
 		return
 	}
@@ -1143,10 +1179,10 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 	}
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链插入pending交易记录时更新用户UTXO状态，将UTXO插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
+		alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，更新用户UTXO状态，将UTXO插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(pbb.ChainName+"链插入pending交易记录时更新用户UTXO状态，将UTXO插入到数据库中失败", zap.Any("txHash", pbb.TransactionHash),
+		log.Error("插入pending记录，更新用户UTXO状态，将UTXO插入到数据库中失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash),
 			zap.Any("fromAddress", pbb.FromAddress), zap.Any("error", err))
 	}
 }
@@ -1227,7 +1263,14 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		var recordList []*data.EvmTransactionRecord
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
-			err = utils.CopyProperties(recordList, &list)
+			//err = utils.CopyProperties(recordList, &list)
+			//TODO 交易记录重构时再还原成上面的方式
+			for _, rl := range recordList {
+				var ptr *pb.TransactionRecord
+				err = utils.CopyProperties(rl, &ptr)
+				ptr.GasFeeInfo = rl.FeeTokenInfo
+				list = append(list, ptr)
+			}
 		}
 		if len(list) > 0 {
 			for _, record := range list {
@@ -1322,7 +1365,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 
 				feeData := make(map[string]string)
 				switch chainType {
-				case BTC:
+				case BTC, SOLANA, KASPA:
 					feeData = nil
 				case EVM:
 					feeData["gas_limit"] = record.GasLimit
@@ -1336,7 +1379,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
 					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
 					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
-
 					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
 						evm := make(map[string]interface{})
 						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
@@ -1393,8 +1435,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 				case SUI:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
-				case SOLANA:
-					feeData = nil
 				default:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
@@ -1487,7 +1527,14 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		var recordList []*data.EvmTransactionRecordWrapper
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageListRecord(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
-			err = utils.CopyProperties(recordList, &list)
+			//err = utils.CopyProperties(recordList, &list)
+			//TODO 交易记录重构时再还原成上面的方式
+			for _, rl := range recordList {
+				var ptr *pb.TransactionRecord
+				err = utils.CopyProperties(rl, &ptr)
+				ptr.GasFeeInfo = rl.FeeTokenInfo
+				list = append(list, ptr)
+			}
 		}
 
 		if len(list) > 0 {
@@ -1783,7 +1830,7 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 
 				feeData := make(map[string]string)
 				switch chainType {
-				case BTC:
+				case BTC, SOLANA, KASPA:
 					feeData = nil
 				case EVM:
 					feeData["gas_limit"] = record.GasLimit
@@ -1797,7 +1844,6 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
 					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
 					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
-
 					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
 						evm := make(map[string]interface{})
 						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
@@ -1854,8 +1900,6 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 				case SUI:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
-				case SOLANA:
-					feeData = nil
 				default:
 					feeData["gas_limit"] = record.GasLimit
 					feeData["gas_used"] = record.GasUsed
@@ -1881,7 +1925,7 @@ func handleEventLog(chainName, recordFromAddress, recordToAddress, recordAmount,
 	if eventLogStr != "" {
 		err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
 		if err != nil {
-			log.Error("parse EventLog failed", zap.Any("eventLog", eventLogStr), zap.Any("error", err))
+			log.Error("parse EventLog failed", zap.Any("chainName", chainName), zap.Any("eventLog", eventLogStr), zap.Any("error", err))
 			return eventLogStr
 		}
 
@@ -2147,6 +2191,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 	}
 }
 
+// GetNonce 获取nonce，供客户端打包交易上链使用
 func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*pb.NonceResp, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
@@ -2161,10 +2206,10 @@ func (s *TransactionUsecase) GetNonce(ctx context.Context, req *pb.NonceReq) (*p
 	if err == redis.Nil {
 		return findNonce(0, req)
 	} else if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户done,nonce失败", req.ChainName)
+		alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户链上nonce失败，address:%s", req.ChainName, req.Address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Info("查询redis缓存报错：获取用户done,nonce失败", zap.Any(req.ChainName, req.Address), zap.Any("error", err))
+		log.Info("查询redis缓存，从redis获取用户链上nonce失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", err))
 		return &pb.NonceResp{
 			Ok: false,
 		}, err
@@ -2181,10 +2226,10 @@ func findNonce(start int, req *pb.NonceReq) (*pb.NonceResp, error) {
 	for i := start; true; i++ {
 		_, err1 := data.RedisClient.Get(pendingNonceKey + strconv.Itoa(i)).Result()
 		if err1 != nil && err1 != redis.Nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户done,nonce失败", req.ChainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链从redis获取用户pending状态nonce失败，address:%s", req.ChainName, req.Address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Info("查询redis缓存报错：获取用户done,nonce失败", zap.Any(req.ChainName, req.Address), zap.Any("error", err1))
+			log.Info("查询redis缓存，从redis获取用户pending状态nonce失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", err1))
 			return &pb.NonceResp{
 				Ok: false,
 			}, err1
@@ -2955,7 +3000,7 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 
 		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
 		if err != nil {
-			log.Error(req.ChainName+"链查询用户NFT资产集合，从nodeProxy中获取NFT信息失败", zap.Any("addressList", req.AddressList), zap.Any("error", err))
+			log.Error("查询用户NFT资产集合，从nodeProxy中获取NFT信息失败", zap.Any("chainName", req.ChainName), zap.Any("addressList", req.AddressList), zap.Any("error", err))
 			return result, nil
 		}
 		nftAddressInfoMap := make(map[string]*v1.GetNftReply_NftInfoResp)
@@ -3042,7 +3087,7 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 
 		resultMap, err := GetNftsInfo(nil, req.ChainName, nftAddressMap)
 		if err != nil {
-			log.Error(req.ChainName+"链查询用户NFT资产，从nodeProxy中获取NFT信息失败", zap.Any("addressList", req.AddressList), zap.Any("error", err))
+			log.Error("查询用户NFT资产，从nodeProxy中获取NFT信息失败", zap.Any("chainName", req.ChainName), zap.Any("addressList", req.AddressList), zap.Any("error", err))
 			return result, nil
 		}
 		nftAddressInfoMap := make(map[string]map[string]*v1.GetNftReply_NftInfoResp)
@@ -3540,8 +3585,8 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 						break a
 					}
 				}
-
 			}
+
 			proportion := "0"
 			orgProportion := "0"
 			negative := "0"
@@ -3651,9 +3696,9 @@ func (s *TransactionUsecase) GetAssetDistributionByAddress(ctx context.Context, 
 		Ok:               true,
 		AssetBalanceList: abs,
 	}, nil
-
 }
 
+// GetAssetByAddress 查询用户交易资产价值数据
 func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *TransactionTypeReq) (*AddressAssetResponse, error) {
 	tm := time.Now()
 	var dt = utils.GetDayTime(&tm)
@@ -3664,10 +3709,10 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 	log.Info("xize", zap.Any("", uahrs))
 	if e != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产价值数据失败", req.ChainName, req.Address)
+		alarmMsg := fmt.Sprintf("请注意：%s链查询用户交易资产价值数据，查询用户交易资产数据库失败，address:%s", req.ChainName, req.Address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		log.Error("查询用户交易资产价值数据，查询用户交易资产数据库失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", e))
 		return &AddressAssetResponse{
 			Ok:                   false,
 			Proportion:           "0",
@@ -3690,10 +3735,10 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 	userAssets, _, err := data.UserAssetRepoClient.PageList(nil, request)
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产价值数据失败", req.ChainName, req.Address)
+		alarmMsg := fmt.Sprintf("请注意：%s链查询用户交易资产价值数据，查询用户资产数据库失败，address:%s", req.ChainName, req.Address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		log.Error("查询用户交易资产价值数据，查询用户资产数据库失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", e))
 		return &AddressAssetResponse{
 			Ok:                   false,
 			Proportion:           "0",
@@ -3727,7 +3772,6 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 			ad.UsdAmountDecimal = uad
 			ad.UsdAmount = uad.String()
 			assetDtMap[uahr.Dt] = ad
-
 		} else {
 			assetDtMap[uahr.Dt] = AddressAssetType{
 				CnyAmount:        uahr.CnyAmount.Round(2).String(),
@@ -3764,7 +3808,7 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 	//查询币价
 	nowPrice, err := GetPriceFromMarket(tokens, coinIds)
 	if err != nil {
-		log.Info("查询实时币价失败", zap.Any("error", err))
+		log.Info("查询用户交易资产价值数据，查询实时币价失败", zap.Any("chainName", req.ChainName), zap.Any("error", err))
 	} else {
 		totalCnyAmount := decimal.Zero
 		totalUsdAmount := decimal.Zero
@@ -3798,7 +3842,6 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 			usdValue := balance.Mul(upd).Round(2)
 			totalCnyAmount = totalCnyAmount.Add(cnyValue).Round(2)
 			totalUsdAmount = totalUsdAmount.Add(usdValue).Round(2)
-
 		}
 		assetDtMap[dt] = AddressAssetType{
 			CnyAmount:        totalCnyAmount.String(),
@@ -3851,7 +3894,6 @@ func (s *TransactionUsecase) GetAssetByAddress(ctx context.Context, req *Transac
 		EndTime:              endTime,
 		AddressAssetTypeList: addressAssetTypeList,
 	}, nil
-
 }
 
 func (s *TransactionUsecase) GetTransactionTop(ctx context.Context, req *TransactionTypeReq) (*TransactionTopResponse, error) {
@@ -3905,24 +3947,24 @@ func (s *TransactionUsecase) GetTransactionTop(ctx context.Context, req *Transac
 				Address: rv,
 			})
 		}
-
 	}
+
 	return &TransactionTopResponse{
 		Ok:                 true,
 		TransactionTopList: tts,
 	}, nil
-
 }
 
+// GetAssetByAddressAndTime 查询交易资产分布数据
 func (s *TransactionUsecase) GetAssetByAddressAndTime(ctx context.Context, req *TransactionTypeReq) (*TokenAssetAndCountResponse, error) {
 	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
 	mcs, e := data.MarketCoinHistoryRepoClient.ListByTimeRanges(ctx, req.Address, req.ChainName, startTime, endTime)
 	if e != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产数据失败", req.ChainName, req.Address)
+		alarmMsg := fmt.Sprintf("请注意：%s链交易资产分布数据，查询交易资产数据库失败，address:%s", req.ChainName, req.Address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		log.Error("查询交易资产分布数据，查询交易资产数据库失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", e))
 		return &TokenAssetAndCountResponse{
 			Ok:           false,
 			ErrorMessage: e.Error(),
@@ -3940,13 +3982,13 @@ func (s *TransactionUsecase) GetAssetByAddressAndTime(ctx context.Context, req *
 	platInfo, _ := GetChainPlatInfo(req.ChainName)
 	symbol := platInfo.NativeCurrency
 	getPriceKey := platInfo.GetPriceKey
-	totalTransactionq, ctnaa, totalCnyAmount, totalUsdAmount, err := HandleCoinPrice(mcs, getPriceKey, symbol, req.OrderField, req.ChainName)
+	totalTransactionq, ctnaa, totalCnyAmount, totalUsdAmount, err := handleCoinPrice(mcs, getPriceKey, symbol, req.OrderField, req.ChainName)
 	if err != nil {
 		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s 链查询用户 %s 交易资产数据失败", req.ChainName, req.Address)
+		alarmMsg := fmt.Sprintf("请注意：%s链交易资产分布数据，处理币价失败，address:%s", req.ChainName, req.Address)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(req.ChainName+" : "+req.Address+"交易资产数据失败 ", zap.Any("error", e))
+		log.Error("查询交易资产分布数据，处理币价失败", zap.Any("chainName", req.ChainName), zap.Any("address", req.Address), zap.Any("error", e))
 		return &TokenAssetAndCountResponse{
 			Ok:           false,
 			ErrorMessage: e.Error(),
@@ -3961,7 +4003,7 @@ func (s *TransactionUsecase) GetAssetByAddressAndTime(ctx context.Context, req *
 	}, nil
 }
 
-func HandleCoinPrice(mcs []*data.MarketCoinHistory, getPriceKey string, nativeSymbol string, orderField string, chainName string) (int, []ChainTokenNumberAndAsset, decimal.Decimal, decimal.Decimal, error) {
+func handleCoinPrice(mcs []*data.MarketCoinHistory, getPriceKey string, nativeSymbol string, orderField string, chainName string) (int, []ChainTokenNumberAndAsset, decimal.Decimal, decimal.Decimal, error) {
 	//token 交易数量，带小数点的
 	tokenAmount := make(map[string]decimal.Decimal)
 	coinIdsMap := make(map[string]string)
@@ -4043,7 +4085,7 @@ func HandleCoinPrice(mcs []*data.MarketCoinHistory, getPriceKey string, nativeSy
 	//查询币价
 	nowPrice, err := GetPriceFromMarket(tokens, coinIds)
 	if err != nil {
-		log.Info("查询币价失败", zap.Any("error", err))
+		log.Error("查询币价失败", zap.Any("chainName", chainName), zap.Any("error", err))
 		return 0, nil, totalCnyAmount, totalUsdAmount, err
 	}
 	//主币价格
@@ -4174,6 +4216,7 @@ func HandleCoinPrice(mcs []*data.MarketCoinHistory, getPriceKey string, nativeSy
 	return totalTransactionQuantity, ctnaaResult, totalCnyAmount.Round(2), totalUsdAmount.Round(2), nil
 }
 
+// GetTransactionTypeDistributionByAddress 交易类型分布
 func (s *TransactionUsecase) GetTransactionTypeDistributionByAddress(ctx context.Context, req *TransactionTypeReq) (*TransactionTypeDistributionResponse, error) {
 	startTime, endTime := utils.RangeTimeConvertTime(req.TimeRange)
 	etcList, e := data.EvmTransactionRecordRepoClient.FindTransactionTypeByAddress(ctx, GetTableName(req.ChainName), req.Address, startTime, endTime)
@@ -4221,9 +4264,9 @@ func (s *TransactionUsecase) GetTransactionTypeDistributionByAddress(ctx context
 		TransactionTypeList: ttds,
 	}, nil
 }
+
 func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcParams) (*pb.JsonResponse, error) {
 	//log.Info("==4",zap.Any("4",req))
-
 	if req != nil && len(req.BatchReq) > 0 {
 		var rr []RpcResponse
 		for _, r := range req.BatchReq {
@@ -4259,6 +4302,7 @@ func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcPar
 	}, nil
 }
 
+// GetDataDictionary 查询数据字典
 func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictionary, error) {
 	var result = &DataDictionary{}
 	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT,
@@ -4272,6 +4316,7 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 	return result, nil
 }
 
+// GetPendingAmount 查询pending状态交易总金额
 func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressPendingAmountRequest) (*AddressPendingAmountResponse, error) {
 	if req == nil || len(req.ChainAndAddressList) == 0 {
 		return nil, nil
@@ -4519,6 +4564,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 	}, nil
 }
 
+// GetFeeInfoByChainName 查询gasFee相关数据
 func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *ChainFeeInfoReq) (*ChainFeeInfoResp, error) {
 	chainName := req.ChainName
 	if chainName == "SeiTEST" {
@@ -4527,19 +4573,21 @@ func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *Cha
 			GasPrice:  "150000",
 		}, nil
 	}
-	if chainName == "" || (chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST" && chainName != "BSC" && chainName != "Optimism" && chainName != "TRX") {
+	if chainName == "" || (chainName != "PolygonTEST" && chainName != "BSCTEST" && chainName != "ETHGoerliTEST" && chainName != "ETH" && chainName != "Polygon" && chainName != "ScrollL2TEST" && chainName != "BSC" && chainName != "Optimism" && chainName != "TRX") {
 		return nil, errors.New("unsupported chain")
 	}
+
 	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
-	if fmt.Sprintf("%s", err) == REDIS_NIL_KEY && chainName == "TRX"{
-		data.RedisClient.Set(TX_FEE_GAS_PRICE + chainName,"420",0).Err()
+	if fmt.Sprintf("%s", err) == REDIS_NIL_KEY && chainName == "TRX" {
+		data.RedisClient.Set(TX_FEE_GAS_PRICE+chainName, "420", 0).Err()
 		gasPrice = "420"
 	}
 	maxFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_FEE_PER_GAS + chainName).Result()
 	maxPriorityFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName).Result()
-	if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY{
+	if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY {
 		return nil, err
 	}
+
 	return &ChainFeeInfoResp{
 		ChainName:            chainName,
 		GasPrice:             gasPrice,
@@ -4548,7 +4596,42 @@ func (s *TransactionUsecase) GetFeeInfoByChainName(ctx context.Context, req *Cha
 	}, nil
 }
 
-// JsonRPC
+// GetFeeInfoDecimalsByChainName 查询带精度的gasFee相关数据
+func (s *TransactionUsecase) GetFeeInfoDecimalsByChainName(ctx context.Context, req *ChainFeeInfoReq) (*ChainFeeInfoResp, error) {
+	chainName := req.ChainName
+
+	if chainName == "" || (chainName != "PolygonTEST" && chainName != "BSCTEST" && chainName != "ETHGoerliTEST" && chainName != "ETH" && chainName != "Polygon" && chainName != "BSC") {
+		return nil, errors.New("unsupported chain")
+	}
+	mainDecimals := 18
+	if platInfo, ok := GetChainPlatInfo(chainName); ok {
+		mainDecimals = int(platInfo.Decimal)
+		log.Info(chainName, zap.Any("mainDecimals", mainDecimals))
+	}
+
+	gasPrice, err := data.RedisClient.Get(TX_FEE_GAS_PRICE + chainName).Result()
+	if fmt.Sprintf("%s", err) == REDIS_NIL_KEY && chainName == "TRX" {
+		data.RedisClient.Set(TX_FEE_GAS_PRICE+chainName, "420", 0).Err()
+		gasPrice = "420"
+	}
+	maxFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_FEE_PER_GAS + chainName).Result()
+	maxPriorityFeePerGas, err := data.RedisClient.Get(TX_FEE_MAX_PRIORITY_FEE_PER_GAS + chainName).Result()
+	if err != nil && fmt.Sprintf("%s", err) != REDIS_NIL_KEY {
+		return nil, err
+	}
+	gasPrice = utils.StringDecimals(gasPrice, mainDecimals)
+	maxFeePerGas = utils.StringDecimals(maxFeePerGas, mainDecimals)
+	maxPriorityFeePerGas = utils.StringDecimals(maxPriorityFeePerGas, mainDecimals)
+
+	return &ChainFeeInfoResp{
+		ChainName:            chainName,
+		GasPrice:             gasPrice,
+		MaxFeePerGas:         maxFeePerGas,
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
+	}, nil
+}
+
+// UpdateUserAsset 客户端上报用户资产变更信息，后端插入pending交易记录
 func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAssetUpdateRequest) (interface{}, error) {
 	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {
 		return struct{}{}, nil
@@ -4620,6 +4703,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	return struct{}{}, nil
 }
 
+// CreateBroadcast 上报上链前交易参数相关
 func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
 	device := ctx.ParseDevice()
 	var usrhs []*data.UserSendRawHistory
@@ -4655,6 +4739,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 	}, nil
 }
 
+// CreateSignRecord 上报签名记录信息
 func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *BroadcastRequest) (*BroadcastResponse, error) {
 	sendLock.Lock()
 	defer sendLock.Unlock()
@@ -4745,8 +4830,9 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 	return &BroadcastResponse{
 		Ok: result > 0,
 	}, nil
-
 }
+
+// ClearNonce 清除pending状态交易占用的nonce
 func (s *TransactionUsecase) ClearNonce(ctx context.Context, req *ClearNonceRequest) (*ClearNonceResponse, error) {
 	if req == nil || req.Address == "" || req.ChainName == "" {
 		return &ClearNonceResponse{
@@ -4950,6 +5036,7 @@ func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChar
 	return result, nil
 }
 
+// CountOutTx 统计两个地址之间转账次数
 func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequest) (*CountOutTxResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
@@ -4976,6 +5063,7 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 	}, nil
 }
 
+// GetSignRecord 查询签名记录
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
 	clientAddress := req.Address
@@ -5162,6 +5250,7 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		Limit:     req.Limit,
 	}, nil
 }
+
 func (s *TransactionUsecase) ChangeUtxoPending(ctx context.Context, req *CreateUtxoPendingReq) (*pb.CreateResponse, error) {
 	if req == nil || len(req.CreateUtxoPendingList) == 0 {
 		return &pb.CreateResponse{
@@ -5188,6 +5277,8 @@ func (s *TransactionUsecase) ChangeUtxoPending(ctx context.Context, req *CreateU
 		Code:   uint64(200),
 	}, nil
 }
+
+// SignMessage2Success 更新签名记录
 func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignTypeMessageRequest) (*BroadcastResponse, error) {
 	var rr []*data.UserSendRawHistory
 	rr = append(rr, &data.UserSendRawHistory{
@@ -5213,6 +5304,8 @@ func (s *TransactionUsecase) SignMessage2Success(ctx context.Context, req *SignT
 		Message: req.SessionId + "消息签名未更新成功",
 	}, nil
 }
+
+// SignTXBySessionId 根据sessionId获取txHash
 func (s *TransactionUsecase) SignTXBySessionId(ctx context.Context, req *SignTxRequest) (*SignTxResponse, error) {
 	infos, err := data.UserSendRawHistoryRepoInst.SelectBySessionIds(ctx, req.SessionIds)
 	if err != nil {

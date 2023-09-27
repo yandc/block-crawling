@@ -3608,6 +3608,8 @@ func (m *TransactionRecord) validate(all bool) error {
 
 	}
 
+	// no validation rules for GasFeeInfo
+
 	if len(errors) > 0 {
 		return TransactionRecordMultiError(errors)
 	}

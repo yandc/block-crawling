@@ -63,18 +63,21 @@ const (
 )
 
 const (
-	STC           = "STC"
-	BTC           = "BTC"
-	EVM           = "EVM"
-	TVM           = "TVM"
-	APTOS         = "APTOS"
-	SUI           = "SUI"
-	SOLANA        = "SOL"
-	NERVOS        = "CKB"
-	CASPER        = "CSPR"
-	COSMOS        = "COSMOS"
-	POLKADOT      = "POLKADOT"
-	KASPA         = "KASPA"
+	STC      = "STC"
+	BTC      = "BTC"
+	EVM      = "EVM"
+	TVM      = "TVM"
+	APTOS    = "APTOS"
+	SUI      = "SUI"
+	SOLANA   = "SOL"
+	NERVOS   = "CKB"
+	CASPER   = "CSPR"
+	COSMOS   = "COSMOS"
+	POLKADOT = "POLKADOT"
+	KASPA    = "KASPA"
+)
+
+const (
 	MAIN_NET_TYPE = "main"
 	TEST_NET_TYPE = "test"
 )
@@ -173,6 +176,20 @@ var rocketMsgLevels = map[string]int{
 	"NOTICE":  1,
 	"WARNING": 2,
 	"FATAL":   3,
+}
+
+type EventLog struct {
+	From   string         `json:"from"`
+	To     string         `json:"to"`
+	Amount *big.Int       `json:"amount"`
+	Token  EventTokenInfo `json:"token"`
+}
+
+type EventTokenInfo struct {
+	Address  string `json:"address"`
+	Amount   string `json:"amount"`
+	Decimals int64  `json:"decimals"`
+	Symbol   string `json:"symbol"`
 }
 
 type AssetDistributionReq struct {
