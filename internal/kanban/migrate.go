@@ -142,7 +142,36 @@ func (s *RecordSync) Start(ctx context.Context) error {
 
 				for _, item := range records {
 					txRecords = append(txRecords, kanban.EVMRecordIntoTxRecord(&kanban.KanbanEvmTransactionRecord{
-						EvmTransactionRecord: *item,
+						BlockHash:            item.BlockHash,
+						BlockNumber:          item.BlockNumber,
+						Nonce:                item.Nonce,
+						TransactionHash:      item.TransactionHash,
+						FromAddress:          item.FromAddress,
+						ToAddress:            item.ToAddress,
+						FromUid:              item.FromUid,
+						ToUid:                item.ToUid,
+						FeeAmount:            item.FeeAmount,
+						Amount:               item.Amount,
+						Status:               item.Status,
+						TxTime:               item.TxTime,
+						ContractAddress:      item.ContractAddress,
+						ParseData:            item.ParseData,
+						Type:                 item.Type,
+						GasLimit:             item.GasLimit,
+						GasUsed:              item.GasUsed,
+						GasPrice:             item.GasPrice,
+						BaseFee:              item.BaseFee,
+						MaxFeePerGas:         item.MaxFeePerGas,
+						MaxPriorityFeePerGas: item.MaxPriorityFeePerGas,
+						Data:                 item.Data,
+						EventLog:             item.EventLog,
+						LogAddress:           item.LogAddress,
+						TransactionType:      item.TransactionType,
+						OperateType:          item.OperateType,
+						DappData:             item.DappData,
+						ClientData:           item.ClientData,
+						CreatedAt:            item.CreatedAt,
+						UpdatedAt:            item.UpdatedAt,
 					}))
 				}
 				if err := agger.parser.Parse(txRecords); err != nil {

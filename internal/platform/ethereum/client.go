@@ -564,6 +564,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 				toAddress = toAddress + "," + realToAddress
 			}
+		} else if methodId == "11290d59" { //gas代付 手续费
+			//https://testnet.bscscan.com/tx/0x34a6cc6024154db19c946c03dd2f3c046328e09865980b8290da0cbba102cefd
+			if len(data) >= 100 {
+				realFromAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
+				fromAddress = fromAddress + "," + realFromAddress
+			}
 		} else if methodId == "ca350aa6" { //ETH链 Coinbase: Deposit
 			//https://cn.etherscan.com/tx/0xad7dc826dfb58dcf31cd550f24180c16746621ad5844731bcf7e4441ae65230f
 			dl := len(data)
@@ -601,7 +607,16 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					stop += 32
 				}
 			}
+		} else if methodId == "1e9d2490" { //ETHGoerliTEST 垫资 方法
+			//https://goerli.etherscan.io/tx/0x33972476564c3f78c410ffee0678bb1bd3955cd53f1fcad4fa9b59d43e431bc7
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
 		}
+	}
+	if strings.HasPrefix(c.chainName, "Polygon") && fromAddress == "0x0000000000000000000000000000000000000000" && toAddress == "0x0000000000000000000000000000000000000000" {
+		transactionType = biz.CONTRACT
 	}
 	txc.FromAddress = fromAddress
 	txc.ToAddress = toAddress

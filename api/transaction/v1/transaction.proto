@@ -360,6 +360,7 @@ message TransactionRecord {
   string operateType = 35;
   string originalHash = 36;
   repeated TransactionRecord operateRecordList = 37;
+  string gasFeeInfo = 38;
 }
 
 message AmountRequest {

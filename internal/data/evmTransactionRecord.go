@@ -19,7 +19,7 @@ import (
 
 // EvmTransactionRecord is a EvmTransactionRecord model.
 type EvmTransactionRecord struct {
-	DefaultVersionMarkerIn
+	//DefaultVersionMarkerIn
 
 	Id                   int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	BlockHash            string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
@@ -51,8 +51,13 @@ type EvmTransactionRecord struct {
 	OperateType          string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
 	DappData             string          `json:"dappData" form:"dappData"`
 	ClientData           string          `json:"clientData" form:"clientData"`
+	FeeTokenInfo         string          `json:"feeTokenInfo" form:"feeTokenInfo"`
 	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (*EvmTransactionRecord) Version() string {
+	return "20230019"
 }
 
 type EvmTransactionRecordWrapper struct {
@@ -147,11 +152,12 @@ func (r *EvmTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"original_hash": gorm.Expr("excluded.original_hash"),
-			"operate_type":  gorm.Expr("excluded.operate_type"),
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"original_hash":  gorm.Expr("excluded.original_hash"),
+			"operate_type":   gorm.Expr("excluded.operate_type"),
+			"dapp_data":      gorm.Expr("excluded.dapp_data"),
+			"client_data":    gorm.Expr("excluded.client_data"),
+			"fee_token_info": gorm.Expr("case when " + tableName + ".status in('success', 'fail') then " + tableName + ".fee_token_info else excluded.fee_token_info end"),
+			"updated_at":     gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecord)
 	err := ret.Error
@@ -245,6 +251,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"operate_type":             gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"fee_token_info":           clause.Column{Table: "excluded", Name: "fee_token_info"},
 			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecords)
@@ -296,6 +303,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"operate_type":             gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"fee_token_info":           gorm.Expr("case when excluded.fee_token_info != '' then excluded.fee_token_info else " + tableName + ".fee_token_info end"),
 			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecords)

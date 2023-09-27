@@ -40,6 +40,12 @@ func init() {
 }
 
 func main() {
+
+	testJsonrpcCreateRecordWallet()
+	str := "[{\"from\":\"0x0b068018dF753618d87e05862d2a05303efbb519\",\"to\":\"0xBA12222222228d8Ba445958a75a0704d566BF2C8\",\"amount\":146896760000000000,\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}},{\"from\":\"0x0b068018dF753618d87e05862d2a05303efbb519\",\"to\":\"0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57\",\"amount\":7197941240000000000,\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}]"
+	var resp []types.EventLog
+	json.Unmarshal([]byte(str),&resp)
+	fmt.Println(resp)
 	//格式化dt
 	tm := time.Unix(1687310927,0)
 	var dt = utils.GetDayTime(&tm)
@@ -384,5 +390,44 @@ func testGetBalance() {
 		fmt.Println("get balacne error", err)
 	}
 	fmt.Println("result:", resp)
+
+}
+func testJsonrpcCreateRecordWallet() {
+
+	conn, err := grpc.Dial("127.0.0.1:8999", grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	defer conn.Close()
+	p := pb.NewTransactionClient(conn)
+
+
+
+	req1 := new(pb.TransactionReq)
+
+	req1.Uid = "6e078f0f37b94869a44998d067fb5129"
+	req1.CreatedAt = 1660615627
+	req1.UpdatedAt = 1660615627
+	req1.BlockHash = ""
+	//req.BlockNumber = 0
+	req1.TransactionHash = "0x063eaa36c294dba06a3fbeec2d2a42b5fed08ad5eff09c06e369676a7a0112e9"
+	req1.Status = "pending"
+	req1.TxTime = 0
+	req1.ChainName = "Polygon"
+	req1.TransactionType = "contract"
+	req1.FromAddress = "0x6D7439A78c648402b30Fc3AB7d89E35F94FcD76a"
+	req1.ToAddress = "0xf0511f123164602042ab2bCF02111fA5D3Fe97CD"
+	req1.Amount = "500000000000000000"
+	req1.GasLimit = "21000"
+	req1.GasPrice = "100000000000"
+	req1.ParseData = "{\"evm\":{\"nonce\":\"0\",\"type\":0}}"
+	req1.ClientData = "{\"sendTime\":1657869735643}"
+	req1.EventLog = "[{\"from\":\"0xEB02b2417fc0eb83aeD10D30DE6d3d77A4bab810\",\"to\":\"0x57F35E3d9A29cc62dc2129Abdca035c235DFa4B7\",\"amount\":1000000000000000000,\"token\":{\"address\":\"0x7CdC0421469398e0F3aA8890693d86c840Ac8931\",\"amount\":\"1000000000000000000\",\"decimals\":18,\"symbol\":\"AZUKI\",\"token_uri\":\"https://obstatic.243096.com/download/token/images/polygon-pos/polygon-pos_0x7cdc0421469398e0f3aa8890693d86c840ac8931.png\"}}]"
+
+	resp, err := p.CreateRecordFromWallet(context.Background(), req1)
+	if err != nil {
+		fmt.Println("get balacne error", err)
+	}
+	fmt.Println(resp)
 
 }

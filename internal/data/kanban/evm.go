@@ -5,14 +5,44 @@ import (
 	"block-crawling/internal/log"
 	"context"
 
+	"github.com/shopspring/decimal"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type KanbanEvmTransactionRecord struct {
-	data.EvmTransactionRecord
-
-	OriginalHash string `json:"originalHash" form:"originalHash" gorm:"-"`
+	Id                   int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	BlockHash            string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
+	BlockNumber          int             `json:"blockNumber" form:"blockNumber"`
+	Nonce                int64           `json:"nonce" form:"nonce"`
+	TransactionHash      string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	FromAddress          string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
+	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
+	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
+	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
+	Amount               decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
+	Status               string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
+	TxTime               int64           `json:"txTime" form:"txTime"`
+	ContractAddress      string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
+	ParseData            string          `json:"parseData" form:"parseData"`
+	Type                 string          `json:"type" form:"type" gorm:"type:character varying(2)"`
+	GasLimit             string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(32)"`
+	GasUsed              string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(32)"`
+	GasPrice             string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(32)"`
+	BaseFee              string          `json:"baseFee" form:"baseFee" gorm:"type:character varying(32)"`
+	MaxFeePerGas         string          `json:"maxFeePerGas" form:"maxFeePerGas" gorm:"type:character varying(32)"`
+	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(32)"`
+	Data                 string          `json:"data" form:"data"`
+	EventLog             string          `json:"eventLog" form:"eventLog"`
+	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
+	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	OperateType          string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
+	DappData             string          `json:"dappData" form:"dappData"`
+	ClientData           string          `json:"clientData" form:"clientData"`
+	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
+	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 // EvmTransactionRecordRepo is a repo for kanban.
@@ -76,7 +106,36 @@ func (r *evmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			byTables[shardingTable] = nil
 		}
 		byTables[shardingTable] = append(byTables[shardingTable], &KanbanEvmTransactionRecord{
-			EvmTransactionRecord: *item,
+			BlockHash:            item.BlockHash,
+			BlockNumber:          item.BlockNumber,
+			Nonce:                item.Nonce,
+			TransactionHash:      item.TransactionHash,
+			FromAddress:          item.FromAddress,
+			ToAddress:            item.ToAddress,
+			FromUid:              item.FromUid,
+			ToUid:                item.ToUid,
+			FeeAmount:            item.FeeAmount,
+			Amount:               item.Amount,
+			Status:               item.Status,
+			TxTime:               item.TxTime,
+			ContractAddress:      item.ContractAddress,
+			ParseData:            item.ParseData,
+			Type:                 item.Type,
+			GasLimit:             item.GasLimit,
+			GasUsed:              item.GasUsed,
+			GasPrice:             item.GasPrice,
+			BaseFee:              item.BaseFee,
+			MaxFeePerGas:         item.MaxFeePerGas,
+			MaxPriorityFeePerGas: item.MaxPriorityFeePerGas,
+			Data:                 item.Data,
+			EventLog:             item.EventLog,
+			LogAddress:           item.LogAddress,
+			TransactionType:      item.TransactionType,
+			OperateType:          item.OperateType,
+			DappData:             item.DappData,
+			ClientData:           item.ClientData,
+			CreatedAt:            item.CreatedAt,
+			UpdatedAt:            item.UpdatedAt,
 		})
 	}
 	var rows int64
