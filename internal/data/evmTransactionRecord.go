@@ -19,7 +19,7 @@ import (
 
 // EvmTransactionRecord is a EvmTransactionRecord model.
 type EvmTransactionRecord struct {
-	//DefaultVersionMarkerIn
+	DefaultVersionMarkerIn
 
 	Id                   int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	BlockHash            string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
@@ -57,7 +57,7 @@ type EvmTransactionRecord struct {
 }
 
 func (*EvmTransactionRecord) Version() string {
-	return "20230019"
+	return "20230927"
 }
 
 type EvmTransactionRecordWrapper struct {
