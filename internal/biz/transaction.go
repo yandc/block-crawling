@@ -2261,6 +2261,147 @@ func (s *TransactionUsecase) PageListAsset(ctx context.Context, req *pb.PageList
 		TokenAddressList: req.TokenAddressList,
 		UidType:          req.AddressType,
 		AmountType:       req.AmountType,
+		TokenType:        req.TokenType,
+		OrderBy:          req.OrderBy,
+		DataDirection:    req.DataDirection,
+		StartIndex:       req.StartIndex,
+		PageNum:          req.PageNum,
+		PageSize:         req.PageSize,
+		Total:            req.Total,
+	}
+	var result = &pb.PageListAssetResponse{}
+	var total int64
+	var list []*pb.AssetResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, request)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		result.Total = total
+		result.List = list
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) PageListAssetCurrency(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	chainType, _ := GetChainNameType(req.ChainName)
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
+	}
+
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Uid:              req.Uid,
+		AddressList:      req.AddressList,
+		TokenAddressList: req.TokenAddressList,
+		UidType:          req.AddressType,
+		AmountType:       req.AmountType,
+		TokenType:        req.TokenType,
+		OrderBy:          req.OrderBy,
+		DataDirection:    req.DataDirection,
+		StartIndex:       req.StartIndex,
+		PageNum:          req.PageNum,
+		PageSize:         req.PageSize,
+		Total:            req.Total,
+	}
+	var result = &pb.PageListAssetResponse{}
+	var total int64
+	var list []*pb.AssetResponse
+	var err error
+
+	var recordList []*data.UserAsset
+	recordList, total, err = data.UserAssetRepoClient.PageList(ctx, request)
+	if err == nil {
+		err = utils.CopyProperties(recordList, &list)
+	}
+
+	if err == nil {
+		var chainNameTokenAddressMap = make(map[string][]string)
+		var tokenAddressMapMap = make(map[string]map[string]string)
+		for _, asset := range recordList {
+			tokenAddressMap, ok := tokenAddressMapMap[asset.ChainName]
+			if !ok {
+				tokenAddressMap = make(map[string]string)
+				tokenAddressMapMap[asset.ChainName] = tokenAddressMap
+			}
+			tokenAddressMap[asset.TokenAddress] = ""
+		}
+
+		for chainName, tokenAddressMap := range tokenAddressMapMap {
+			tokenAddressList := make([]string, 0, len(tokenAddressMap))
+			for key := range tokenAddressMap {
+				tokenAddressList = append(tokenAddressList, key)
+			}
+			chainNameTokenAddressMap[chainName] = tokenAddressList
+		}
+
+		resultMap, err := GetTokensPrice(nil, req.Currency, chainNameTokenAddressMap)
+		if err != nil {
+			return result, err
+		}
+
+		if len(list) > 0 {
+			for _, record := range list {
+				if record == nil {
+					continue
+				}
+
+				if strings.Contains(req.OrderBy, "id ") {
+					record.Cursor = record.Id
+				} else if strings.Contains(req.OrderBy, "created_at ") {
+					record.Cursor = record.CreatedAt
+				} else if strings.Contains(req.OrderBy, "updated_at ") {
+					record.Cursor = record.UpdatedAt
+				}
+
+				chainName := record.ChainName
+				tokenAddress := record.TokenAddress
+				var price string
+				tokenAddressPriceMap := resultMap[chainName]
+				if tokenAddress == "" {
+					price = tokenAddressPriceMap[chainName]
+				} else {
+					price = tokenAddressPriceMap[tokenAddress]
+				}
+				prices, _ := decimal.NewFromString(price)
+				balances, _ := decimal.NewFromString(record.Balance)
+				cnyAmount := prices.Mul(balances)
+				record.CurrencyAmount = cnyAmount.String()
+				record.Price = price
+			}
+		}
+		result.Total = total
+		result.List = list
+	}
+	return result, err
+}
+
+func (s *TransactionUsecase) BackendPageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	chainType, _ := GetChainNameType(req.ChainName)
+	switch chainType {
+	case EVM:
+		req.AddressList = utils.HexToAddress(req.AddressList)
+		req.TokenAddressList = utils.HexToAddress(req.TokenAddressList)
+	case COSMOS:
+		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
+	}
+
+	var request = &data.AssetRequest{
+		ChainName:        req.ChainName,
+		Uid:              req.Uid,
+		AddressList:      req.AddressList,
+		TokenAddressList: req.TokenAddressList,
+		UidType:          req.AddressType,
+		AmountType:       req.AmountType,
+		TokenType:        req.TokenType,
 		OrderBy:          req.OrderBy,
 		GroupBy:          "chain_name, token_address, symbol",
 		DataDirection:    req.DataDirection,
@@ -2562,10 +2703,11 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 		TokenAddressList: req.TokenAddressList,
 		UidType:          req.AddressType,
 		AmountType:       req.AmountType,
+		TokenType:        req.TokenType,
 	}
 	var result = &pb.PageListAssetResponse{}
 	var total int64
-	var totalCurrencyAmount decimal.Decimal
+	var sumCurrencyAmount decimal.Decimal
 	var list []*pb.AssetResponse
 	var err error
 
@@ -2640,13 +2782,32 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 				record.CurrencyAmount = cnyAmount.String()
 				record.Price = price
 
-				totalCurrencyAmount = totalCurrencyAmount.Add(cnyAmount)
+				sumCurrencyAmount = sumCurrencyAmount.Add(cnyAmount)
 
 				/*if strings.Contains(req.OrderBy, "currencyAmount ") {
 					record.Cursor = cnyAmount.IntPart()
 				} else if strings.Contains(req.OrderBy, "price ") {
 					record.Cursor = prices.IntPart()
 				}*/
+			}
+
+			//处理过滤条件
+			if req.CurrencyAmountMoreThan != "" {
+				currencyAmountMoreThan, err := decimal.NewFromString(req.CurrencyAmountMoreThan)
+				if err == nil {
+					var ls []*pb.AssetResponse
+					for _, record := range list {
+						if record == nil {
+							continue
+						}
+
+						currencyAmount, _ := decimal.NewFromString(record.CurrencyAmount)
+						if currencyAmount.GreaterThan(currencyAmountMoreThan) {
+							ls = append(ls, record)
+						}
+					}
+					list = ls
+				}
 			}
 
 			//处理排序
@@ -2726,7 +2887,7 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 		}
 		result.Total = total
 		result.List = list
-		result.TotalCurrencyAmount = totalCurrencyAmount.String()
+		result.TotalCurrencyAmount = sumCurrencyAmount.String()
 	}
 	return result, err
 }

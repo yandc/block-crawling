@@ -5,6 +5,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
@@ -232,10 +233,10 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 
 				fromUserAssetKey := chainName + record.FromAddress + tokenAddress
 				if userAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, tokenInfo, now)
 					for i := 0; i < 10 && err != nil; i++ {
 						time.Sleep(time.Duration(i*5) * time.Second)
-						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, tokenInfo, now)
 					}
 					if err != nil {
 						// 更新用户资产出错 接入lark报警
@@ -252,10 +253,10 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 
 				toUserAssetKey := chainName + record.ToAddress + tokenAddress
 				if userAsset, ok := userAssetMap[toUserAssetKey]; !ok {
-					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+					userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, tokenInfo, now)
 					for i := 0; i < 10 && err != nil; i++ {
 						time.Sleep(time.Duration(i*5) * time.Second)
-						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+						userAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, tokenInfo, now)
 					}
 					if err != nil {
 						// 更新用户资产出错 接入lark报警
@@ -280,10 +281,14 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 			} else {
 				continue
 			}
-			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
+			tokenInfo := &types.TokenInfo{
+				Decimals: int64(mainDecimals),
+				Symbol:   mainSymbol,
+			}
+			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", tokenInfo, now)
 			for i := 0; i < 10 && err != nil; i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
-				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
+				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", tokenInfo, now)
 			}
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -322,7 +327,7 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 }
 
 func doHandleUserAsset(chainName string, client Client, transactionType string, uid string, address string,
-	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	tokenAddress string, tokenInfo *types.TokenInfo, nowTime int64) (*data.UserAsset, error) {
 	if address == "" || uid == "" {
 		return nil, nil
 	}
@@ -331,7 +336,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		if transactionType == biz.NATIVE || tokenAddress == "" {
 			return client.GetBalance(address)
 		} else {
-			return client.GetTokenBalance(address, tokenAddress, int(decimals))
+			return client.GetTokenBalance(address, tokenAddress, int(tokenInfo.Decimals))
 		}
 	})
 	if err != nil {
@@ -345,9 +350,10 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
+		TokenUri:     tokenInfo.TokenUri,
 		Balance:      balance,
-		Decimals:     decimals,
-		Symbol:       symbol,
+		Decimals:     int32(tokenInfo.Decimals),
+		Symbol:       tokenInfo.Symbol,
 		CreatedAt:    nowTime,
 		UpdatedAt:    nowTime,
 	}
