@@ -3996,6 +3996,19 @@ func (m *PageListAssetRequest) validate(all bool) error {
 
 	// no validation rules for AddressType
 
+	if _, ok := _PageListAssetRequest_TokenType_InLookup[m.GetTokenType()]; !ok {
+		err := PageListAssetRequestValidationError{
+			field:  "TokenType",
+			reason: "value must be in list [0 1 2]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for CurrencyAmountMoreThan
+
 	if len(errors) > 0 {
 		return PageListAssetRequestMultiError(errors)
 	}
@@ -4083,6 +4096,12 @@ var _PageListAssetRequest_AmountType_InLookup = map[int32]struct{}{
 }
 
 var _PageListAssetRequest_DataDirection_InLookup = map[int32]struct{}{
+	0: {},
+	1: {},
+	2: {},
+}
+
+var _PageListAssetRequest_TokenType_InLookup = map[int32]struct{}{
 	0: {},
 	1: {},
 	2: {},
@@ -4277,6 +4296,8 @@ func (m *AssetResponse) validate(all bool) error {
 	// no validation rules for Price
 
 	// no validation rules for AddressType
+
+	// no validation rules for TokenUri
 
 	if len(errors) > 0 {
 		return AssetResponseMultiError(errors)

@@ -5,6 +5,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"errors"
@@ -199,7 +200,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
 	addressTokenMap := make(map[string]map[string]int)
-	tokenSymbolMap := make(map[string]string)
+	tokenInfoMap := make(map[string]*types.TokenInfo)
 	addressUidMap := make(map[string]string)
 	var mainDecimals int32
 	var mainSymbol string
@@ -253,7 +254,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 						mainSymbol = symbol
 					}
 				} else if tokenAddress != "" {
-					tokenSymbolMap[tokenAddress] = symbol
+					tokenInfoMap[tokenAddress] = tokenInfo
 					if record.FromAddress != "" && record.FromUid != "" {
 						fromKey := record.FromUid + "," + record.FromAddress
 						tokenDecimalsMap, ok := addressTokenMap[fromKey]
@@ -315,10 +316,10 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 	for key, tokenDecimalsMap := range addressTokenMap {
 		uidAddress := strings.Split(key, ",")
-		userAssetsList, err := doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenSymbolMap, now)
+		userAssetsList, err := doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenInfoMap, now)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
-			userAssetsList, err = doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenSymbolMap, now)
+			userAssetsList, err = doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenInfoMap, now)
 		}
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
@@ -388,7 +389,7 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 }
 
 func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
-	tokenDecimalsMap map[string]int, tokenSymbolMap map[string]string, nowTime int64) ([]*data.UserAsset, error) {
+	tokenDecimalsMap map[string]int, tokenInfoMap map[string]*types.TokenInfo, nowTime int64) ([]*data.UserAsset, error) {
 	var userAssets []*data.UserAsset
 
 	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
@@ -406,17 +407,17 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 
 	for tokenAddress, balancei := range balanceList {
 		balance := fmt.Sprintf("%v", balancei)
-		decimals := int32(tokenDecimalsMap[tokenAddress])
-		symbol := tokenSymbolMap[tokenAddress]
+		tokenInfo := tokenInfoMap[tokenAddress]
 
 		var userAsset = &data.UserAsset{
 			ChainName:    chainName,
 			Uid:          uid,
 			Address:      address,
 			TokenAddress: tokenAddress,
+			TokenUri:     tokenInfo.TokenUri,
 			Balance:      balance,
-			Decimals:     decimals,
-			Symbol:       symbol,
+			Decimals:     int32(tokenInfo.Decimals),
+			Symbol:       tokenInfo.Symbol,
 			CreatedAt:    nowTime,
 			UpdatedAt:    nowTime,
 		}

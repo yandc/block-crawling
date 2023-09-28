@@ -503,6 +503,26 @@ func (s *TransactionService) GetDappListPageList(ctx context.Context, req *pb.Da
 	return result, err
 }
 
+func (s *TransactionService) PageListAssetCurrency(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
+	biz.ChainTypeAdd(req.ChainName)
+	if req.Uid == "" && len(req.AddressList) == 0 {
+		return nil, errors.New("uid or addressList is required")
+	}
+
+	if req.OrderBy == "" {
+		req.OrderBy = "id desc"
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = data.PAGE_SIZE
+	} else if req.PageSize > data.MAX_PAGE_SIZE {
+		req.PageSize = data.MAX_PAGE_SIZE
+	}
+
+	result, err := s.ts.PageListAssetCurrency(ctx, req)
+	return result, err
+}
+
 func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageListAssetRequest) (*pb.PageListAssetResponse, error) {
 	biz.ChainTypeAdd(req.ChainName)
 	if req.Uid == "" && len(req.AddressList) == 0 {
@@ -522,7 +542,7 @@ func (s *TransactionService) PageListAsset(ctx context.Context, req *pb.PageList
 		req.PageSize = data.MAX_PAGE_SIZE
 	}
 
-	result, err := s.ts.PageListAsset(ctx, req)
+	result, err := s.ts.BackendPageListAsset(ctx, req)
 	return result, err
 }
 

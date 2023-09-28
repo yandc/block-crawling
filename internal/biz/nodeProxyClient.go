@@ -308,6 +308,56 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	return tokenInfo, nil
 }
 
+func GetTokensInfo(ctx context.Context, chainNameTokenAddressMap map[string][]string) (map[string]map[string]types.TokenInfo, error) {
+	var tokenInfoReq []*v1.GetTokenInfoReq_Data
+	var resultMap = make(map[string]map[string]types.TokenInfo)
+	for chainName, tokenAddressList := range chainNameTokenAddressMap {
+		if _, ok := GetChainPlatInfo(chainName); ok {
+			for _, tokenAddress := range tokenAddressList {
+				if tokenAddress != "" {
+					tokenInfoReq = append(tokenInfoReq, &v1.GetTokenInfoReq_Data{
+						Chain:   chainName,
+						Address: tokenAddress,
+					})
+				}
+			}
+		}
+	}
+
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := v1.NewTokenlistClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), 15_000*time.Millisecond)
+		ctx = context
+		defer cancel()
+	}
+	response, err := client.GetTokenInfo(ctx, &v1.GetTokenInfoReq{
+		Data: tokenInfoReq,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := response.Data
+	if len(data) > 0 {
+		for _, respData := range data {
+			tokenInfo := types.TokenInfo{Address: respData.Address, Decimals: int64(respData.Decimals), Symbol: respData.Symbol, TokenUri: respData.LogoURI}
+			tokenAddressTokenInfoMap, ok := resultMap[respData.Chain]
+			if !ok {
+				tokenAddressTokenInfoMap = make(map[string]types.TokenInfo)
+				resultMap[respData.Chain] = tokenAddressTokenInfoMap
+			}
+			tokenAddressTokenInfoMap[respData.Address] = tokenInfo
+		}
+	}
+	return resultMap, nil
+}
+
 func GetNftInfo(ctx context.Context, chainName string, tokenAddress string, tokenId string) (types.TokenInfo, error) {
 	tokenInfo := types.TokenInfo{}
 	if tokenAddress == "" {

@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pCommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
@@ -114,16 +115,14 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 				continue
 			}
 			tokenType := tokenInfo.TokenType
-			decimals := tokenInfo.Decimals
-			symbol := tokenInfo.Symbol
 
 			if tokenType != biz.SUINFT {
 				fromUserAssetKey := chainName + record.FromAddress + tokenAddress
 				if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
-					fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+					fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, tokenInfo, now)
 					for i := 0; i < 10 && err != nil; i++ {
 						time.Sleep(time.Duration(i*5) * time.Second)
-						fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, int32(decimals), symbol, now)
+						fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, tokenInfo, now)
 					}
 					if err != nil {
 						// 更新用户资产出错 接入lark报警
@@ -140,10 +139,10 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 
 				toUserAssetKey := chainName + record.ToAddress + tokenAddress
 				if toUserAsset, ok := userAssetMap[toUserAssetKey]; !ok {
-					toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+					toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, tokenInfo, now)
 					for i := 0; i < 10 && err != nil; i++ {
 						time.Sleep(time.Duration(i*5) * time.Second)
-						toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, int32(decimals), symbol, now)
+						toUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.ToUid, record.ToAddress, tokenAddress, tokenInfo, now)
 					}
 					if err != nil {
 						// 更新用户资产出错 接入lark报警
@@ -168,10 +167,14 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 			} else {
 				continue
 			}
-			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
+			tokenInfo := &types.TokenInfo{
+				Decimals: int64(mainDecimals),
+				Symbol:   mainSymbol,
+			}
+			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", tokenInfo, now)
 			for i := 0; i < 10 && err != nil; i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)
-				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", mainDecimals, mainSymbol, now)
+				fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", tokenInfo, now)
 			}
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
@@ -210,7 +213,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 }
 
 func doHandleUserAsset(chainName string, client Client, transactionType string, uid string, address string,
-	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
+	tokenAddress string, tokenInfo *types.TokenInfo, nowTime int64) (*data.UserAsset, error) {
 	if address == "" || uid == "" {
 		return nil, nil
 	}
@@ -219,7 +222,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		if transactionType == biz.NATIVE || tokenAddress == SUI_CODE || tokenAddress == SUI_CODE1 || tokenAddress == "" {
 			return client.GetBalance(address)
 		} else {
-			return client.GetTokenBalance(address, tokenAddress, int(decimals))
+			return client.GetTokenBalance(address, tokenAddress, int(tokenInfo.Decimals))
 		}
 	})
 	if err != nil {
@@ -233,9 +236,10 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 		Uid:          uid,
 		Address:      address,
 		TokenAddress: tokenAddress,
+		TokenUri:     tokenInfo.TokenUri,
 		Balance:      balance,
-		Decimals:     decimals,
-		Symbol:       symbol,
+		Decimals:     int32(tokenInfo.Decimals),
+		Symbol:       tokenInfo.Symbol,
 		CreatedAt:    nowTime,
 		UpdatedAt:    nowTime,
 	}

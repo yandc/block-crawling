@@ -21,6 +21,7 @@ type UserAsset struct {
 	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
 	Address      string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address"`
 	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
+	TokenUri     string `json:"tokenUri" form:"tokenUri" gorm:"type:character varying(256)"`
 	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
 	Decimals     int32  `json:"decimals" form:"decimals"`
 	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(128);index"`
@@ -40,6 +41,8 @@ type AssetRequest struct {
 	UidType                          int32
 	UidTypeList                      []int32
 	AmountType                       int32
+	TokenType                        int32
+	CurrencyAmountMoreThan           string
 	ChainNameAddressTokenAddressList []*AssetRequest
 	StartTime                        int64
 	StopTime                         int64
@@ -77,6 +80,7 @@ type UserAssetRepo interface {
 	UpdateZeroByAddress(context.Context, string) (int64, error)
 	UpdateUidTypeByUid(context.Context, string, int8) (int64, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
+	UpdateTokenUriByChainTokenAddress(context.Context, string, string, string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
@@ -163,7 +167,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAssets []
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "token_uri", "updated_at"}),
 	}).Create(&userAssets)
 	err := ret.Error
 	if err != nil {
@@ -214,6 +218,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx context.Cont
 			"uid":           gorm.Expr("case when excluded.uid != '' then excluded.uid else user_asset.uid end"),
 			"address":       gorm.Expr("case when excluded.address != '' then excluded.address else user_asset.address end"),
 			"token_address": gorm.Expr("case when excluded.token_address != '' then excluded.token_address else user_asset.token_address end"),
+			"token_uri":     gorm.Expr("case when excluded.token_uri != '' then excluded.token_uri else user_asset.token_uri end"),
 			"balance":       gorm.Expr("case when excluded.balance != '' then excluded.balance else user_asset.balance end"),
 			"decimals":      gorm.Expr("case when excluded.decimals != 0 then excluded.decimals else user_asset.decimals end"),
 			"symbol":        gorm.Expr("case when excluded.symbol != '' then excluded.symbol else user_asset.symbol end"),
@@ -294,6 +299,17 @@ func (r *UserAssetRepoImpl) UpdateUidByAddress(ctx context.Context, address stri
 	return affected, nil
 }
 
+func (r *UserAssetRepoImpl) UpdateTokenUriByChainTokenAddress(ctx context.Context, chainName string, tokenAddress string, tokenUri string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("chain_name = ? and token_address = ?", chainName, tokenAddress).Update("token_uri", tokenUri)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update tokenUri by chainName and tokenAddress", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
 func (r *UserAssetRepoImpl) FindByID(ctx context.Context, id int64) (*UserAsset, error) {
 	var userAsset *UserAsset
 	ret := r.gormDB.WithContext(ctx).First(&userAsset, id)
@@ -365,6 +381,13 @@ func (r *UserAssetRepoImpl) PageList(ctx context.Context, req *AssetRequest) ([]
 			db = db.Where("(balance is null or balance = '' or balance = '0')")
 		} else if req.AmountType == 2 {
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
+	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			db = db.Where("token_address = ''")
+		} else if req.TokenType == 2 {
+			db = db.Where("token_address != ''")
 		}
 	}
 	if len(req.ChainNameAddressTokenAddressList) > 0 {
@@ -503,6 +526,13 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
 		}
 	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			db = db.Where("token_address = ''")
+		} else if req.TokenType == 2 {
+			db = db.Where("token_address != ''")
+		}
+	}
 	if len(req.ChainNameAddressTokenAddressList) > 0 {
 		chainNameAddressTokenAddressList := req.ChainNameAddressTokenAddressList
 		chainNameAddressTokenAddress := "("
@@ -574,6 +604,13 @@ func (r *UserAssetRepoImpl) ListBalance(ctx context.Context, req *AssetRequest) 
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
 		}
 	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			sqlStr += " and token_address = ''"
+		} else if req.TokenType == 2 {
+			sqlStr += " and token_address != ''"
+		}
+	}
 
 	ret := r.gormDB.WithContext(ctx).Table("user_asset").Raw(sqlStr).Find(&userAssetList)
 	err := ret.Error
@@ -627,6 +664,13 @@ func (r *UserAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *AssetRequ
 			sqlStr += " and (balance is null or balance = '' or balance = '0')"
 		} else if req.AmountType == 2 {
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			sqlStr += " and token_address = ''"
+		} else if req.TokenType == 2 {
+			sqlStr += " and token_address != ''"
 		}
 	}
 	if req.GroupBy != "" {
@@ -685,6 +729,13 @@ func (r *UserAssetRepoImpl) ListAddressAmountGroup(ctx context.Context, req *Ass
 			sqlStr += " and (balance is null or balance = '' or balance = '0')"
 		} else if req.AmountType == 2 {
 			sqlStr += " and (balance is not null and balance != '' and balance != '0')"
+		}
+	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			sqlStr += " and token_address = ''"
+		} else if req.TokenType == 2 {
+			sqlStr += " and token_address != ''"
 		}
 	}
 	if req.GroupBy != "" {
@@ -757,6 +808,13 @@ func (r *UserAssetRepoImpl) Delete(ctx context.Context, req *AssetRequest) (int6
 			db = db.Where("(balance is null or balance = '' or balance = '0')")
 		} else if req.AmountType == 2 {
 			db = db.Where("(balance is not null and balance != '' and balance != '0')")
+		}
+	}
+	if req.TokenType > 0 {
+		if req.TokenType == 1 {
+			db = db.Where("token_address = ''")
+		} else if req.TokenType == 2 {
+			db = db.Where("token_address != ''")
 		}
 	}
 	if len(req.ChainNameAddressTokenAddressList) > 0 {

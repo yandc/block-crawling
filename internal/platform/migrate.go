@@ -7612,3 +7612,107 @@ func UpdateAssetUid() {
 
 	log.Info("修改钱包地址对应的uid，处理用户资产表结束")
 }
+
+func UpdateAssetTokenUri() {
+	log.Info("填补token对应的tokenUri，处理用户资产表开始")
+
+	var request = &data.AssetRequest{
+		SelectColumn: "id, chain_name, token_address",
+		TokenType:    2,
+		OrderBy:      "id asc",
+		PageSize:     data.MAX_PAGE_SIZE,
+	}
+	chainNameTokenAddressTokenInfoMap := make(map[string]map[string]types.TokenInfo)
+	var recordGroupList []*data.UserAsset
+	recordGroupMap := make(map[string]*data.UserAsset)
+	var err error
+	var total int64
+	err = data.UserAssetRepoClient.PageListAllCallBack(nil, request, func(userAssets []*data.UserAsset) error {
+		total += int64(len(userAssets))
+		for _, userAsset := range userAssets {
+			key := userAsset.ChainName + userAsset.TokenAddress
+			recordGroupMap[key] = userAsset
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error("填补token对应的tokenUri，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
+		return
+	}
+	if total == 0 {
+		log.Info("填补token对应的tokenUri，从数据库中查询用户资产为空", zap.Any("total", total))
+		return
+	}
+	for _, userAsset := range recordGroupMap {
+		recordGroupList = append(recordGroupList, userAsset)
+	}
+
+	recordSize := len(recordGroupList)
+	if recordSize == 0 {
+		log.Info("填补token对应的tokenUri，从数据库中查询用户资产为空", zap.Any("size", recordSize), zap.Any("total", total))
+		return
+	}
+
+	log.Info("填补token对应的tokenUri，开始执行从nodeProxy中获取代币信息操作", zap.Any("size", recordSize), zap.Any("total", total))
+	var num int
+	requestNum := 1
+	requestInterval := 100
+	var chainNameTokenAddressMap = make(map[string][]string)
+	for i, userAsset := range recordGroupList {
+		tokenAddressList, ok := chainNameTokenAddressMap[userAsset.ChainName]
+		if !ok {
+			tokenAddressList = make([]string, 0)
+		}
+		tokenAddressList = append(tokenAddressList, userAsset.TokenAddress)
+		chainNameTokenAddressMap[userAsset.ChainName] = tokenAddressList
+		if i++; i%requestNum != 0 && i < recordSize {
+			continue
+		}
+
+		if num++; num%requestInterval == 0 {
+			log.Info("填补token对应的tokenUri，从nodeProxy中获取代币信息中", zap.Any("i", i), zap.Any("num", num), zap.Any("size", recordSize), zap.Any("total", total))
+			time.Sleep(time.Duration(1) * time.Second)
+		}
+		var resultMap map[string]map[string]types.TokenInfo
+		resultMap, err = biz.GetTokensInfo(nil, chainNameTokenAddressMap)
+		if err != nil {
+			log.Error("填补token对应的tokenUri，从nodeProxy中获取代币信息失败", zap.Any("i", i), zap.Any("num", num), zap.Any("size", recordSize), zap.Any("total", total), zap.Any("chainNameTokenAddressMap", chainNameTokenAddressMap), zap.Any("error", err))
+			chainNameTokenAddressMap = make(map[string][]string)
+			continue
+		}
+		for chainName, tokenAddressInfoMap := range resultMap {
+			oldTokenAddressPriceMap, ok := chainNameTokenAddressTokenInfoMap[chainName]
+			if !ok {
+				chainNameTokenAddressTokenInfoMap[chainName] = tokenAddressInfoMap
+			} else {
+				for tokenAddress, tokenInfo := range tokenAddressInfoMap {
+					oldTokenAddressPriceMap[tokenAddress] = tokenInfo
+				}
+			}
+		}
+		chainNameTokenAddressMap = make(map[string][]string)
+	}
+
+	log.Info("填补token对应的tokenUri，开始执行修改数据库操作", zap.Any("size", len(chainNameTokenAddressTokenInfoMap)))
+	num = 0
+	for chainName, tokenAddressTokenInfoMap := range chainNameTokenAddressTokenInfoMap {
+		for tokenAddress, tokenInfo := range tokenAddressTokenInfoMap {
+			tokenUri := tokenInfo.TokenUri
+			if num++; num%biz.PAGE_SIZE == 0 {
+				log.Info("填补token对应的tokenUri，修改数据库中", zap.Any("num", num), zap.Any("size", len(chainNameTokenAddressTokenInfoMap)))
+				time.Sleep(time.Duration(2) * time.Second)
+			}
+			var count int64
+			count, err = data.UserAssetRepoClient.UpdateTokenUriByChainTokenAddress(nil, chainName, tokenAddress, tokenUri)
+			for i := 0; i < 3 && err != nil; i++ {
+				time.Sleep(time.Duration(i*1) * time.Second)
+				count, err = data.UserAssetRepoClient.UpdateTokenUriByChainTokenAddress(nil, chainName, tokenAddress, tokenUri)
+			}
+			if err != nil {
+				log.Error("填补token对应的tokenUri，将数据插入到数据库中失败", zap.Any("size", len(chainNameTokenAddressTokenInfoMap)), zap.Any("count", count), zap.Any("chainName", chainName), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenUri", tokenUri), zap.Any("error", err))
+			}
+		}
+	}
+
+	log.Info("填补token对应的tokenUri，处理用户资产表结束")
+}

@@ -33,6 +33,8 @@ type TransactionClient interface {
 	GetAllOpenAmount(ctx context.Context, in *OpenAmountReq, opts ...grpc.CallOption) (*OpenAmoutResp, error)
 	GetNonce(ctx context.Context, in *NonceReq, opts ...grpc.CallOption) (*NonceResp, error)
 	GetDappListPageList(ctx context.Context, in *DappPageListReq, opts ...grpc.CallOption) (*DappPageListResp, error)
+	//分页查询包含折合成法币的用户资产列表
+	PageListAssetCurrency(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//管理平台分页查询用户资产列表
 	PageListAsset(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error)
 	//管理平台分页查询用户资产分组列表
@@ -151,6 +153,15 @@ func (c *transactionClient) GetNonce(ctx context.Context, in *NonceReq, opts ...
 func (c *transactionClient) GetDappListPageList(ctx context.Context, in *DappPageListReq, opts ...grpc.CallOption) (*DappPageListResp, error) {
 	out := new(DappPageListResp)
 	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/GetDappListPageList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionClient) PageListAssetCurrency(ctx context.Context, in *PageListAssetRequest, opts ...grpc.CallOption) (*PageListAssetResponse, error) {
+	out := new(PageListAssetResponse)
+	err := c.cc.Invoke(ctx, "/api.transaction.v1.Transaction/PageListAssetCurrency", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -361,6 +372,8 @@ type TransactionServer interface {
 	GetAllOpenAmount(context.Context, *OpenAmountReq) (*OpenAmoutResp, error)
 	GetNonce(context.Context, *NonceReq) (*NonceResp, error)
 	GetDappListPageList(context.Context, *DappPageListReq) (*DappPageListResp, error)
+	//分页查询包含折合成法币的用户资产列表
+	PageListAssetCurrency(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//管理平台分页查询用户资产列表
 	PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error)
 	//管理平台分页查询用户资产分组列表
@@ -433,6 +446,9 @@ func (UnimplementedTransactionServer) GetNonce(context.Context, *NonceReq) (*Non
 }
 func (UnimplementedTransactionServer) GetDappListPageList(context.Context, *DappPageListReq) (*DappPageListResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDappListPageList not implemented")
+}
+func (UnimplementedTransactionServer) PageListAssetCurrency(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PageListAssetCurrency not implemented")
 }
 func (UnimplementedTransactionServer) PageListAsset(context.Context, *PageListAssetRequest) (*PageListAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListAsset not implemented")
@@ -650,6 +666,24 @@ func _Transaction_GetDappListPageList_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TransactionServer).GetDappListPageList(ctx, req.(*DappPageListReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Transaction_PageListAssetCurrency_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServer).PageListAssetCurrency(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.transaction.v1.Transaction/PageListAssetCurrency",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServer).PageListAssetCurrency(ctx, req.(*PageListAssetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1070,6 +1104,10 @@ var Transaction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDappListPageList",
 			Handler:    _Transaction_GetDappListPageList_Handler,
+		},
+		{
+			MethodName: "PageListAssetCurrency",
+			Handler:    _Transaction_PageListAssetCurrency_Handler,
 		},
 		{
 			MethodName: "PageListAsset",

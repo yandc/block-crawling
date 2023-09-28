@@ -20,6 +20,8 @@ service Transaction {
   rpc GetAllOpenAmount(OpenAmountReq) returns (OpenAmoutResp);
   rpc GetNonce(NonceReq) returns (NonceResp);
   rpc GetDappListPageList(DappPageListReq) returns (DappPageListResp);
+  //分页查询包含折合成法币的用户资产列表
+  rpc PageListAssetCurrency(PageListAssetRequest) returns (PageListAssetResponse);
   //管理平台分页查询用户资产列表
   rpc PageListAsset(PageListAssetRequest) returns (PageListAssetResponse);
   //管理平台分页查询用户资产分组列表
@@ -390,6 +392,8 @@ message PageListAssetRequest {
   int32 pageSize = 11 [(validate.rules).int32.gte = 0];
   bool total = 12;
   int32 addressType = 13;//钱包类型: 0:ALL(不传默认查询所有钱包类型), 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
+  int32 tokenType = 14 [(validate.rules).int32 = {in: [0, 1, 2]}];//代币类型: 0:不传默认查询主币和普通代币, 1:查询主币, 2:查询普通代币
+  string currencyAmountMoreThan = 15;//法币金额大于
 }
 
 message PageListAssetResponse {
@@ -413,6 +417,7 @@ message AssetResponse {
   int64 cursor = 12;
   string price = 13;
   int32 addressType = 14;//钱包类型: 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
+  string tokenUri = 15;
 }
 
 message AssetRequest {
