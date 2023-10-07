@@ -103,7 +103,7 @@ func (b *Bootstrap) Start() {
 	biz.DynamicCreateTable(b.mr, b.db, table, b.Conf.Type)
 
 	go func() {
-		if b.ChainName == "Osmosis" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
+		if b.ChainName == "Osmosis" || b.ChainName == "Solana" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" {
 			return
 		}
 		log.Info("我启动啦", zap.Any(b.ChainName, b))
