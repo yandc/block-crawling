@@ -115,169 +115,181 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 		}
 	}()
 
-	//获取 最新一笔交易的 blocknumber
-	ctx := context.Background()
-	lastRecord, err := data.EvmTransactionRecordRepoClient.FindLastBlockNumberByAddress(ctx, GetTableName(chainName), address)
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
+	}
+	dbLastRecords, _, err := data.EvmTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
 	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-		return
+		return err
+	}
+	var dbLastRecordBlockNumber int
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
+		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
-	var dbLastRecordSlotNumber int
-	var dbLastRecordHash string
-	if lastRecord != nil {
-		dbLastRecordSlotNumber = lastRecord.BlockNumber
-		dbLastRecordHash = strings.Split(lastRecord.TransactionHash, "#")[0]
-	}
-	//func GetApiTx(url string, starblock string, page int, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
 	var result []EvmApiRecord
 	var intxResult []EvmApiRecord
+	for _, url := range urls {
+		//Get a list of 'Normal' Transactions By Address
+		result, err = GetApiTx(chainName, url, "txlist", address, dbLastRecordBlockNumber, dbLastRecordHash)
 
-	for i := 0; i < len(urls); i++ {
-		//init record
-		//节点api变更 参数 start不能识别
-		evmRecords, flag := GetApiTx(urls[i], "0", 50, "txlist", address, chainName)
-		evmIntxRecords, flagIntx := GetApiTx(urls[i], "0", 50, "txlistinternal", address, chainName)
-		if flag || flagIntx {
+		if err == nil && len(result) == 0 {
+			//Get a list of 'ERC20 - Token Transfer Events' by Address
+			result, err = GetApiTx(chainName, url, "tokentx", address, dbLastRecordBlockNumber, dbLastRecordHash)
+		}
+
+		if err == nil && len(result) == 0 {
+			//Get a list of 'ERC721 - Token Transfer Events' by Address
+			result, err = GetApiTx(chainName, url, "tokennfttx", address, dbLastRecordBlockNumber, dbLastRecordHash)
+		}
+
+		if err == nil && len(result) == 0 {
+			//Get a list of 'ERC1155 - Token Transfer Events' by Address
+			result, err = GetApiTx(chainName, url, "token1155tx", address, dbLastRecordBlockNumber, dbLastRecordHash)
+		}
+
+		if err == nil && len(result) == 0 {
+			//Get a list of 'Internal' Transactions by Address
+			intxResult, err = GetApiTx(chainName, url, "txlistinternal", address, dbLastRecordBlockNumber, dbLastRecordHash)
+		}
+
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
+		return err
+	}
+
+	var evmTransactionRecordList []*data.EvmTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+
+	for _, record := range result {
+		txHash := record.Hash
+		blockNumber, _ := strconv.Atoi(record.BlockNumber)
+
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
 			continue
 		}
-		result = append(result, evmRecords...)
-		intxResult = append(intxResult, evmIntxRecords...)
-		break
-	}
-	if len(result) == 0 {
-		alarmOpts := WithMsgLevel("FATAL")
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更api查询, 未查出结果，但是资产有变动", chainName)
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Warn(alarmMsg, zap.Any("chainName", chainName), zap.Any("lastTx", lastRecord))
-	} else {
-		var evmTransactionRecordList []*data.EvmTransactionRecord
-		transactionRecordMap := make(map[string]string)
-		now := time.Now().Unix()
-
-		for _, record := range result {
-			txHash := record.Hash
-			bn, _ := strconv.Atoi(record.BlockNumber)
-
-			if txHash == "" {
-				continue
-			}
-			if bn < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
-				break
-			}
-			if _, ok := transactionRecordMap[txHash]; !ok {
-				transactionRecordMap[txHash] = ""
-			} else {
-				continue
-			}
-			evmRecord := &data.EvmTransactionRecord{
-				TransactionHash: txHash,
-				BlockNumber:     bn,
-				FromAddress:     types2.HexToAddress(record.From).Hex(),
-				ToAddress:       types2.HexToAddress(record.To).Hex(),
-				Status:          PENDING,
-				Nonce:           -1,
-				DappData:        "",
-				ClientData:      "",
-				CreatedAt:       now,
-				UpdatedAt:       now,
-			}
-			evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
+		nonce, _ := strconv.Atoi(record.Nonce)
+		evmRecord := &data.EvmTransactionRecord{
+			TransactionHash: txHash,
+			BlockHash:       record.BlockHash,
+			BlockNumber:     blockNumber,
+			Nonce:           int64(nonce),
+			FromAddress:     types2.HexToAddress(record.From).Hex(),
+			ToAddress:       types2.HexToAddress(record.To).Hex(),
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
+		evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
+	}
 
-		for _, intxRecord := range intxResult {
-			txHash := intxRecord.Hash
-			bn, _ := strconv.Atoi(intxRecord.BlockNumber)
-			if txHash == "" {
-				continue
-			}
-			if bn < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
-				break
-			}
-			if _, ok := transactionRecordMap[txHash]; !ok {
-				transactionRecordMap[txHash] = ""
-			} else {
-				continue
-			}
-			txTime, _ := strconv.Atoi(intxRecord.TimeStamp)
-			am, _ := decimal.NewFromString(intxRecord.Value)
-			fa := types2.HexToAddress(intxRecord.From).Hex()
-			ta := types2.HexToAddress(intxRecord.To).Hex()
-			_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, fa)
-			if err1 != nil {
-				log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err1))
-				return
-			}
-			_, toUid, err2 := UserAddressSwitchRetryAlert(chainName, ta)
-			if err2 != nil {
-				log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err2))
-				return
-			}
-			parseData := ""
-			transactionType := NATIVE
-			if intxRecord.ContractAddress != "" {
-				transactionType = TRANSFER
-				tokenInfo, e := GetTokenInfoRetryAlert(ctx, chainName, intxRecord.ContractAddress)
-				if e == nil {
-					tokenInfo.Amount = intxRecord.Value
-					tokenInfo.Address = intxRecord.ContractAddress
-					evmMap := map[string]interface{}{
-						"token": tokenInfo,
-					}
-					parseData, _ = utils.JsonEncode(evmMap)
+	for _, intxRecord := range intxResult {
+		txHash := intxRecord.Hash
+		blockNumber, _ := strconv.Atoi(intxRecord.BlockNumber)
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		nonce, _ := strconv.Atoi(intxRecord.Nonce)
+		txTime, _ := strconv.Atoi(intxRecord.TimeStamp)
+		am, _ := decimal.NewFromString(intxRecord.Value)
+		fa := types2.HexToAddress(intxRecord.From).Hex()
+		ta := types2.HexToAddress(intxRecord.To).Hex()
+		_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, fa)
+		if err1 != nil {
+			log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err1))
+			return
+		}
+		_, toUid, err2 := UserAddressSwitchRetryAlert(chainName, ta)
+		if err2 != nil {
+			log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", fa), zap.Any("error", err2))
+			return
+		}
+		parseData := ""
+		transactionType := NATIVE
+		if intxRecord.ContractAddress != "" {
+			transactionType = TRANSFER
+			tokenInfo, e := GetTokenInfoRetryAlert(context.Background(), chainName, intxRecord.ContractAddress)
+			if e == nil {
+				tokenInfo.Amount = intxRecord.Value
+				tokenInfo.Address = intxRecord.ContractAddress
+				evmMap := map[string]interface{}{
+					"token": tokenInfo,
 				}
+				parseData, _ = utils.JsonEncode(evmMap)
 			}
-
-			evmRecord := &data.EvmTransactionRecord{
-				TransactionHash: txHash,
-				BlockNumber:     bn,
-				FromAddress:     fa,
-				FromUid:         fromUid,
-				ToAddress:       ta,
-				ToUid:           toUid,
-				Status:          SUCCESS,
-				TxTime:          int64(txTime),
-				ContractAddress: intxRecord.ContractAddress,
-				TransactionType: transactionType,
-				Amount:          am,
-				DappData:        "",
-				ClientData:      "",
-				ParseData:       parseData,
-				CreatedAt:       now,
-				UpdatedAt:       now,
-			}
-			evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
 		}
 
-		if len(evmTransactionRecordList) > 0 {
-			_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
-			if err != nil {
-				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
-				alarmOpts := WithMsgLevel("FATAL")
-				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-				return err
-			}
+		evmRecord := &data.EvmTransactionRecord{
+			TransactionHash: txHash,
+			BlockHash:       intxRecord.BlockHash,
+			BlockNumber:     blockNumber,
+			Nonce:           int64(nonce),
+			FromAddress:     fa,
+			FromUid:         fromUid,
+			ToAddress:       ta,
+			ToUid:           toUid,
+			Status:          SUCCESS,
+			TxTime:          int64(txTime),
+			ContractAddress: intxRecord.ContractAddress,
+			TransactionType: transactionType,
+			Amount:          am,
+			ParseData:       parseData,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		evmTransactionRecordList = append(evmTransactionRecordList, evmRecord)
+	}
+
+	if len(evmTransactionRecordList) > 0 {
+		_, err = data.EvmTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), evmTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
+			return err
 		}
 	}
+
 	return
 }
 
-func GetApiTx(url string, starblock string, offset int, actionTx string, address string, chainName string) ([]EvmApiRecord, bool) {
+func GetApiTx(chainName, url, action, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]EvmApiRecord, error) {
 	var result []EvmApiRecord
-	page := 1
-	changeUrl := false
+	pageNum := 1
+	startBlock := strconv.Itoa(dbLastRecordBlockNumber)
 	if strings.Contains(url, "?") {
-		url = url + "&module=account&startblock=" + starblock + "&start_block=" + starblock + "&end_block=99999999&endblock=99999999&sort=desc&offset=" + strconv.Itoa(offset) + "&action=" + actionTx + "&address=" + address
+		url = url + "&"
 	} else {
-		url = url + "?module=account&startblock=" + starblock + "&start_block=" + starblock + "&end_block=99999999&endblock=99999999&sort=desc&offset=" + strconv.Itoa(offset) + "&action=" + actionTx + "&address=" + address
+		url = url + "?"
 	}
+	url = url + "module=account&action=" + action + "&address=" + address + "&startblock=" + startBlock + "&start_block=" + startBlock + "&sort=desc&offset=" + strconv.Itoa(pageSize)
 	var err error
-	for { //组装
-		reqUrl := url + "&page=" + strconv.Itoa(page)
+chainFlag:
+	for {
+		reqUrl := url + "&page=" + strconv.Itoa(pageNum)
 		var out EvmApiModel
 		//查询
 		if chainName == "ETH" || chainName == "Optimism" || chainName == "ETC" || chainName == "xDai" {
@@ -298,29 +310,37 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-			changeUrl = true
-			break
+			return nil, err
 		}
-		//解析 对象
-		s := utils.GetString(out.Status)
 
-		if s == API_SUCCEESS {
+		status := utils.GetString(out.Status)
+		if status == API_SUCCEESS {
 			var evmInterface = out.Result.([]interface{})
-			for _, evm := range evmInterface {
-				var ear EvmApiRecord
-				temp := evm.(map[string]interface{})
-				utils.CopyProperties(temp, &ear)
-				result = append(result, ear)
-			}
-			if len(evmInterface) < offset {
+			dataLen := len(evmInterface)
+			if dataLen == 0 {
 				break
 			}
-			page++
+
+			for _, evm := range evmInterface {
+				var evmApiRecord EvmApiRecord
+				temp := evm.(map[string]interface{})
+				utils.CopyProperties(temp, &evmApiRecord)
+				txHash := evmApiRecord.Hash
+				txBlockNumber, _ := strconv.Atoi(evmApiRecord.BlockNumber)
+				if txBlockNumber < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+					break chainFlag
+				}
+				result = append(result, evmApiRecord)
+			}
+			if dataLen < pageSize {
+				break
+			}
+			pageNum++
 		} else {
 			if out.Message == "No transactions found" || out.Message == "No internal transactions found" {
-				return result, changeUrl
+				return result, nil
 			}
-			msg := ""
+			msg := out.Message
 			if out.Result != nil {
 				if intValue, ok := out.Result.(string); ok {
 					msg = intValue
@@ -330,11 +350,10 @@ func GetApiTx(url string, starblock string, offset int, actionTx string, address
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("msg", msg))
-			changeUrl = true
-			break
+			return nil, errors.New(msg)
 		}
 	}
-	return result, changeUrl
+	return result, nil
 }
 
 type CosmosBrowserInfo struct {
@@ -630,8 +649,6 @@ chainFlag:
 		atomRecord := &data.AtomTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -737,7 +754,6 @@ chainFlag:
 			break
 		}
 		starIndex = starIndex + dataLen
-
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
@@ -753,8 +769,6 @@ chainFlag:
 		atomRecord := &data.AtomTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -791,6 +805,25 @@ type SolanaBrowserInfo struct {
 		ProgramId string `json:"programId"`
 		Type      string `json:"type"`
 	} `json:"parsedInstruction"`
+}
+
+type SolanaBrowserTxResponse struct {
+	Succcess bool `json:"succcess"`
+	Data     struct {
+		Tx struct {
+			Transactions []*SolanaBrowserTxInfo `json:"transactions"`
+			HasNext      bool                   `json:"hasNext"`
+			Total        int                    `json:"total"`
+		} `json:"tx"`
+		Begin int `json:"begin"`
+	} `json:"data"`
+}
+type SolanaBrowserTxInfo struct {
+	BlockTime int    `json:"blockTime"`
+	Slot      int    `json:"slot"`
+	TxHash    string `json:"txHash"`
+	Fee       int    `json:"fee"`
+	Status    string `json:"status"`
 }
 
 type SolanaBeachBrowserInfo struct {
@@ -865,7 +898,17 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getRecordByRpcNode(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
-		if err == nil && len(solTransactionRecordList) > 0 {
+		//调用https://api.solscan.io节点查询SOL Transfers
+		if err == nil && len(solTransactionRecordList) == 0 {
+			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/soltransfer", address, dbLastRecordSlotNumber, dbLastRecordHash)
+		}
+
+		//调用https://api.solscan.io节点查询SPL Transfers
+		if err == nil && len(solTransactionRecordList) == 0 {
+			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/token", address, dbLastRecordSlotNumber, dbLastRecordHash)
+		}
+
+		if err == nil {
 			break
 		}
 	}
@@ -948,8 +991,6 @@ chainFlag:
 		solRecord := &data.SolTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1011,8 +1052,69 @@ chainFlag:
 		solRecord := &data.SolTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		solTransactionRecordList = append(solTransactionRecordList, solRecord)
+	}
+	return solTransactionRecordList, nil
+}
+
+func getTxRecordBySolscan(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
+	offset := 0
+	url = url + "/txs?address=" + address + "&limit=" + strconv.Itoa(pageSize) + "&offset="
+
+	var chainRecords []*SolanaBrowserTxInfo
+chainFlag:
+	for {
+		var out SolanaBrowserTxResponse
+		reqUrl := url + strconv.Itoa(offset)
+
+		err := httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out.Data.Tx.Transactions)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Data.Tx.Transactions {
+			txHash := browserInfo.TxHash
+			txSlot := browserInfo.Slot
+			if txSlot < dbLastRecordSlotNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		offset = offset + dataLen
+	}
+
+	var solTransactionRecordList []*data.SolTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.TxHash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		solRecord := &data.SolTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1061,6 +1163,9 @@ chainFlag:
 			}
 			chainRecords = append(chainRecords, browserInfo)
 		}
+		if dataLen < pageSize {
+			break
+		}
 		beforeTxHash = out[dataLen-1].Signature
 	}
 
@@ -1077,8 +1182,6 @@ chainFlag:
 		solRecord := &data.SolTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1204,8 +1307,6 @@ chainFlag:
 		aptRecord := &data.AptTransactionRecord{
 			TransactionVersion: txVersion,
 			Status:             PENDING,
-			DappData:           "",
-			ClientData:         "",
 			CreatedAt:          now,
 			UpdatedAt:          now,
 		}
@@ -1363,8 +1464,6 @@ chainFlag:
 		atomRecord := &data.StcTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1485,8 +1584,6 @@ chainFlag:
 				FromAddress:     types2.HexToAddress(record.FromAddress).Hex(),
 				ToAddress:       types2.HexToAddress(record.ToAddress).Hex(),
 				Status:          PENDING,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
@@ -1584,8 +1681,6 @@ func ZkSyncGetTxByAddress(chainName string, address string, urls []string) (err 
 				FromAddress:     zkRecord.From,
 				ToAddress:       zkRecord.To,
 				Status:          PENDING,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
@@ -1697,8 +1792,6 @@ chainFlag:
 			Status:          PENDING,
 			FromAddress:     types2.HexToAddress(record.From).Hex(),
 			ToAddress:       types2.HexToAddress(record.To).Hex(),
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1799,8 +1892,6 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 		csprRecord := &data.CsprTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -1945,8 +2036,6 @@ chainFlag:
 		btcRecord := &data.BtcTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -2024,8 +2113,6 @@ func LtcGetTxByAddress(chainName string, address string, urls []string) (err err
 				btcRecord := &data.BtcTransactionRecord{
 					TransactionHash: txHash,
 					Status:          PENDING,
-					DappData:        "",
-					ClientData:      "",
 					CreatedAt:       now,
 					UpdatedAt:       now,
 				}
@@ -2152,8 +2239,6 @@ chainFlag:
 			Status:          PENDING,
 			FromAddress:     record.From,
 			ToAddress:       record.To,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -2287,8 +2372,6 @@ chainFlag:
 			TransactionHash: txHash,
 			Status:          PENDING,
 			BlockNumber:     record.Block.Height,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -2442,8 +2525,6 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 			trxRecord := &data.TrxTransactionRecord{
 				TransactionHash: txHash,
 				Status:          PENDING,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
@@ -2462,8 +2543,6 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 			trxInRecord := &data.TrxTransactionRecord{
 				TransactionHash: txHash,
 				Status:          PENDING,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}
@@ -2674,8 +2753,6 @@ chainFlag:
 		atomRecord := &data.CkbTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -2813,8 +2890,6 @@ chainFlag:
 		atomRecord := &data.SuiTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -2975,8 +3050,6 @@ chainFlag:
 			TransactionHash: txHash,
 			Status:          PENDING,
 			BlockHash:       blockHash[0],
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -3297,8 +3370,6 @@ chainFlag:
 		atomRecord := &data.AtomTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -3359,8 +3430,6 @@ chainFlag:
 		atomRecord := &data.AtomTransactionRecord{
 			TransactionHash: txHash,
 			Status:          PENDING,
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
