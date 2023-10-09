@@ -69,6 +69,7 @@ message App {
   string source = 7;
   repeated string httpProxies = 8;
   string marketRpc = 9;
+	map<string, string>    featuredCustomChain = 12;
 }
 
 message AddressServer {
