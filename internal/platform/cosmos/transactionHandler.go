@@ -5,8 +5,8 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
-	"block-crawling/internal/utils"
 	"block-crawling/internal/types"
+	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
 	"strconv"
@@ -525,15 +525,11 @@ func HandleTransactionCount(chainName string, client Client, txRecords []*data.A
 			continue
 		}
 
-		transactionType := record.TransactionType
-		if record.TransactionType != biz.NATIVE && record.TransactionType != biz.TRANSFER && record.TransactionType != biz.TRANSFERNFT {
-			transactionType = biz.CONTRACT
-		}
 		var transactionInfo = biz.TransactionInfo{
 			ChainName:       chainName,
 			FromAddress:     record.FromAddress,
 			ToAddress:       record.ToAddress,
-			TransactionType: transactionType,
+			TransactionType: record.TransactionType,
 			TransactionHash: record.TransactionHash,
 		}
 		transactionInfoList = append(transactionInfoList, transactionInfo)
