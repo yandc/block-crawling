@@ -105,7 +105,7 @@ lark:
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
   larkAtList: "98f57egg"
   larkUids:
-    ruihua: 98f57egg
+    runhua: 98f57egg
     dechen: a964d8f6
     wanghui: 1dd9747c
     dongdong: 9816g34e
@@ -121,9 +121,9 @@ lark:
     CSPR:
       uids: [ dongdong ]
     EVM:
-      uids: [ ruihua ]
+      uids: [ runhua ]
     POLKADOT:
-      uids: [ ruihua ]
+      uids: [ runhua ]
     SOL:
       uids: [ wanghui ]
     STC:
@@ -131,9 +131,9 @@ lark:
     SUI:
       uids: [ dongdong ]
     TVM:
-      uids: [ ruihua ]
+      uids: [ runhua ]
     BTC:
-      uids: [ ruihua ]
+      uids: [ runhua ]
     node-proxy:
       uids: [ qingliang ]
     txinput:
