@@ -662,9 +662,9 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 	}
 
 	enable, uid, err := UserAddressSwitchNew(address)
-	if err != nil || !enable {
+	/*if err != nil || !enable {
 		enable, uid, err = UserAddressSwitch(address)
-	}
+	}*/
 	if err != nil {
 		// redis出错 接入lark报警
 		alarmMsg := fmt.Sprintf("请注意：%s链查询redis中用户地址失败，address:%s", chainName, address)
