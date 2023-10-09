@@ -8,7 +8,6 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -95,18 +94,56 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				return nil
 			}
 		}
+		var contractAddress string
+		if transaction.To() != nil {
+			contractAddress = transaction.To().String()
+		}
+		inWhiteList := false
 		// dapp 白名单 判断 ，非白名单 直接 扔掉交易
-		whiteMethods := BridgeWhiteMethodIdList[h.chainName+"_MethodId"]
-		flag := true
-		s := h.chainName + "_" + transaction.To().String() + "_" + methodId
-		for _, whiteMethod := range whiteMethods {
-			if whiteMethod == s {
-				flag = false
-				break
+		if whiteMethods, ok := BridgeWhiteMethodIdList[h.chainName+"_MethodId"]; ok {
+			methodKey := h.chainName + "_" + contractAddress + "_" + methodId
+			for _, whiteMethod := range whiteMethods {
+				if methodKey == whiteMethod {
+					inWhiteList = true
+					break
+				}
 			}
 		}
-		//未命中白名 则丢弃该交易
-		if flag {
+
+		if !inWhiteList {
+			if whiteMethods, ok := WhiteListMethodMap[h.chainName+"_Contract_Method"]; ok {
+				methodKey := contractAddress + "_" + methodId
+				for _, whiteMethod := range whiteMethods {
+					if methodKey == whiteMethod {
+						inWhiteList = true
+						break
+					}
+				}
+			}
+		}
+		if !inWhiteList {
+			if whiteMethods, ok := WhiteListMethodMap["Contract_Method"]; ok {
+				methodKey := contractAddress + "_" + methodId
+				for _, whiteMethod := range whiteMethods {
+					if methodKey == whiteMethod {
+						inWhiteList = true
+						break
+					}
+				}
+			}
+		}
+		if !inWhiteList {
+			if whiteMethods, ok := WhiteListMethodMap["Method"]; ok {
+				methodKey := methodId
+				for _, whiteMethod := range whiteMethods {
+					if methodKey == whiteMethod {
+						inWhiteList = true
+						break
+					}
+				}
+			}
+		}
+		if !inWhiteList {
 			return nil
 		}
 	}
@@ -166,7 +203,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 	amount := meta.Value
 	var tokenInfo types.TokenInfo
 	var eventLogs []*types.EventLogUid
-	gasFeeInfo := ""
+	feeTokenInfo := ""
 	var feeLog *types.EventLogUid
 	var contractAddress, tokenId string
 	status := biz.PENDING
@@ -175,6 +212,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 	} else if receipt.Status == "0x1" || receipt.Status == "0x01" {
 		status = biz.SUCCESS
 	}
+	blockNumber, _ := utils.HexStringToInt64(receipt.BlockNumber)
 	transactionHash := transaction.Hash().String()
 	hexData := hex.EncodeToString(transaction.Data())
 
@@ -378,6 +416,38 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 		}
 	}
 
+	//手续费代付
+	if feeLog != nil {
+		feeTokenInfo, _ = utils.JsonEncode(feeLog.Token)
+
+		if len(eventLogs) == 0 {
+			eventLogs = append(eventLogs, feeLog)
+		} else {
+			feeEventMap := map[string]interface{}{
+				"evm": map[string]string{
+					"nonce": fmt.Sprintf("%v", transaction.Nonce()),
+					"type":  fmt.Sprintf("%v", transaction.Type()),
+				},
+				"token": feeLog.Token,
+			}
+			feeEventParseData, _ := utils.JsonEncode(feeEventMap)
+			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", -1)
+			feeTxRecords := []*data.EvmTransactionRecord{{
+				BlockNumber:     int(blockNumber),
+				TransactionHash: txHash,
+				FromAddress:     feeLog.From,
+				ToAddress:       feeLog.To,
+				FromUid:         feeLog.FromUid,
+				ToUid:           feeLog.ToUid,
+				Status:          status,
+				ContractAddress: feeLog.Token.Address,
+				ParseData:       feeEventParseData,
+				TransactionType: biz.EVENTLOG,
+			}}
+			go HandleUserAsset(h.chainName, *(client), feeTxRecords)
+		}
+	}
+
 	platformUserCount := len(eventLogs)
 
 	isPlatformUser := false
@@ -424,7 +494,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 			maxPriorityFeePerGas = transaction.GasTipCap().String()
 		}
 	}
-	blockNumber, _ := utils.HexStringToInt64(receipt.BlockNumber)
 	feeAmount = decimal.NewFromBigInt(new(big.Int).Mul(gasUsedInt, gasPriceInt), 0)
 	if h.chainName == "Optimism" {
 		l1FeeStr := utils.GetHexString(receipt.L1Fee)
@@ -449,13 +518,6 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 			logAddress = nil
 		}
 	}
-	//gas 代付手续费 不为空
-	if feeLog != nil {
-		feeAmount = decimal.NewFromBigInt(feeLog.Amount, 0)
-		feeLog.Token.Amount = feeAmount.String()
-		x, _ := json.Marshal(feeLog.Token)
-		gasFeeInfo = string(x)
-	}
 	evmTransactionRecord := &data.EvmTransactionRecord{
 		BlockHash:            h.blockHash,
 		BlockNumber:          int(blockNumber),
@@ -476,7 +538,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 		GasUsed:              gasUsed,
 		GasPrice:             gasPrice,
 		BaseFee:              block.BaseFee,
-		FeeTokenInfo:         gasFeeInfo,
+		FeeTokenInfo:         feeTokenInfo,
 		MaxFeePerGas:         maxFeePerGas,
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		Data:                 hexData,
@@ -536,7 +598,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 			GasUsed:              gasUsed,
 			GasPrice:             gasPrice,
 			BaseFee:              block.BaseFee,
-			FeeTokenInfo:         gasFeeInfo,
+			FeeTokenInfo:         feeTokenInfo,
 			MaxFeePerGas:         maxFeePerGas,
 			MaxPriorityFeePerGas: maxPriorityFeePerGas,
 			Data:                 hexData,
@@ -1303,33 +1365,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			amount, _ = new(big.Int).SetString(meta.Value, 0)
 			tokenAddress = ""
-		} else if topic0 == FEE_TOPIC {
-			tokenAddress = common.HexToAddress(log_.Topics[1].String()).String()
-			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
-			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
-			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
-			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
-
-			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
-			token.Address = tokenAddress
-			if err != nil {
-				log.Error(h.chainName+"扫块，从nodeProxy中获取代币精度失败", zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
-			}
-			feeAmount := new(big.Int).SetBytes(log_.Data[0:32])
-			//获取 手续费 eventlog
-			feeEvent = &types.EventLogUid{
-				EventLog: types.EventLog{
-					From:   fromAddress,
-					To:     toAddress,
-					Amount: feeAmount,
-					Token:  token,
-				},
-				FromUid: fromUid,
-				ToUid:   toUid,
-			}
-			log.Info("gaspayment", zap.Any("feeEvent", feeEvent))
-			continue
 		} else if topic0 == GAS_PAY_TOPIC {
+			//https://polygonscan.com/tx/0xa62c745a5879f88f952a513bf07976085cf93c8d4ea0f561baca7ac65832f2e9
 			if len(log_.Data) < 32 {
 				continue
 			}
@@ -1337,8 +1374,36 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[:32])
 			tokenAddress = ""
+		} else if topic0 == FEE_TOPIC {
+			//https://polygonscan.com/tx/0x9872188870383ddcd1a0db806e6667b858bd30145af0e273cda4a0f7eaf7418b
+			tokenAddress = common.HexToAddress(log_.Topics[1].String()).String()
+			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			toAddress = common.HexToAddress(log_.Topics[3].String()).String()
+			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
+			toAddressExist, toUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
+			amount = new(big.Int).SetBytes(log_.Data[0:32])
+
+			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
+			if err != nil {
+				log.Error("扫块，从nodeProxy中获取NFT信息失败", zap.Any("chainName", h.chainName), zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+			}
+			token.Address = tokenAddress
+			token.Amount = amount.String()
+			//获取 手续费 eventlog
+			feeEvent = &types.EventLogUid{
+				EventLog: types.EventLog{
+					From:   fromAddress,
+					To:     toAddress,
+					Amount: amount,
+					Token:  token,
+				},
+				FromUid: fromUid,
+				ToUid:   toUid,
+			}
+			log.Info("gaspayment", zap.Any("feeEvent", feeEvent))
+			continue
 		} else if topic0 == TRANSFER_FROM_L1_COMPLETED_TOPIC {
-			//https://polygonscan.com/tx/0xc23acd6f333d9e5b832d24268662f2d4c524a7b1b807beef664933d5088d3adb#eventlog
+			//https://polygonscan.com/tx/0xc23acd6f333d9e5b832d24268662f2d4c524a7b1b807beef664933d5088d3adb
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[:32])

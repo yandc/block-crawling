@@ -62,8 +62,12 @@ const SOLDLISTING_TOPIC = "0xa803ea994bad68b4565b18fffd9978cdc51c754097460d94eb3
 const FILL_TOPIC = "0x35d3c32d322e234e99b7f37b3ff4cb69c8a4027a04bee33d3a716da66ee1e6a1"
 const SEND_TOPIC = "0x2f824f69f211e444df15d741157e83cdf23c50f39399b9523853a84b91379ca6"
 const BASE_TOPIC = "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31"
-const FEE_TOPIC = "0x496c2c66bc44ed4dbeaf44a930a49ceaf848c046517dbec592243394b4e871d6"
+
+//用户将代币授权给手续费代付合约操作无主币付手续费时，平台会给用户转一些主币垫资手续费
 const GAS_PAY_TOPIC = "0x4e5abb321ba55df7284bf55a0bca37c5c3ce2044bb229403828ac6d1911cdc62"
+
+//手续费代付
+const FEE_TOPIC = "0x496c2c66bc44ed4dbeaf44a930a49ceaf848c046517dbec592243394b4e871d6"
 const TRANSFER_FROM_L1_COMPLETED_TOPIC = "0x320958176930804eb66c2343c7343fc0367dc16249590c0f195783bee199d094"
 
 // dapp 白名单 chainName + contractAddress + methodId
@@ -107,6 +111,20 @@ var BridgeWhiteMethodIdList = map[string][]string{
 	"BSCTEST_MethodId":       {"BSCTEST_0x61456BF1715C1415730076BB79ae118E806E74d2_41706c4e"},
 	"ETHGoerliTEST_MethodId": {"ETHGoerliTEST_0xE041608922d06a4F26C0d4c27d8bCD01daf1f792_41706c4e"},
 	"Ronin_MethodId":         {"Ronin_0xffF9Ce5f71ca6178D3BEEcEDB61e7Eff1602950E_95a4ec00"},
+}
+
+//TODO, 后面弃用上面的方式，改用下面的方式
+
+// method白名单列表 chainName + contractAddress + method
+var WhiteListMethodMap = map[string][]string{
+	//支持特定链特定合约
+	"ETH_Contract_Method":     {"0x10fC9e6Ed49E648bde6b6214f07d8e63E12349E8_11290d59"},
+	"BSC_Contract_Method":     {"0xa2d57fa083aD42Fe7d042FE0794cFeF13bd2603c_11290d59"},
+	"Polygon_Contract_Method": {"0xD0Db2F29056E0226168c6b32363A339Fe8fD46b5_11290d59"},
+	//支持所有链特定合约
+	//"Contract_Method": {"0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca_4630a0d8"},
+	//支持所有链所有合约
+	//"Method": {"11290d59"},
 }
 
 // dapp 白名单 chainName + contractAddress + topic
@@ -154,7 +172,7 @@ var BridgeWhiteTopicList = map[string][]string{
 
 //TODO, 后面弃用上面的方式，改用下面的方式
 
-// 白名单列表 chainName + contractAddress + method + topic
+// topic白名单列表 chainName + contractAddress + method + topic
 var WhiteListTopicMap = map[string][]string{
 	//支持特定链特定合约
 	"Polygon_Contract_Method_Topic": {"0x0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC},

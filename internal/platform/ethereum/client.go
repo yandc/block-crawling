@@ -552,7 +552,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 				toAddress = toAddress + "," + realToAddress
 			}
-		} else if methodId == "4630a0d8" { //Polygon链 Contract
+		} else if methodId == "4630a0d8" { //openBlock跨链Swap
 			//https://polygonscan.com/tx/0xf8c87e264fb54d02a625d8c1f1af4ec0109126127d11daebea046a8210ea71f1
 			if len(data) >= 132 {
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[100:132])).String()
@@ -564,7 +564,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 				toAddress = toAddress + "," + realToAddress
 			}
-		} else if methodId == "11290d59" { //gas代付 手续费
+		} else if methodId == "11290d59" { //手续费代付
 			//https://testnet.bscscan.com/tx/0x34a6cc6024154db19c946c03dd2f3c046328e09865980b8290da0cbba102cefd
 			if len(data) >= 100 {
 				realFromAddress := common.HexToAddress(hex.EncodeToString(data[68:100])).String()
@@ -607,7 +607,7 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 					stop += 32
 				}
 			}
-		} else if methodId == "1e9d2490" { //ETHGoerliTEST 垫资 方法
+		} else if methodId == "1e9d2490" { //用户将代币授权给手续费代付合约操作无主币付手续费时，平台会给用户转一些主币垫资手续费
 			//https://goerli.etherscan.io/tx/0x33972476564c3f78c410ffee0678bb1bd3955cd53f1fcad4fa9b59d43e431bc7
 			if len(data) >= 36 {
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
