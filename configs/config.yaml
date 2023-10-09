@@ -54,6 +54,14 @@ app:
     - "Bearer bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN"
     - "Bearer bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn"
 
+  # Search 'chain": "evm"' on this page:
+  # https://gitlab.bixin.com/mili/mpcgate/-/blob/master/user_service/user_serve/chain_config.py
+  featuredCustomChain:
+    evm8453: Base
+    evm534351: ScrollSepoliaTEST
+    evm210425: PlatON
+    evm8082: ShardeumTEST
+
   httpProxies:
     # https://gitlab.bixin.com/mili/block-crawling/-/issues/2
     ## 测试用公网
@@ -90,15 +98,14 @@ app:
     # - http://mpcuser01:4fa0cbd14703bb@10.229.4.166:13228      # <-----------------------------+ |
     # - http://mpcuser01:4fa0cbd14703bb@10.229.6.184:13228      # <-------------------------------+
 
-
 lark:
   larkAlarmTitle: "BlockCrawling 测试环境"
   larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
 #  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
-  larkAtList: "9674c624"
+  larkAtList: "98f57egg"
   larkUids:
-    yanding: 9674c624
+    ruihua: 98f57egg
     dechen: a964d8f6
     wanghui: 1dd9747c
     dongdong: 9816g34e
@@ -114,9 +121,9 @@ lark:
     CSPR:
       uids: [ dongdong ]
     EVM:
-      uids: [ yanding ]
+      uids: [ ruihua ]
     POLKADOT:
-      uids: [ yanding ]
+      uids: [ ruihua ]
     SOL:
       uids: [ wanghui ]
     STC:
@@ -124,9 +131,9 @@ lark:
     SUI:
       uids: [ dongdong ]
     TVM:
-      uids: [ yanding ]
+      uids: [ ruihua ]
     BTC:
-      uids: [ yanding ]
+      uids: [ ruihua ]
     node-proxy:
       uids: [ qingliang ]
     txinput:
