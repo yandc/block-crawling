@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/datatypes"
 	"math/big"
 	"reflect"
 	"sort"
@@ -21,6 +20,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"gorm.io/datatypes"
 
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/go-redis/redis"
@@ -4797,6 +4798,18 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {
 		return struct{}{}, nil
 	}
+	isSol := req.ChainName == "Solana"
+	onchainAssets := req.Assets
+	if isSol && len(req.Extra) > 0 {
+		var extra *SolanaExtra
+		if err := json.Unmarshal(req.Extra, &extra); err != nil {
+			log.Error("PARSE SOLANA EXTRA ERROR WITH ERROR", zap.Error(err), zap.ByteString("extra", req.Extra))
+		} else {
+			onchainAssets = extra.AllTokens
+			log.Info("GOT SOLANA ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
+			batchSaveSolTxns(req.ChainName, extra.RecentTxns)
+		}
+	}
 
 	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
@@ -4804,29 +4817,52 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
 		}
-		for i := range req.Assets {
-			req.Assets[i].TokenAddress = types2.HexToAddress(req.Assets[i].TokenAddress).Hex()
+		for i := range onchainAssets {
+			onchainAssets[i].TokenAddress = types2.HexToAddress(onchainAssets[i].TokenAddress).Hex()
 		}
 	case COSMOS:
-		for i := range req.Assets {
-			req.Assets[i].TokenAddress = utils.AddressIbcToLower(req.Assets[i].TokenAddress)
+		for i := range onchainAssets {
+			onchainAssets[i].TokenAddress = utils.AddressIbcToLower(onchainAssets[i].TokenAddress)
 		}
 	}
 
-	assets, err := data.UserAssetRepoClient.List(ctx, &data.AssetRequest{
+	dbAssets, err := data.UserAssetRepoClient.List(ctx, &data.AssetRequest{
 		ChainName: req.ChainName,
 		Address:   req.Address,
 	})
 	if err != nil {
 		return nil, err
 	}
+	if isSol {
+		nftAssets, err := data.UserNftAssetRepoClient.List(ctx, &data.NftAssetRequest{
+			ChainName: req.ChainName,
+			Address:   req.Address,
+		})
+		if err != nil {
+			log.Error("SOLANA MERGE NFT ASSETS FAILED", zap.Error(err))
+		} else {
+			for _, a := range nftAssets {
+				dbAssets = append(dbAssets, &data.UserAsset{
+					ChainName:    a.ChainName,
+					Uid:          a.Uid,
+					Address:      a.Address,
+					TokenAddress: a.TokenAddress,
+					TokenUri:     a.TokenUri,
+					Balance:      a.Balance,
+					Symbol:       a.Symbol,
+				})
+			}
+			log.Info("SOLANA MERGED NFT ASSETS", zap.Int("num", len(nftAssets)))
+		}
+	}
+
 	assetsGroupByToken := make(map[string]*data.UserAsset)
-	for _, item := range assets {
+	for _, item := range dbAssets {
 		assetsGroupByToken[item.TokenAddress] = item
 	}
 
 	uniqAssets := make(map[string]UserAsset)
-	for _, asset := range req.Assets {
+	for _, asset := range onchainAssets {
 		key := fmt.Sprintf("%s%s%s", req.ChainName, req.Address, asset.TokenAddress)
 		uniqAssets[key] = asset
 	}

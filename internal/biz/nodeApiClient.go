@@ -10,15 +10,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/common"
-	"github.com/shopspring/decimal"
-	"gitlab.bixin.com/mili/node-driver/chain"
-	"go.uber.org/zap"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	types2 "github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 var pageSize = 50
@@ -908,6 +909,8 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/token", address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
+		// 903 + 908 = full txns
+		//
 		if err == nil {
 			break
 		}
@@ -932,6 +935,29 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 	}
 
 	return
+}
+
+func batchSaveSolTxns(chainName string, txns []string) error {
+	now := time.Now().Unix()
+	solTransactionRecordList := make([]*data.SolTransactionRecord, 0, len(txns))
+	for _, txHash := range txns {
+		solTransactionRecordList = append(solTransactionRecordList, &data.SolTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		})
+	}
+
+	_, err := data.SolTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), solTransactionRecordList)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
+		return err
+	}
+	return nil
 }
 
 func getRecordBySolanaBeach(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
@@ -1911,7 +1937,7 @@ func CasperGetTxByAddress(chainName string, address string, urls []string) (err 
 	return
 }
 
-//支持最近一百笔交易
+// 支持最近一百笔交易
 func CasperTransferAndextendedDeploys(url string, address string, chainName string, dbLastRecordHash string, txTime int64) []*CasperApiRecord {
 	var out CasperApiModel
 	var chainRecords []*CasperApiRecord
@@ -2563,7 +2589,7 @@ func TrxGetTxByAddress(chainName string, address string, urls []string) (err err
 	return
 }
 
-//tron offset 为 角标
+// tron offset 为 角标
 func GetTronApiTx(url string, actionTx string, address string, chainName string, txTime int64, dbLastRecordHash string) []*TornApiRecord {
 	offset := 0
 	limit := 50
