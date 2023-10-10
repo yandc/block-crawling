@@ -524,7 +524,13 @@ type UserAssetUpdateRequest struct {
 	ChainName string `json:"chainName"`
 	Address   string `json:"address"`
 
-	Assets []UserAsset `json:"assets"`
+	Assets []UserAsset     `json:"assets"`
+	Extra  json.RawMessage `json:"extra"`
+}
+
+type SolanaExtra struct {
+	AllTokens  []UserAsset `json:"allTokens"`
+	RecentTxns []string    `json:"recentTxns"`
 }
 
 type UserAsset struct {
