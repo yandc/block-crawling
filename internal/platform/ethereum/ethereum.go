@@ -63,6 +63,10 @@ const FILL_TOPIC = "0x35d3c32d322e234e99b7f37b3ff4cb69c8a4027a04bee33d3a716da66e
 const SEND_TOPIC = "0x2f824f69f211e444df15d741157e83cdf23c50f39399b9523853a84b91379ca6"
 const BASE_TOPIC = "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31"
 
+//openBlock跨链Swap
+const OPENBLOCK_SWAP_TOPIC = "0x5faac1ba95d8a22d60a2290d300369a4a7b8334e60291f5f6c83ee09f03cab38"
+const OPENBLOCK_SWAP_ADDRESS_TOPIC = "0x893b740df66b6918f171be0e008e349151ce603b7b3dd31603afe3e635db87a6"
+
 //用户将代币授权给手续费代付合约操作无主币付手续费时，平台会给用户转一些主币垫资手续费
 const GAS_PAY_TOPIC = "0x4e5abb321ba55df7284bf55a0bca37c5c3ce2044bb229403828ac6d1911cdc62"
 
@@ -175,13 +179,17 @@ var BridgeWhiteTopicList = map[string][]string{
 // topic白名单列表 chainName + contractAddress + method + topic
 var WhiteListTopicMap = map[string][]string{
 	//支持特定链特定合约
-	"Polygon_Contract_Method_Topic": {"0x0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC},
+	"ETH_Contract_Method_Topic": {"0x10fc9e6ed49e648bde6b6214f07d8e63e12349e8_11290d59_" + OPENBLOCK_SWAP_TOPIC},
+	"BSC_Contract_Method_Topic": {"0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c_11290d59_" + OPENBLOCK_SWAP_TOPIC},
+	"Polygon_Contract_Method_Topic": {"0x0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC,
+		"0xd0db2f29056e0226168c6b32363a339fe8fd46b5_11290d59_" + OPENBLOCK_SWAP_TOPIC},
 	//支持所有链特定合约
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,
 		"0x86232f68b5bf2a3a03851d98556352512a3b12b9_ba847759_" + RUN_METHOD_TOPIC,
 		"0x39523401c0fc321660dc8fb37f285cdc141faa41_0d7bb214_" + SOLDLISTING_TOPIC,
 		"0xbf6bfe5d6b86308cf3b7f147dd03ef11f80bfde3_e98b3b7e_" + FILL_TOPIC,
-		"0x00000000000000adc04c56bf30ac9d3c0aaf14dc_00000000_" + BASE_TOPIC},
+		"0x00000000000000adc04c56bf30ac9d3c0aaf14dc_00000000_" + BASE_TOPIC,
+		"0xb7fdda5330daea72514db2b84211afebd19277ca_4630a0d8_" + OPENBLOCK_SWAP_TOPIC},
 	//支持所有链所有合约
 	"Method_Topic": {"4782f779_" + WITHDRAWETH_TOPIC, "0ddedd84_" + SEND_TOPIC, "1e9d2490_" + GAS_PAY_TOPIC, "11290d59_" + FEE_TOPIC},
 }
