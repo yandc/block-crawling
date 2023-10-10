@@ -816,8 +816,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					token.TokenType = biz.ERC721
 					amount, _ = new(big.Int).SetString("1", 0)
 					if len(log_.Data) >= 96 {
-						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
-						toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[32:64])).String()
+						fromAddress = common.BytesToAddress(log_.Data[:32]).String()
+						toAddress = common.BytesToAddress(log_.Data[32:64]).String()
 						tokenId = new(big.Int).SetBytes(log_.Data[64:96]).String()
 					}
 				} else {
@@ -830,13 +830,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					}
 					if amount.String() == "0" {
 						continue
-					}
-					//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d
-					if toAddress == "0x0000000000000000000000000000000000000000" && "0xb7fdda5330daea72514db2b84211afebd19277ca" == contractAddress && strings.HasPrefix(h.chainName, "Fantom") {
-						log.Info("9999999", zap.Any(contractAddress, "0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca" == contractAddress), zap.Any(toAddress, toAddress == "0x0000000000000000000000000000000000000000"), zap.Any("", strings.HasPrefix(h.chainName, "Fantom")))
-						toAddress = common.HexToAddress(receipt.From).String()
-						log.Info("777777", zap.Any("li", toAddress))
-						//token.Address = ""
 					}
 				}
 				token.Amount = amount.String()
@@ -922,6 +915,24 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				//https://polygonscan.com/tx/0xf05bb66381f26d8b1003a5672923a614ece772ae875de90ae95a557b48be4bd4
 				continue
 			}
+			if strings.HasPrefix(h.chainName, "ETH") && contractAddress == "0x10fc9e6ed49e648bde6b6214f07d8e63e12349e8" && methodId == "11290d59" {
+				//https://etherscan.io/tx/0x2e251f2e4f2c55fff87ea22b62c4ed0afac263e696c6f4fbd3a2c0556a72b9a0
+				continue
+			}
+			if strings.HasPrefix(h.chainName, "BSC") && contractAddress == "0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c" && methodId == "11290d59" {
+				//https://bscscan.com/tx/0xdde0fb537b3ff7b15b089e977d733bdec0db202c402999bf45884f3677bc40d8
+				continue
+			}
+			if strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0xd0db2f29056e0226168c6b32363a339fe8fd46b5" && methodId == "11290d59" {
+				//https://polygonscan.com/tx/0x850bd8c530edc73d2f28e63f4092a99942c1a325c430fade0b80ea218173d928
+				continue
+			}
+			if contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8" {
+				//https://etherscan.io/tx/0xb26e642b81bae1ae4c832794fc54fb2c671de76d22e15202c68d52a65f5b9dad
+				//https://bscscan.com/tx/0xe5fb2301ac9a3245b8daf665ca67247f890fbe9a0f1aa7562881177483cb37a2
+				//https://polygonscan.com/tx/0x5a8bd32b246357ef05694bf4f0694f57f24587ef7ec3dd99b48366c96a75cf6f
+				continue
+			}
 
 			//https://etherscan.io/tx/0xe510a2d99d95a6974e5f95a3a745b2ffe873bf6645b764658d978856ac180cd2
 			//https://app.roninchain.com/tx/0x408b4fe71ec6ce7987721188879e80b437e84e9a38dd16049b8aba7df2358793
@@ -954,7 +965,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 					//https://polygonscan.com/tx/0xbf82a6ee9eb2cdd4e63822f247912024760693c60cc521c8118539faef745d18
 					fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
 					if len(txData) >= 100 {
-						toAddress = common.HexToAddress(hex.EncodeToString(txData[68:100])).String()
+						toAddress = common.BytesToAddress(txData[68:100]).String()
 					}
 				}
 			}
@@ -992,7 +1003,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			} else {
 				if len(log_.Topics) == 1 {
 					if len(log_.Data) >= 32 {
-						fromAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+						fromAddress = common.BytesToAddress(log_.Data[:32]).String()
 					}
 				} else if len(log_.Topics) == 2 {
 					fromAddress = common.HexToAddress(log_.Topics[1].String()).String()
@@ -1047,7 +1058,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		} else if topic0 == FANTOM_SWAPED {
 			fromAddress = common.HexToAddress(receipt.To).String()
 			if len(log_.Data) > 32 {
-				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[:32])).String()
+				toAddress = common.BytesToAddress(log_.Data[:32]).String()
 			}
 			if len(log_.Data) > 128 {
 				amount = new(big.Int).SetBytes(log_.Data[96:128])
@@ -1077,12 +1088,12 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			//https://optimistic.etherscan.io/tx/0xcbfaeb2d83f0235577343d7f35c0ec305a8f188465fc6a2ad78382ccfae3836d op主币
 			fromAddress = common.HexToAddress(receipt.To).String()
 			if len(log_.Data) > 96 {
-				toAddress = common.HexToAddress(hex.EncodeToString(log_.Data[64:96])).String()
+				toAddress = common.BytesToAddress(log_.Data[64:96]).String()
 			}
 			if len(log_.Data) > 160 {
 				amount = new(big.Int).SetBytes(log_.Data[128:160])
 			}
-			tokenAddress = common.HexToAddress(hex.EncodeToString(log_.Data[96:128])).String()
+			tokenAddress = common.BytesToAddress(log_.Data[96:128]).String()
 
 			if len(eventLogs) > 0 {
 				nativeFlag := false
@@ -1151,7 +1162,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				}
 
 				fromAddress = transaction.To().String()
-				toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+				toAddress = common.BytesToAddress(txData[4:36]).String()
 				amount = new(big.Int).SetBytes(log_.Data[32:64])
 				tokenAddress = ""
 			} else {
@@ -1223,9 +1234,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				tokenAddress = ""
 			}
 		} else if topic0 == MATIC_BRIDGE {
-			if strings.HasPrefix(h.chainName, "Polygon") && contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8" {
+			if strings.HasPrefix(h.chainName, "Polygon") && ((contractAddress == "0xb7fdda5330daea72514db2b84211afebd19277ca" && methodId == "4630a0d8") ||
+				(contractAddress == "0xd0db2f29056e0226168c6b32363a339fe8fd46b5" && methodId == "11290d59")) {
 				//https://polygonscan.com/tx/0xcfe4c0f8208ef8ff7c12ffa99bf9dfe3236f867176c6730a04cdaf11bd640fd8
 				//https://polygonscan.com/tx/0xf42c21bd7df31b2fc75139c2d20b42b38462b9f0269e198a21b59ec273013eb2
+				//https://polygonscan.com/tx/0x850bd8c530edc73d2f28e63f4092a99942c1a325c430fade0b80ea218173d928
 				continue
 			}
 			fromAddress = tokenAddress
@@ -1255,7 +1268,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			toAddress = common.BytesToAddress(txData[4:36]).String()
 			amountTotal := new(big.Int).SetBytes(txData[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
@@ -1365,6 +1378,51 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			amount, _ = new(big.Int).SetString(meta.Value, 0)
 			tokenAddress = ""
+		} else if topic0 == OPENBLOCK_SWAP_TOPIC {
+			//swap
+			//https://etherscan.io/tx/0xb26e642b81bae1ae4c832794fc54fb2c671de76d22e15202c68d52a65f5b9dad 老的swap合约 接收主币
+			//https://etherscan.io/tx/0x0f55b2139c5e6bee8658836b104eeb6848935befc71f482fed475c3c4a991377 老的swap合约 接收代币
+			//https://etherscan.io/tx/0x5560844905d4f09eb5555310e9b4dcaa31fe22d238588ec9b30fb7f2f70ca977 新的swap合约 接收代币
+			//https://polygonscan.com/tx/0xf8c87e264fb54d02a625d8c1f1af4ec0109126127d11daebea046a8210ea71f1 老的swap合约 接收代币
+			//https://polygonscan.com/tx/0x5a8bd32b246357ef05694bf4f0694f57f24587ef7ec3dd99b48366c96a75cf6f 新的swap合约 接收主币
+			//https://polygonscan.com/tx/0x74c66217bb55960831956d1503492fe4a493b9798684bc48f715a787dd5638aa 新的swap合约 接收代币
+			//https://ftmscan.com/tx/0x560fd26e7c66098468a533c8905b28abd3c7214692f454b1f2e29082afad681d 老的swap合约 接收主币
+			//手续费代付
+			//https://etherscan.io/tx/0x2e251f2e4f2c55fff87ea22b62c4ed0afac263e696c6f4fbd3a2c0556a72b9a0 老的swap合约 接收主币 address=0xAE04C60489d65f29db0bA1b1F54553f31A8b9358
+			//https://bscscan.com/tx/0x75dad8c8a0dee2f17b2613378b1ffb2f5b2a3678dc26d34273d64dead95b3f00 新的swap合约 接收主币
+			//https://bscscan.com/tx/0x6b3dc3f5bd41f9248c9c11dc3b2679014e8a5edddd24f8df6f7854ba2f545d83 新的swap合约 接收代币
+			//https://polygonscan.com/tx/0x850bd8c530edc73d2f28e63f4092a99942c1a325c430fade0b80ea218173d928 新的swap合约 接收主币
+			//https://polygonscan.com/tx/0x7e443a0e1378ef57a739c7364c9fec2dac432c5bbf0e6abecca3bac422d7ae45 新的swap合约 接收代币
+			if methodId != "4630a0d8" && methodId != "11290d59" {
+				continue
+			}
+			if len(log_.Data) < 32 {
+				continue
+			}
+			tokenAddress = common.BytesToAddress(log_.Data[96:128]).String()
+			//只处理主币转账，代币转账可以通过标准Transfer事件解析到
+			if tokenAddress != "0x0000000000000000000000000000000000000000" {
+				continue
+			}
+			amount = new(big.Int).SetBytes(log_.Data[160:192])
+			var hasOpenBlockSwapAddressTopic bool
+			if len(receipt.Logs) != index+1 {
+				nextLog := receipt.Logs[index+1]
+				nextTopic0 := nextLog.Topics[0].String()
+				if nextTopic0 == OPENBLOCK_SWAP_ADDRESS_TOPIC {
+					fromAddress = common.BytesToAddress(nextLog.Data[:32]).String()
+					toAddress = common.BytesToAddress(nextLog.Data[32:64]).String()
+					if fromAddress == toAddress {
+						fromAddress = contractAddress
+					}
+					hasOpenBlockSwapAddressTopic = true
+				}
+			}
+			if !hasOpenBlockSwapAddressTopic && methodId == "4630a0d8" {
+				fromAddress = contractAddress
+				toAddress = common.BytesToAddress(txData[100:132]).String()
+			}
+			tokenAddress = ""
 		} else if topic0 == GAS_PAY_TOPIC {
 			//https://polygonscan.com/tx/0xa62c745a5879f88f952a513bf07976085cf93c8d4ea0f561baca7ac65832f2e9
 			if len(log_.Data) < 32 {
@@ -1416,7 +1474,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过log获取
 		if contractAddress == "0x0460352b91d7cf42b0e1c1c30f06b602d9ef2238" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			toAddress = common.BytesToAddress(txData[4:36]).String()
 			amountTotal := new(big.Int).SetBytes(txData[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
@@ -1436,7 +1494,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
 		if contractAddress == "0x83f6244bd87662118d96d9a6d44f09dfff14b30e" && methodId == "3d12a85a" {
 			fromAddress = transaction.To().String()
-			toAddress = common.HexToAddress(hex.EncodeToString(txData[4:36])).String()
+			toAddress = common.BytesToAddress(txData[4:36]).String()
 			amountTotal := new(big.Int).SetBytes(txData[36:68])
 			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
