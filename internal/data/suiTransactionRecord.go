@@ -72,7 +72,8 @@ type SuiTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*SuiTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*SuiTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*SuiTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*SuiTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*SuiTransactionRecord, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*SuiTransactionRecord, error)
 }
 
@@ -125,6 +126,7 @@ func (r *SuiTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *SuiTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, suiTransactionRecords []*SuiTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(suiTransactionRecords, len(suiTransactionRecords))
 	err := ret.Error
@@ -646,9 +648,9 @@ func (r *SuiTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *SuiTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*SuiTransactionRecord, error) {
+func (r *SuiTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*SuiTransactionRecord, error) {
 	var suiTransactionRecord *SuiTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&suiTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&suiTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query suiTransactionRecord by txHash failed", err)
@@ -659,6 +661,17 @@ func (r *SuiTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *SuiTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*SuiTransactionRecord, error) {
+	var suiTransactionRecord *SuiTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&suiTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return suiTransactionRecord, nil
 }
 
 func (r *SuiTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*SuiTransactionRecord, error) {
@@ -675,6 +688,7 @@ func (r *SuiTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 	}
 	return suiTransactionRecordList, nil
 }
+
 func (r *SuiTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*SuiTransactionRecord, error) {
 	var suiTransactionRecords []*SuiTransactionRecord
 

@@ -64,7 +64,7 @@ type CsprTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*CsprTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*CsprTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*CsprTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*CsprTransactionRecord, error)
 }
 
 type CsprTransactionRecordRepoImpl struct {
@@ -592,9 +592,9 @@ func (r *CsprTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName
 	return amount, nil
 }
 
-func (r *CsprTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*CsprTransactionRecord, error) {
+func (r *CsprTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*CsprTransactionRecord, error) {
 	var csprTransactionRecord *CsprTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&csprTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&csprTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query CsprTransactionRecord by txHash failed", err)

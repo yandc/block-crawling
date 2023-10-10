@@ -68,7 +68,7 @@ type CkbTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*CkbTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*CkbTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*CkbTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*CkbTransactionRecord, error)
 }
 
 type CkbTransactionRecordRepoImpl struct {
@@ -618,9 +618,9 @@ func (r *CkbTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *CkbTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*CkbTransactionRecord, error) {
+func (r *CkbTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*CkbTransactionRecord, error) {
 	var ckbTransactionRecord *CkbTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&ckbTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&ckbTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query ckbTransactionRecord by txHash failed", err)

@@ -64,7 +64,7 @@ type BtcTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*BtcTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*BtcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*BtcTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*BtcTransactionRecord, error)
 	DeleteByTxHash(context.Context, string, string) (int64, error)
 }
 
@@ -104,9 +104,9 @@ func (r *BtcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&btcTransactionRecord)
 	err := ret.Error
@@ -636,9 +636,9 @@ func (r *BtcTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *BtcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*BtcTransactionRecord, error) {
+func (r *BtcTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*BtcTransactionRecord, error) {
 	var btcTransactionRecord *BtcTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&btcTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&btcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query btcTransactionRecord by txHash failed", err)

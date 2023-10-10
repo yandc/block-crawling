@@ -215,8 +215,8 @@ func (r *UtxoUnspentRecordRepoImpl) Delete(ctx context.Context, req *UserUtxo) (
 	return affected, nil
 }
 
-func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txhash string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txhash).Update("unspent", 4)
+func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txHash string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txHash).Update("unspent", 4)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+address+" failed", err)

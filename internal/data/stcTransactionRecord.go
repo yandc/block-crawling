@@ -83,7 +83,8 @@ type StcTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*StcTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*StcTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*StcTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*StcTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*StcTransactionRecord, error)
 }
 
 type StcTransactionRecordRepoImpl struct {
@@ -1165,9 +1166,9 @@ func (r *StcTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *StcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*StcTransactionRecord, error) {
+func (r *StcTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*StcTransactionRecord, error) {
 	var stcTransactionRecord *StcTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&stcTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&stcTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query stcTransactionRecord by txHash failed", err)
@@ -1178,6 +1179,17 @@ func (r *StcTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *StcTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*StcTransactionRecord, error) {
+	var stcTransactionRecord *StcTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&stcTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return stcTransactionRecord, nil
 }
 
 func (r *StcTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*StcTransactionRecord, error) {

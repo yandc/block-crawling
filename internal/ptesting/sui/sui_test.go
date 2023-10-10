@@ -38,7 +38,7 @@ func TestIndeBlock1655093(t *testing.T) {
 			"0xa1a00d9468e3276a3964a973f0054f1744667251f0b38e9ff22b6a5c77b765c9": "1",
 		},
 		Assert: func() {
-			record, err := data.SuiTransactionRecordRepoClient.FindByTxhash(
+			record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(
 				context.Background(),
 				biz.GetTableName(chainName),
 				"5KKEACtpLHvNeQGxRWv6cGDCjdjBhwfb7Nj3u2LivdpN",
@@ -73,7 +73,7 @@ func TestIndeBlock1733650(t *testing.T) {
 			"0x8041dcb0f0d4d528c0eef2693e02b6df39d50c7c4dd171c208b2394ceaff42b7": "1",
 		},
 		Assert: func() {
-			record, err := data.SuiTransactionRecordRepoClient.FindByTxhash(
+			record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(
 				context.Background(),
 				biz.GetTableName(chainName),
 				"3ZCqELu7YoVSCXBxWL3ijLX371adSzPmJjXfwuE7GVep",
@@ -116,7 +116,7 @@ func TestIndeBlock1878153(t *testing.T) {
 			},
 		},
 		Assert: func() {
-			record, err := data.SuiTransactionRecordRepoClient.FindByTxhash(
+			record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(
 				context.Background(),
 				biz.GetTableName(chainName),
 				"A2Tfv7ujDBMYBsuDr2Df7JTod4n4KLzprVxuobY9xv3V",
@@ -158,7 +158,7 @@ func TestPendingTx(t *testing.T) {
 			"0xa1a00d9468e3276a3964a973f0054f1744667251f0b38e9ff22b6a5c77b765c9": "1",
 		},
 		AfterPrepare: func() {
-			record, err := data.SuiTransactionRecordRepoClient.FindByTxhash(
+			record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(
 				context.Background(),
 				biz.GetTableName(chainName),
 				"D1oPWQvUqEjZHkBLLXSff35sq8U9eKZzJtLLf94scZ6Y",
@@ -168,7 +168,7 @@ func TestPendingTx(t *testing.T) {
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.SuiTransactionRecordRepoClient.FindByTxhash(
+			record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(
 				context.Background(),
 				biz.GetTableName(chainName),
 				"D1oPWQvUqEjZHkBLLXSff35sq8U9eKZzJtLLf94scZ6Y",

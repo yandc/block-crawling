@@ -92,8 +92,8 @@ func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	return txInfo, err
 }
 
-func GetTxByHashFromChainSo(txhash string, c *base.Client) (types.TX, error) {
-	url := c.URL + "api/v2/get_tx/" + c.ChainName + "/" + txhash
+func GetTxByHashFromChainSo(txHash string, c *base.Client) (types.TX, error) {
+	url := c.URL + "api/v2/get_tx/" + c.ChainName + "/" + txHash
 
 	var tx types.TX
 	var txInfo types.ChainSOTX

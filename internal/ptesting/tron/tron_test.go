@@ -59,7 +59,7 @@ func TestIndexBlock(t *testing.T) {
 			41826081,
 		},
 		Assert: func() {
-			record, err := data.TrxTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), "69d3be75038b8a5174e7294413ae4d8d9132941b06a46f7294a8119a9c59eb18")
+			record, err := data.TrxTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "69d3be75038b8a5174e7294413ae4d8d9132941b06a46f7294a8119a9c59eb18")
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, record.BlockNumber, 41826081)
@@ -112,13 +112,13 @@ func TestPendingTx(t *testing.T) {
 			assert.NoError(t, err)
 		},
 		AfterPrepare: func() {
-			record, err := data.TrxTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.TrxTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.TrxTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.TrxTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.SUCCESS, record.Status)

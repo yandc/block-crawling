@@ -62,7 +62,7 @@ type KasTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*KasTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*KasTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*KasTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*KasTransactionRecord, error)
 	DeleteByTxHash(context.Context, string, string) (int64, error)
 	PendingByAddress(context.Context, string, string) ([]*KasTransactionRecord, error)
 }
@@ -103,9 +103,9 @@ func (r *KasTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":     gorm.Expr("excluded.dapp_data"),
-			"client_data":   gorm.Expr("excluded.client_data"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"dapp_data":   gorm.Expr("excluded.dapp_data"),
+			"client_data": gorm.Expr("excluded.client_data"),
+			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&kasTransactionRecord)
 	err := ret.Error
@@ -620,9 +620,9 @@ func (r *KasTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *KasTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*KasTransactionRecord, error) {
+func (r *KasTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*KasTransactionRecord, error) {
 	var kasTransactionRecord *KasTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&kasTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&kasTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query kasTransactionRecord by txHash failed", err)

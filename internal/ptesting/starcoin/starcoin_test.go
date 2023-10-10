@@ -52,7 +52,7 @@ func TestIndexBlock(t *testing.T) {
 			8362165,
 		},
 		Assert: func() {
-			record, err := data.StcTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), "0x16d1bf8d60636a805ff582629a236154076df5241f09cbac3b9176af24a84d91")
+			record, err := data.StcTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "0x16d1bf8d60636a805ff582629a236154076df5241f09cbac3b9176af24a84d91")
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, record.BlockNumber, 8362165)
@@ -107,13 +107,13 @@ func TestPendingTx(t *testing.T) {
 			assert.NoError(t, err)
 		},
 		AfterPrepare: func() {
-			record, err := data.StcTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.StcTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.StcTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.StcTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.SUCCESS, record.Status)

@@ -44,7 +44,7 @@ func TestIndexBlock(t *testing.T) {
 			175757543,
 		},
 		Assert: func() {
-			record, err := data.SolTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), "2yXp5Gwdg2xx6Ekev5jjYkcr4nK9T1uhre7ciNvNvBGDYrh4BKLgeS57ECE9CD2PYzJ9EiCKr9awjFm7NhLequGc")
+			record, err := data.SolTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "2yXp5Gwdg2xx6Ekev5jjYkcr4nK9T1uhre7ciNvNvBGDYrh4BKLgeS57ECE9CD2PYzJ9EiCKr9awjFm7NhLequGc")
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, record.ToAddress, "CicfACV8ucYy2nQhHcJn6mW4GjBuhMPDmRkN76G1MeEy")
@@ -112,13 +112,13 @@ func TestPendingTx(t *testing.T) {
 			assert.NoError(t, err)
 		},
 		AfterPrepare: func() {
-			record, err := data.SolTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.SolTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.SolTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.SolTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.SUCCESS, record.Status)

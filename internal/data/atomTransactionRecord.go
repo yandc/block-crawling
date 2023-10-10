@@ -76,7 +76,8 @@ type AtomTransactionRecordRepo interface {
 	PageListAll(context.Context, string, *TransactionRequest, ...time.Duration) ([]*AtomTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*AtomTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*AtomTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*AtomTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*AtomTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*AtomTransactionRecord, error)
 	FindLastNonce(context.Context, string, string) (*AtomTransactionRecord, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*AtomTransactionRecord, error)
@@ -112,6 +113,7 @@ func (r *AtomTransactionRecordRepoImpl) Save(ctx context.Context, tableName stri
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *AtomTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, atomTransactionRecord *AtomTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -130,6 +132,7 @@ func (r *AtomTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, 
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *AtomTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, atomTransactionRecords []*AtomTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(atomTransactionRecords, len(atomTransactionRecords))
 	err := ret.Error
@@ -760,9 +763,9 @@ func (r *AtomTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName
 	return amount, nil
 }
 
-func (r *AtomTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*AtomTransactionRecord, error) {
+func (r *AtomTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*AtomTransactionRecord, error) {
 	var atomTransactionRecord *AtomTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&atomTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&atomTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query atomTransactionRecord by txHash failed", err)
@@ -773,6 +776,17 @@ func (r *AtomTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableN
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *AtomTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*AtomTransactionRecord, error) {
+	var atomTransactionRecord *AtomTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&atomTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return atomTransactionRecord, nil
 }
 
 func (r *AtomTransactionRecordRepoImpl) ListByTransactionType(ctx context.Context, tableName string, transactionType string) ([]*AtomTransactionRecord, error) {

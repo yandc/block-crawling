@@ -37,7 +37,7 @@ func TestIndexBlock(t *testing.T) {
 			778843,
 		},
 		Assert: func() {
-			record, err := data.BtcTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), "61b89eaa060ba90cdd06c318327d50d9a2c041d1b05f94a65b8bb6f62baa50c2")
+			record, err := data.BtcTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "61b89eaa060ba90cdd06c318327d50d9a2c041d1b05f94a65b8bb6f62baa50c2")
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, record.ToAddress, "16cLsRM3iMhBqwMtXrc6GC2NdutbABbkAq")
@@ -76,13 +76,13 @@ func TestPendingTx(t *testing.T) {
 			assert.NoError(t, err)
 		},
 		AfterPrepare: func() {
-			record, err := data.BtcTransactionRecordRepoClient.FindByTxhash(context.TODO(), biz.GetTableName(CHAIN_NAME), txHash)
+			record, err := data.BtcTransactionRecordRepoClient.FindByTxHash(context.TODO(), biz.GetTableName(CHAIN_NAME), txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, "pending", record.Status)
 		},
 		Assert: func() {
-			record, err := data.BtcTransactionRecordRepoClient.FindByTxhash(context.TODO(), biz.GetTableName(CHAIN_NAME), txHash)
+			record, err := data.BtcTransactionRecordRepoClient.FindByTxHash(context.TODO(), biz.GetTableName(CHAIN_NAME), txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, "success", record.Status)
