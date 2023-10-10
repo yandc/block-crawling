@@ -220,7 +220,7 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
     httpURL:
-      - https://api.bscscan.com/api?apikey=M2B5MS3K5SIDTMKF8223KNMA8PUXHVHX2H
+      - https://api.bscscan.com/api?apikey=8GPEVE2G239UXQ1EASTKRJUI8K617TVYIF
       - https://api.bscscan.com/api?apikey=CJYU5PP16VPPF58Y1NMTRQXNKGWRI9DRMX
       - https://api.bscscan.com/api?apikey=1KWNQMJXH4FH9ZM9YSGRKAN738SUD8QPWC
 
@@ -322,7 +322,7 @@ platform:
     maxConcurrency: 1
     monitorHeightAlarmThr: 30
     httpURL:
-      - https://api.etherscan.io/api?apikey=Y9GJFQXF71JQJZUHU3M7KE22WXAZ46R8KI
+      - https://api.etherscan.io/api?apikey=M7VFNK3Z4J5AG8JZRQB9E25EEEANJG4KXZ
       - https://api.etherscan.io/api?apikey=729J74WFP9NCE81V8MYM6SZ7QAUWCIHFSW
       - https://api.etherscan.io/api?apikey=N9FS92RQJ71KM5BQ5NUTVVA83Y8WD2PJTR
 
@@ -560,7 +560,7 @@ platform:
     maxConcurrency: 1
     monitorHeightAlarmThr: 180
     httpURL:
-      - https://api.polygonscan.com/api?apikey=KBHGFA5IQV64WHSM5II1GNGSHRTDWSU1CU
+      - https://api.polygonscan.com/api?apikey=SA5MYGAS8YUQMKNICGAT44B1W8RDA7QXSW
       - https://api.polygonscan.com/api?apikey=HTA7JASC87XUC23EYF155WBHQTGDGGDXHI
       - https://api.polygonscan.com/api?apikey=TFKP229HJCGN544SN1JXVY43Y8JW14ZJ6K
   STC:
