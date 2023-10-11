@@ -46,7 +46,7 @@ func TestIndexBlock(t *testing.T) {
 			//16617086,
 		},
 		Assert: func() {
-			record, err := data.EvmTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), "0x15806fb2a2983f39f898079fc51295bf263a1c0be84e9286eb2d8ab28a46d852")
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "0x15806fb2a2983f39f898079fc51295bf263a1c0be84e9286eb2d8ab28a46d852")
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, record.BlockNumber, 16625722)
@@ -99,13 +99,13 @@ func TestPendingTx(t *testing.T) {
 			assert.NoError(t, err)
 		},
 		AfterPrepare: func() {
-			record, err := data.EvmTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.EvmTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.SUCCESS, record.Status)
@@ -301,7 +301,7 @@ func TestDappApprove(t *testing.T) {
 			//16617086,
 		},
 		Assert: func() {
-			record, err := data.EvmTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), txHash)
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.NotNil(t, record.TransactionType, biz.APPROVE)
@@ -379,8 +379,8 @@ func TestUpdateDappApprove(t *testing.T) {
 
 			plat.Spider.SealPendingTransactions(plat.Platform.CreateBlockHandler(1000))
 
-			aRecord, aErr := data.EvmTransactionRecordRepoClient.FindByTxhash(context.TODO(), biz.GetTableName("BSC"), txApproveHash)
-			records, err := data.EvmTransactionRecordRepoClient.FindByTxhashLike(context.TODO(), biz.GetTableName("BSC"), txHash)
+			aRecord, aErr := data.EvmTransactionRecordRepoClient.FindByTxHash(context.TODO(), biz.GetTableName("BSC"), txApproveHash)
+			records, err := data.EvmTransactionRecordRepoClient.FindByTxHashLike(context.TODO(), biz.GetTableName("BSC"), txHash)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, records)
@@ -433,7 +433,7 @@ func TestNftApprove(t *testing.T) {
 			//16617086,
 		},
 		Assert: func() {
-			record, err := data.EvmTransactionRecordRepoClient.FindByTxhash(context.Background(), biz.GetTableName(CHAIN_NAME), txHash)
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.NotNil(t, record.TransactionType, biz.APPROVENFT)

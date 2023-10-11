@@ -98,8 +98,9 @@ type EvmTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*EvmTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*EvmTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*EvmTransactionRecord, error)
-	FindByTxhashLike(context.Context, string, string) ([]*EvmTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*EvmTransactionRecord, error)
+	FindByTxHashLike(context.Context, string, string) ([]*EvmTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*EvmTransactionRecord, error)
 	FindParseDataByTxHashAndToken(context.Context, string, string, string) (*EvmTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*EvmTransactionRecord, error)
 	FindFromAddress(context.Context, string) ([]string, error)
@@ -1251,9 +1252,9 @@ func (r *EvmTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *EvmTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*EvmTransactionRecord, error) {
+func (r *EvmTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*EvmTransactionRecord, error) {
 	var evmTransactionRecord *EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" by txHash failed", err)
@@ -1265,21 +1266,32 @@ func (r *EvmTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 		return nil, nil
 	}
 }
-func (r *EvmTransactionRecordRepoImpl) FindByTxhashLike(ctx context.Context, tableName string, txhash string) ([]*EvmTransactionRecord, error) {
+
+func (r *EvmTransactionRecordRepoImpl) FindByTxHashLike(ctx context.Context, tableName string, txHash string) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecord []*EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ?", txhash+"%").Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ?", txHash+"%").Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" by txHash failed", err)
 		return nil, err
 	}
 	return evmTransactionRecord, nil
-
 }
 
-func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txhash string, token string) (*EvmTransactionRecord, error) {
+func (r *EvmTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*EvmTransactionRecord, error) {
 	var evmTransactionRecord *EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%", token).Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&evmTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return evmTransactionRecord, nil
+}
+
+func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txHash string, token string) (*EvmTransactionRecord, error) {
+	var evmTransactionRecord *EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txHash+"%", token).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" by txHash failed", err)

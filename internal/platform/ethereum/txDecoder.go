@@ -638,6 +638,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 			if evmTransactionRecord.FromAddress == contractEventLogs[0].To &&
 				(contractEventLogs[0].From == "" || contractEventLogs[0].From == "0x0000000000000000000000000000000000000000") &&
 				(contractEventLogs[0].Token.TokenType == biz.ERC721 || contractEventLogs[0].Token.TokenType == biz.ERC1155) {
+				//https://etherscan.io/tx/0xbbb8644c8f1feb5ea22433889a07b37aac4e8efee1d406dacea7742c0422ade2
 				evmTransactionRecord.TransactionType = biz.MINT
 			}
 		} else if eventLogLen == 2 {
@@ -647,14 +648,26 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 				(evmTransactionRecord.FromAddress == contractEventLogs[1].To &&
 					(contractEventLogs[1].From == "" || contractEventLogs[1].From == "0x0000000000000000000000000000000000000000") &&
 					(contractEventLogs[1].Token.TokenType == biz.ERC721 || contractEventLogs[1].Token.TokenType == biz.ERC1155)) {
+				//https://etherscan.io/tx/0xa8dc1971cbcef530d354e257c645e61bd7edd287d9c5db70bf6890ffea79b5d7
 				evmTransactionRecord.TransactionType = biz.MINT
 			} else if (evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[1].To) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[0].To && evmTransactionRecord.FromAddress == contractEventLogs[1].From) {
+				(evmTransactionRecord.FromAddress == contractEventLogs[0].To && evmTransactionRecord.FromAddress == contractEventLogs[1].From) ||
+				(contractEventLogs[0].From == contractEventLogs[1].To && contractEventLogs[0].To == contractEventLogs[1].From) {
+				//https://etherscan.io/tx/0xf324e2c9bb6b2c5335223545fadc601a53afb23c988e4967339a66d8a59a129d
+				//https://etherscan.io/tx/0xdf3bb87c57ee023f68dfcb745bd953a1ddb7ac2e9b852e339c771fa09a39cee6
+				//https://blockscout.scroll.io/tx/0xd8b357d1968f15f18f9579afa238cb0e94bd55b1e4173cd44744d2bd61f67c0d
+				//https://explorer.zksync.io/tx/0x82c353e3764142e2623b5a5b1f2c4122565defb0b919bcd4e74263cbe3e5d238
+				//https://explorer.zksync.io/tx/0x4a452e2dd92d04ee42cad5df59444779251cf971865e12164df3f68d85fb2b54
+				//https://etherscan.io/tx/0xae8a5918c0ccc7a8658dcd3fcb92a9c28fe58e48b92731e788a0884994ab3818
+				//https://etherscan.io/tx/0x305f8afd5b9374d1fc51f7ff2a6ac976c561d8cde8ed42bef464102b3cde2516
+				//https://bscscan.com/tx/0xd8f79cea2dde996d96e3d296a2ad0debbeacc683fcadb4f076d54dc99d0cfe6c
 				evmTransactionRecord.TransactionType = biz.SWAP
 			}
 		}
 	}
 	if evmTransactionRecord.TransactionType == biz.CONTRACT && isMint {
+		//https://etherscan.io/tx/0x563e7660b9b393653f922626fd4a12e960ce629c4200d7d04dbbbac1e4576c0e
+		//https://etherscan.io/tx/0x375aad9406dd7cc41d00ebf9df7611c5134984c986a4730bf45fb12c3c23a55c
 		evmTransactionRecord.TransactionType = biz.MINT
 	}
 	return nil

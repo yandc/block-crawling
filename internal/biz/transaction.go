@@ -166,42 +166,42 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 		chainType, _ := GetChainNameType(da.ChainName)
 		switch chainType {
 		case EVM:
-			evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			evm, err := data.EvmTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && evm != nil {
 				dappInfo = evm.DappData
 				parseData = evm.ParseData
 				transcationType = evm.TransactionType
 			}
 		case STC:
-			stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			stc, err := data.StcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && stc != nil {
 				dappInfo = stc.DappData
 				parseData = stc.ParseData
 				transcationType = stc.TransactionType
 			}
 		case TVM:
-			tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			tvm, err := data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && tvm != nil {
 				dappInfo = tvm.DappData
 				parseData = tvm.ParseData
 				transcationType = tvm.TransactionType
 			}
 		case APTOS:
-			apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			apt, err := data.AptTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && apt != nil {
 				dappInfo = apt.DappData
 				parseData = apt.ParseData
 				transcationType = apt.TransactionType
 			}
 		case SUI:
-			sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			sui, err := data.SuiTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && sui != nil {
 				dappInfo = sui.DappData
 				parseData = sui.ParseData
 				transcationType = sui.TransactionType
 			}
 		case SOLANA:
-			sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			sol, err := data.SolTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
 			if err == nil && sol != nil {
 				dappInfo = sol.DappData
 				parseData = sol.ParseData
@@ -2057,7 +2057,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 			feeData := make(map[string]string)
 			switch chainType {
 			case BTC:
-				btc, err := data.BtcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				btc, err := data.BtcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && btc != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(btc, &r)
@@ -2067,7 +2067,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case EVM:
-				evm, err := data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				evm, err := data.EvmTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && evm != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
@@ -2090,7 +2090,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case STC:
-				stc, err := data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				stc, err := data.StcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && stc != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(stc, &r)
@@ -2105,7 +2105,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case TVM:
-				tvm, err := data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				tvm, err := data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && tvm != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(tvm, &r)
@@ -2134,7 +2134,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case APTOS:
-				apt, err := data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				apt, err := data.AptTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && apt != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(apt, &r)
@@ -2149,7 +2149,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case SUI:
-				sui, err := data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				sui, err := data.SuiTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && sui != nil {
 					var r *pb.TransactionRecord
 					utils.CopyProperties(sui, &r)
@@ -2163,7 +2163,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					trs = append(trs, r)
 				}
 			case SOLANA:
-				sol, err := data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(value.ChainName), value.LastTxhash)
+				sol, err := data.SolTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && sol != nil {
 					if req.DappType == "approveNFT" && sol.TransactionType != req.DappType {
 						continue
@@ -5315,73 +5315,73 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 			switch chainType {
 			case POLKADOT:
 				var oldRecord *data.DotTransactionRecord
-				oldRecord, err = data.DotTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.DotTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case CASPER:
 				var oldRecord *data.CsprTransactionRecord
-				oldRecord, err = data.CsprTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.CsprTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case NERVOS:
 				var oldRecord *data.CkbTransactionRecord
-				oldRecord, err = data.CkbTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.CkbTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case BTC:
 				var oldRecord *data.BtcTransactionRecord
-				oldRecord, err = data.BtcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.BtcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case EVM:
 				var oldRecord *data.EvmTransactionRecord
-				oldRecord, err = data.EvmTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.EvmTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case STC:
 				var oldRecord *data.StcTransactionRecord
-				oldRecord, err = data.StcTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.StcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case TVM:
 				var oldRecord *data.TrxTransactionRecord
-				oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case APTOS:
 				var oldRecord *data.AptTransactionRecord
-				oldRecord, err = data.AptTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.AptTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case SUI:
 				var oldRecord *data.SuiTransactionRecord
-				oldRecord, err = data.SuiTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.SuiTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case SOLANA:
 				var oldRecord *data.SolTransactionRecord
-				oldRecord, err = data.SolTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.SolTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case COSMOS:
 				var oldRecord *data.AtomTransactionRecord
-				oldRecord, err = data.AtomTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.AtomTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
 			case KASPA:
 				var oldRecord *data.KasTransactionRecord
-				oldRecord, err = data.KasTransactionRecordRepoClient.FindByTxhash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				oldRecord, err = data.KasTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}

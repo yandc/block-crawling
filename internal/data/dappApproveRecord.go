@@ -226,9 +226,9 @@ func (r *DappApproveRecordRepoImpl) GetAmountList(ctx context.Context, req *pb.O
 	}
 	return dars, nil
 }
-func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txhash string) (*DappApproveRecord, error) {
+func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txHash string) (*DappApproveRecord, error) {
 	var dar *DappApproveRecord
-	ret := r.gormDB.Model(&DappApproveRecord{}).Where("last_txhash = ?", txhash).Find(&dar)
+	ret := r.gormDB.Model(&DappApproveRecord{}).Where("last_txhash = ?", txHash).Find(&dar)
 	err := ret.Error
 	if err != nil {
 		log.Errore("page query dappRecord failed", err)

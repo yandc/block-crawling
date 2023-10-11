@@ -74,7 +74,8 @@ type TrxTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*TrxTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*TrxTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*TrxTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*TrxTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*TrxTransactionRecord, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
 }
 
@@ -759,9 +760,10 @@ func (r *TrxTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 	}
 	return trxTransactionRecordList, nil
 }
-func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*TrxTransactionRecord, error) {
+
+func (r *TrxTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*TrxTransactionRecord, error) {
 	var trxTransactionRecord *TrxTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&trxTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&trxTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query  trxTransactionRecord by txHash failed", err)
@@ -773,6 +775,17 @@ func (r *TrxTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 			return trxTransactionRecord, nil
 		}
 	}
+}
+
+func (r *TrxTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*TrxTransactionRecord, error) {
+	var trxTransactionRecord *TrxTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&trxTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return trxTransactionRecord, nil
 }
 
 func (r *TrxTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {

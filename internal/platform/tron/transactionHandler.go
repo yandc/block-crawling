@@ -348,11 +348,19 @@ func HandleTransactionCount(chainName string, client Client, txRecords []*data.T
 			continue
 		}
 
+		transactionType := record.TransactionType
+		if transactionType == biz.CONTRACT {
+			tx, err := data.TrxTransactionRecordRepoClient.SelectColumnByTxHash(nil, biz.GetTableName(chainName), record.TransactionHash, []string{"transaction_type"})
+			if err == nil && tx != nil && (tx.TransactionType == biz.MINT || tx.TransactionType == biz.SWAP) {
+				transactionType = tx.TransactionType
+			}
+		}
+
 		var transactionInfo = biz.TransactionInfo{
 			ChainName:       chainName,
 			FromAddress:     record.FromAddress,
 			ToAddress:       record.ToAddress,
-			TransactionType: record.TransactionType,
+			TransactionType: transactionType,
 			TransactionHash: record.TransactionHash,
 		}
 		transactionInfoList = append(transactionInfoList, transactionInfo)

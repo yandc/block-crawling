@@ -74,7 +74,8 @@ type SolTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*SolTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*SolTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*SolTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*SolTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*SolTransactionRecord, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*SolTransactionRecord, error)
 }
 
@@ -851,9 +852,9 @@ func (r *SolTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *SolTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*SolTransactionRecord, error) {
+func (r *SolTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*SolTransactionRecord, error) {
 	var solTransactionRecord *SolTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&solTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&solTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query solTransactionRecord by txHash failed", err)
@@ -864,6 +865,17 @@ func (r *SolTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return solTransactionRecord, nil
 	}
+}
+
+func (r *SolTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*SolTransactionRecord, error) {
+	var solTransactionRecord *SolTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&solTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return solTransactionRecord, nil
 }
 
 func (r *SolTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*SolTransactionRecord, error) {

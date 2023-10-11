@@ -77,7 +77,8 @@ type AptTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*AptTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*AptTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*AptTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*AptTransactionRecord, error)
+	SelectColumnByTxHash(context.Context, string, string, []string) (*AptTransactionRecord, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*AptTransactionRecord, error)
 }
 
@@ -130,6 +131,7 @@ func (r *AptTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *AptTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, aptTransactionRecords []*AptTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(aptTransactionRecords, len(aptTransactionRecords))
 	err := ret.Error
@@ -874,9 +876,9 @@ func (r *AptTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *AptTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*AptTransactionRecord, error) {
+func (r *AptTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*AptTransactionRecord, error) {
 	var aptTransactionRecord *AptTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&aptTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&aptTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query aptTransactionRecord by txHash failed", err)
@@ -887,6 +889,17 @@ func (r *AptTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *AptTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*AptTransactionRecord, error) {
+	var aptTransactionRecord *AptTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Select(selectColumn).Find(&aptTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query "+tableName+" for column by txHash failed", err)
+		return nil, err
+	}
+	return aptTransactionRecord, nil
 }
 
 func (r *AptTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tableName string, address string) ([]*AptTransactionRecord, error) {
@@ -903,6 +916,7 @@ func (r *AptTransactionRecordRepoImpl) PendingByAddress(ctx context.Context, tab
 	}
 	return aptTransactionRecordList, nil
 }
+
 func (r *AptTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*AptTransactionRecord, error) {
 	var aptTransactionRecords []*AptTransactionRecord
 

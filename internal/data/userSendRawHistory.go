@@ -53,7 +53,7 @@ type UserSendRawHistoryRepo interface {
 
 	//UpdateSignStatusByTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
 	//UpdateSignStatusLikeTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
-	SelectByTxHash(ctx context.Context, txhash string) (*UserSendRawHistory, error)
+	SelectByTxHash(ctx context.Context, txHash string) (*UserSendRawHistory, error)
 }
 
 type userSendRawHistoryRepoImpl struct {
@@ -93,9 +93,10 @@ func (r *userSendRawHistoryRepoImpl) GetLatestOneBySessionId(ctx context.Context
 	}
 	return result, nil
 }
-func (r *userSendRawHistoryRepoImpl) SelectByTxHash(ctx context.Context, txhash string) (*UserSendRawHistory, error) {
+
+func (r *userSendRawHistoryRepoImpl) SelectByTxHash(ctx context.Context, txHash string) (*UserSendRawHistory, error) {
 	var result *UserSendRawHistory
-	ret := r.gormDB.Where("transaction_hash like ?", "%"+txhash+"%").Last(&result)
+	ret := r.gormDB.Where("transaction_hash like ?", "%"+txHash+"%").Last(&result)
 	if ret.Error != nil {
 		return nil, ret.Error
 	}
@@ -144,6 +145,7 @@ func (r *userSendRawHistoryRepoImpl) SelectSignStatus(ctx context.Context, signS
 	}
 	return userSendRawHistoryList, nil
 }
+
 func (r *userSendRawHistoryRepoImpl) SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error) {
 	var userSendRawHistoryList []*UserSendRawHistory
 	ret := r.gormDB.Table("user_sendraw_history").Where("session_id in (?)", sessionIDs).Find(&userSendRawHistoryList)
@@ -161,7 +163,7 @@ func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, signReqPage S
 
 	db := r.gormDB.Table("user_sendraw_history")
 	if signReqPage.Address != "" {
-		db = db.Where("address in (?)", []string{signReqPage.Address,signReqPage.ClientAddress})
+		db = db.Where("address in (?)", []string{signReqPage.Address, signReqPage.ClientAddress})
 	}
 	if signReqPage.ChainName != "" {
 		db = db.Where("chain_name = ?", signReqPage.ChainName)
@@ -171,10 +173,10 @@ func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, signReqPage S
 	} else {
 		db = db.Where("(sign_type = '1' or (sign_type= '2' and sign_status = '2'))")
 	}
-	if signReqPage.SignType == "1"{
+	if signReqPage.SignType == "1" {
 		db = db.Where(" transaction_hash != '' ")
 	}
-	if signReqPage.SignType == "2"{
+	if signReqPage.SignType == "2" {
 		db = db.Where(" sign_status = '2' ")
 	}
 

@@ -70,7 +70,7 @@ type DotTransactionRecordRepo interface {
 	FindLast(context.Context, string) (*DotTransactionRecord, error)
 	FindOneByBlockNumber(context.Context, string, int) (*DotTransactionRecord, error)
 	GetAmount(context.Context, string, *pb.AmountRequest, string) (string, error)
-	FindByTxhash(context.Context, string, string) (*DotTransactionRecord, error)
+	FindByTxHash(context.Context, string, string) (*DotTransactionRecord, error)
 	FindParseDataByTxHashAndToken(context.Context, string, string, string) (*DotTransactionRecord, error)
 	ListByTransactionType(context.Context, string, string) ([]*DotTransactionRecord, error)
 	FindFromAddress(context.Context, string) ([]string, error)
@@ -640,9 +640,9 @@ func (r *DotTransactionRecordRepoImpl) GetAmount(ctx context.Context, tableName 
 	return amount, nil
 }
 
-func (r *DotTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableName string, txhash string) (*DotTransactionRecord, error) {
+func (r *DotTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableName string, txHash string) (*DotTransactionRecord, error) {
 	var dotTransactionRecord *DotTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txhash).Find(&dotTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash = ?", txHash).Find(&dotTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query DotTransactionRecord by txHash failed", err)
@@ -655,9 +655,9 @@ func (r *DotTransactionRecordRepoImpl) FindByTxhash(ctx context.Context, tableNa
 	}
 }
 
-func (r *DotTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txhash string, token string) (*DotTransactionRecord, error) {
+func (r *DotTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txHash string, token string) (*DotTransactionRecord, error) {
 	var dotTransactionRecord *DotTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%", token).Find(&dotTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txHash+"%", token).Find(&dotTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query DotTransactionRecord by txHash failed", err)

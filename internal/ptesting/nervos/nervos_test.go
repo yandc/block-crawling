@@ -47,13 +47,13 @@ func TestPendingTx(t *testing.T) {
 		BeforePrepare: func() {
 		},
 		AfterPrepare: func() {
-			record, err := data.CkbTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.CkbTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.PENDING, record.Status)
 		},
 		Assert: func() {
-			record, err := data.CkbTransactionRecordRepoClient.FindByTxhash(context.TODO(), tableName, txHash)
+			record, err := data.CkbTransactionRecordRepoClient.FindByTxHash(context.TODO(), tableName, txHash)
 			assert.NoError(t, err)
 			assert.NotNil(t, record)
 			assert.Equal(t, biz.SUCCESS, record.Status)
