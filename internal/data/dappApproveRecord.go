@@ -31,6 +31,7 @@ func (dappApproveRecord DappApproveRecord) TableName() string {
 
 type DappApproveRecordRepo interface {
 	SaveOrUpdate(context.Context, *DappApproveRecord) (int64, error)
+	SaveOrUpdateSelective(ctx context.Context, dappApproveRecord *DappApproveRecord) (int64, error)
 	UpdateAmout(context.Context, []*DappApproveRecord)
 	ListByCondition(ctx context.Context, req *pb.DappListReq) ([]*DappApproveRecord, error)
 	GetAmountList(ctx context.Context, req *pb.OpenAmountReq) ([]*DappApproveRecord, error)
@@ -69,6 +70,24 @@ func (r *DappApproveRecordRepoImpl) SaveOrUpdate(ctx context.Context, dappApprov
 
 	affected := ret.RowsAffected
 	return affected, err
+}
+
+func (r *DappApproveRecordRepoImpl) SaveOrUpdateSelective(ctx context.Context, dappApproveRecord *DappApproveRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "address"}, {Name: "to_address"}, {Name: "token"}},
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"amount":      clause.Column{Table: "excluded", Name: "amount"},
+			"last_txhash": clause.Column{Table: "excluded", Name: "last_txhash"},
+		}),
+	}).Create(&dappApproveRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or update selective dapp_approve_record failed", err)
+		return 0, err
+	}
+
+	return ret.RowsAffected, err
 }
 
 func (r *DappApproveRecordRepoImpl) UpdateAmout(ctx context.Context, dappApproveRecords []*DappApproveRecord) {

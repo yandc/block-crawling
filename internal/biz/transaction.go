@@ -2072,10 +2072,26 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					var r *pb.TransactionRecord
 					utils.CopyProperties(evm, &r)
 
-					eventLogInfo, err1 := data.EvmTransactionRecordRepoClient.FindParseDataByTxHashAndToken(ctx, GetTableName(value.ChainName), value.LastTxhash, tokenAddress)
-					if err1 == nil && eventLogInfo != nil {
-						r.ParseData = eventLogInfo.ParseData
+					if evm.TransactionType == APPROVENFT || evm.TransactionType == APPROVE {
+						r.ParseData = evm.ParseData
+					} else if value.ErcType == APPROVE {
+						tokenInfo, err := GetTokenInfoRetryAlert(ctx, value.ChainName, tokenAddress)
+						if err == nil {
+							tokenInfo.Amount = value.Amount
+							feeEventMap := map[string]interface{}{
+								"evm": map[string]string{
+									"nonce": fmt.Sprintf("%v", evm.Nonce),
+									"type":  fmt.Sprintf("%v", evm.Type),
+								},
+								"token": tokenInfo,
+							}
+							feeEventParseData, _ := utils.JsonEncode(feeEventMap)
+							r.ParseData = feeEventParseData
+						}
 					}
+
+					//eventLogInfo, err1 := data.EvmTransactionRecordRepoClient.FindParseDataByTxHashAndToken(ctx, GetTableName(value.ChainName), value.LastTxhash, tokenAddress)
+
 					feeData["gas_limit"] = r.GasLimit
 					feeData["gas_used"] = r.GasUsed
 					feeData["gas_price"] = r.GasPrice
@@ -2084,6 +2100,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					feeData["max_priority_fee_per_gas"] = r.MaxPriorityFeePerGas
 					r.ChainName = value.ChainName
 					feeDataStr, _ := utils.JsonEncode(feeData)
+					r.FromAddress = value.Address
+					r.ToAddress = value.ToAddress
 					r.FeeData = feeDataStr
 					r.Cursor = value.TxTime
 					r.Amount = value.Amount
