@@ -511,11 +511,37 @@ func HandleTransactionCount(chainName string, client Client, txRecords []*data.E
 		if record.Status != biz.SUCCESS {
 			continue
 		}
+
+		transactionType := record.TransactionType
+		//手续费代付
+		if record.TransactionType == biz.CONTRACT &&
+			((chainName == "ETH" && record.ToAddress == "0x10fC9e6Ed49E648bde6b6214f07d8e63E12349E8") || (chainName == "BSC" && record.ToAddress == "0xa2d57fa083aD42Fe7d042FE0794cFeF13bd2603c") || (chainName == "Polygon" && record.ToAddress == "0xD0Db2F29056E0226168c6b32363A339Fe8fD46b5")) &&
+			len(txRecords) == 2 {
+			record = txRecords[1]
+			if record.TransactionType == biz.EVENTLOG {
+				tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
+				if err != nil {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链统计交易次数，解析parseData失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error("统计交易次数，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+						zap.Any("parseData", record.ParseData), zap.Any("error", err))
+					continue
+				}
+				if tokenInfo.Address == "" {
+					transactionType = biz.NATIVE
+				} else if tokenInfo.TokenType == "" {
+					transactionType = biz.TRANSFER
+				} else {
+					transactionType = biz.TRANSFERNFT
+				}
+			}
+		}
 		if record.FromAddress == "" || record.ToAddress == "" || (record.FromUid == "" && record.ToUid == "") {
 			continue
 		}
 
-		transactionType := record.TransactionType
 		if transactionType == biz.CONTRACT {
 			tx, err := data.EvmTransactionRecordRepoClient.SelectColumnByTxHash(nil, biz.GetTableName(chainName), record.TransactionHash, []string{"transaction_type"})
 			if err == nil && tx != nil && (tx.TransactionType == biz.MINT || tx.TransactionType == biz.SWAP) {
