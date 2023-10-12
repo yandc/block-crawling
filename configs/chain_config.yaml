@@ -467,9 +467,11 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 420
     httpURL:
-      - https://api-optimistic.etherscan.io/api?apikey=4HIMSNVHT2TIMXGUGNKNCF8ZWEVHGBCKFN
-      - https://api-optimistic.etherscan.io/api?apikey=EEU6H52APVF1V1I5EXXSGZ6UA49IUDJUJ8
       - https://api-optimistic.etherscan.io/api?apikey=G42UK7JU96DZ2IVCSASYTGX8IHY1ZVKIEU
+      - https://api-optimistic.etherscan.io/api?apikey=QBUMZM7YW52HWBN6W9FKJEMXRF5P9E5U3U
+      - https://api-optimistic.etherscan.io/api?apikey=AC3RFPVQTSXSP3KSA7PAS65INCC8ZH3QFA
+      - https://api-optimistic.etherscan.io/api?apikey=KMXFISIU4MNV31HA4I8QYKGWNPE7SV4HFP
+      - https://api-optimistic.etherscan.io/api?apikey=87FK3APPF4HF3G5Y7FB1XJHQ416U4TVNXV
   ETC:
     blockExplorerAddrUrl: https://blockscout.com/etc/mainnet/address/
     blockExplorerTxUrl: https://blockscout.com/etc/mainnet/tx/
@@ -1013,6 +1015,16 @@ platform:
       - https://zksync.drpc.org
       - https://zksync.meowrpc.com
       - https://zksync-era.blockpi.network/v1/rpc/public
+      - https://zksync-era-mainnet.unifra.io/v1/c1978588e7c64f52a5d32f9c736d271b
+      - https://zksync-era-mainnet.unifra.io/v1/57a384f6bd374a1c86a307673d354645
+      - https://zksync-era-mainnet.unifra.io/v1/408828495eeb43849b57c268f397ae48
+      - https://zksync-era-mainnet.unifra.io/v1/8d132b386b324740af916e27e4cb3547
+      - https://zksync-era-mainnet.unifra.io/v1/a2937978cd6b4e369ae01a6c7c927744
+      - https://zksync-era-mainnet.unifra.io/v1/5cef4af8f8ed4414bcfddb63323fb9e6
+      - https://zksync-era-mainnet.unifra.io/v1/27cb72405b734badbd64092470c23661
+      - https://zksync-era-mainnet.unifra.io/v1/fe2d92ffecbf471283d298573099112b
+      - https://zksync-era-mainnet.unifra.io/v1/213c8992448a4ab28a6a868023776626
+      - https://zksync-era-mainnet.unifra.io/v1/2913a0edf0f04763b26b759e8bd24690
     symbol: zkSync
     type: EVM
     safelyConcurrentBlockDelta: 100
