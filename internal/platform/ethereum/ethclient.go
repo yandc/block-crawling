@@ -418,7 +418,7 @@ func (h *txJSON) UnmarshalJSON(input []byte) error {
 		To                   *common.Address `json:"to"`
 
 		// Access list transaction fields:
-		ChainID    *hexutil.Big      `json:"chainId,omitempty"`
+		RawChainID *json.RawMessage  `json:"chainId,omitempty"`
 		AccessList *types.AccessList `json:"accessList,omitempty"`
 
 		// Only used for encoding:
@@ -440,8 +440,19 @@ func (h *txJSON) UnmarshalJSON(input []byte) error {
 	if dec.To != nil {
 		h.To = dec.To
 	}
-	if dec.ChainID != nil {
-		h.ChainID = dec.ChainID
+	if dec.RawChainID != nil {
+		var chainId *hexutil.Big
+		err := json.Unmarshal(*dec.RawChainID, &chainId)
+		if err != nil {
+			var chainIntId int64
+			if innerErr := json.Unmarshal(*dec.RawChainID, &chainIntId); innerErr != nil {
+				return err
+			}
+			chainId = (*hexutil.Big)(big.NewInt(chainIntId))
+		}
+		if chainId != nil {
+			h.ChainID = chainId
+		}
 	}
 	if dec.AccessList != nil {
 		h.AccessList = dec.AccessList
