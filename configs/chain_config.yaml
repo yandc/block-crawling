@@ -72,8 +72,10 @@ platform:
     maxConcurrency: 8
     monitorHeightAlarmThr: 160
     httpURL:
-      - https://api.arbiscan.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
-      - https://api.arbiscan.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
+      - https://api.arbiscan.io/api?apikey=FHB14Y2SMD7AHVAQCJ2QRRM9G9CAPWBSGM
+      - https://api.arbiscan.io/api?apikey=ATFMIHSEM4WHT84696QTVQV1EBPPRSQJXB
+      - https://api.arbiscan.io/api?apikey=VFDCN6NSW5193MHU1CC81T23BV3BY2EW5C
+      - https://api.arbiscan.io/api?apikey=6K5TYMMAQ9INGKJNJM9UV8KM3RTW9M51BJ
       - https://api.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
 
   DOGE:
@@ -167,8 +169,10 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 146
     httpURL:
-      - https://api.snowtrace.io/api?apikey=QRAZZJP1QFIQUMPN8TXU162B166BEREWUU
-      - https://api.snowtrace.io/api?apikey=C5N8FXF2X252M275GQSDN74B7AR4N7N98S
+      - https://api.snowtrace.io/api?apikey=FGBWNYJS5PY17716PW61EDYX71GK21U8J3
+      - https://api.snowtrace.io/api?apikey=4NCC1Z9YWZAKZGUAPXF2FVQJHXU5ACZ48G
+      - https://api.snowtrace.io/api?apikey=NX2P87CTA8ZICUZA6JSNJA3A1FRXTMWMUC
+      - https://api.snowtrace.io/api?apikey=BFISA5EHN8MZAZDXQV13FJR79F2X8PTVYE
       - https://api.snowtrace.io/api?apikey=UKZZREZFV7YEG3VX8FG43MHPSGPWSQIP7P
 
   BSC:
@@ -221,7 +225,9 @@ platform:
     monitorHeightAlarmThr: 100
     httpURL:
       - https://api.bscscan.com/api?apikey=8GPEVE2G239UXQ1EASTKRJUI8K617TVYIF
-      - https://api.bscscan.com/api?apikey=CJYU5PP16VPPF58Y1NMTRQXNKGWRI9DRMX
+      - https://api.bscscan.com/api?apikey=E4RPAJ3SHH5ZXJJVWQBSNNJ1315BIDFKEF
+      - https://api.bscscan.com/api?apikey=VQB4ECWI78TWYAX4UIMDZX66WYZ2NNDF7H
+      - https://api.bscscan.com/api?apikey=EZ649V3FG1Z544DPWCJPHHMY142318G43G
       - https://api.bscscan.com/api?apikey=1KWNQMJXH4FH9ZM9YSGRKAN738SUD8QPWC
 
   BTC:
@@ -286,8 +292,10 @@ platform:
     safelyConcurrentBlockDelta: 100
     maxConcurrency: 5
     httpURL:
-      - https://api.cronoscan.com/api?apikey=J5NCXH2I6C1GX9PMK85RSB8MC1671ARVF4
-      - https://api.cronoscan.com/api?apikey=EIZXXGRMCG3S2V9IFA7KE3BDJVBIM2R6BY
+      - https://api.cronoscan.com/api?apikey=XZPJ65DIM5KKTMNNVYIYR9QJGEZS672H3D
+      - https://api.cronoscan.com/api?apikey=TVHHKQRBVU458JH94DYUVBSCUWVTKIDD9N
+      - https://api.cronoscan.com/api?apikey=8BKPJQ5JCZVYQKBBZ5DBZGF97RIZM63YZW
+      - https://api.cronoscan.com/api?apikey=C1EF4MPPA3997VN5VMWXWYE4S3RCTBDCR4
       - https://api.cronoscan.com/api?apikey=J5GTVHGS39IP6YPNAUZS5HU39Z6X62HCC7
 
 
@@ -323,7 +331,7 @@ platform:
     monitorHeightAlarmThr: 30
     httpURL:
       - https://api.etherscan.io/api?apikey=M7VFNK3Z4J5AG8JZRQB9E25EEEANJG4KXZ
-      - https://api.etherscan.io/api?apikey=729J74WFP9NCE81V8MYM6SZ7QAUWCIHFSW
+      - https://api.etherscan.io/api?apikey=NJ4P2RHJ5E1N1Z9WZQTDREWD8KP35W49QW
       - https://api.etherscan.io/api?apikey=N9FS92RQJ71KM5BQ5NUTVVA83Y8WD2PJTR
 
   Fantom:
