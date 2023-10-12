@@ -53,10 +53,8 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	}()
 
 	switch chainName {
-	case "Cosmos":
+	case "Cosmos", "Osmosis", "Sei", "SeiTEST":
 		err = CosmosGetTxByAddress(chainName, address, urls)
-	case "Osmosis":
-		err = OsmosisGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
 	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea":
@@ -92,8 +90,6 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = SuiGetTxByAddress(chainName, address, urls)
 	case "Kaspa":
 		err = KaspaGetTxByAddress(chainName, address, urls)
-	case "Sei", "SeiTEST":
-		err = SeiGetTxByAddress(chainName, address, urls)
 	}
 
 	return
@@ -552,122 +548,117 @@ type OsmosisBrowserInfo struct {
 	} `json:"pagination"`
 }
 
-func OsmosisGetTxByAddress(chainName string, address string, urls []string) (err error) {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("OsmosisGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
-			} else {
-				log.Errore("OsmosisGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
-			}
+type SeiErrors struct {
+	Errors []struct {
+		Extensions struct {
+			Code string `json:"code"`
+			Path string `json:"path"`
+		} `json:"extensions"`
+		Message string `json:"message"`
+	} `json:"errors"`
+}
 
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
+type SeiAccountId struct {
+	Data struct {
+		AccountsByPk struct {
+			Id int `json:"id"`
+		} `json:"accounts_by_pk"`
+	} `json:"data"`
+	SeiErrors
+}
 
-	req := &data.TransactionRequest{
-		Nonce:       -1,
-		FromAddress: address,
-		OrderBy:     "block_number desc",
-		PageNum:     1,
-		PageSize:    1,
-	}
-	dbLastRecords, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
-	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-		return err
-	}
-	var dbLastRecordBlockNumber int
-	var dbLastRecordHash string
-	if len(dbLastRecords) > 0 {
-		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
-		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
-	}
+type SeiAccountTransaction struct {
+	Block struct {
+		Height    int    `json:"height"`
+		Timestamp string `json:"timestamp"`
+	} `json:"block"`
+	Transaction struct {
+		/*Account struct {
+			Address string `json:"address"`
+		} `json:"account"`*/
+		Hash string `json:"hash"`
+		/*Success  bool   `json:"success"`
+		Messages []struct {
+			Detail struct {
+				Contract string `json:"contract"`
+				Funds    []struct {
+					Denom  string `json:"denom"`
+					Amount string `json:"amount"`
+				} `json:"funds"`
+				Msg struct {
+					ProvideLiquidity struct {
+						Assets []struct {
+							Amount string `json:"amount"`
+							Info   struct {
+								NativeToken struct {
+									Denom string `json:"denom"`
+								} `json:"native_token,omitempty"`
+								Token struct {
+									ContractAddr string `json:"contract_addr"`
+								} `json:"token,omitempty"`
+							} `json:"info"`
+						} `json:"assets"`
+					} `json:"provide_liquidity,omitempty"`
+					Send struct {
+						Amount   string `json:"amount"`
+						Contract string `json:"contract"`
+						Msg      string `json:"msg"`
+					} `json:"send,omitempty"`
+					ExecuteSwapOperations struct {
+						MaxSpread      string `json:"max_spread"`
+						MinimumReceive string `json:"minimum_receive"`
+						Operations     []struct {
+							AstroSwap struct {
+								AskAssetInfo struct {
+									Token struct {
+										ContractAddr string `json:"contract_addr"`
+									} `json:"token"`
+								} `json:"ask_asset_info"`
+								OfferAssetInfo struct {
+									NativeToken struct {
+										Denom string `json:"denom"`
+									} `json:"native_token"`
+								} `json:"offer_asset_info"`
+							} `json:"astro_swap"`
+						} `json:"operations"`
+					} `json:"execute_swap_operations,omitempty"`
+					Faucet struct {
+					} `json:"faucet,omitempty"`
+				} `json:"msg"`
+				MsgJson string `json:"msg_json"`
+				Sender  string `json:"sender"`
+			} `json:"detail"`
+			Type string `json:"type"`
+		} `json:"messages"`
+		IsClearAdmin  bool `json:"is_clear_admin"`
+		IsExecute     bool `json:"is_execute"`
+		IsIbc         bool `json:"is_ibc"`
+		IsInstantiate bool `json:"is_instantiate"`
+		IsMigrate     bool `json:"is_migrate"`
+		IsSend        bool `json:"is_send"`
+		IsStoreCode   bool `json:"is_store_code"`
+		IsUpdateAdmin bool `json:"is_update_admin"`*/
+	} `json:"transaction"`
+	//IsSigner bool `json:"is_signer"`
+}
 
-	var starIndex = 0
-	url := urls[0]
-	url = url + "transfer.recipient='" + address + "'&"
-	var chainRecords []string
-chainFlag:
-	for {
-		var out *OsmosisBrowserInfo
-		reqUrl := url + "pagination.limit=" + strconv.Itoa(pageSize) + "&pagination.offset=" + strconv.Itoa(starIndex)
+type SeiAccountTransactions struct {
+	Data struct {
+		AccountTransactions []*SeiAccountTransaction `json:"account_transactions"`
+	} `json:"data"`
+	SeiErrors
+}
 
-		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
-		}
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
-			break
-		}
-
-		dataLen := len(out.TxResponses)
-		if dataLen == 0 {
-			break
-		}
-		for _, browserInfo := range out.TxResponses {
-			txHash := browserInfo.Txhash
-			txHeight, err := strconv.Atoi(browserInfo.Height)
-			if err != nil {
-				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
-				alarmOpts := WithMsgLevel("FATAL")
-				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Height), zap.Any("txHash", txHash), zap.Any("error", err))
-				break chainFlag
-			}
-			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
-				break chainFlag
-			}
-			chainRecords = append(chainRecords, txHash)
-		}
-		if dataLen < pageSize {
-			break
-		}
-		starIndex = starIndex + dataLen
-	}
-
-	var atomTransactionRecordList []*data.AtomTransactionRecord
-	transactionRecordMap := make(map[string]string)
-	now := time.Now().Unix()
-	for _, txHash := range chainRecords {
-		if _, ok := transactionRecordMap[txHash]; !ok {
-			transactionRecordMap[txHash] = ""
-		} else {
-			continue
-		}
-		atomRecord := &data.AtomTransactionRecord{
-			TransactionHash: txHash,
-			Status:          PENDING,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		}
-		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
-	}
-
-	if len(atomTransactionRecordList) > 0 {
-		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-			return err
-		}
-	}
-
-	return
+type SeiBrowserInfo struct {
+	Hash      string    `json:"hash"`
+	Messages  string    `json:"messages"`
+	Status    int       `json:"status"`
+	Timestamp time.Time `json:"timestamp"`
+	Height    int       `json:"height"`
+	Fee       struct {
+		Denom  string `json:"denom"`
+		Amount string `json:"amount"`
+	} `json:"fee"`
 }
 
 func CosmosGetTxByAddress(chainName string, address string, urls []string) (err error) {
@@ -709,8 +700,46 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 		dbLastRecordHash = strings.Split(dbLastRecords[0].TransactionHash, "#")[0]
 	}
 
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	for _, url := range urls {
+		if strings.HasPrefix(url, "https://front.api.mintscan.io/v1") {
+			atomTransactionRecordList, err = getRecordByCosmosScan(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		} else if strings.HasPrefix(url, "https://proxy.atomscan.com") {
+			atomTransactionRecordList, err = getRecordByAtomScan(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		} else if url == "https://pacific-1-graphql.alleslabs.dev/v1/graphql" || url == "https://atlantic-2-graphql.alleslabs.dev/v1/graphql" {
+			atomTransactionRecordList, err = getSeiRecordByGraphql(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		} else if url == "https://sei.api.explorers.guru" {
+			atomTransactionRecordList, err = getSeiRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		}
+
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
+		return err
+	}
+
+	if len(atomTransactionRecordList) > 0 {
+		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+func getRecordByCosmosScan(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
 	var starIndex = 0
-	url := urls[0]
 	url = url + address + "/txs?"
 
 	var chainRecords []*CosmosBrowserInfo
@@ -719,10 +748,10 @@ chainFlag:
 		var out []*CosmosBrowserInfo
 		reqUrl := url + "limit=" + strconv.Itoa(pageSize) + "&from=" + strconv.Itoa(starIndex)
 
-		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+		err := httpclient.GetResponsePostman(reqUrl, nil, &out, &timeout)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
-			err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
+			err = httpclient.GetResponsePostman(reqUrl, nil, &out, &timeout)
 		}
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
@@ -776,18 +805,259 @@ chainFlag:
 		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
 	}
 
-	if len(atomTransactionRecordList) > 0 {
-		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
+	return atomTransactionRecordList, nil
+}
+
+func getRecordByAtomScan(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
+	var starIndex = 0
+	url = url + "?orderBy=ORDER_BY_DESC&events=transfer.recipient='" + address + "'&"
+	var chainRecords []string
+chainFlag:
+	for {
+		var out *OsmosisBrowserInfo
+		reqUrl := url + "pagination.limit=" + strconv.Itoa(pageSize) + "&pagination.offset=" + strconv.Itoa(starIndex)
+
+		err := httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
 		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
 			alarmOpts := WithMsgLevel("FATAL")
 			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-			return err
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
 		}
+
+		dataLen := len(out.TxResponses)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.TxResponses {
+			txHash := browserInfo.Txhash
+			txHeight, err := strconv.Atoi(browserInfo.Height)
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, txHash)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		starIndex = starIndex + dataLen
 	}
 
-	return
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, txHash := range chainRecords {
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	return atomTransactionRecordList, nil
+}
+
+func getAccountIdByAddressQueryDocument(url, address string) (int, error) {
+	tokenRequest := map[string]interface{}{
+		"operationName": "getAccountIdByAddressQueryDocument",
+		"variables": map[string]interface{}{
+			"address": address,
+		},
+		"query": "query getAccountIdByAddressQueryDocument($address: String!) {\n  accounts_by_pk(address: $address) {\n    id\n  }\n}",
+	}
+	out := &SeiAccountId{}
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
+	if err != nil {
+		return 0, err
+	}
+	if out.Errors != nil {
+		errorsStr, err := utils.JsonEncode(out.Errors)
+		if err != nil {
+			return 0, err
+		}
+		return 0, errors.New(errorsStr)
+	}
+
+	accountsId := out.Data.AccountsByPk.Id
+	return accountsId, nil
+}
+
+func getTxsByAddressPagination(url string, accountsId, offset, limit int) (*SeiAccountTransactions, error) {
+	tokenRequest := map[string]interface{}{
+		"operationName": "getTxsByAddressPagination",
+		"variables": map[string]interface{}{
+			"expression": map[string]interface{}{
+				"account_id": map[string]interface{}{
+					"_eq": accountsId,
+				},
+			},
+			"offset":   offset,
+			"pageSize": limit,
+		},
+		"query": "query getTxsByAddressPagination($expression: account_transactions_bool_exp, $offset: Int!, $pageSize: Int!) {\n  account_transactions(\n    where: $expression\n    order_by: {block_height: desc}\n    offset: $offset\n    limit: $pageSize\n  ) {\n    block {\n      height\n      timestamp\n    }\n    transaction {\n      account {\n        address\n      }\n      hash\n      success\n      messages\n      is_clear_admin\n      is_execute\n      is_ibc\n      is_instantiate\n      is_migrate\n      is_send\n      is_store_code\n      is_update_admin\n    }\n    is_signer\n  }\n}",
+	}
+	out := &SeiAccountTransactions{}
+	timeoutMS := 3_000 * time.Millisecond
+	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	if out.Errors != nil {
+		errorsStr, err := utils.JsonEncode(out.Errors)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New(errorsStr)
+	}
+
+	return out, nil
+}
+
+func getSeiRecordByGraphql(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
+	accountsId, err := getAccountIdByAddressQueryDocument(url, address)
+	if err != nil {
+		return nil, err
+	}
+	dbLastRecordHash = strings.ToLower(dbLastRecordHash)
+
+	offset := 0
+	var chainRecords []*SeiAccountTransaction
+chainFlag:
+	for {
+		out, err := getTxsByAddressPagination(url, accountsId, offset, pageSize)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			out, err = getTxsByAddressPagination(url, accountsId, offset, pageSize)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out.Data.AccountTransactions)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Data.AccountTransactions {
+			txHash := strings.TrimLeft(browserInfo.Transaction.Hash, "\\x")
+			browserInfo.Transaction.Hash = txHash
+			txHeight := browserInfo.Block.Height
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		offset = offset + dataLen
+	}
+
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Transaction.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	return atomTransactionRecordList, nil
+}
+
+func getSeiRecordByExplorers(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
+	dbLastRecordHash = strings.ToUpper(dbLastRecordHash)
+	url = url + "/api/transactions/by/" + address
+
+	var chainRecords []*SeiBrowserInfo
+chainFlag:
+	for {
+		var out []*SeiBrowserInfo
+		reqUrl := url
+
+		err := httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out {
+			txHash := browserInfo.Hash
+			txHeight := browserInfo.Height
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		break
+	}
+
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	return atomTransactionRecordList, nil
 }
 
 type SolanaBrowserResponse struct {
@@ -909,8 +1179,6 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/token", address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
-		// 903 + 908 = full txns
-		//
 		if err == nil {
 			break
 		}
@@ -3094,373 +3362,4 @@ chainFlag:
 	}
 
 	return
-}
-
-type SeiErrors struct {
-	Errors []struct {
-		Extensions struct {
-			Code string `json:"code"`
-			Path string `json:"path"`
-		} `json:"extensions"`
-		Message string `json:"message"`
-	} `json:"errors"`
-}
-
-type SeiAccountId struct {
-	Data struct {
-		AccountsByPk struct {
-			Id int `json:"id"`
-		} `json:"accounts_by_pk"`
-	} `json:"data"`
-	SeiErrors
-}
-
-type SeiAccountTransaction struct {
-	Block struct {
-		Height    int    `json:"height"`
-		Timestamp string `json:"timestamp"`
-	} `json:"block"`
-	Transaction struct {
-		/*Account struct {
-			Address string `json:"address"`
-		} `json:"account"`*/
-		Hash string `json:"hash"`
-		/*Success  bool   `json:"success"`
-		Messages []struct {
-			Detail struct {
-				Contract string `json:"contract"`
-				Funds    []struct {
-					Denom  string `json:"denom"`
-					Amount string `json:"amount"`
-				} `json:"funds"`
-				Msg struct {
-					ProvideLiquidity struct {
-						Assets []struct {
-							Amount string `json:"amount"`
-							Info   struct {
-								NativeToken struct {
-									Denom string `json:"denom"`
-								} `json:"native_token,omitempty"`
-								Token struct {
-									ContractAddr string `json:"contract_addr"`
-								} `json:"token,omitempty"`
-							} `json:"info"`
-						} `json:"assets"`
-					} `json:"provide_liquidity,omitempty"`
-					Send struct {
-						Amount   string `json:"amount"`
-						Contract string `json:"contract"`
-						Msg      string `json:"msg"`
-					} `json:"send,omitempty"`
-					ExecuteSwapOperations struct {
-						MaxSpread      string `json:"max_spread"`
-						MinimumReceive string `json:"minimum_receive"`
-						Operations     []struct {
-							AstroSwap struct {
-								AskAssetInfo struct {
-									Token struct {
-										ContractAddr string `json:"contract_addr"`
-									} `json:"token"`
-								} `json:"ask_asset_info"`
-								OfferAssetInfo struct {
-									NativeToken struct {
-										Denom string `json:"denom"`
-									} `json:"native_token"`
-								} `json:"offer_asset_info"`
-							} `json:"astro_swap"`
-						} `json:"operations"`
-					} `json:"execute_swap_operations,omitempty"`
-					Faucet struct {
-					} `json:"faucet,omitempty"`
-				} `json:"msg"`
-				MsgJson string `json:"msg_json"`
-				Sender  string `json:"sender"`
-			} `json:"detail"`
-			Type string `json:"type"`
-		} `json:"messages"`
-		IsClearAdmin  bool `json:"is_clear_admin"`
-		IsExecute     bool `json:"is_execute"`
-		IsIbc         bool `json:"is_ibc"`
-		IsInstantiate bool `json:"is_instantiate"`
-		IsMigrate     bool `json:"is_migrate"`
-		IsSend        bool `json:"is_send"`
-		IsStoreCode   bool `json:"is_store_code"`
-		IsUpdateAdmin bool `json:"is_update_admin"`*/
-	} `json:"transaction"`
-	//IsSigner bool `json:"is_signer"`
-}
-
-type SeiAccountTransactions struct {
-	Data struct {
-		AccountTransactions []*SeiAccountTransaction `json:"account_transactions"`
-	} `json:"data"`
-	SeiErrors
-}
-
-type SeiBrowserInfo struct {
-	Hash      string    `json:"hash"`
-	Messages  string    `json:"messages"`
-	Status    int       `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Height    int       `json:"height"`
-	Fee       struct {
-		Denom  string `json:"denom"`
-		Amount string `json:"amount"`
-	} `json:"fee"`
-}
-
-func SeiGetTxByAddress(chainName string, address string, urls []string) (err error) {
-	defer func() {
-		if err := recover(); err != nil {
-			if e, ok := err.(error); ok {
-				log.Errore("SeiGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
-			} else {
-				log.Errore("SeiGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
-			}
-
-			// 程序出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			return
-		}
-	}()
-
-	req := &data.TransactionRequest{
-		Nonce:    -1,
-		Address:  address,
-		OrderBy:  "tx_time desc",
-		PageNum:  1,
-		PageSize: 1,
-	}
-	dbLastRecords, _, err := data.AtomTransactionRecordRepoClient.PageList(nil, GetTableName(chainName), req)
-	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-		return err
-	}
-	var dbLastRecordBlockNumber int
-	var dbLastRecordHash string
-	if len(dbLastRecords) > 0 {
-		dbLastRecordBlockNumber = dbLastRecords[0].BlockNumber
-		dbLastRecordHash = dbLastRecords[0].TransactionHash
-	}
-
-	var atomTransactionRecordList []*data.AtomTransactionRecord
-	for _, url := range urls {
-		if url == "https://pacific-1-graphql.alleslabs.dev/v1/graphql" || url == "https://atlantic-2-graphql.alleslabs.dev/v1/graphql" {
-			atomTransactionRecordList, err = getSeiRecordByGraphql(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
-		} else if url == "https://sei.api.explorers.guru" {
-			atomTransactionRecordList, err = getSeiRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
-		}
-
-		if err == nil && len(atomTransactionRecordList) > 0 {
-			break
-		}
-	}
-	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", urls), zap.Any("error", err))
-		return err
-	}
-
-	if len(atomTransactionRecordList) > 0 {
-		_, err = data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-			return err
-		}
-	}
-
-	return
-}
-
-func getAccountIdByAddressQueryDocument(url, address string) (int, error) {
-	tokenRequest := map[string]interface{}{
-		"operationName": "getAccountIdByAddressQueryDocument",
-		"variables": map[string]interface{}{
-			"address": address,
-		},
-		"query": "query getAccountIdByAddressQueryDocument($address: String!) {\n  accounts_by_pk(address: $address) {\n    id\n  }\n}",
-	}
-	out := &SeiAccountId{}
-	timeoutMS := 3_000 * time.Millisecond
-	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
-	if err != nil {
-		return 0, err
-	}
-	if out.Errors != nil {
-		errorsStr, err := utils.JsonEncode(out.Errors)
-		if err != nil {
-			return 0, err
-		}
-		return 0, errors.New(errorsStr)
-	}
-
-	accountsId := out.Data.AccountsByPk.Id
-	return accountsId, nil
-}
-
-func getTxsByAddressPagination(url string, accountsId, offset, limit int) (*SeiAccountTransactions, error) {
-	tokenRequest := map[string]interface{}{
-		"operationName": "getTxsByAddressPagination",
-		"variables": map[string]interface{}{
-			"expression": map[string]interface{}{
-				"account_id": map[string]interface{}{
-					"_eq": accountsId,
-				},
-			},
-			"offset":   offset,
-			"pageSize": limit,
-		},
-		"query": "query getTxsByAddressPagination($expression: account_transactions_bool_exp, $offset: Int!, $pageSize: Int!) {\n  account_transactions(\n    where: $expression\n    order_by: {block_height: desc}\n    offset: $offset\n    limit: $pageSize\n  ) {\n    block {\n      height\n      timestamp\n    }\n    transaction {\n      account {\n        address\n      }\n      hash\n      success\n      messages\n      is_clear_admin\n      is_execute\n      is_ibc\n      is_instantiate\n      is_migrate\n      is_send\n      is_store_code\n      is_update_admin\n    }\n    is_signer\n  }\n}",
-	}
-	out := &SeiAccountTransactions{}
-	timeoutMS := 3_000 * time.Millisecond
-	err := httpclient.HttpPostJson(url, tokenRequest, out, &timeoutMS)
-	if err != nil {
-		return nil, err
-	}
-	if out.Errors != nil {
-		errorsStr, err := utils.JsonEncode(out.Errors)
-		if err != nil {
-			return nil, err
-		}
-		return nil, errors.New(errorsStr)
-	}
-
-	return out, nil
-}
-
-func getSeiRecordByGraphql(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
-	accountsId, err := getAccountIdByAddressQueryDocument(url, address)
-	if err != nil {
-		return nil, err
-	}
-	dbLastRecordHash = strings.ToLower(dbLastRecordHash)
-
-	offset := 0
-	var chainRecords []*SeiAccountTransaction
-chainFlag:
-	for {
-		out, err := getTxsByAddressPagination(url, accountsId, offset, pageSize)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			out, err = getTxsByAddressPagination(url, accountsId, offset, pageSize)
-		}
-		if err != nil {
-			return nil, err
-			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
-			break*/
-		}
-
-		dataLen := len(out.Data.AccountTransactions)
-		if dataLen == 0 {
-			break
-		}
-		for _, browserInfo := range out.Data.AccountTransactions {
-			txHash := strings.TrimLeft(browserInfo.Transaction.Hash, "\\x")
-			browserInfo.Transaction.Hash = txHash
-			txHeight := browserInfo.Block.Height
-			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
-				break chainFlag
-			}
-			chainRecords = append(chainRecords, browserInfo)
-		}
-		if dataLen < pageSize {
-			break
-		}
-		offset = offset + dataLen
-	}
-
-	var atomTransactionRecordList []*data.AtomTransactionRecord
-	transactionRecordMap := make(map[string]string)
-	now := time.Now().Unix()
-	for _, record := range chainRecords {
-		txHash := record.Transaction.Hash
-		if _, ok := transactionRecordMap[txHash]; !ok {
-			transactionRecordMap[txHash] = ""
-		} else {
-			continue
-		}
-		atomRecord := &data.AtomTransactionRecord{
-			TransactionHash: txHash,
-			Status:          PENDING,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		}
-		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
-	}
-
-	return atomTransactionRecordList, nil
-}
-
-func getSeiRecordByExplorers(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
-	dbLastRecordHash = strings.ToUpper(dbLastRecordHash)
-	url = url + "/api/transactions/by/" + address
-
-	var chainRecords []*SeiBrowserInfo
-chainFlag:
-	for {
-		var out []*SeiBrowserInfo
-		reqUrl := url
-
-		err := httpclient.GetResponse(reqUrl, nil, &out, &timeout)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
-		}
-		if err != nil {
-			return nil, err
-			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
-			alarmOpts := WithMsgLevel("FATAL")
-			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
-			break*/
-		}
-
-		dataLen := len(out)
-		if dataLen == 0 {
-			break
-		}
-		for _, browserInfo := range out {
-			txHash := browserInfo.Hash
-			txHeight := browserInfo.Height
-			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
-				break chainFlag
-			}
-			chainRecords = append(chainRecords, browserInfo)
-		}
-	}
-
-	var atomTransactionRecordList []*data.AtomTransactionRecord
-	transactionRecordMap := make(map[string]string)
-	now := time.Now().Unix()
-	for _, record := range chainRecords {
-		txHash := record.Hash
-		if _, ok := transactionRecordMap[txHash]; !ok {
-			transactionRecordMap[txHash] = ""
-		} else {
-			continue
-		}
-		atomRecord := &data.AtomTransactionRecord{
-			TransactionHash: txHash,
-			Status:          PENDING,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		}
-		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
-	}
-
-	return atomTransactionRecordList, nil
 }

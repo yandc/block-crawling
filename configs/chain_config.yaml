@@ -794,7 +794,7 @@ platform:
 #      - https://cosmos-mainnet-rpc.allthatnode.com:1317
 #      - https://us-atom-restapi.binancechain.io
     httpURL:
-      - https://api.mintscan.io/v1/cosmos/account/
+      - https://front.api.mintscan.io/v1/cosmos/account/
     symbol: Cosmos
     type: COSMOS
     safelyConcurrentBlockDelta: 20
@@ -877,7 +877,8 @@ platform:
       - https://node.onekey.so/osmosis
       - https://lcd-osmosis.keplr.app/
     httpURL:
-      - https://proxy.atomscan.com/osmo-lcd/cosmos/tx/v1beta1/txs?orderBy=ORDER_BY_DESC&events=
+      - https://front.api.mintscan.io/v1/osmosis/account/
+      - https://proxy.atomscan.com/osmo-lcd/cosmos/tx/v1beta1/txs
     symbol: Osmosis
     type: COSMOS
     safelyConcurrentBlockDelta: 20
@@ -1079,6 +1080,8 @@ platform:
     monitorHeightAlarmThr: 0
 
   Sei:
+#    blockExplorerUrl: https://www.mintscan.io/sei
+#    blockExplorerUrl: https://www.seiscan.app/pacific-1
     blockExplorerAddrUrl: https://sei.explorers.guru/account/
     blockExplorerTxUrl: https://sei.explorers.guru/transaction/
     blockExplorerUrl: https://sei.explorers.guru/
@@ -1099,6 +1102,7 @@ platform:
       - https://rest.sei-apis.com
       - https://sei-m.api.manticore.team
     httpURL:
+      - https://front.api.mintscan.io/v1/sei/account/
       - https://pacific-1-graphql.alleslabs.dev/v1/graphql
       - https://sei.api.explorers.guru
     symbol: Sei
@@ -1491,6 +1495,7 @@ platformTest:
     safelyConcurrentBlockDelta: 5
     maxConcurrency: 1
   CosmosTEST:
+#    blockExplorerUrl: https://testnet.mintscan.io/cosmoshub-testnet
     blockExplorerAddrUrl: https://explorer.theta-testnet.polypore.xyz/accounts
     blockExplorerTxUrl: https://explorer.theta-testnet.polypore.xyz/transactions
     blockExplorerUrl: https://explorer.theta-testnet.polypore.xyz
@@ -1507,6 +1512,8 @@ platformTest:
     proxyCacheTime: 0
     rpcURL:
       - https://cosmos-testnet-rpc.allthatnode.com:1317
+    httpURL:
+      - https://front.api.mintscan.io/v1/cosmoshub-testnet/account/
     symbol: Cosmos
     type: COSMOS
     safelyConcurrentBlockDelta: 20
@@ -1565,9 +1572,11 @@ platformTest:
       - http://54.255.179.2:8545
 
   SeiTEST:
-    blockExplorerAddrUrl: https://sei.explorers.guru/account/
-    blockExplorerTxUrl: https://sei.explorers.guru/transaction/
-    blockExplorerUrl: https://sei.explorers.guru/
+#    blockExplorerUrl: https://testnet.mintscan.io/sei-testnet
+#    blockExplorerUrl: https://www.seiscan.app/atlantic-2
+    blockExplorerAddrUrl: https://sei.explorers.guru/account
+    blockExplorerTxUrl: https://sei.explorers.guru/transaction
+    blockExplorerUrl: https://sei.explorers.guru
     chain: SeiTEST
     chainId: "atlantic-2"
     coinId: 118
@@ -1584,6 +1593,7 @@ platformTest:
       - https://rest.atlantic-2.seinetwork.io
       - https://rest.atlantic-2.seinetwork.io
     httpURL:
+      - https://front.api.mintscan.io/v1/sei-testnet/account/
       - https://atlantic-2-graphql.alleslabs.dev/v1/graphql
       - https://sei.api.explorers.guru
     symbol: Sei
