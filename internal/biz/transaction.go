@@ -580,8 +580,14 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 		result, err = data.EvmTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
 		if result == 1 {
-			key := pendingNonceKey + strconv.Itoa(int(nonce))
-			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
+
+			isGasless, _ := isGasLess(pbb.ClientData)
+
+			if !isGasless {
+				key := pendingNonceKey + strconv.Itoa(int(nonce))
+				data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
+			}
+
 			if pbb.TransactionType == CONTRACT {
 				go UpdateTransactionType(pbb)
 			}
@@ -1015,6 +1021,35 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		Code:   uint64(200),
 		Mes:    "",
 	}, err
+}
+
+func isGasLess(clientData string) (bool, string) {
+	m := map[string]interface{}{}
+	err := json.Unmarshal([]byte(clientData), &m)
+	if err != nil {
+		return false, ""
+	}
+
+	mm, ok := m["dappTxinfo"].(map[string]interface{})
+	if !ok {
+		return false, ""
+	}
+
+	mmm, ok := mm["tokenGasless"].(map[string]interface{})
+	if !ok {
+		return false, ""
+	}
+
+	txType, ok := mmm["tx_type"].(string)
+	if !ok {
+		return false, ""
+	}
+
+	if txType == SWAP || txType == TRANSFER {
+		return true, txType
+	}
+
+	return false, ""
 }
 
 func UpdateTransactionType(pbb *pb.TransactionReq) {
