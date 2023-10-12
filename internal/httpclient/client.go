@@ -66,6 +66,14 @@ func GetResponseApiJson(url string, urlParams map[string]string, out interface{}
 	return err
 }
 
+func GetResponsePostman(url string, urlParams map[string]string, out interface{}, timeout *time.Duration) (err error) {
+	headerParams := map[string]string{
+		"User-Agent": "PostmanRuntime/7.33.0",
+	}
+	err = HttpRequest(url, http.MethodGet, headerParams, urlParams, nil, out, timeout, globalTransport)
+	return err
+}
+
 func PostResponse(url string, reqBody, out interface{}, timeout *time.Duration) (err error) {
 	err = HttpRequest(url, http.MethodPost, nil, nil, reqBody, out, timeout, nil)
 	return
