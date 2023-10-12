@@ -1001,6 +1001,9 @@ platform:
     proxyCacheTime: 0
     rpcURL:
       - https://mainnet.era.zksync.io
+      - https://zksync.drpc.org
+      - https://zksync.meowrpc.com
+      - https://zksync-era.blockpi.network/v1/rpc/public
     symbol: zkSync
     type: EVM
     safelyConcurrentBlockDelta: 100
