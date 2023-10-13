@@ -790,6 +790,7 @@ platform:
     netType: main
     proxyCacheTime: 0
     rpcURL:
+      - https://lcd-cosmos.cosmostation.io
       - https://api.cosmos.network
       - https://lcd-cosmoshub.keplr.app
       - https://rest.cosmos.directory/cosmoshub
@@ -873,11 +874,11 @@ platform:
     proxyCacheTime: 0
     rpcURL:
       - https://lcd-osmosis.blockapsis.com
-      - https://osmosis-mainnet-rpc.allthatnode.com:1317
+#      - https://osmosis-mainnet-rpc.allthatnode.com:1317
       - https://lcd.osmosis.zone
       - https://osmosis-lcd.quickapi.com
       - https://node.onekey.so/osmosis
-      - https://lcd-osmosis.keplr.app/
+      - https://lcd-osmosis.keplr.app
     httpURL:
       - https://front.api.mintscan.io/v1/osmosis/account/
       - https://proxy.atomscan.com/osmo-lcd/cosmos/tx/v1beta1/txs
@@ -1109,6 +1110,7 @@ platform:
     netType: main
     proxyCacheTime: 0
     rpcURL:
+      - https://lcd-sei.cosmostation.io
       - https://sei-api.polkachu.com
       - https://sei-rest.brocha.in
       - https://rest.sei-apis.com
@@ -1523,6 +1525,7 @@ platformTest:
     netType: test
     proxyCacheTime: 0
     rpcURL:
+      - https://lcd-office.cosmostation.io/cosmos-testnet
       - https://cosmos-testnet-rpc.allthatnode.com:1317
     httpURL:
       - https://front.api.mintscan.io/v1/cosmoshub-testnet/account/
@@ -1602,8 +1605,7 @@ platformTest:
     proxyCacheTime: 0
     rpcURL:
       - https://rest.atlantic-2.seinetwork.io
-      - https://rest.atlantic-2.seinetwork.io
-      - https://rest.atlantic-2.seinetwork.io
+      - https://lcd-office.cosmostation.io/sei-testnet
     httpURL:
       - https://front.api.mintscan.io/v1/sei-testnet/account/
       - https://atlantic-2-graphql.alleslabs.dev/v1/graphql
