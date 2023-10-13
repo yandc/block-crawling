@@ -76,7 +76,7 @@ platform:
       - https://api.arbiscan.io/api?apikey=ATFMIHSEM4WHT84696QTVQV1EBPPRSQJXB
       - https://api.arbiscan.io/api?apikey=VFDCN6NSW5193MHU1CC81T23BV3BY2EW5C
       - https://api.arbiscan.io/api?apikey=6K5TYMMAQ9INGKJNJM9UV8KM3RTW9M51BJ
-      - https://api.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
+      - https://api.arbiscan.io/api?apikey=6JJCVP51RG4MFS19TKAMPMT98IRCUX33BD
 
   DOGE:
     blockExplorerAddrUrl: https://dogechain.info/address/
@@ -467,7 +467,6 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 420
     httpURL:
-      - https://api-optimistic.etherscan.io/api?apikey=G42UK7JU96DZ2IVCSASYTGX8IHY1ZVKIEU
       - https://api-optimistic.etherscan.io/api?apikey=QBUMZM7YW52HWBN6W9FKJEMXRF5P9E5U3U
       - https://api-optimistic.etherscan.io/api?apikey=AC3RFPVQTSXSP3KSA7PAS65INCC8ZH3QFA
       - https://api-optimistic.etherscan.io/api?apikey=KMXFISIU4MNV31HA4I8QYKGWNPE7SV4HFP
