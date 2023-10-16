@@ -228,7 +228,7 @@ func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*Block, er
 
 func (c *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*Block, error) {
 	var raw json.RawMessage
-	err := c.c.CallContext(ctx, &raw, method, args...)
+	err := c.callContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	} else if len(raw) == 0 {
@@ -345,7 +345,7 @@ func (b *Block) Time() uint64 {
 // TransactionByHash returns the transaction with the given hash.
 func (c *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *Transaction, isPending bool, err error) {
 	var json *Transaction
-	err = c.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
+	err = c.callContext(ctx, &json, "eth_getTransactionByHash", hash)
 	if err != nil {
 		return nil, false, err
 	} else if json == nil {
@@ -893,7 +893,7 @@ func deriveChainId(v *big.Int) *big.Int {
 
 func (c *Client) TransactionReceipt(ctx context.Context, txHash common.Hash) (receipt *Receipt, err error) {
 	var r *Receipt
-	err = c.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	err = c.callContext(ctx, &r, "eth_getTransactionReceipt", txHash)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound

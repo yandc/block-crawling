@@ -5432,10 +5432,7 @@ func GetBalance(chainName string, uid string, address string, tokenAddress strin
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
 		log.Info("补数据更新用户资产创建Client异常", zap.Any("chainName", len(chainName)), zap.Any("uid", uid), zap.Any("address", address), zap.Any("error", err))
-		c, err := ethereum.NewClient(url, chainName)
-		if err != nil {
-			panic(err)
-		}
+		c := ethereum.NewClient(url, chainName)
 		clients = append(clients, c)
 	}
 	spider := chain.NewBlockSpider(ethereum.NewStateStore(chainName), clients...)
@@ -5791,11 +5788,7 @@ func GetRecordL1Fee(chainName string, txHash string) (string, error) {
 	}
 	clients := make([]chain.Clienter, 0, len(nodeURL))
 	for _, url := range nodeURL {
-		c, err := ethereum.NewClient(url, chainName)
-		if err != nil {
-			log.Info("修复Optimism链交易记录中的手续费创建Client异常", zap.Any("chainName", len(chainName)), zap.Any("txHash", txHash), zap.Any("error", err))
-			panic(err)
-		}
+		c := ethereum.NewClient(url, chainName)
 		clients = append(clients, c)
 	}
 	spider := chain.NewBlockSpider(ethereum.NewStateStore(chainName), clients...)
