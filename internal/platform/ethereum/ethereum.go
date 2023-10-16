@@ -7,9 +7,10 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/data/kanban"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"strings"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
 // ERC20 or ERC721
@@ -63,14 +64,14 @@ const FILL_TOPIC = "0x35d3c32d322e234e99b7f37b3ff4cb69c8a4027a04bee33d3a716da66e
 const SEND_TOPIC = "0x2f824f69f211e444df15d741157e83cdf23c50f39399b9523853a84b91379ca6"
 const BASE_TOPIC = "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31"
 
-//openBlock跨链Swap
+// openBlock跨链Swap
 const OPENBLOCK_SWAP_TOPIC = "0x5faac1ba95d8a22d60a2290d300369a4a7b8334e60291f5f6c83ee09f03cab38"
 const OPENBLOCK_SWAP_ADDRESS_TOPIC = "0x893b740df66b6918f171be0e008e349151ce603b7b3dd31603afe3e635db87a6"
 
-//用户将代币授权给手续费代付合约操作无主币付手续费时，平台会给用户转一些主币垫资手续费
+// 用户将代币授权给手续费代付合约操作无主币付手续费时，平台会给用户转一些主币垫资手续费
 const GAS_PAY_TOPIC = "0x4e5abb321ba55df7284bf55a0bca37c5c3ce2044bb229403828ac6d1911cdc62"
 
-//手续费代付
+// 手续费代付
 const FEE_TOPIC = "0x496c2c66bc44ed4dbeaf44a930a49ceaf848c046517dbec592243394b4e871d6"
 const TRANSFER_FROM_L1_COMPLETED_TOPIC = "0x320958176930804eb66c2343c7343fc0367dc16249590c0f195783bee199d094"
 
@@ -235,11 +236,7 @@ func (p *Platform) CreateStateStore() chain.StateStore {
 }
 
 func (p *Platform) CreateClient(url string) chain.Clienter {
-	c, err := NewClient(url, p.ChainName)
-	if err != nil {
-		panic(err)
-	}
-	return c
+	return NewClient(url, p.ChainName)
 }
 
 func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {

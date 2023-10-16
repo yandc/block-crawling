@@ -35,7 +35,8 @@ import (
 
 type Client struct {
 	//*ethclient.Client
-	c *rpc.Client
+	rwLock    *sync.RWMutex
+	rpcClient *rpc.Client
 
 	*pcommon.NodeDefaultIn
 
@@ -53,22 +54,52 @@ func getETHClient(rawUrl string) (*ethclient.Client, error) {
 	return cli, nil
 }
 
-func NewClient(rawUrl string, chainName string) (*Client, error) {
-	c, err := rpc.DialContext(context.Background(), rawUrl)
-	if err != nil {
-		log.Error("new client error:", zap.Any("url", rawUrl), zap.Error(err))
-		return nil, err
-	}
+func NewClient(rawUrl string, chainName string) *Client {
 	//client := ethclient.NewClient(c)
 	return &Client{
 		//Client: client,
-		c: c,
+		rwLock: &sync.RWMutex{},
 		NodeDefaultIn: &pcommon.NodeDefaultIn{
 			ChainName: chainName,
 		},
 		url:       rawUrl,
 		chainName: chainName,
-	}, nil
+	}
+}
+
+func (c *Client) callContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	client, err := c.dial()
+	if err != nil {
+		return err
+	}
+	return client.CallContext(ctx, result, method, args...)
+}
+
+func (c *Client) dial() (*rpc.Client, error) {
+	if r := c.getRPCClient(); r != nil {
+		return r, nil
+	}
+
+	c.rwLock.Lock()
+	if c.rpcClient == nil {
+		client, err := rpc.DialContext(context.Background(), c.url)
+		if err != nil {
+			log.Error("new client error:", zap.Any("url", c.url), zap.Error(err))
+			return nil, err
+		}
+
+		c.rpcClient = client
+	}
+	c.rwLock.Unlock()
+
+	return c.getRPCClient(), nil
+}
+
+func (c *Client) getRPCClient() *rpc.Client {
+	c.rwLock.RLock()
+	defer c.rwLock.RUnlock()
+
+	return c.rpcClient
 }
 
 func (c *Client) Detect() error {
@@ -713,7 +744,7 @@ func (c *Client) GetBalance(address string) (string, error) {
 	account := common.HexToAddress(address)
 	if c.ChainName == "evm15" {
 		var result string
-		err = c.c.CallContext(ctx, &result, "eth_getBalance", account, toBlockNumArg(nil))
+		err = c.callContext(ctx, &result, "eth_getBalance", account, toBlockNumArg(nil))
 		if err != nil {
 			return "", err
 		}
