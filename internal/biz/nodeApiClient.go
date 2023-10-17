@@ -150,7 +150,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 			result, err = GetApiTx(chainName, url, "tokennfttx", address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}
 
-		if err == nil && len(result) == 0 {
+		if err == nil && len(result) == 0 && (chainName == "Polygon" || chainName == "ETH") { //只有ETH和Polygon有token1155tx action
 			//Get a list of 'ERC1155 - Token Transfer Events' by Address
 			result, err = GetApiTx(chainName, url, "token1155tx", address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}

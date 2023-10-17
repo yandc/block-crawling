@@ -173,7 +173,6 @@ platform:
       - https://api.snowtrace.io/api?apikey=4NCC1Z9YWZAKZGUAPXF2FVQJHXU5ACZ48G
       - https://api.snowtrace.io/api?apikey=NX2P87CTA8ZICUZA6JSNJA3A1FRXTMWMUC
       - https://api.snowtrace.io/api?apikey=BFISA5EHN8MZAZDXQV13FJR79F2X8PTVYE
-      - https://api.snowtrace.io/api?apikey=UKZZREZFV7YEG3VX8FG43MHPSGPWSQIP7P
 
   BSC:
     blockExplorerAddrUrl: https://bscscan.com/address/
@@ -228,7 +227,6 @@ platform:
       - https://api.bscscan.com/api?apikey=E4RPAJ3SHH5ZXJJVWQBSNNJ1315BIDFKEF
       - https://api.bscscan.com/api?apikey=VQB4ECWI78TWYAX4UIMDZX66WYZ2NNDF7H
       - https://api.bscscan.com/api?apikey=EZ649V3FG1Z544DPWCJPHHMY142318G43G
-      - https://api.bscscan.com/api?apikey=1KWNQMJXH4FH9ZM9YSGRKAN738SUD8QPWC
 
   BTC:
     blockExplorerAddrUrl: https://live.blockcypher.com/btc/address/
@@ -295,8 +293,6 @@ platform:
       - https://api.cronoscan.com/api?apikey=XZPJ65DIM5KKTMNNVYIYR9QJGEZS672H3D
       - https://api.cronoscan.com/api?apikey=TVHHKQRBVU458JH94DYUVBSCUWVTKIDD9N
       - https://api.cronoscan.com/api?apikey=8BKPJQ5JCZVYQKBBZ5DBZGF97RIZM63YZW
-      - https://api.cronoscan.com/api?apikey=C1EF4MPPA3997VN5VMWXWYE4S3RCTBDCR4
-      - https://api.cronoscan.com/api?apikey=J5GTVHGS39IP6YPNAUZS5HU39Z6X62HCC7
 
 
   ETH:
@@ -360,9 +356,9 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 300
     httpURL:
-      - https://api.ftmscan.com/api?apikey=212PIV4M35X29WZ1GP8DZK6DWUPMTHK3JT
-      - https://api.ftmscan.com/api?apikey=G4PDXWZHQYD79FHQFK1YAWXBI37CQ8CAMF
-      - https://api.ftmscan.com/api?apikey=H855FC1EP44A6HCUXWKV6ZXMEI2S2EN1KS
+      - https://api.ftmscan.com/api?apikey=3USMT1NBSDTV228QS7FN5XQI929W3GU12I
+      - https://api.ftmscan.com/api?apikey=TXQG4XZJDFWTA3ME7ZEE6U65U5Q54WXTIK
+      - https://api.ftmscan.com/api?apikey=JIEKW1SU11W6J84ZUMJU6YRCNE1X6VZRV3
   HECO:
     blockExplorerAddrUrl: https://hecoinfo.com/address/
     blockExplorerTxUrl: https://hecoinfo.com/tx/
@@ -963,9 +959,9 @@ platform:
 #      - https://api.snowtrace.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
 #      - https://api.snowtrace.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
 #      - https://api.snowtrace.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
-      - https://api.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
-      - https://api.arbiscan.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
-      - https://api.arbiscan.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
+      - https://api-nova.arbiscan.io/api?apikey=BHTZZAYPJMEVAEN4WX7S8RJPQBCS6RRBXV
+      - https://api-nova.arbiscan.io/api?apikey=RSQP81XV77SSWY62SZV6DDK5PPV5CMVWFY
+      - https://api-nova.arbiscan.io/api?apikey=DYTAY84UFNJ1NWNDUUKTMYG25SAZDZB3MY
   Conflux:
     blockExplorerAddrUrl: https://evm.confluxscan.net/address/
     blockExplorerTxUrl: https://evm.confluxscan.net/tx/
