@@ -528,7 +528,7 @@ type UserAssetUpdateRequest struct {
 	Extra  json.RawMessage `json:"extra"`
 }
 
-type SolanaExtra struct {
+type UserAssetExtra struct {
 	AllTokens  []UserAsset `json:"allTokens"`
 	RecentTxns []string    `json:"recentTxns"`
 }

@@ -4853,14 +4853,16 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	}
 	isSol := req.ChainName == "Solana"
 	onchainAssets := req.Assets
-	if isSol && len(req.Extra) > 0 {
-		var extra *SolanaExtra
+	if len(req.Extra) > 0 {
+		var extra *UserAssetExtra
 		if err := json.Unmarshal(req.Extra, &extra); err != nil {
-			log.Error("PARSE SOLANA EXTRA ERROR WITH ERROR", zap.Error(err), zap.ByteString("extra", req.Extra))
+			log.Error("PARSE USER ASSET EXTRA ERROR WITH ERROR", zap.Error(err), zap.ByteString("extra", req.Extra))
 		} else {
 			onchainAssets = extra.AllTokens
-			log.Info("GOT SOLANA ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
-			batchSaveSolTxns(req.ChainName, extra.RecentTxns)
+			log.Info("GOT USER ASSET ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
+			if len(extra.RecentTxns) > 0 {
+				batchSaveChaindataTxns(req.ChainName, extra.RecentTxns)
+			}
 		}
 	}
 
@@ -4926,6 +4928,10 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if req.Address == "0x0000000000000000000000000000000000000000" || req.Address == tokenAddress {
 			tokenAddress = ""
 		}
+		if newItem.Decimals == 0 {
+			// all tokens in COSMOS are zero decimals
+			s.correctZeroDecimals(ctx, req, &newItem)
+		}
 
 		oldItem, ok := assetsGroupByToken[tokenAddress]
 		if !ok {
@@ -4951,6 +4957,46 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		}
 	}
 	return struct{}{}, nil
+}
+
+func (s *TransactionUsecase) correctZeroDecimals(ctx context.Context, req *UserAssetUpdateRequest, asset *UserAsset) {
+	if asset.Decimals != 0 || strings.Contains(asset.Balance, ".") || asset.Balance == "0" {
+		return
+	}
+	tokenInfo, err := s.getTokenInfo(ctx, req.ChainName, req.Address, asset)
+	if err != nil {
+		log.Error(req.ChainName+"链资产变更，从nodeProxy中获取代币精度失败", zap.Any("address", req.Address), zap.Any("tokenAddress", asset.TokenAddress), zap.Any("error", err))
+		return
+	}
+
+	if tokenInfo.Decimals != 0 {
+		newBalance := utils.StringDecimals(asset.Balance, int(tokenInfo.Decimals))
+		log.Info(
+			"CORRECTED ZERO DECIMALS",
+			zap.String("beforeBalance", asset.Balance),
+			zap.String("afterBalance", newBalance),
+			zap.String("address", req.Address),
+			zap.String("tokenAddress", asset.TokenAddress),
+			zap.Int64("decimals", tokenInfo.Decimals),
+		)
+		asset.Balance = newBalance
+	}
+}
+
+func (s *TransactionUsecase) getTokenInfo(ctx context.Context, chainName, address string, asset *UserAsset) (types.TokenInfo, error) {
+	if asset.TokenAddress == address || asset.TokenAddress == "" {
+		platInfo, ok := GetChainPlatInfo(chainName)
+		if !ok {
+			return *new(types.TokenInfo), errors.New("no such chain")
+		}
+		return types.TokenInfo{
+			Address:  "",
+			Decimals: int64(platInfo.Decimal),
+			Symbol:   platInfo.NativeCurrency,
+		}, nil
+		// extract from config
+	}
+	return GetTokenInfoRetryAlert(ctx, chainName, asset.TokenAddress)
 }
 
 // CreateBroadcast 上报上链前交易参数相关

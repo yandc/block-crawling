@@ -1297,6 +1297,17 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 	return
 }
 
+func batchSaveChaindataTxns(chainName string, txns []string) error {
+	chainType, _ := GetChainNameType(chainName)
+	switch chainType {
+	case SOLANA:
+		return batchSaveSolTxns(chainName, txns)
+	case COSMOS:
+		return batchSaveCosmosTxns(chainName, txns)
+	}
+	return nil
+}
+
 func batchSaveSolTxns(chainName string, txns []string) error {
 	if len(txns) == 0 {
 		return nil
@@ -1313,6 +1324,29 @@ func batchSaveSolTxns(chainName string, txns []string) error {
 	}
 
 	_, err := data.SolTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), solTransactionRecordList)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
+		return err
+	}
+	return nil
+}
+
+func batchSaveCosmosTxns(chainName string, txns []string) error {
+	now := time.Now().Unix()
+	atomTransactionRecordList := make([]*data.AtomTransactionRecord, 0, len(txns))
+	for _, txHash := range txns {
+		atomTransactionRecordList = append(atomTransactionRecordList, &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		})
+	}
+
+	_, err := data.AtomTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), atomTransactionRecordList)
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
