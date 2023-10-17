@@ -57,7 +57,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
-	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea":
+	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea", "Scroll":
 		err = EvmNormalAndInternalGetTxByAddress(chainName, address, urls)
 	case "zkSync":
 		err = ZkSyncGetTxByAddress(chainName, address, urls)
@@ -145,12 +145,12 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 			result, err = GetApiTx(chainName, url, "tokentx", address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}
 
-		if err == nil && len(result) == 0 {
+		if chainName != "Scroll" && err == nil && len(result) == 0 {
 			//Get a list of 'ERC721 - Token Transfer Events' by Address
 			result, err = GetApiTx(chainName, url, "tokennfttx", address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}
 
-		if err == nil && len(result) == 0 && (chainName == "Polygon" || chainName == "ETH") { //只有ETH和Polygon有token1155tx action
+		if (chainName == "ETH" || chainName == "Polygon") && err == nil && len(result) == 0 {
 			//Get a list of 'ERC1155 - Token Transfer Events' by Address
 			result, err = GetApiTx(chainName, url, "token1155tx", address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}

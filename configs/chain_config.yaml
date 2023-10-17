@@ -1120,6 +1120,33 @@ platform:
     maxConcurrency: 12
     monitorHeightAlarmThr: 100
 
+  Scroll:
+    blockExplorerAddrUrl: https://blockscout.scroll.io/address
+    blockExplorerTxUrl: https://blockscout.scroll.io/tx
+    blockExplorerUrl: https://blockscout.scroll.io
+    chain: Scroll
+    chainId: "534352"
+    coinId: 60
+    decimal: 18
+    fullName: Scroll
+    getPriceKey: ethereum
+    handler: scroll
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpg
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/scroll-eth.png
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 0
+    rpcURL:
+      - https://scroll.blockpi.network/v1/rpc/public
+      - https://rpc.scroll.io
+    httpURL:
+      - https://blockscout.scroll.io/api
+    symbol: Scroll
+    type: EVM
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
