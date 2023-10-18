@@ -30,6 +30,7 @@ type Bundle struct {
 	Redis                  *redis.Client
 	History                UserSendRawHistoryRepo
 	Market                 MarketCoinHistoryRepo
+	Swap                   SwapContractRepo
 }
 
 // NewDataBundle Bundle repositories to let them initialize.
@@ -61,6 +62,7 @@ func NewBundle(
 	redisClient *redis.Client,
 	history UserSendRawHistoryRepo,
 	market MarketCoinHistoryRepo,
+	swap SwapContractRepo,
 ) *Bundle {
 	return &Bundle{
 		ATM:                    atm,
@@ -90,5 +92,6 @@ func NewBundle(
 		Redis:                  redisClient,
 		History:                history,
 		Market:                 market,
+		Swap:                   swap,
 	}
 }

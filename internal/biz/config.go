@@ -78,11 +78,16 @@ func IsCustomChain(chainName string) bool {
 }
 
 func ShouldChainAlarm(chainName string) bool {
-	if IsCustomChain(chainName) {
-		_, featured := AppConfig.FeaturedCustomChain[chainName]
-		return featured
+	if IsCustomChain(chainName) && !IsCustomChainFeatured(chainName) {
+		return false
 	}
 	return true
+}
+
+func IsCustomChainFeatured(chainName string) bool {
+	_, featured := AppConfig.FeaturedCustomChain[chainName]
+	return featured
+
 }
 
 var AppConfig *conf.App

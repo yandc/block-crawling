@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pCommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
@@ -708,7 +709,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTrans
 		result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
 			return client.GetEventTransfer(tokenId)
 		})
-		tar := result.(SuiObjectChanges)
+		tar := result.(stypes.SuiObjectChanges)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链添加NFT流转记录，获取流转记录失败，tokenAddress：%s，tokenId：%s", chainName, tokenAddress, tokenId)

@@ -5,6 +5,8 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/sui/stypes"
+	"block-crawling/internal/platform/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
@@ -41,7 +43,7 @@ type AmountChange struct {
 
 func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *chain.Transaction) (err error) {
 	curHeight := chainBlock.Number
-	transactionInfo := chainTx.Raw.(*TransactionInfo)
+	transactionInfo := chainTx.Raw.(*stypes.TransactionInfo)
 	transactionHash := transactionInfo.Digest
 
 	var status string
@@ -56,6 +58,14 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	if kind == "ConsensusCommitPrologue" {
 		return nil
 	}
+
+	go func() {
+		_, err := swap.AttemptToExtractSwapPairs(h.chainName, chainTx.ToAddress, chainBlock, chainTx, &tx)
+		if err != nil {
+			log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
+			return
+		}
+	}()
 
 	fromAmountChangeMap := make(map[string]*AmountChange)
 	toAmountChangeMap := make(map[string][]*AmountChange)
@@ -589,7 +599,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {
 	client := c.(*Client)
-	transactionInfo := tx.Raw.(*TransactionInfo)
+	transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 
 	height, _ := strconv.ParseInt(transactionInfo.Checkpoint, 10, 64)
 	curHeight := uint64(height)
