@@ -17,6 +17,9 @@ import (
 	"gorm.io/datatypes"
 
 	pCommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/ethereum/rtypes"
+	_ "block-crawling/internal/platform/ethereum/swap" // register swap contracts
+	"block-crawling/internal/platform/swap"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,6 +49,8 @@ type txDecoder struct {
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
+	var receipt *rtypes.Receipt
+
 	client := c.(*Client)
 	transaction := tx.Raw.(*Transaction)
 	txHash := transaction.Hash().String()
@@ -61,6 +66,27 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if transaction.GasTipCap() != nil {
 		maxPriorityFeePerGasNode = transaction.GasTipCap().String()
 	}
+
+	var methodId string
+	if len(transaction.Data()) >= 4 {
+		methodId = hex.EncodeToString(transaction.Data()[:4])
+	}
+
+	defer func() {
+		if !swap.Is(h.chainName, tx) {
+			return
+		}
+		if receipt == nil {
+			receipt, _ = client.GetTransactionReceipt(context.Background(), transaction.Hash())
+		}
+		if receipt != nil {
+			_, err := swap.AttemptToExtractSwapPairs(h.chainName, tx.ToAddress, block, tx, receipt)
+			if err != nil {
+				log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
+				return
+			}
+		}
+	}()
 
 	if transaction.Type() == types2.DynamicFeeTxType {
 		bf, _ := strconv.Atoi(block.BaseFee)
@@ -82,10 +108,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo
-	var methodId string
-	if len(transaction.Data()) >= 4 {
-		methodId = hex.EncodeToString(transaction.Data()[:4])
-	}
 
 	// Ignore this transaction.
 	if !h.matchedUser && !h.kanbanEnabled {
@@ -159,7 +181,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		)...,
 	)*/
 
-	receipt, err := client.GetTransactionReceipt(context.Background(), transaction.Hash())
+	receipt, err = client.GetTransactionReceipt(context.Background(), transaction.Hash())
 	if err != nil {
 		if err == ethereum.NotFound {
 			/*log.Warn(
@@ -188,12 +210,21 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 
-	err = h.handleEachTransaction(client, block, tx, receipt, meta)
+	err = h.handleEachTransaction(client, block, tx, transaction, meta, receipt)
 	return err
 }
 
-func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx *chain.Transaction, receipt *Receipt, meta *pCommon.TxMeta) error {
-	transaction := tx.Raw.(*Transaction)
+type txHandleJob struct {
+}
+
+func (h *txDecoder) handleEachTransaction(
+	client *Client,
+	block *chain.Block,
+	tx *chain.Transaction,
+	transaction *Transaction,
+	meta *pCommon.TxMeta,
+	receipt *rtypes.Receipt,
+) error {
 
 	if receipt.ContractAddress != "" && receipt.To == "" {
 		meta.TransactionType = biz.CREATECONTRACT
@@ -673,7 +704,7 @@ func (h *txDecoder) handleEachTransaction(client *Client, block *chain.Block, tx
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *Receipt, transaction *Transaction) (eventLogList []*types.EventLogUid, eventLogTokenId string, feeEvent *types.EventLogUid) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *rtypes.Receipt, transaction *Transaction) (eventLogList []*types.EventLogUid, eventLogTokenId string, feeEvent *types.EventLogUid) {
 	var eventLogs []*types.EventLogUid
 	arbitrumAmount := big.NewInt(0)
 	transactionHash := transaction.Hash().String()
@@ -1705,8 +1736,8 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 
 func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) error {
 	client := c.(*Client)
-	rawReceipt := txByHash.Raw.(*Receipt)
 	txHash := txByHash.Hash
+	rawReceipt := txByHash.Raw.(*rtypes.Receipt)
 
 	curHeight := txByHash.BlockNumber
 	block, err := client.GetBlockTransaction(curHeight, txHash)
@@ -1736,7 +1767,7 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 
 	h.block = block // to let below invocation work.
 
-	err = h.handleEachTransaction(client, block, tx, rawReceipt, meta)
+	err = h.handleEachTransaction(client, block, tx, tx.Raw.(*Transaction), meta, rawReceipt)
 	return err
 }
 

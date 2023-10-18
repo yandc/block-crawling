@@ -62,6 +62,16 @@ app:
     evm210425: PlatON
     evm8082: ShardeumTEST
 
+  cmq:
+    queues:
+      swapPairs:
+        name: trans_on_chain
+        # Test
+        # id: queue-dEAZdQQ9Sz6Wuv9uLv5s86
+        # Production
+        id: queue-eXgpKznr5yWieTrjyR5Hsx
+    endpoint: http://localhost:6371/api/cmq/send_queue_message
+
   httpProxies:
     # https://gitlab.bixin.com/mili/block-crawling/-/issues/2
     ## 测试用公网

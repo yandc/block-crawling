@@ -367,6 +367,12 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 		log.Error("add fixNftInfoTask error", zap.Any("", err))
 		return err
 	}
+	// 添加定时任务每天执行
+	_, err = scheduling.Task.AddTask("0 9 * * *", scheduling.NewSwapIndexerTask())
+	if err != nil {
+		log.Error("add swapIndexerTask error", zap.Any("", err))
+		return err
+	}
 	//启动定时任务
 	scheduling.Task.Start()
 

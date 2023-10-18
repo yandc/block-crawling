@@ -29,7 +29,7 @@ func NewGormDB(conf *conf.Data) (*gorm.DB, func(), error) {
 		return nil, nil, err
 	}
 
-	err = gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserAssetHistory{}, &ChainTypeAsset{}, &ChainTypeAddressAmount{}, &UserNftAsset{}, &TransactionStatistic{}, &TransactionCount{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{}, &MarketCoinHistory{}, &Migration{})
+	err = gormlDb.AutoMigrate(&DappApproveRecord{}, &UserAsset{}, &UserAssetHistory{}, &ChainTypeAsset{}, &ChainTypeAddressAmount{}, &UserNftAsset{}, &TransactionStatistic{}, &TransactionCount{}, &UtxoUnspentRecord{}, &NervosCellRecord{}, &NftRecordHistory{}, &UserSendRawHistory{}, &MarketCoinHistory{}, &Migration{}, &SwapContract{})
 	if err != nil {
 		log.Fatale("failed execute autoMigrate to postgres", err)
 		return nil, nil, err

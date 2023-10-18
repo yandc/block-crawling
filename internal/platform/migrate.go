@@ -7,6 +7,7 @@ import (
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
 	"block-crawling/internal/platform/ethereum"
+	"block-crawling/internal/platform/ethereum/rtypes"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/types"
@@ -5777,7 +5778,7 @@ func HandleOptimismRecordFee() {
 }
 
 func GetRecordL1Fee(chainName string, txHash string) (string, error) {
-	var transactionReceipt *ethereum.Receipt
+	var transactionReceipt *rtypes.Receipt
 	var err error
 
 	var nodeURL []string

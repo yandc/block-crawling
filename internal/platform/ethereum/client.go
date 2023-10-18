@@ -5,6 +5,7 @@ import (
 	icommon "block-crawling/internal/common"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/ethereum/rtypes"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -694,8 +695,8 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		Hash:        txHash,
 		BlockNumber: intBlockNumber,
 		TxType:      "",
-		FromAddress: "",
-		ToAddress:   "",
+		FromAddress: receipt.From,
+		ToAddress:   receipt.To,
 		Value:       "",
 		Raw:         receipt,
 		Record:      nil,
@@ -711,7 +712,7 @@ func (c *Client) GetTransactionByHash(ctx context.Context, txHash common.Hash) (
 }
 
 // 2
-func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*Receipt, error) {
+func (c *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*rtypes.Receipt, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	return c.TransactionReceipt(ctx, txHash)
