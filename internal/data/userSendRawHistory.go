@@ -5,9 +5,10 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
-	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
+
+	"gorm.io/gorm/clause"
 
 	"gorm.io/gorm"
 )
@@ -24,7 +25,7 @@ type UserSendRawHistory struct {
 	TxInput         string `json:"txInput" form:"txInput"`
 	BaseTxInput     string `json:"baseTxInput" form:"baseTxInput"`
 	ErrMsg          string `json:"errMsg" form:"errMsg"`
-	ChainName       string `json:"chainName"  form:"chainName" gorm:"type:character varying(16)"`
+	ChainName       string `json:"chainName"  form:"chainName" gorm:"type:character varying(20)"`
 	DeviceId        string `json:"deviceId" form:"deviceId" gorm:"type: character varying(36)"`
 	UserAgent       string `json:"userAgent" form:"userAgent" gorm:"type: character varying(200)"`
 	Nonce           int64  `json:"nonce" form:"nonce"`
