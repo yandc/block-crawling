@@ -4994,11 +4994,17 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 	sendLock.Lock()
 	defer sendLock.Unlock()
 
+	chainType, _ := GetChainNameType(req.ChainName)
+	switch chainType {
+	case EVM:
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+	}
 	device := ctx.ParseDevice()
 	now := time.Now().Unix()
 	var usrhs []*data.UserSendRawHistory
 
-	chainType, _ := GetChainNameType(req.ChainName)
 	var userSendRawHistory = &data.UserSendRawHistory{}
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
@@ -5023,7 +5029,6 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 			if v, _ := GetChainNameType(info.ChainName); v == COSMOS {
 				userSendRawHistory.TransactionHash = strings.ToUpper(userSendRawHistory.TransactionHash)
 			}
-
 		}
 	}
 	if len(device.UserAgent) > 200 {
@@ -5047,7 +5052,6 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 					n, _ := strconv.Atoi(dec.Nonce)
 					userSendRawHistory.Nonce = int64(n)
 				}
-
 			}
 		}
 	}
@@ -5325,15 +5329,23 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		}
 	}
 
-	r := data.SignReqPage{
-		Address:       req.Address,
-		ChainName:     req.ChainName,
-		SignType:      req.SignType,
-		SignStatus:    req.SignStatus,
-		PageNum:       req.Page,
-		PageSize:      req.Limit,
-		TradeTime:     req.TradeTime,
-		ClientAddress: clientAddress,
+	var orderBy string
+	if req.TradeTime == 1 {
+		orderBy = "updated_at desc"
+	}
+	if req.TradeTime == 2 {
+		orderBy = "updated_at asc"
+	}
+	signRequest := &data.SignRequest{
+		//Address:     req.Address,
+		AddressList: []string{req.Address, clientAddress},
+		ChainName:   req.ChainName,
+		SignType:    req.SignType,
+		SignStatus:  req.SignStatus,
+		OrderBy:     orderBy,
+		PageNum:     int32(req.Page),
+		PageSize:    int32(req.Limit),
+		Total:       true,
 	}
 
 	if req.TransactionType != "" {
@@ -5344,9 +5356,9 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 				break
 			}
 		}
-		r.TransactionTypeList = txType
+		signRequest.TransactionTypeList = txType
 	}
-	result, total, err := data.UserSendRawHistoryRepoInst.PageList(ctx, r)
+	result, total, err := data.UserSendRawHistoryRepoInst.PageList(ctx, signRequest)
 
 	if err != nil {
 		return &SignRecordResponse{
