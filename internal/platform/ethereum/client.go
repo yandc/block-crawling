@@ -645,6 +645,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 				toAddress = toAddress + "," + realToAddress
 			}
+		} else if methodId == "dafe477c" { //ETH链 Contract
+			//https://etherscan.io/tx/0xb8a1940235654bc6b11d1f4e725b5bdcaaf8e362917a6fe50115241ab93bf6b1
+			if len(data) >= 36 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
 		}
 	}
 	if strings.HasPrefix(c.chainName, "Polygon") && fromAddress == "0x0000000000000000000000000000000000000000" && toAddress == "0x0000000000000000000000000000000000000000" {
