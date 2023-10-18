@@ -67,7 +67,7 @@ func TestUniswapExtractEventLog(t *testing.T) {
 	assert.Equal(t, "8889802581439192569003", pairs[0].Output.Amount, "amountOut")
 }
 
-func doExtractPairs(t *testing.T, th string, options ...string) []*swap.Pair {
+func doExtractPairs(t *testing.T, th string, options ...string) []*biz.SwapPair {
 	rpcURL := "https://rpc.ankr.com/eth"
 	chain := "ETH"
 	if len(options) > 1 {
@@ -75,8 +75,7 @@ func doExtractPairs(t *testing.T, th string, options ...string) []*swap.Pair {
 		chain = options[1]
 	}
 	biz.SetChainNameType(chain, biz.EVM)
-	client, err := ethereum.NewClient(rpcURL, chain)
-	assert.NoError(t, err, "dial failed")
+	client := ethereum.NewClient(rpcURL, chain)
 
 	txHash := common.HexToHash(th)
 	tx, err := client.GetTxByHash(th)

@@ -60,7 +60,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 
 	go func() {
-		_, err := swap.AttemptToExtractSwapPairs(h.chainName, chainTx.ToAddress, chainBlock, chainTx, &tx)
+		_, err := swap.AttemptToPushSwapPairs(h.chainName, chainTx.ToAddress, chainBlock, chainTx, &tx)
 		if err != nil {
 			log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
 			return

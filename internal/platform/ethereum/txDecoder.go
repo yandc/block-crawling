@@ -80,7 +80,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			receipt, _ = client.GetTransactionReceipt(context.Background(), transaction.Hash())
 		}
 		if receipt != nil {
-			_, err := swap.AttemptToExtractSwapPairs(h.chainName, tx.ToAddress, block, tx, receipt)
+			_, err := swap.AttemptToPushSwapPairs(h.chainName, tx.ToAddress, block, tx, receipt)
 			if err != nil {
 				log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
 				return
