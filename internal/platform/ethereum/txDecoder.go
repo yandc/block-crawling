@@ -214,9 +214,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	return err
 }
 
-type txHandleJob struct {
-}
-
 func (h *txDecoder) handleEachTransaction(
 	client *Client,
 	block *chain.Block,
@@ -225,7 +222,6 @@ func (h *txDecoder) handleEachTransaction(
 	meta *pCommon.TxMeta,
 	receipt *rtypes.Receipt,
 ) error {
-
 	if receipt.ContractAddress != "" && receipt.To == "" {
 		meta.TransactionType = biz.CREATECONTRACT
 	}

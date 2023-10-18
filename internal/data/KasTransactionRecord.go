@@ -45,6 +45,7 @@ type KasTransactionRecordRepo interface {
 	SaveOrUpdateClient(context.Context, string, *KasTransactionRecord) (int64, error)
 	BatchSave(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, string, []*KasTransactionRecord) (int64, error)
+	BatchSaveOrIgnore(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelective(context.Context, string, []*KasTransactionRecord) (int64, error)
 	BatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*KasTransactionRecord) (int64, error)
 	PageBatchSaveOrUpdateSelectiveByColumns(context.Context, string, []string, []*KasTransactionRecord, int) (int64, error)
@@ -98,6 +99,7 @@ func (r *KasTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *KasTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, kasTransactionRecord *KasTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -116,6 +118,7 @@ func (r *KasTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *KasTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, kasTransactionRecords []*KasTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(kasTransactionRecords, len(kasTransactionRecords))
 	err := ret.Error
@@ -142,6 +145,21 @@ func (r *KasTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or update kasTransactionRecord failed", err)
+		return 0, err
+	}
+
+	affected := ret.RowsAffected
+	return affected, err
+}
+
+func (r *KasTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, kasTransactionRecords []*KasTransactionRecord) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "transaction_hash"}},
+		DoNothing: true,
+	}).Create(&kasTransactionRecords)
+	err := ret.Error
+	if err != nil {
+		log.Errore("batch insert or ignore "+tableName+" failed", err)
 		return 0, err
 	}
 

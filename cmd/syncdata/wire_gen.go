@@ -40,6 +40,7 @@ func wireApp(logger *conf.Logger, confData *conf.Data, lark *conf.Lark, app *con
 	transactionCountRepo := data.NewTransactionCountRepo(db)
 	nervosCellRecordRepo := data.NewNervosCellRecordRepo(db)
 	utxoUnspentRecordRepo := data.NewUtxoUnspentRecordRepo(db)
+	biz.NewTransactionRecordRepo(db)
 	userGormDB, cleanup2, err := data.NewUserGormDB(confData)
 	if err != nil {
 		cleanup()
