@@ -5320,12 +5320,10 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 // GetSignRecord 查询签名记录
 func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordReq) (*SignRecordResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
-	clientAddress := req.Address
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
 			req.Address = types2.HexToAddress(req.Address).Hex()
-			clientAddress = strings.ToLower(req.Address)
 		}
 	}
 
@@ -5337,15 +5335,14 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		orderBy = "updated_at asc"
 	}
 	signRequest := &data.SignRequest{
-		//Address:     req.Address,
-		AddressList: []string{req.Address, clientAddress},
-		ChainName:   req.ChainName,
-		SignType:    req.SignType,
-		SignStatus:  req.SignStatus,
-		OrderBy:     orderBy,
-		PageNum:     int32(req.Page),
-		PageSize:    int32(req.Limit),
-		Total:       true,
+		Address:    req.Address,
+		ChainName:  req.ChainName,
+		SignType:   req.SignType,
+		SignStatus: req.SignStatus,
+		OrderBy:    orderBy,
+		PageNum:    int32(req.Page),
+		PageSize:   int32(req.Limit),
+		Total:      true,
 	}
 
 	if req.TransactionType != "" {

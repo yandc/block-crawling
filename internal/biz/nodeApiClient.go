@@ -334,7 +334,7 @@ chainFlag:
 			}
 			pageNum++
 		} else {
-			if out.Message == "No transactions found" || out.Message == "No internal transactions found" {
+			if out.Message == "No transactions found" || out.Message == "No token transfers found" || out.Message == "No internal transactions found" {
 				return result, nil
 			}
 			msg := out.Message
