@@ -82,5 +82,6 @@ func main() {
 	//platform.UpdateAssetUidType()
 	//platform.HandleTransactionRecordCount()
 	//platform.UpdateAssetUid()
-	platform.UpdateAssetTokenUri()
+	//platform.UpdateAssetTokenUri()
+	platform.UpdateSignAddress()
 }

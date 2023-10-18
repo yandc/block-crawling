@@ -7710,3 +7710,80 @@ func UpdateAssetTokenUri() {
 
 	log.Info("填补token对应的tokenUri，处理用户资产表结束")
 }
+
+func UpdateSignAddress() {
+	log.Info("将签名记录中钱包地址转换为标准格式，处理签名记录表开始")
+
+	var request = &data.SignRequest{
+		SelectColumn: "id, chain_name, address",
+		OrderBy:      "id asc",
+		PageSize:     data.MAX_PAGE_SIZE,
+	}
+	addressUpdateAddressMap := make(map[string][]string)
+	var recordGroupList []*data.UserSendRawHistory
+	recordGroupMap := make(map[string]*data.UserSendRawHistory)
+	var err error
+	var total int64
+	err = data.UserSendRawHistoryRepoInst.PageListAllCallBack(nil, request, func(userSendRawHistorys []*data.UserSendRawHistory) error {
+		total += int64(len(userSendRawHistorys))
+		for _, userSendRawHistory := range userSendRawHistorys {
+			key := userSendRawHistory.ChainName + userSendRawHistory.Address
+			recordGroupMap[key] = userSendRawHistory
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error("将签名记录中钱包地址转换为标准格式，从数据库中查询用户资产失败", zap.Any("total", total), zap.Any("error", err))
+		return
+	}
+	if total == 0 {
+		log.Info("将签名记录中钱包地址转换为标准格式，从数据库中查询用户资产为空", zap.Any("total", total))
+		return
+	}
+	for _, userSendRawHistory := range recordGroupMap {
+		recordGroupList = append(recordGroupList, userSendRawHistory)
+	}
+
+	recordSize := len(recordGroupList)
+	if recordSize == 0 {
+		log.Info("将签名记录中钱包地址转换为标准格式，从数据库中查询用户资产为空", zap.Any("size", recordSize), zap.Any("total", total))
+		return
+	}
+
+	log.Info("将签名记录中钱包地址转换为标准格式，开始执行从nodeProxy中获取代币信息操作", zap.Any("size", recordSize), zap.Any("total", total))
+	for _, userSendRawHistory := range recordGroupList {
+		chainType, _ := biz.GetChainNameType(userSendRawHistory.ChainName)
+		switch chainType {
+		case biz.EVM:
+			address := types2.HexToAddress(userSendRawHistory.Address).Hex()
+			if userSendRawHistory.Address != address {
+				updateAddressList, ok := addressUpdateAddressMap[address]
+				if !ok {
+					updateAddressList = make([]string, 0)
+				}
+				updateAddressList = append(updateAddressList, userSendRawHistory.Address)
+				addressUpdateAddressMap[address] = updateAddressList
+			}
+		}
+	}
+
+	log.Info("将签名记录中钱包地址转换为标准格式，开始执行修改数据库操作", zap.Any("size", len(addressUpdateAddressMap)))
+	var num int
+	for address, updateAddressList := range addressUpdateAddressMap {
+		if num++; num%biz.PAGE_SIZE == 0 {
+			log.Info("将签名记录中钱包地址转换为标准格式，修改数据库中", zap.Any("num", num), zap.Any("size", len(addressUpdateAddressMap)))
+			time.Sleep(time.Duration(2) * time.Second)
+		}
+		var count int64
+		count, err = data.UserSendRawHistoryRepoInst.UpdateAddressListByAddress(nil, address, updateAddressList)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = data.UserSendRawHistoryRepoInst.UpdateAddressListByAddress(nil, address, updateAddressList)
+		}
+		if err != nil {
+			log.Error("将签名记录中钱包地址转换为标准格式，将数据插入到数据库中失败", zap.Any("size", len(addressUpdateAddressMap)), zap.Any("count", count), zap.Any("address", address), zap.Any("updateAddressList", updateAddressList), zap.Any("error", err))
+		}
+	}
+
+	log.Info("将签名记录中钱包地址转换为标准格式，处理用户资产表结束")
+}

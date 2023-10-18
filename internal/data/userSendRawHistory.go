@@ -8,12 +8,9 @@ import (
 	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
-)
-
-const (
-	userSendRawHistoryTable = "user_sendraw_history"
 )
 
 type UserSendRawHistory struct {
@@ -37,8 +34,27 @@ type UserSendRawHistory struct {
 	TxTime          int64  `json:"txTime" form:"txTime"`
 }
 
+type SignRequest struct {
+	Address             string
+	AddressList         []string
+	ChainName           string
+	SignType            string
+	SignStatus          []string
+	TransactionTypeList []string
+	StartTime           int64
+	StopTime            int64
+	SelectColumn        string
+	GroupBy             string
+	OrderBy             string
+	DataDirection       int32
+	StartIndex          int64
+	PageNum             int32
+	PageSize            int32
+	Total               bool
+}
+
 func (userSendRawHistory UserSendRawHistory) TableName() string {
-	return userSendRawHistoryTable
+	return "user_sendraw_history"
 }
 
 var UserSendRawHistoryRepoInst UserSendRawHistoryRepo
@@ -46,13 +62,13 @@ var UserSendRawHistoryRepoInst UserSendRawHistoryRepo
 type UserSendRawHistoryRepo interface {
 	Save(context.Context, *UserSendRawHistory) (int64, error)
 	SaveOrUpdate(context.Context, []*UserSendRawHistory) (int64, error)
-	PageList(context.Context, SignReqPage) ([]*UserSendRawHistory, int64, error)
+	UpdateAddressListByAddress(ctx context.Context, address string, addressList []string) (int64, error)
+	PageList(context.Context, *SignRequest) ([]*UserSendRawHistory, int64, error)
+	PageListAllCallBack(context.Context, *SignRequest, func(list []*UserSendRawHistory) error, ...time.Duration) error
+	PageListAll(context.Context, *SignRequest, ...time.Duration) ([]*UserSendRawHistory, error)
 	GetLatestOneBySessionId(ctx context.Context, sessionID string) (*UserSendRawHistory, error)
 	SelectSignStatus(ctx context.Context, signStatus []string) ([]*UserSendRawHistory, error)
 	SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error)
-
-	//UpdateSignStatusByTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
-	//UpdateSignStatusLikeTxHash(context.Context, string, map[string]interface{}, int64, string) (int64, error)
 	SelectByTxHash(ctx context.Context, txHash string) (*UserSendRawHistory, error)
 }
 
@@ -135,6 +151,17 @@ func (r *userSendRawHistoryRepoImpl) SaveOrUpdate(ctx context.Context, userSendR
 	return affected, err
 }
 
+func (r *userSendRawHistoryRepoImpl) UpdateAddressListByAddress(ctx context.Context, address string, addressList []string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Model(&UserSendRawHistory{}).Where("address in(?)", addressList).Update("address", address)
+	err := ret.Error
+	if err != nil {
+		log.Errore("update address by addressList", err)
+		return 0, err
+	}
+	affected := ret.RowsAffected
+	return affected, nil
+}
+
 func (r *userSendRawHistoryRepoImpl) SelectSignStatus(ctx context.Context, signStatus []string) ([]*UserSendRawHistory, error) {
 	var userSendRawHistoryList []*UserSendRawHistory
 	ret := r.gormDB.Table("user_sendraw_history").Where("sign_status in (?)", signStatus).Find(&userSendRawHistoryList)
@@ -157,92 +184,121 @@ func (r *userSendRawHistoryRepoImpl) SelectBySessionIds(ctx context.Context, ses
 	return userSendRawHistoryList, nil
 }
 
-func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, signReqPage SignReqPage) ([]*UserSendRawHistory, int64, error) {
+func (r *userSendRawHistoryRepoImpl) PageList(ctx context.Context, req *SignRequest) ([]*UserSendRawHistory, int64, error) {
 	var userSendRawHistoryList []*UserSendRawHistory
 	var total int64
 
 	db := r.gormDB.Table("user_sendraw_history")
-	if signReqPage.Address != "" {
-		db = db.Where("address in (?)", []string{signReqPage.Address, signReqPage.ClientAddress})
+	if req.ChainName != "" {
+		db = db.Where("chain_name = ?", req.ChainName)
 	}
-	if signReqPage.ChainName != "" {
-		db = db.Where("chain_name = ?", signReqPage.ChainName)
+	if req.Address != "" {
+		db = db.Where("address = ?", req.Address)
 	}
-	if signReqPage.SignType != "" {
-		db = db.Where("sign_type = ?", signReqPage.SignType)
+	if len(req.AddressList) > 0 {
+		db = db.Where("address in(?)", req.AddressList)
+	}
+	if req.SignType != "" {
+		db = db.Where("sign_type = ?", req.SignType)
 	} else {
 		db = db.Where("(sign_type = '1' or (sign_type= '2' and sign_status = '2'))")
 	}
-	if signReqPage.SignType == "1" {
+	if req.SignType == "1" {
 		db = db.Where(" transaction_hash != '' ")
 	}
-	if signReqPage.SignType == "2" {
+	if req.SignType == "2" {
 		db = db.Where(" sign_status = '2' ")
 	}
-
-	if len(signReqPage.TransactionTypeList) > 0 {
-		db = db.Where("transaction_type in ?", signReqPage.TransactionTypeList)
+	if len(req.TransactionTypeList) > 0 {
+		db = db.Where("transaction_type in ?", req.TransactionTypeList)
 	}
-	if len(signReqPage.SignStatus) > 0 {
-		db = db.Where("sign_status in ?", signReqPage.SignStatus)
+	if len(req.SignStatus) > 0 {
+		db = db.Where("sign_status in ?", req.SignStatus)
 	}
-	db.Count(&total)
-	if signReqPage.PageSize != -1 && signReqPage.PageNum != -1 {
-		db = db.Offset((signReqPage.PageNum - 1) * signReqPage.PageSize)
+	if req.StartTime > 0 {
+		db = db.Where("created_at >= ?", req.StartTime)
 	}
-	if signReqPage.TradeTime == 1 {
-		db.Order("updated_at desc")
-	}
-	if signReqPage.TradeTime == 2 {
-		db.Order("updated_at asc")
+	if req.StopTime > 0 {
+		db = db.Where("created_at < ?", req.StopTime)
 	}
 
+	if req.Total {
+		// 统计总记录数
+		db.Count(&total)
+	}
+
+	if req.DataDirection > 0 {
+		dataDirection := ">"
+		if req.DataDirection == 1 {
+			dataDirection = "<"
+		}
+		if req.OrderBy == "" {
+			db = db.Where("id "+dataDirection+" ?", req.StartIndex)
+		} else {
+			orderBys := strings.Split(req.OrderBy, " ")
+			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
+		}
+	}
+
+	db = db.Order(req.OrderBy)
+
+	if req.DataDirection == 0 {
+		if req.PageNum > 0 {
+			db = db.Offset(int(req.PageNum-1) * int(req.PageSize))
+		} else {
+			db = db.Offset(0)
+		}
+	}
+	db = db.Limit(int(req.PageSize))
+
+	if req.SelectColumn != "" {
+		db = db.Select(req.SelectColumn)
+	}
 	ret := db.Find(&userSendRawHistoryList)
 	err := ret.Error
 	if err != nil {
-		log.Errore("page query user_sendraw_history failed", err)
+		log.Errore("page query userSendRawHistory failed", err)
 		return nil, 0, err
 	}
 	return userSendRawHistoryList, total, nil
 }
 
-//func (r *userSendRawHistoryRepoImpl) UpdateSignStatusByTxHash(ctx context.Context, transactionHash string, ufiles map[string]interface{}, nonce int64, address string) (int64, error) {
-//	db := r.gormDB.WithContext(ctx).Table("user_sendraw_history").Where("sign_status in ('1','6')")
-//	if transactionHash != "" {
-//		db = db.Where("transaction_hash = ?", transactionHash)
-//	}
-//	if address != "" {
-//		db = db.Where("address = ?", address)
-//	}
-//	if nonce >= 0 {
-//		db = db.Where("nonce >=0 and nonce <= ? ", nonce)
-//	}
-//
-//	ret := db.UpdateColumns(ufiles)
-//	err := ret.Error
-//	if err != nil {
-//		log.Errore("UpdateSignStatusByTxHash failed", err)
-//		return 0, err
-//	}
-//	return ret.RowsAffected, nil
-//}
-//func (r *userSendRawHistoryRepoImpl) UpdateSignStatusLikeTxHash(ctx context.Context, transactionHash string, ufiles map[string]interface{}, nonce int64, address string) (int64, error) {
-//	db := r.gormDB.WithContext(ctx).Table("user_sendraw_history").Where("sign_status in ('1','6')")
-//	if transactionHash != "" {
-//		db = db.Where("transaction_hash like ?", "%"+transactionHash+"%")
-//	}
-//	if address != "" {
-//		db = db.Where("address = ?", address)
-//	}
-//	if nonce >= 0 {
-//		db = db.Where("nonce >=0 and nonce <= ? ", nonce)
-//	}
-//
-//	ret := db.UpdateColumns(ufiles)
-//	err := ret.Error
-//	if err != nil {
-//		log.Errore("UpdateSignStatusByTxHash failed", err)
-//		return 0, err
-//	}
-//	return ret.RowsAffected, nil
-//}
+func (r *userSendRawHistoryRepoImpl) PageListAllCallBack(ctx context.Context, req *SignRequest, fn func(list []*UserSendRawHistory) error, timeDuration ...time.Duration) error {
+	var timeout time.Duration
+	if len(timeDuration) > 0 {
+		timeout = timeDuration[0]
+	} else {
+		timeout = 1_000 * time.Millisecond
+	}
+	req.DataDirection = 2
+	for {
+		userAssets, _, err := r.PageList(ctx, req)
+		if err != nil {
+			return err
+		}
+		dataLen := int32(len(userAssets))
+		if dataLen == 0 {
+			break
+		}
+
+		err = fn(userAssets)
+		if err != nil {
+			return err
+		}
+		if dataLen < req.PageSize {
+			break
+		}
+		req.StartIndex = userAssets[dataLen-1].Id
+		time.Sleep(timeout)
+	}
+	return nil
+}
+
+func (r *userSendRawHistoryRepoImpl) PageListAll(ctx context.Context, req *SignRequest, timeDuration ...time.Duration) ([]*UserSendRawHistory, error) {
+	var userSendRawHistoryList []*UserSendRawHistory
+	err := r.PageListAllCallBack(nil, req, func(userAssets []*UserSendRawHistory) error {
+		userSendRawHistoryList = append(userSendRawHistoryList, userAssets...)
+		return nil
+	}, timeDuration...)
+	return userSendRawHistoryList, err
+}
