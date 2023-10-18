@@ -34,7 +34,29 @@ func RegisterSwapContract(chainType string, contracts ...SwapContract) {
 	gSwapContracts[chainType] = container
 }
 
-func AttemptToExtractSwapPairs(chainName, contract string, block *chain.Block, tx *chain.Transaction, args ...interface{}) (int, error) {
+func AttemptToPushSwapPairs(chainName, contract string, block *chain.Block, tx *chain.Transaction, args ...interface{}) (int, error) {
+	results, err := AttemptToExtractSwapPairs(chainName, contract, tx, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(results) > 0 {
+		if len(results) > 0 {
+			for _, p := range results {
+				p.TxTime = int(block.Time)
+				p.BlockNumber = int(block.Number)
+				p.FromAddress = tx.FromAddress
+			}
+			if err := biz.BulkPushSwapPairs(chainName, results); err != nil {
+				return 0, nil
+			}
+		}
+		return len(results), nil
+	}
+	return 0, nil
+}
+
+func AttemptToExtractSwapPairs(chainName, contract string, tx *chain.Transaction, args ...interface{}) ([]*biz.SwapPair, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -81,23 +103,10 @@ func AttemptToExtractSwapPairs(chainName, contract string, block *chain.Block, t
 		}
 		results = append(results, paris...)
 	}
-	if len(results) > 0 {
-		if len(results) > 0 {
-			for _, p := range results {
-				p.TxTime = int(block.Time)
-				p.BlockNumber = int(block.Number)
-				p.FromAddress = tx.FromAddress
-			}
-			if err := biz.BulkPushSwapPairs(chainName, results); err != nil {
-				return 0, nil
-			}
-		}
-		return len(results), nil
-	}
 	if len(errs) > 0 {
-		return 0, errors.New("encounter error")
+		return nil, errors.New("encounter error")
 	}
-	return 0, nil
+	return results, nil
 }
 
 func Is(chainName string, tx *chain.Transaction) bool {
