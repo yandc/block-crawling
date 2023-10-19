@@ -1298,6 +1298,9 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 }
 
 func batchSaveSolTxns(chainName string, txns []string) error {
+	if len(txns) == 0 {
+		return nil
+	}
 	now := time.Now().Unix()
 	solTransactionRecordList := make([]*data.SolTransactionRecord, 0, len(txns))
 	for _, txHash := range txns {
