@@ -74,6 +74,7 @@ const GAS_PAY_TOPIC = "0x4e5abb321ba55df7284bf55a0bca37c5c3ce2044bb229403828ac6d
 // 手续费代付
 const FEE_TOPIC = "0x496c2c66bc44ed4dbeaf44a930a49ceaf848c046517dbec592243394b4e871d6"
 const TRANSFER_FROM_L1_COMPLETED_TOPIC = "0x320958176930804eb66c2343c7343fc0367dc16249590c0f195783bee199d094"
+const FINALIZEDEPOSITETH_TOPIC = "0x9e86c356e14e24e26e3ce769bf8b87de38e0faa0ed0ca946fa09659aa606bd2d"
 
 // dapp 白名单 chainName + contractAddress + methodId
 var BridgeWhiteMethodIdList = map[string][]string{
@@ -184,6 +185,7 @@ var WhiteListTopicMap = map[string][]string{
 	"BSC_Contract_Method_Topic": {"0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c_11290d59_" + OPENBLOCK_SWAP_TOPIC},
 	"Polygon_Contract_Method_Topic": {"0x0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC,
 		"0xd0db2f29056e0226168c6b32363a339fe8fd46b5_11290d59_" + OPENBLOCK_SWAP_TOPIC},
+	"Scroll_Contract_Method_Topic": {"0x781e90f1c8fc4611c9b7497c3b47f99ef6969cbc_8ef1332e_" + FINALIZEDEPOSITETH_TOPIC},
 	//支持所有链特定合约
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,
 		"0x86232f68b5bf2a3a03851d98556352512a3b12b9_ba847759_" + RUN_METHOD_TOPIC,
