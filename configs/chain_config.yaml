@@ -1637,3 +1637,38 @@ platformTest:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
     monitorHeightAlarmThr: 100
+
+  CelestiaMochaTEST:
+    blockExplorerAddrUrl: https://testnet.mintscan.io/celestia-testnet/account
+    blockExplorerTxUrl: https://testnet.mintscan.io/celestia-testnet/txs
+    blockExplorerUrl: https://testnet.mintscan.io/celestia-testnet
+#    blockExplorerUrl: https://celestia.explorers.guru
+    chain: CelestiaMochaTEST
+    chainId: "mocha-4"
+    coinId: 118
+    decimal: 6
+    fullName: Celestia Mocha Test Net
+    getPriceKey: celestia
+    handler: celestia
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Celestia.jpg
+    nativeCurrency: TIA
+    netType: test
+    proxyCacheTime: 0
+    rpcURL:
+      - https://lcd-office.cosmostation.io/celestia-testnet
+      - https://api-1.celestia.nodes.guru
+      - https://api-2.celestia.nodes.guru
+      - https://api-mocha.pops.one
+      - https://api-t.celestia.nodestake.top
+      - https://api-2.celestia-mocha.com
+      - https://celestia-testnet.api.kjnodes.com
+      - https://celestia-testnet.brightlystake.com/api
+      - https://rest-celestia-mocha.architectnodes.com
+    httpURL:
+      - https://front.api.mintscan.io/v1/celestia-testnet/account/
+      - https://celestia.api.explorers.guru
+    symbol: TIA
+    type: COSMOS
+    safelyConcurrentBlockDelta: 20
+    maxConcurrency: 5
+    monitorHeightAlarmThr: 100
