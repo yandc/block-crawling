@@ -1506,6 +1506,18 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[:32])
 			tokenAddress = ""
+		} else if topic0 == FINALIZEDEPOSITETH_TOPIC {
+			//https://blockscout.scroll.io/tx/0xf1191f68d880e190bc0948dcea397ad99392a3bec33fff216b573ff764a4ec9f
+			if methodId != "8ef1332e" {
+				continue
+			}
+			if len(log_.Data) < 32 {
+				continue
+			}
+			fromAddress = tokenAddress
+			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
+			amount = new(big.Int).SetBytes(log_.Data[:32])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {

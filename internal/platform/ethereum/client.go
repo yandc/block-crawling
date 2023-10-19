@@ -651,6 +651,12 @@ func (c *Client) parseTxMeta(txc *chain.Transaction, tx *Transaction) (err error
 				realToAddress := common.HexToAddress(hex.EncodeToString(data[4:36])).String()
 				toAddress = toAddress + "," + realToAddress
 			}
+		} else if methodId == "8ef1332e" { //Scroll链 Contract
+			//https://blockscout.scroll.io/tx/0xf1191f68d880e190bc0948dcea397ad99392a3bec33fff216b573ff764a4ec9f
+			if len(data) >= 232 {
+				realToAddress := common.HexToAddress(hex.EncodeToString(data[200:232])).String()
+				toAddress = toAddress + "," + realToAddress
+			}
 		}
 	}
 	if strings.HasPrefix(c.chainName, "Polygon") && fromAddress == "0x0000000000000000000000000000000000000000" && toAddress == "0x0000000000000000000000000000000000000000" {

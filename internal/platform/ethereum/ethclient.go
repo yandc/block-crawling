@@ -35,6 +35,10 @@ const ArbitrumDistributeTxType = 104
 const zkSyncTxType = 255
 const zkSyncTxType113 = 113
 
+// Scroll链DepositETH
+// https://blockscout.scroll.io/tx/0xf1191f68d880e190bc0948dcea397ad99392a3bec33fff216b573ff764a4ec9f
+const ScrollTxType = 126
+
 type rpcBlock struct {
 	Hash common.Hash `json:"hash"`
 	// Transactions []rpcTransaction `json:"transactions"`
@@ -250,8 +254,8 @@ func (c *Client) getBlock(ctx context.Context, method string, args ...interface{
 	// Arbitrum 支持了一些内部的交易类型，参见：
 	// https://github.com/OffchainLabs/go-ethereum/blob/382f6cd90f60fc082b300ec464dcbabb7e3279ac/core/types/transaction.go#L43-L56
 	// 这里为了兼容现存的 EVM 链，忽略这些交易类型，下面将非 EVM 标准交易类型忽略：
-	// 1. 首先将 rpcBlock  中的 rawTransction 不进行解析；
-	// 2. 然后过滤掉不支持的交易类型通过  json.Unmarshal 进行解码。
+	// 1. 首先将 rpcBlock 中的 rawTransaction 不进行解析；
+	// 2. 然后过滤掉不支持的交易类型通过 json.Unmarshal 进行解码。
 	//
 	// 避免 ErrTxTypeNotSupported，参见：
 	// https://gitlab.bixin.com/mili/go-ethereum/-/blob/master/core/types/transaction.go#L188
@@ -697,7 +701,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner types.TxData
 	switch dec.Type {
-	case types.LegacyTxType, ArbitrumDepositTxType, ArbitrumDistributeTxType, zkSyncTxType, zkSyncTxType113:
+	case types.LegacyTxType, ArbitrumDepositTxType, ArbitrumDistributeTxType, zkSyncTxType, zkSyncTxType113, ScrollTxType:
 		var itx types.LegacyTx
 		inner = &itx
 		if dec.To != nil {
