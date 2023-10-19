@@ -863,6 +863,7 @@ func ExecuteRetry(chainName string, fc func(client Client) (interface{}, error))
 	return result, err
 }
 
+// GetChainName 处理to地址的链名称不对的问题：跨链交易时fromAddress和toAddress是两个不同链的地址，但是此时两个地址对应的chainName却都是from地址的链名称，to地址的链名称需要根据toAddress来重新计算。
 func GetChainName(chainName string, address string) string {
 	var realChainName string
 	var chainNameIndex int
@@ -875,6 +876,8 @@ func GetChainName(chainName string, address string) string {
 	chain := address[:chainNameIndex]
 	if chain == "osmo" {
 		realChainName = "Osmosis"
+	} else if chain == "celestia" && biz.IsTestNet(chainName) {
+		realChainName = "CelestiaMocha"
 	} else {
 		realChainName = strings.ToUpper(chain[:1]) + chain[1:]
 	}

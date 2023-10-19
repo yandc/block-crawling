@@ -53,7 +53,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	}()
 
 	switch chainName {
-	case "Cosmos", "Osmosis", "Sei", "SeiTEST":
+	case "Cosmos", "Osmosis", "Sei", "SeiTEST", "CelestiaMochaTEST":
 		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
 		err = SolanaGetTxByAddress(chainName, address, urls)
@@ -661,6 +661,31 @@ type SeiBrowserInfo struct {
 	} `json:"fee"`
 }
 
+type CelestiaBrowserResponse struct {
+	Data       []*CelestiaBrowserInfo `json:"data"`
+	NextCursor string                 `json:"next_cursor"`
+}
+
+type CelestiaBrowserInfo struct {
+	Height    int       `json:"height"`
+	Hash      string    `json:"hash"`
+	Timestamp time.Time `json:"timestamp"`
+	Code      int       `json:"code"`
+	Messages  []struct {
+		Type   string `json:"type"`
+		Sender bool   `json:"sender,omitempty"`
+		Tokens struct {
+			Amount int64  `json:"amount"`
+			Denom  string `json:"denom"`
+		} `json:"tokens"`
+		Recipient bool `json:"recipient,omitempty"`
+	} `json:"messages"`
+	Fee struct {
+		Amount int    `json:"amount"`
+		Denom  string `json:"denom"`
+	} `json:"fee"`
+}
+
 func CosmosGetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -710,6 +735,8 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 			atomTransactionRecordList, err = getSeiRecordByGraphql(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
 		} else if url == "https://sei.api.explorers.guru" {
 			atomTransactionRecordList, err = getSeiRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		} else if url == "https://celestia.api.explorers.guru" {
+			atomTransactionRecordList, err = getCelestiaRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}
 
 		if err == nil {
@@ -1036,6 +1063,71 @@ chainFlag:
 			chainRecords = append(chainRecords, browserInfo)
 		}
 		break
+	}
+
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	return atomTransactionRecordList, nil
+}
+
+func getCelestiaRecordByExplorers(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
+	dbLastRecordHash = strings.ToUpper(dbLastRecordHash)
+	url = url + "/api/v1/accounts/" + address + "/txs?category=all&limit=" + strconv.Itoa(pageSize) + "&cursor="
+
+	var nextCursor string
+	var chainRecords []*CelestiaBrowserInfo
+chainFlag:
+	for {
+		var out CelestiaBrowserResponse
+		reqUrl := url + nextCursor
+
+		err := httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		}
+		if err != nil {
+			return nil, err
+			/*alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break*/
+		}
+
+		dataLen := len(out.Data)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Data {
+			txHash := browserInfo.Hash
+			txHeight := browserInfo.Height
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		nextCursor = out.NextCursor
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord
