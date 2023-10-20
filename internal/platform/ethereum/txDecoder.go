@@ -1759,6 +1759,16 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 		}
 	}
 
+	if tx == nil {
+		log.Warn(
+			"tx is nil",
+			zap.String("chain", h.chainName),
+			zap.String("tx hash", txByHash.Hash),
+			zap.Uint64("height", curHeight),
+			zap.String("url", c.URL()),
+		)
+	}
+
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
