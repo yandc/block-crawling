@@ -4857,7 +4857,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		var extra *UserAssetExtra
 		if err := json.Unmarshal(req.Extra, &extra); err != nil {
 			log.Error("PARSE USER ASSET EXTRA ERROR WITH ERROR", zap.Error(err), zap.ByteString("extra", req.Extra))
-		} else {
+		} else if extra != nil {
 			onchainAssets = extra.AllTokens
 			log.Info("GOT USER ASSET ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
 			if len(extra.RecentTxns) > 0 {
