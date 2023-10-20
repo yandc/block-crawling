@@ -16,6 +16,7 @@ import (
 
 type UserSendRawHistory struct {
 	Id              int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	Uid             string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
 	SessionId       string `json:"sessionId" form:"sessionId" gorm:"type:character varying(96);default:null;index:,unique"`
 	UserName        string `json:"userName" form:"userName" gorm:"type:character varying(128)"`
 	Address         string `json:"address" form:"address" gorm:"type:character varying(550)"`
