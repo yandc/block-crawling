@@ -3576,8 +3576,10 @@ func (s *TransactionUsecase) JsonRpc(ctx context.Context, req *pb.JsonReq) (*pb.
 		}, nil
 	}
 	jsonRpcCtx := &JsonRpcContext{
-		Context: ctx,
-		Device:  req.Device,
+		Context:   ctx,
+		Device:    req.Device,
+		Uid:       req.Uid,
+		ChainName: req.ChainName,
 	}
 
 	args := make([]reflect.Value, 0)
@@ -5005,6 +5007,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 	var usrhs []*data.UserSendRawHistory
 
 	var userSendRawHistory = &data.UserSendRawHistory{}
+	userSendRawHistory.Uid = ctx.Uid
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
 	userSendRawHistory.ChainName = req.ChainName
@@ -5019,7 +5022,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 		userSendRawHistory.UserAgent = device.UserAgent
 	}
 	if req.ErrMsg != "" {
-		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
+		NotifyBroadcastTxFailed(ctx, req)
 	}
 	usrhs = append(usrhs, userSendRawHistory)
 	result, err := data.UserSendRawHistoryRepoInst.SaveOrUpdate(ctx, usrhs)
@@ -5052,6 +5055,7 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 	var usrhs []*data.UserSendRawHistory
 
 	var userSendRawHistory = &data.UserSendRawHistory{}
+	userSendRawHistory.Uid = ctx.Uid
 	userSendRawHistory.UserName = req.UserName
 	userSendRawHistory.Address = req.Address
 	userSendRawHistory.ChainName = req.ChainName
@@ -5084,7 +5088,7 @@ func (s *TransactionUsecase) CreateSignRecord(ctx *JsonRpcContext, req *Broadcas
 	}
 	if req.ErrMsg != "" {
 		userSendRawHistory.SignStatus = SIGNRECORD_DROPPED
-		NotifyBroadcastTxFailed(ctx, req, ctx.ParseDevice())
+		NotifyBroadcastTxFailed(ctx, req)
 	}
 	if req.SignStatus == "" {
 		userSendRawHistory.SignStatus = SIGNRECORD_DROPPED

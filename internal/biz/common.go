@@ -1143,17 +1143,29 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
-func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device Device) {
+func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 	var msg string
 	alarmOpts := WithMsgLevel("FATAL")
 
+	device := ctx.ParseDevice()
 	deviceId := device.Id
 	userAgent := device.UserAgent
+
+	user := "Unknown"
+	userRecord, _ := data.UserRecordRepoInst.FindOne(ctx, ctx.Uid)
+	if userRecord != nil {
+		user = userRecord.String()
+	}
+	address := req.Address
+	if address == "" {
+		address, _ = data.UserRecordRepoInst.FindAddress(ctx, ctx.Uid, ctx.ChainName)
+	}
 
 	if req.Stage == "" || req.Stage == "broadcast" {
 		sessionID := req.SessionId
 		errMsg := req.ErrMsg
 		info, err := data.UserSendRawHistoryRepoInst.GetLatestOneBySessionId(ctx, sessionID)
+		txInput := req.TxInput
 		if err != nil {
 			log.Error(
 				"SEND ALARM OF BROADCATING TX FAILED",
@@ -1161,40 +1173,35 @@ func NotifyBroadcastTxFailed(ctx context.Context, req *BroadcastRequest, device 
 				zap.String("errMsg", errMsg),
 				zap.Error(err),
 			)
-			msg = fmt.Sprintf(
-				"交易广播失败。\nsessionId：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\n用户名: %s\nDevice-Id: %s",
-				sessionID,
-				userAgent,
-				"Unknown",
-				errMsg,
-				"Unknown",
-				deviceId,
-			)
 		} else {
-			msg = fmt.Sprintf(
-				"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户名: %s\nDevice-Id: %s",
-				info.ChainName,
-				sessionID,
-				info.Address,
-				userAgent,
-				errMsg,
-				info.BaseTxInput,
-				info.UserName,
-				deviceId,
-			)
+			txInput = info.BaseTxInput
+			if info.Address != "" {
+				address = info.Address
+			}
 		}
+		msg = fmt.Sprintf(
+			"%s 链交易广播失败。\nsessionId：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
+			ctx.ChainName,
+			sessionID,
+			address,
+			userAgent,
+			errMsg,
+			txInput,
+			user,
+			deviceId,
+		)
 		alarmOpts = WithAlarmChannel("txinput")
 	} else {
 		msg = fmt.Sprintf(
-			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户名: %s\nDevice-Id: %s",
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
 			req.ChainName,
 			req.NodeURL,
 			req.Address,
 			userAgent,
 			req.ErrMsg,
 			req.TxInput,
+			user,
 			deviceId,
-			req.UserName,
 		)
 		alarmOpts = WithAlarmChannel("node-proxy")
 	}
@@ -1330,7 +1337,9 @@ type Device struct {
 type JsonRpcContext struct {
 	context.Context
 
-	Device string
+	Device    string
+	Uid       string
+	ChainName string
 }
 
 func (ctx *JsonRpcContext) ParseDevice() Device {
