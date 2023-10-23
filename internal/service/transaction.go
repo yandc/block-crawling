@@ -66,7 +66,7 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 	for _, transactionType := range req.TransactionTypeList {
 		if transactionType == biz.OTHER {
 			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN,
-				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP)
+				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP, biz.ADDLIQUIDITY)
 			break
 		}
 	}
@@ -104,12 +104,18 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 			if record.Status == biz.NO_STATUS {
 				record.Status = biz.PENDING
 			}
+			if record.Status == biz.ADDLIQUIDITY {
+				record.Status = biz.CONTRACT
+			}
 			for _, operateRecord := range record.OperateRecordList {
 				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
 					operateRecord.Status = biz.FAIL
 				}
 				if operateRecord.Status == biz.NO_STATUS {
 					operateRecord.Status = biz.PENDING
+				}
+				if operateRecord.Status == biz.ADDLIQUIDITY {
+					operateRecord.Status = biz.CONTRACT
 				}
 			}
 
@@ -272,7 +278,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	for _, transactionType := range req.TransactionTypeList {
 		if transactionType == biz.OTHER {
 			req.TransactionTypeList = append(req.TransactionTypeList, biz.CONTRACT, biz.CREATEACCOUNT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN,
-				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP)
+				biz.DIRECTTRANSFERNFTSWITCH, biz.CREATECONTRACT, biz.MINT, biz.SWAP, biz.ADDLIQUIDITY)
 			break
 		}
 	}
@@ -310,12 +316,18 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			if record.Status == biz.NO_STATUS {
 				record.Status = biz.PENDING
 			}
+			if record.Status == biz.ADDLIQUIDITY {
+				record.Status = biz.CONTRACT
+			}
 			for _, operateRecord := range record.OperateRecordList {
 				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
 					operateRecord.Status = biz.FAIL
 				}
 				if operateRecord.Status == biz.NO_STATUS {
 					operateRecord.Status = biz.PENDING
+				}
+				if operateRecord.Status == biz.ADDLIQUIDITY {
+					operateRecord.Status = biz.CONTRACT
 				}
 			}
 
