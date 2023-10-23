@@ -247,7 +247,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"data":                     clause.Column{Table: "excluded", Name: "data"},
 			"event_log":                clause.Column{Table: "excluded", Name: "event_log"},
 			"log_address":              clause.Column{Table: "excluded", Name: "log_address"},
-			"transaction_type":         gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
+			"transaction_type":         gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap', 'addLiquidity') and excluded.transaction_type not in('mint', 'swap', 'addLiquidity') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"operate_type":             gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
@@ -561,13 +561,13 @@ func (r *EvmTransactionRecordRepoImpl) PageListRecord(ctx context.Context, table
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		sqlStr += " and ((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))"
+		sqlStr += " and ((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))"
 	}
 	if req.AssetType != "" {
 		if req.AssetType == FT {
-			sqlStr += " and (transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))"
+			sqlStr += " and (transaction_type not in('contract', 'swap', 'mint', 'addLiquidity', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))"
 		} else if req.AssetType == NFT {
-			sqlStr += " and (transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))"
+			sqlStr += " and (transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like '%\"token_type\":\"%'))"
 		}
 	}
 
@@ -742,13 +742,13 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))")
 	}
 	if req.AssetType != "" {
 		if req.AssetType == FT {
-			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'addLiquidity', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
 		} else if req.AssetType == NFT {
-			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like '%\"token_type\":\"%'))")
 		}
 	}
 
@@ -949,13 +949,13 @@ func (r *EvmTransactionRecordRepoImpl) List(ctx context.Context, tableName strin
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))")
 	}
 	if req.AssetType != "" {
 		if req.AssetType == FT {
-			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'addLiquidity', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
 		} else if req.AssetType == NFT {
-			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like '%\"token_type\":\"%'))")
 		}
 	}
 
@@ -1110,13 +1110,13 @@ func (r *EvmTransactionRecordRepoImpl) Delete(ctx context.Context, tableName str
 			req.TokenAddress = ""
 		}
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
-		db = db.Where("((transaction_type not in('contract', 'swap', 'mint') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint') and event_log like " + tokenAddressLike + "))")
+		db = db.Where("((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))")
 	}
 	if req.AssetType != "" {
 		if req.AssetType == FT {
-			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
+			db = db.Where("(transaction_type not in('contract', 'swap', 'mint', 'addLiquidity', 'approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and ((amount != '' and amount != '0') or array_length(regexp_split_to_array(event_log, '\"token\"'), 1) != array_length(regexp_split_to_array(event_log, '\"token_type\"'), 1))))")
 		} else if req.AssetType == NFT {
-			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
+			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like '%\"token_type\":\"%'))")
 		}
 	}
 
