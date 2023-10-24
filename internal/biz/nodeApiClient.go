@@ -3263,8 +3263,11 @@ chainFlag:
 			}
 		}
 		for _, browserInfo := range out.Data {
+			var txHeight int
 			txHash := browserInfo.Digest
-			txHeight, err := strconv.Atoi(browserInfo.Checkpoint)
+			if browserInfo.Checkpoint != "" {
+				txHeight, err = strconv.Atoi(browserInfo.Checkpoint)
+			}
 			if err != nil {
 				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
 				alarmOpts := WithMsgLevel("FATAL")
