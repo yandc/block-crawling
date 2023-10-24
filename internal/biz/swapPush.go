@@ -139,6 +139,6 @@ func pushTransMq(chainName string, s *TransMq) error {
 		log.Error("推送pairs信息，推送pairs信息到 CMQ 中失败", zap.Any("chainName", chainName), zap.Any("error", err), zap.Any("msg", rawMsg))
 		return err
 	}
-	log.Info("推送pairs信息，推送pairs信息到 CMQ 中成功", zap.Any("chainName", chainName), zap.Any("msg", rawMsg), zap.Any("out", out))
+	//log.Info("推送pairs信息，推送pairs信息到 CMQ 中成功", zap.Any("chainName", chainName), zap.Any("msg", rawMsg), zap.Any("out", out))
 	return nil
 }

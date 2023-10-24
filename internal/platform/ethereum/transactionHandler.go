@@ -393,7 +393,7 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 	var userAssets []*data.UserAsset
 
 	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-		if chainName == "Ronin" {
+		if chainName == "Ronin" || chainName == "Linea" {
 			return client.NewBatchTokenBalance(address, tokenDecimalsMap)
 		} else {
 			return client.BatchTokenBalance(address, tokenDecimalsMap)
