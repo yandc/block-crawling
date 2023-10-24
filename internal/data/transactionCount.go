@@ -51,11 +51,15 @@ type TransactionCountRepo interface {
 
 type CountRequest struct {
 	ChainName           string
+	ChainNameList       []string
 	FromAddress         string
 	ToAddress           string
+	FromOrToAddress     string
 	TransactionTypeList []string
 	StartTime           int64
 	StopTime            int64
+	UpdateStartTime     int64
+	UpdateStopTime      int64
 	SelectColumn        string
 	GroupBy             string
 	OrderBy             string
@@ -276,20 +280,32 @@ func (r *TransactionCountRepoImpl) PageList(ctx context.Context, req *CountReque
 	if req.ChainName != "" {
 		db = db.Where("chain_name = ?", req.ChainName)
 	}
+	if len(req.ChainNameList) > 0 {
+		db = db.Where("chain_name in(?)", req.ChainNameList)
+	}
 	if req.FromAddress != "" {
 		db = db.Where("from_address = ?", req.FromAddress)
 	}
 	if req.ToAddress != "" {
 		db = db.Where("to_address = ?", req.ToAddress)
 	}
+	if req.FromOrToAddress != "" {
+		db = db.Where("(from_address = ? or to_address = ?)", req.FromOrToAddress, req.FromOrToAddress)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
 	}
 	if req.StartTime > 0 {
-		db = db.Where("dt >= ?", req.StartTime)
+		db = db.Where("created_at >= ?", req.StartTime)
 	}
 	if req.StopTime > 0 {
-		db = db.Where("dt < ?", req.StopTime)
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.UpdateStartTime > 0 {
+		db = db.Where("updated_at >= ?", req.UpdateStartTime)
+	}
+	if req.UpdateStopTime > 0 {
+		db = db.Where("updated_at < ?", req.UpdateStopTime)
 	}
 
 	if req.Total {
@@ -337,20 +353,32 @@ func (r *TransactionCountRepoImpl) List(ctx context.Context, req *CountRequest) 
 	if req.ChainName != "" {
 		db = db.Where("chain_name = ?", req.ChainName)
 	}
+	if len(req.ChainNameList) > 0 {
+		db = db.Where("chain_name in(?)", req.ChainNameList)
+	}
 	if req.FromAddress != "" {
 		db = db.Where("from_address = ?", req.FromAddress)
 	}
 	if req.ToAddress != "" {
 		db = db.Where("to_address = ?", req.ToAddress)
 	}
+	if req.FromOrToAddress != "" {
+		db = db.Where("(from_address = ? or to_address = ?)", req.FromOrToAddress, req.FromOrToAddress)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
 	}
 	if req.StartTime > 0 {
-		db = db.Where("dt >= ?", req.StartTime)
+		db = db.Where("created_at >= ?", req.StartTime)
 	}
 	if req.StopTime > 0 {
-		db = db.Where("dt < ?", req.StopTime)
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.UpdateStartTime > 0 {
+		db = db.Where("updated_at >= ?", req.UpdateStartTime)
+	}
+	if req.UpdateStopTime > 0 {
+		db = db.Where("updated_at < ?", req.UpdateStopTime)
 	}
 
 	ret := db.Find(&transactionCountList)
@@ -371,15 +399,34 @@ func (r *TransactionCountRepoImpl) CountTransactionQuantity(ctx context.Context,
 	if req.ChainName != "" {
 		sqlStr += " and chain_name = '" + req.ChainName + "'"
 	}
+	if len(req.ChainNameList) > 0 {
+		chainNameList := strings.ReplaceAll(utils.ListToString(req.ChainNameList), "\"", "'")
+		sqlStr += " and chain_name in (" + chainNameList + ")"
+	}
 	if req.FromAddress != "" {
 		sqlStr += " and from_address = '" + req.FromAddress + "'"
 	}
 	if req.ToAddress != "" {
 		sqlStr += " and to_address = '" + req.ToAddress + "'"
 	}
+	if req.FromOrToAddress != "" {
+		sqlStr += " and (from_address = '" + req.FromOrToAddress + "' or to_address = '" + req.FromOrToAddress + "')"
+	}
 	if len(req.TransactionTypeList) > 0 {
 		transactionTypeList := strings.ReplaceAll(utils.ListToString(req.TransactionTypeList), "\"", "'")
 		sqlStr += " and transaction_type in (" + transactionTypeList + ")"
+	}
+	if req.StartTime > 0 {
+		sqlStr += " and created_at >= " + strconv.Itoa(int(req.StartTime))
+	}
+	if req.StopTime > 0 {
+		sqlStr += " and created_at < " + strconv.Itoa(int(req.StopTime))
+	}
+	if req.UpdateStartTime > 0 {
+		sqlStr += " and updated_at >= " + strconv.Itoa(int(req.UpdateStartTime))
+	}
+	if req.UpdateStopTime > 0 {
+		sqlStr += " and updated_at < " + strconv.Itoa(int(req.UpdateStopTime))
 	}
 
 	ret := r.gormDB.WithContext(ctx).Table("transaction_count").Raw(sqlStr).Find(&transactionCount)
@@ -408,20 +455,32 @@ func (r *TransactionCountRepoImpl) Delete(ctx context.Context, req *CountRequest
 	if req.ChainName != "" {
 		db = db.Where("chain_name = ?", req.ChainName)
 	}
+	if len(req.ChainNameList) > 0 {
+		db = db.Where("chain_name in(?)", req.ChainNameList)
+	}
 	if req.FromAddress != "" {
 		db = db.Where("from_address = ?", req.FromAddress)
 	}
 	if req.ToAddress != "" {
 		db = db.Where("to_address = ?", req.ToAddress)
 	}
+	if req.FromOrToAddress != "" {
+		db = db.Where("(from_address = ? or to_address = ?)", req.FromOrToAddress, req.FromOrToAddress)
+	}
 	if len(req.TransactionTypeList) > 0 {
 		db = db.Where("transaction_type in(?)", req.TransactionTypeList)
 	}
 	if req.StartTime > 0 {
-		db = db.Where("dt >= ?", req.StartTime)
+		db = db.Where("created_at >= ?", req.StartTime)
 	}
 	if req.StopTime > 0 {
-		db = db.Where("dt < ?", req.StopTime)
+		db = db.Where("created_at < ?", req.StopTime)
+	}
+	if req.UpdateStartTime > 0 {
+		db = db.Where("updated_at >= ?", req.UpdateStartTime)
+	}
+	if req.UpdateStopTime > 0 {
+		db = db.Where("updated_at < ?", req.UpdateStopTime)
 	}
 
 	ret := db.Delete(&UserAsset{})
