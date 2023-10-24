@@ -232,7 +232,6 @@ func (h *txDecoder) handleEachTransaction(
 	var eventLogs []*types.EventLogUid
 	feeTokenInfo := ""
 	var feeLog *types.EventLogUid
-	var realContractAddress string
 	var contractAddress, tokenId string
 	status := biz.PENDING
 	if receipt.Status == "0x0" || receipt.Status == "0x00" {
@@ -245,7 +244,7 @@ func (h *txDecoder) handleEachTransaction(
 	hexData := hex.EncodeToString(transaction.Data())
 
 	if meta.TransactionType != biz.NATIVE && meta.TransactionType != biz.CREATECONTRACT {
-		eventLogs, tokenId, feeLog, realContractAddress = h.extractEventLogs(client, meta, receipt, transaction)
+		eventLogs, tokenId, feeLog = h.extractEventLogs(client, meta, receipt, transaction)
 	}
 
 	if transaction.To() != nil {
@@ -264,7 +263,7 @@ func (h *txDecoder) handleEachTransaction(
 			var tokenTypeErr error
 			if meta.TransactionType == biz.NATIVE {
 				meta.TransactionType = biz.CONTRACT
-				eventLogs, tokenId, feeLog, realContractAddress = h.extractEventLogs(client, meta, receipt, transaction)
+				eventLogs, tokenId, feeLog = h.extractEventLogs(client, meta, receipt, transaction)
 				log.Info(h.chainName+"扫块，将native交易类型修正为contract", zap.Any("chainName", h.chainName), zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId))
 			} else if meta.TransactionType == biz.APPROVE || meta.TransactionType == biz.TRANSFER || meta.TransactionType == biz.TRANSFERFROM {
 				if status == biz.FAIL && tokenId == "" {
@@ -691,36 +690,6 @@ func (h *txDecoder) handleEachTransaction(
 				//https://bscscan.com/tx/0xd8f79cea2dde996d96e3d296a2ad0debbeacc683fcadb4f076d54dc99d0cfe6c
 				evmTransactionRecord.TransactionType = biz.SWAP
 			}
-		} else if eventLogLen == 3 {
-			if (evmTransactionRecord.FromAddress == contractEventLogs[0].To && contractEventLogs[0].Token.Address != "" &&
-				evmTransactionRecord.FromAddress == contractEventLogs[1].From && evmTransactionRecord.FromAddress == contractEventLogs[2].From) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[1].To && contractEventLogs[1].Token.Address != "" &&
-					evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[2].From) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[2].To && contractEventLogs[2].Token.Address != "" &&
-					evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[1].From) {
-				//https://polygonscan.com/tx/0xa4de5f9f8a51bfef48cb4995a2b0a1a796e6b283387b6a96faae12955b4eeede
-				//https://www.oklink.com/cn/oktc/tx/0xb78cc4625592ec49f7f562c801ac0657743694e9c0d6ec0884023a51bd5c4ebf
-				//https://bscscan.com/tx/0xa3d25941921ede8398b9a5bdb30cf8bec148280ebf2bcf9f55e45751dcf9ad67
-				//https://explorer.zksync.io/tx/0x226c2be9e972995d72788faae48aafb561dc7b14bcf983e6a16d9f83e44f62b3
-				//https://etherscan.io/tx/0x42b099f8362a30c45e8487b7b1508988d298036251ba6f3ad1de38491e03c2c0
-				evmTransactionRecord.TransactionType = biz.ADDLIQUIDITY
-			}
-		} else if eventLogLen == 4 {
-			if (evmTransactionRecord.FromAddress == contractEventLogs[0].To && contractEventLogs[0].Token.Address != "" &&
-				evmTransactionRecord.FromAddress == contractEventLogs[1].From && evmTransactionRecord.FromAddress == contractEventLogs[2].From && evmTransactionRecord.FromAddress == contractEventLogs[3].From &&
-				(contractEventLogs[1].Token.Address == "" || contractEventLogs[2].Token.Address == "" || contractEventLogs[3].Token.Address == "")) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[1].To && contractEventLogs[1].Token.Address != "" &&
-					evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[2].From && evmTransactionRecord.FromAddress == contractEventLogs[3].From &&
-					(contractEventLogs[0].Token.Address == "" || contractEventLogs[2].Token.Address == "" || contractEventLogs[3].Token.Address == "")) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[2].To && contractEventLogs[2].Token.Address != "" &&
-					evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[1].From && evmTransactionRecord.FromAddress == contractEventLogs[3].From &&
-					(contractEventLogs[0].Token.Address == "" || contractEventLogs[1].Token.Address == "" || contractEventLogs[3].Token.Address == "")) ||
-				(evmTransactionRecord.FromAddress == contractEventLogs[3].To && contractEventLogs[3].Token.Address != "" &&
-					evmTransactionRecord.FromAddress == contractEventLogs[0].From && evmTransactionRecord.FromAddress == contractEventLogs[1].From && evmTransactionRecord.FromAddress == contractEventLogs[2].From &&
-					(contractEventLogs[0].Token.Address == "" || contractEventLogs[1].Token.Address == "" || contractEventLogs[2].Token.Address == "")) {
-				//https://etherscan.io/tx/0x8d09740a110a3a3cb8bab241acb873719e7828d3704c8166e9e6c85cfe67c635
-				evmTransactionRecord.TransactionType = biz.ADDLIQUIDITY
-			}
 		}
 	}
 	if evmTransactionRecord.TransactionType == biz.CONTRACT && isMint {
@@ -728,106 +697,10 @@ func (h *txDecoder) handleEachTransaction(
 		//https://etherscan.io/tx/0x375aad9406dd7cc41d00ebf9df7611c5134984c986a4730bf45fb12c3c23a55c
 		evmTransactionRecord.TransactionType = biz.MINT
 	}
-
-	//补全走手续费代付时真正的调用关系
-	if feeLog != nil {
-		var feeTxRecords []*data.EvmTransactionRecord
-		var fromAddress, fromUid string
-
-		if platformUserCount == 1 {
-			feeEventLog := eventLogs[0]
-			if feeEventLog.FromUid != "" {
-				fromAddress = feeEventLog.From
-				fromUid = feeEventLog.FromUid
-			} else {
-				fromAddress = feeEventLog.To
-				fromUid = feeEventLog.ToUid
-			}
-
-			var transactionType string
-			if feeEventLog.Token.Address == "" {
-				transactionType = biz.NATIVE
-			} else if feeEventLog.Token.TokenType == "" {
-				transactionType = biz.TRANSFER
-			} else {
-				transactionType = biz.TRANSFERNFT
-			}
-			//真正调用
-			feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
-				BlockNumber:     int(blockNumber),
-				TransactionHash: transactionHash,
-				FromAddress:     feeEventLog.From,
-				ToAddress:       feeEventLog.To,
-				FromUid:         feeEventLog.FromUid,
-				ToUid:           feeEventLog.ToUid,
-				Status:          status,
-				TransactionType: transactionType,
-			})
-		} else {
-			oneSender := true
-			for _, eventLogUid := range eventLogs {
-				if eventLogUid.FromUid != "" {
-					if fromAddress == "" {
-						fromAddress = eventLogUid.From
-						fromUid = eventLogUid.FromUid
-					} else if fromAddress != eventLogUid.From {
-						oneSender = false
-						break
-					}
-				}
-				if eventLogUid.ToUid != "" {
-					if fromAddress == "" {
-						fromAddress = eventLogUid.To
-						fromUid = eventLogUid.ToUid
-					} else if fromAddress != eventLogUid.To {
-						oneSender = false
-						break
-					}
-				}
-			}
-			if !oneSender || realContractAddress == "" {
-				feeTx, err := data.EvmTransactionRecordRepoClient.SelectColumnByTxHash(nil, biz.GetTableName(h.chainName), transactionHash, []string{"from_address", "from_uid", "to_address"})
-				if err == nil && feeTx != nil {
-					if !oneSender {
-						fromAddress = feeTx.FromAddress
-						fromUid = feeTx.FromUid
-					} else if realContractAddress == "" {
-						realContractAddress = feeTx.ToAddress
-					}
-				}
-			}
-			//真正调用
-			feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
-				BlockNumber:     int(blockNumber),
-				TransactionHash: transactionHash,
-				FromAddress:     fromAddress,
-				ToAddress:       realContractAddress,
-				FromUid:         fromUid,
-				ToUid:           "",
-				Status:          status,
-				TransactionType: evmTransactionRecord.TransactionType,
-			})
-		}
-
-		//手续费代付合约调用
-		feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
-			BlockNumber:     int(blockNumber),
-			TransactionHash: transactionHash,
-			FromAddress:     fromAddress,
-			ToAddress:       evmTransactionRecord.ToAddress,
-			FromUid:         fromUid,
-			ToUid:           "",
-			Status:          status,
-			TransactionType: evmTransactionRecord.TransactionType,
-		})
-
-		go HandleTransactionCount(h.chainName, *(client), feeTxRecords)
-	}
-
 	return nil
 }
 
-func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *rtypes.Receipt, transaction *Transaction) (eventLogList []*types.EventLogUid, eventLogTokenId string, feeEvent *types.EventLogUid, realContractAddress string) {
+func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, receipt *rtypes.Receipt, transaction *Transaction) (eventLogList []*types.EventLogUid, eventLogTokenId string, feeEvent *types.EventLogUid) {
 	var eventLogs []*types.EventLogUid
 	arbitrumAmount := big.NewInt(0)
 	transactionHash := transaction.Hash().String()
@@ -1566,7 +1439,6 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			if len(log_.Data) < 32 {
 				continue
 			}
-			realContractAddress = tokenAddress
 			tokenAddress = common.BytesToAddress(log_.Data[96:128]).String()
 			//只处理主币转账，代币转账可以通过标准Transfer事件解析到
 			if tokenAddress != "0x0000000000000000000000000000000000000000" {

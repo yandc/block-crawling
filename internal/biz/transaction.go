@@ -428,13 +428,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 					if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
 						transactionType = SWAP
 					}
-
-					if strings.Contains(methodName, "AddLiquidity") || strings.Contains(methodName, "_add_liquidity") ||
-						strings.HasPrefix(methodName, "addLiquidity") || strings.HasPrefix(methodName, "add_liquidity") ||
-						(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "Liquidity")) ||
-						(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "_liquidity")) {
-						transactionType = ADDLIQUIDITY
-					}
 				}
 			}
 		}
@@ -734,13 +727,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 
 					if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
 						transactionType = SWAP
-					}
-
-					if strings.Contains(methodName, "AddLiquidity") || strings.Contains(methodName, "_add_liquidity") ||
-						strings.HasPrefix(methodName, "addLiquidity") || strings.HasPrefix(methodName, "add_liquidity") ||
-						(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "Liquidity")) ||
-						(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "_liquidity")) {
-						transactionType = ADDLIQUIDITY
 					}
 				}
 			}
@@ -1107,13 +1093,6 @@ func UpdateTransactionType(pbb *pb.TransactionReq) {
 
 		if strings.Contains(methodName, "Swap") || strings.Contains(methodName, "_swap") || strings.HasPrefix(methodName, "swap") {
 			transactionType = SWAP
-		}
-
-		if strings.Contains(methodName, "AddLiquidity") || strings.Contains(methodName, "_add_liquidity") ||
-			strings.HasPrefix(methodName, "addLiquidity") || strings.HasPrefix(methodName, "add_liquidity") ||
-			(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "Liquidity")) ||
-			(strings.HasPrefix(methodName, "add") && strings.Contains(methodName, "_liquidity")) {
-			transactionType = ADDLIQUIDITY
 		}
 	}
 	if transactionType != CONTRACT {
@@ -4545,7 +4524,7 @@ func (s *TransactionUsecase) GetDataDictionary(ctx context.Context) (*DataDictio
 	var result = &DataDictionary{}
 	var serviceTransactionType = []string{NATIVE, TRANSFER, TRANSFERNFT, APPROVE, APPROVENFT,
 		CONTRACT, CREATECONTRACT, EVENTLOG, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH,
-		OTHER, SETAPPROVALFORALL, TRANSFERFROM, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, MINT, SWAP, ADDLIQUIDITY}
+		OTHER, SETAPPROVALFORALL, TRANSFERFROM, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, MINT, SWAP}
 	var serviceStaus = []string{SUCCESS, FAIL, PENDING, NO_STATUS, DROPPED_REPLACED, DROPPED}
 	result.Ok = true
 	result.ServiceTransactionType = serviceTransactionType
@@ -4744,7 +4723,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				var utv = make(map[string]string)
 				utv[tokenAddress] = totalToken
 				userAssetTokenDecimalResult[addChainName] = utv
-			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, MINT, SWAP, ADDLIQUIDITY:
+			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, MINT, SWAP:
 				if record.FromAddress == add {
 					oldTotal := userAssetMap[addChainName]
 					totalAmount := oldTotal.Sub(feeAmount)
@@ -5363,16 +5342,14 @@ func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChar
 
 // CountOutTx 统计两个地址之间转账次数
 func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequest) (*CountOutTxResponse, error) {
-	if req.ChainName != "" {
-		chainType, _ := GetChainNameType(req.ChainName)
-		switch chainType {
-		case EVM:
-			if req.Address != "" {
-				req.Address = types2.HexToAddress(req.Address).Hex()
-			}
-			if req.ToAddress != "" {
-				req.ToAddress = types2.HexToAddress(req.ToAddress).Hex()
-			}
+	chainType, _ := GetChainNameType(req.ChainName)
+	switch chainType {
+	case EVM:
+		if req.Address != "" {
+			req.Address = types2.HexToAddress(req.Address).Hex()
+		}
+		if req.ToAddress != "" {
+			req.ToAddress = types2.HexToAddress(req.ToAddress).Hex()
 		}
 	}
 
@@ -5382,33 +5359,6 @@ func (s *TransactionUsecase) CountOutTx(ctx context.Context, req *CountOutTxRequ
 		TransactionTypeList: []string{NATIVE, TRANSFER, TRANSFERNFT},
 	}
 	count, err := data.TransactionCountRepoClient.CountTransactionQuantity(ctx, countRequest)
-	if err != nil {
-		return nil, err
-	}
-	return &CountOutTxResponse{
-		Count: count,
-	}, nil
-}
-
-// GetTxCount 统计两个地址之间转账次数
-func (s *TransactionUsecase) GetTxCount(ctx context.Context, req *data.CountRequest) (*CountOutTxResponse, error) {
-	if req.ChainName != "" {
-		chainType, _ := GetChainNameType(req.ChainName)
-		switch chainType {
-		case EVM:
-			if req.FromAddress != "" {
-				req.FromAddress = types2.HexToAddress(req.FromAddress).Hex()
-			}
-			if req.ToAddress != "" {
-				req.ToAddress = types2.HexToAddress(req.ToAddress).Hex()
-			}
-			if req.FromOrToAddress != "" {
-				req.FromOrToAddress = types2.HexToAddress(req.FromOrToAddress).Hex()
-			}
-		}
-	}
-
-	count, err := data.TransactionCountRepoClient.CountTransactionQuantity(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -5449,7 +5399,7 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 		txType := strings.Split(req.TransactionType, ",")
 		for _, transactionType := range txType {
 			if transactionType == OTHER {
-				txType = append(txType, CONTRACT, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, CREATECONTRACT, MINT, SWAP, ADDLIQUIDITY)
+				txType = append(txType, CONTRACT, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, CREATECONTRACT, MINT, SWAP)
 				break
 			}
 		}
