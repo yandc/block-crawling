@@ -128,6 +128,7 @@ const (
 	DIRECTTRANSFERNFTSWITCH = "directTransferNFTSwitch"
 	MINT                    = "mint"
 	SWAP                    = "swap"
+	ADDLIQUIDITY            = "addLiquidity"
 	OTHER                   = "other"            //其他:只用于查询
 	CANCELAPPROVE           = "cancelApprove"    //取消普通代币授权:只用于返回查询结果
 	CANCELAPPROVENFT        = "cancelApproveNFT" //取消NFT授权:只用于返回查询结果
