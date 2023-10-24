@@ -731,7 +731,97 @@ func (h *txDecoder) handleEachTransaction(
 
 	//补全走手续费代付时真正的调用关系
 	if feeLog != nil {
-		log.Info("扫块，realContractAddress", zap.Any("chainName", h.chainName), zap.Any("txHash", transactionHash), zap.Any("realContractAddress", realContractAddress))
+		var feeTxRecords []*data.EvmTransactionRecord
+		var fromAddress, fromUid string
+
+		if platformUserCount == 1 {
+			feeEventLog := eventLogs[0]
+			if feeEventLog.FromUid != "" {
+				fromAddress = feeEventLog.From
+				fromUid = feeEventLog.FromUid
+			} else {
+				fromAddress = feeEventLog.To
+				fromUid = feeEventLog.ToUid
+			}
+
+			var transactionType string
+			if feeEventLog.Token.Address == "" {
+				transactionType = biz.NATIVE
+			} else if feeEventLog.Token.TokenType == "" {
+				transactionType = biz.TRANSFER
+			} else {
+				transactionType = biz.TRANSFERNFT
+			}
+			//真正调用
+			feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
+				BlockNumber:     int(blockNumber),
+				TransactionHash: transactionHash,
+				FromAddress:     feeEventLog.From,
+				ToAddress:       feeEventLog.To,
+				FromUid:         feeEventLog.FromUid,
+				ToUid:           feeEventLog.ToUid,
+				Status:          status,
+				TransactionType: transactionType,
+			})
+		} else {
+			oneSender := true
+			for _, eventLogUid := range eventLogs {
+				if eventLogUid.FromUid != "" {
+					if fromAddress == "" {
+						fromAddress = eventLogUid.From
+						fromUid = eventLogUid.FromUid
+					} else if fromAddress != eventLogUid.From {
+						oneSender = false
+						break
+					}
+				}
+				if eventLogUid.ToUid != "" {
+					if fromAddress == "" {
+						fromAddress = eventLogUid.To
+						fromUid = eventLogUid.ToUid
+					} else if fromAddress != eventLogUid.To {
+						oneSender = false
+						break
+					}
+				}
+			}
+			if !oneSender || realContractAddress == "" {
+				feeTx, err := data.EvmTransactionRecordRepoClient.SelectColumnByTxHash(nil, biz.GetTableName(h.chainName), transactionHash, []string{"from_address", "from_uid", "to_address"})
+				if err == nil && feeTx != nil {
+					if !oneSender {
+						fromAddress = feeTx.FromAddress
+						fromUid = feeTx.FromUid
+					} else if realContractAddress == "" {
+						realContractAddress = feeTx.ToAddress
+					}
+				}
+			}
+			//真正调用
+			feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
+				BlockNumber:     int(blockNumber),
+				TransactionHash: transactionHash,
+				FromAddress:     fromAddress,
+				ToAddress:       realContractAddress,
+				FromUid:         fromUid,
+				ToUid:           "",
+				Status:          status,
+				TransactionType: evmTransactionRecord.TransactionType,
+			})
+		}
+
+		//手续费代付合约调用
+		feeTxRecords = append(feeTxRecords, &data.EvmTransactionRecord{
+			BlockNumber:     int(blockNumber),
+			TransactionHash: transactionHash,
+			FromAddress:     fromAddress,
+			ToAddress:       evmTransactionRecord.ToAddress,
+			FromUid:         fromUid,
+			ToUid:           "",
+			Status:          status,
+			TransactionType: evmTransactionRecord.TransactionType,
+		})
+
+		go HandleTransactionCount(h.chainName, *(client), feeTxRecords)
 	}
 
 	return nil
