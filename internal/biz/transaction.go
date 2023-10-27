@@ -1221,7 +1221,7 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 			Hash:      ci.PreviousOutpointHash,
 			N:         preIndex,
 			//Script:    ci.SignatureScript,
-			Unspent: 4, //1 未花费 2 已花费 联合索引
+			Unspent: data.UtxoStatusPending, //1 未花费 2 已花费 联合索引
 			//Amount:    ci.UtxoEntry.Amount,
 			//TxTime:    txTime,
 			UpdatedAt: time.Now().Unix(),

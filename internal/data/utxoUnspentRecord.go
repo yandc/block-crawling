@@ -9,6 +9,14 @@ import (
 	"strconv"
 )
 
+const (
+	UtxoStatusUnSpend     = 1
+	UtxoStatusSpent       = 2
+	UtxoStatusAll         = 3
+	UtxoStatusPending     = 4
+	UtxoStatusCancelSpend = 5
+)
+
 type UtxoUnspentRecord struct {
 	Id        int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	ChainName string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_hash_n"` //联合索引
@@ -134,7 +142,7 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 	var utxos []*UtxoUnspentRecord
 	tx := r.gormDB
 
-	if req.IsUnspent != "3" {
+	if req.IsUnspent != string(rune(UtxoStatusAll)) {
 		unspent, err := strconv.Atoi(req.IsUnspent)
 		if err == nil {
 			tx = tx.Where("unspent = ?", unspent)
@@ -164,7 +172,7 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 }
 
 func (r *UtxoUnspentRecordRepoImpl) DeleteByUid(ctx context.Context, uid string, chainName string, address string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and unspent != ?", uid, chainName, address, "4").Delete(&UtxoUnspentRecord{})
+	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and unspent != ?", uid, chainName, address, UtxoStatusPending).Delete(&UtxoUnspentRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete "+address+" failed", err)
@@ -216,7 +224,7 @@ func (r *UtxoUnspentRecordRepoImpl) Delete(ctx context.Context, req *UserUtxo) (
 }
 
 func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txHash string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txHash).Update("unspent", 4)
+	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txHash).Update("unspent", UtxoStatusPending)
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+address+" failed", err)
