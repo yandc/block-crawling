@@ -1578,35 +1578,6 @@ platformTest:
     type: EVM
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 1
-  ScrollL2TEST:
-    blockExplorerAddrUrl: https://blockscout.scroll.io/address
-    blockExplorerTxUrl: https://blockscout.scroll.io/tx
-    blockExplorerUrl: https://blockscout.scroll.io
-    categoryName: EVM
-    chain: ScrollL2TEST
-    chainId: "534353"
-    coinId: 60
-    decimal: 18
-    customNonce: true
-    fullName: ScrollL2 Test Net
-    getPriceKey: ethereum
-    handler: scroll
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
-    nativeCurrency: ETH
-    netType: test
-    proxyCacheTime: 0
-    rpcURL:
-      - https://alpha-rpc.scroll.io/l2
-      - https://scroll-alpha-public.unifra.io
-      - https://scroll-alphanet.public.blastapi.io
-      - https://scroll-testnet.blockpi.network/v1/rpc/public
-    symbol: Scroll L2
-    type: EVM
-    safelyConcurrentBlockDelta: 20
-    maxConcurrency: 1
-    enableKanban: true
-    kanbanFullRPCURL:
-      - http://54.255.179.2:8545
 
   SeiTEST:
 #    blockExplorerUrl: https://testnet.mintscan.io/sei-testnet
