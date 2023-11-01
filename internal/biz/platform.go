@@ -92,7 +92,7 @@ func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
 		}
 	} else {
 		if onAvailablityChanged != nil {
-			onAvailablityChanged(false)
+			onAvailablityChanged(true)
 		}
 	}
 }
