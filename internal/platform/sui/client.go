@@ -125,13 +125,23 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 		}
 	}*/
 	return &chain.Transaction{
-		Hash:   txHash,
-		Raw:    transaction,
-		Record: nil,
+		Hash:        txHash,
+		Nonce:       0,
+		BlockNumber: 0,
+		TxType:      "",
+		FromAddress: transaction.Transaction.Data.Sender,
+		ToAddress:   "",
+		Value:       "",
+		Result:      &chain.TxResult{},
+		Raw:         transaction,
+		Record:      nil,
 	}, nil
 }
 
 func (c *Client) GetBalance(address string) (string, error) {
+	if strings.HasPrefix(strings.ToLower(c.chainName), "benfen") {
+		return c.GetTokenBalance(address, BFC_CODE, 9)
+	}
 	return c.GetTokenBalance(address, SUI_CODE, 9)
 }
 
@@ -278,6 +288,14 @@ func (c *Client) GetTransactionByHashs(hashs []string) ([]*stypes.TransactionInf
 		_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 		if err != nil {
 			return nil, err
+		}
+		if len(out) != len(hs) {
+			gotHs := make([]string, 0, len(out))
+			for _, v := range out {
+				gotHs = append(gotHs, v.Digest)
+			}
+			log.Error("INCOMPLETE TXNS", zap.Strings("excepted", hs), zap.Strings("actuall", gotHs))
+			return nil, errors.New("incomplete txns")
 		}
 		result = append(result, out...)
 		if stop >= hashSize {

@@ -38,7 +38,7 @@ type TransactionUsecase struct {
 
 var sendLock sync.RWMutex
 
-func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle) *TransactionUsecase {
+func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle, txcRepo TransactionRecordRepo) *TransactionUsecase {
 	return &TransactionUsecase{
 		gormDB:  grom,
 		lark:    lark,

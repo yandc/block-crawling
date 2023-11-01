@@ -78,7 +78,7 @@ type bluemoveEventData struct {
 
 func (s *bluemove) extractEvents(events []stypes.Event) (*bluemoveEventData, error) {
 	var data *bluemoveEventData
-	err := extractEvents(s.swapModule, events, &data)
+	_, err := extractEvents(s.swapModule, events, &data)
 	return data, err
 }
 

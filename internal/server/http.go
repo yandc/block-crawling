@@ -31,7 +31,7 @@ func NewSkipRoutersMatcher() selector.MatchFunc {
 }
 
 // NewHTTPServer new a HTTP server.
-func NewHTTPServer(c *conf.Server, tx *service.TransactionService, logger log.Logger) *http.Server {
+func NewHTTPServer(c *conf.Server, tx *service.TransactionService, logger log.Logger, bs *service.BFStationService) *http.Server {
 	var opts = []http.ServerOption{
 		http.ResponseEncoder(encoder.HttpResponseEncoder),
 		http.ErrorEncoder(encoder.HttpErrorEncoder),

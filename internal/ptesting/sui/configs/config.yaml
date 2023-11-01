@@ -27,6 +27,13 @@ data:
       connMaxLifetime: 3
       maxOpenConns: 10
       maxIdleConns: 10
+  kanban:
+    driver: postgres
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=kanban port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    pool:
+      connMaxLifetime: 3
+      maxOpenConns: 10
+      maxIdleConns: 10
 
 app:
   # Possible values: "debug", "release"
@@ -177,7 +184,7 @@ innerPublicNodeList:
     blockExplorerTxUrl: https://cronoscan.com/tx/
     blockExplorerUrl: https://cronoscan.com/
     chain: Cronos
-    chainId: 25
+    chainId: "25"
     coinId: 60
     decimal: 18
     fullName: Cronos

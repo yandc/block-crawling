@@ -63,6 +63,7 @@ func NewBundle(
 	history UserSendRawHistoryRepo,
 	market MarketCoinHistoryRepo,
 	swap SwapContractRepo,
+	bfs BFCStationRepo,
 ) *Bundle {
 	return &Bundle{
 		ATM:                    atm,

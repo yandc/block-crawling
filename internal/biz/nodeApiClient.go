@@ -1327,6 +1327,7 @@ func batchSaveSolTxns(chainName string, txns []string) error {
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("kanban")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Error("通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 		return err
@@ -1350,6 +1351,7 @@ func batchSaveCosmosTxns(chainName string, txns []string) error {
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", chainName)
 		alarmOpts := WithMsgLevel("FATAL")
+		alarmOpts = WithAlarmChannel("kanban")
 		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
 		log.Error("通过客户端查询交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("error", err))
 		return err

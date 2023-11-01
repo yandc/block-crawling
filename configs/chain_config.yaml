@@ -1193,6 +1193,27 @@ platformTest:
     safelyConcurrentBlockDelta: 50
     maxConcurrency: 15
     monitorHeightAlarmThr: 0
+  BenfenTEST:
+    blockExplorerAddrUrl: https://obc.openblock.vip/addresses/
+    blockExplorerTxUrl: https://obc.openblock.vip/transactions/
+    blockExplorerUrl: https://obc.openblock.vip/
+    chain: BenfenTEST
+    chainId: ""
+    coinId: 1010120
+    decimal: 9
+    fullName: Benfen Test Net
+    getPriceKey: ''
+    handler: sui
+    icon: https://obstatic.243096.com/mili/images/currency/chain/BFC.jpg
+    nativeCurrency: BFC
+    netType: test
+    rpcURL:
+      - https://obcrpc.openblock.vip
+    symbol: BFC
+    type: SUI
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 0
   AvalancheTEST:
     blockExplorerAddrUrl: https:/https://testnet.snowtrace.io/address/
     blockExplorerTxUrl: https://testnet.snowtrace.io/tx/

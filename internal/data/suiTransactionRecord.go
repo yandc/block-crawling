@@ -21,11 +21,11 @@ type SuiTransactionRecord struct {
 	DefaultVersionMarkerIn
 
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(66)"`
+	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(88)"`
 	BlockNumber     int             `json:"blockNumber" form:"blockNumber"`
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index"`
-	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index"`
+	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(88);index"`
+	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(88);index"`
 	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
 	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
 	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
@@ -44,6 +44,10 @@ type SuiTransactionRecord struct {
 	ClientData      string          `json:"clientData" form:"clientData"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (*SuiTransactionRecord) Version() string {
+	return "20231101"
 }
 
 // SuiTransactionRecordRepo is a Greater repo.

@@ -24,6 +24,7 @@ import (
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"gitlab.bixin.com/mili/node-driver/common"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 var RunnerProviderSet = wire.NewSet(NewRunner)
@@ -83,7 +84,7 @@ type Preparation struct {
 
 func (p *Preparation) prepare(usecase *biz.TransactionUsecase, plat *platform.Bootstrap) (indexing bool) {
 	for address, uid := range p.Users {
-		data.RedisClient.Set(biz.USER_ADDRESS_KEY+address, uid, 0)
+		data.RedisClient.Set(biz.USERCENTER_ADDRESS_KEY+address, fmt.Sprintf("{\"uid\": \"%s\"}", uid), 0)
 	}
 	p.patches = p.makeStub()
 
@@ -273,20 +274,28 @@ type Runner struct {
 	bootstrap    *platform.Bootstrap
 	cancellation *Cancellation
 	mr           data.MigrationRepo
+	db           *gorm.DB
 }
 
-func NewRunner(bs platform.Server, preparation Preparation, usecase *biz.TransactionUsecase, cancellation *Cancellation, mr data.MigrationRepo) *Runner {
+func NewRunner(bs platform.Server, preparation Preparation, usecase *biz.TransactionUsecase, cancellation *Cancellation, mr data.MigrationRepo, db *gorm.DB) *Runner {
+	bootstrap := bs.Find(preparation.ChainName)
+	if bootstrap == nil {
+		fmt.Printf("Please check if %s has been configured", preparation.ChainName)
+	}
 	return &Runner{
 		preparation:  preparation,
-		bootstrap:    bs.Find(preparation.ChainName),
+		bootstrap:    bootstrap,
 		usecase:      usecase,
 		cancellation: cancellation,
 		mr:           mr,
+		db:           db,
 	}
 }
 
 func (r *Runner) Start(ctx context.Context) error {
-	biz.DynamicCreateTable(r.mr, data.BlockCreawlingDB, biz.GetTableName(r.bootstrap.ChainName), r.bootstrap.Conf.Type)
+	if r.bootstrap != nil {
+		biz.DynamicCreateTable(r.mr, r.db, biz.GetTableName(r.bootstrap.ChainName), r.bootstrap.Conf.Type)
+	}
 
 	if !r.preparation.prepare(r.usecase, r.bootstrap) {
 		r.cancellation.Cancel(&r.preparation)

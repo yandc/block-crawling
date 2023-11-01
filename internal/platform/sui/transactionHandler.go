@@ -100,7 +100,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 		}
 
 		var tokenAddress = record.ContractAddress
-		if tokenAddress == SUI_CODE || tokenAddress == SUI_CODE1 {
+		if IsNative(tokenAddress) {
 			tokenAddress = ""
 		}
 
@@ -220,7 +220,7 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	}
 
 	result, err := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
-		if transactionType == biz.NATIVE || tokenAddress == SUI_CODE || tokenAddress == SUI_CODE1 || tokenAddress == "" {
+		if transactionType == biz.NATIVE || IsNative(tokenAddress) || tokenAddress == "" {
 			return client.GetBalance(address)
 		} else {
 			return client.GetTokenBalance(address, tokenAddress, int(tokenInfo.Decimals))
@@ -274,7 +274,7 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.SuiT
 		}
 
 		var tokenAddress = record.ContractAddress
-		if record.ContractAddress == SUI_CODE || record.ContractAddress == SUI_CODE1 {
+		if IsNative(record.ContractAddress) {
 			tokenAddress = ""
 		}
 
@@ -398,7 +398,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		if tokenAddress != SUI_CODE && tokenAddress != SUI_CODE1 && tokenAddress != "" && address != "" && uid != "" {
+		if IsNative(tokenAddress) && tokenAddress != "" && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,
@@ -734,7 +734,7 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTrans
 				}
 				var fromAddress, toAddress, fromUid, toUid, eventType, contractAdd string
 				for _, oc := range e.ObjectChanges {
-					if !strings.Contains(oc.ObjectType, SUI_CODE) && !strings.Contains(oc.ObjectType, SUI_CODE1) {
+					if !IsNativeContains(oc.ObjectType) {
 						fromAddress = oc.Sender
 						toAddress = oc.Owner.AddressOwner
 						eventType = oc.Type

@@ -96,7 +96,7 @@ platformTest:
     blockExplorerUrl: https://l2scan.scroll.io
     categoryName: EVM
     chain: ScrollL2TEST
-    chainId: 534354
+    chainId: "534354"
     coinId: 60
     decimal: 18
     customNonce: true

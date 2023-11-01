@@ -4,7 +4,7 @@ platform:
     blockExplorerTxUrl: https://etherscan.io/tx/
     blockExplorerUrl: https://etherscan.io/
     chain: ETH
-    chainId: 1
+    chainId: "1"
     coinId: 60
     decimal: 18
     fullName: Ethereum
@@ -36,7 +36,7 @@ platform:
     blockExplorerTxUrl: https://bscscan.com/tx/
     blockExplorerUrl: https://bscscan.com/
     chain: BSC
-    chainId: 56
+    chainId: "56"
     coinId: 60
     decimal: 18
     fullName: Binance Smart Chain
@@ -81,7 +81,7 @@ platformTest:
     blockExplorerTxUrl: https://explorer.aptoslabs.com/txn/
     blockExplorerUrl: https://explorer.aptoslabs.com/
     chain: AptosTEST
-    chainId: 2
+    chainId: "2"
     coinId: 101011
     decimal: 8
     fullName: Aptos Test Net
@@ -99,7 +99,7 @@ platformTest:
     blockExplorerTxUrl: https://explorer.sui.io/transactions/
     blockExplorerUrl: https://explorer.sui.io/
     chain: SuiTEST
-    chainId: 24
+    chainId: "24"
     coinId: 101012
     decimal: 9
     fullName: Sui Test Net
@@ -120,7 +120,7 @@ platformTest:
     blockExplorerTxUrl: https://testnet.snowtrace.io/tx/
     blockExplorerUrl: https://testnet.snowtrace.io/
     chain: AvalancheTEST
-    chainId: 43113
+    chainId: "43113"
     coinId: 60
     decimal: 18
     fullName: Avalanche Test Net
@@ -140,7 +140,7 @@ platformTest:
     blockExplorerTxUrl: https://testnet.bscscan.com/tx/
     blockExplorerUrl: https://testnet.bscscan.com/
     chain: BSCTEST
-    chainId: 97
+    chainId: "97"
     coinId: 60
     decimal: 18
     fullName: Binance Smart Chain Test Net
@@ -187,7 +187,7 @@ platformTest:
     blockExplorerTxUrl: https://testnet.cronoscan.com/tx/
     blockExplorerUrl: https://testnet.cronoscan.com/
     chain: CronosTEST
-    chainId: 338
+    chainId: "338"
     coinId: 60
     decimal: 18
     fullName: Cronos Test Net
@@ -227,7 +227,7 @@ platformTest:
     blockExplorerTxUrl: https://ropsten.etherscan.io/tx/
     blockExplorerUrl: https://ropsten.etherscan.io/
     chain: ETHGoerliTEST
-    chainId: 3
+    chainId: "3"
     coinId: 60
     decimal: 18
     fullName: Goerli Ethereum Test Net
@@ -247,7 +247,7 @@ platformTest:
     blockExplorerTxUrl: https://testnet.ftmscan.com/tx/
     blockExplorerUrl: https://testnet.ftmscan.com/
     chain: FantomTEST
-    chainId: 4002
+    chainId: "4002"
     coinId: 60
     decimal: 18
     fullName: Fantom Test Net
@@ -267,7 +267,7 @@ platformTest:
     blockExplorerTxUrl: https://testnet.hecoinfo.com/tx/
     blockExplorerUrl: https://testnet.hecoinfo.com/
     chain: HECOTEST
-    chainId: 256
+    chainId: "256"
     coinId: 60
     decimal: 18
     fullName: Huobi ECO Chain Test Net
@@ -287,7 +287,7 @@ platformTest:
     blockExplorerTxUrl: https://baobab.scope.klaytn.com/tx/
     blockExplorerUrl: https://baobab.scope.klaytn.com/
     chain: KlaytnTEST
-    chainId: 1001
+    chainId: "1001"
     coinId: 60
     decimal: 18
     fullName: Klaytn Test Net
@@ -309,7 +309,7 @@ platformTest:
     blockExplorerTxUrl: https://www.oklink.com/zh-cn/oec-test/tx/
     blockExplorerUrl: https://www.oklink.com/zh-cn/oec-test/
     chain: OECTEST
-    chainId: 65
+    chainId: "65"
     coinId: 60
     decimal: 18
     fullName: Okex Chain Test Net
@@ -329,7 +329,7 @@ platformTest:
     blockExplorerTxUrl: https://kovan-optimistic.etherscan.io/tx/
     blockExplorerUrl: https://kovan-optimistic.etherscan.io/
     chain: OptimismTEST
-    chainId: 69
+    chainId: "69"
     coinId: 60
     decimal: 18
     fullName: Optimism Test Net
@@ -350,7 +350,7 @@ platformTest:
     blockExplorerTxUrl: https://mumbai.polygonscan.com/tx/
     blockExplorerUrl: https://mumbai.polygonscan.com/
     chain: PolygonTEST
-    chainId: 80001
+    chainId: "80001"
     coinId: 60
     decimal: 18
     fullName: Polygon Test Net
@@ -370,7 +370,7 @@ platformTest:
     blockExplorerTxUrl: https://shasta.tronscan.org/#/transaction/
     blockExplorerUrl: https://shasta.tronscan.org/
     chain: TRXTEST
-    chainId: 1
+    chainId: "1"
     coinId: 195
     decimal: 6
     fullName: Tron Test Net
@@ -390,7 +390,7 @@ platformTest:
     blockExplorerTxUrl: https://solscan.io/tx/
     blockExplorerUrl: https://solscan.io/
     chain: SolanaTEST
-    chainId: 0
+    chainId: "0"
     coinId: 501
     decimal: 9
     fullName: Solana Test Net
@@ -411,7 +411,7 @@ platformTest:
     blockExplorerTxUrl: https://pudge.explorer.nervos.org/transaction/
     blockExplorerUrl: https://pudge.explorer.nervos.org/
     chain: NervosTEST
-    chainId: 0
+    chainId: "0"
     coinId: 309
     decimal: 8
     fullName: Nervos Test Net
@@ -475,7 +475,7 @@ platformTest:
     blockExplorerUrl: https://goerli.explorer.zksync.io
     categoryName: EVM
     chain: zkSyncTEST
-    chainId: 280
+    chainId: "280"
     coinId: 60
     decimal: 18
     customNonce: true
@@ -498,7 +498,7 @@ platformTest:
     blockExplorerUrl: https://l1scan.scroll.io
     categoryName: EVM
     chain: ScrollL1TEST
-    chainId: 534351
+    chainId: "534351"
     coinId: 60
     decimal: 18
     customNonce: true
@@ -521,7 +521,7 @@ platformTest:
     blockExplorerUrl: https://l2scan.scroll.io
     categoryName: EVM
     chain: ScrollL2TEST
-    chainId: 534354
+    chainId: "534354"
     coinId: 60
     decimal: 18
     customNonce: true

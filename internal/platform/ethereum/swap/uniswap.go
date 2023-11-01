@@ -176,6 +176,9 @@ func (*uniswap) extractOne(tx *chain.Transaction, receipt *rtypes.Receipt, curso
 			if swapEvent == nil {
 				continue
 			}
+			if len(event.Topics) < 3 {
+				continue
+			}
 			tokenAddr := event.Address.Hex()
 			src := eventTopicToAddress(event.Topics[1])
 			dst := eventTopicToAddress(event.Topics[2])

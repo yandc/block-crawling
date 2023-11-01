@@ -61,7 +61,7 @@ func (h minHeap) Len() int {
 	return len(h)
 }
 
-//小根堆
+// 小根堆
 func (h minHeap) Less(i, j int) bool {
 	return h[i] < h[j]
 }
@@ -134,7 +134,7 @@ func (h maxHeap) Len() int {
 	return len(h)
 }
 
-//大根堆
+// 大根堆
 func (h maxHeap) Less(i, j int) bool {
 	return h[i] > h[j]
 }
@@ -529,4 +529,18 @@ func ZeroPoint() time.Duration {
 	next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, next.Location())
 	yy := next.Sub(now)
 	return yy
+}
+
+// Some address on BFC may not convert correctly.
+func EVMAddressToBFC(chainName, address string) string {
+	if strings.HasPrefix(strings.ToLower(chainName), "benfen") {
+		if strings.HasPrefix(address, "0x") {
+			h := sha256.New()
+			h.Write([]byte(address)[2:])
+			checkSum := fmt.Sprintf("%x", h.Sum(nil))[0:4]
+			return fmt.Sprintf("BFC%s%s", []byte(address)[2:], checkSum)
+		}
+		return address
+	}
+	return address
 }

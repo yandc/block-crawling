@@ -89,6 +89,12 @@ const (
 )
 
 const (
+	BFStationStable  = "bfstation-stable"
+	BFStationDexSwap = "bfstation-dex-swap"
+	BFStationDexLiq  = "bfstation-dex-liq"
+)
+
+const (
 	TRON_TRANSFER_TRC10 = "TransferAssetContract"
 	TRON_DAPP           = "TriggerSmartContract"
 )

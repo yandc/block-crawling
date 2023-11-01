@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package api.bfstation.v1;
+
+option go_package = "block-crawling/api/bfstation/v1;v1";
+option java_multiple_files = true;
+option java_package = "api.bfstation.v1";
+
+import "validate/validate.proto";
+
+service BFStation {
+	rpc PageListTxns(PageListTxnsRequest) returns (PageListTxnsResponse);
+}
+
+
+message PageListTxnsRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
+  string walletAddress = 2;  // mint, redeem,swap,add,remove
+	string type = 3;
+  int32 pageNum = 4 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 5 [(validate.rules).int32.gte = 0];
+}
+
+message PageListTxnsResponse {
+  int64 total = 1;
+  repeated BFStationTxRecord list = 2;
+}
+
+message BFStationTxRecord {
+  int64 id = 1;
+	string blockHash = 2;
+	int64 blockNumber = 3;
+	int64 txTime = 4;
+	string transactionHash = 5;
+	string walletAddress = 6;
+	string type = 7; // mint, redeem,swap,add,remove
+	string vault = 8;
+	string tokenAmountIn = 9;
+	string tokenAmountOut = 10;
+	string coinTypeIn = 11;
+	string coinTypeOut = 12;
+	string parsedJson = 13;
+	string status = 14;   // pending,success,fail
+	int64 createdAt = 15;
+}
