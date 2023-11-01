@@ -164,7 +164,11 @@ func (store *StateStore) LoadBlockHash(height uint64) (string, error) {
 }
 
 func (store *StateStore) StoreBlockHash(height uint64, blockHash string) error {
-	return data.RedisClient.Set(biz.BLOCK_HASH_KEY+store.chainName+":"+strconv.Itoa(int(height)), blockHash, biz.BLOCK_HASH_EXPIRATION_KEY).Err()
+	ttl := biz.BLOCK_HASH_EXPIRATION_KEY
+	if !biz.ShouldChainAlarm(store.chainName) {
+		ttl = biz.BLOCK_HASH_CUSTOM_EXPIRATION_KEY
+	}
+	return data.RedisClient.Set(biz.BLOCK_HASH_KEY+store.chainName+":"+strconv.Itoa(int(height)), blockHash, ttl).Err()
 
 }
 
