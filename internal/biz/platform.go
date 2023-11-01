@@ -80,11 +80,13 @@ func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
 	}
 
 	ret := height - oldHeight
-	if ret > thr && ShouldChainAlarm(p.ChainName) {
-		alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
-		alarmOpts := WithMsgLevel("FATAL")
-		alarmOpts = WithAlarmChainName(p.ChainName)
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	if ret > thr {
+		if ShouldChainAlarm(p.ChainName) {
+			alarmMsg := fmt.Sprintf("请注意：%s链块高相差大于%d,相差%d，链上块高：%d,业务块高：%d", p.ChainName, thr, ret, height, oldHeight)
+			alarmOpts := WithMsgLevel("FATAL")
+			alarmOpts = WithAlarmChainName(p.ChainName)
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		}
 		if onAvailablityChanged != nil {
 			onAvailablityChanged(false)
 		}
