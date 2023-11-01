@@ -14,6 +14,8 @@ else
 	API_PROTO_FILES=$(shell find api -name *.proto)
 endif
 
+TEST_CHAIN ?= benfen
+
 .PHONY: init
 # init env
 init:
@@ -86,15 +88,13 @@ run:
 .PHONY: docker-test
 docker-test: docker-setup docker-do-test
 
-
 .PHONY: docker-do-test
 docker-do-test:
 	docker-compose exec go make do-test
 
 .PHONY: docker-setup
 docker-setup:
-	docker-compose down
-	docker-compose up -d
+	docker-compose up -d --force-recreate db redis
 	docker-compose up -d
 	docker-compose exec go git config --global url."ssh://git@gitlab.bixin.com:8222/".insteadOf "https://gitlab.bixin.com/"
 	docker-compose exec go go env -w GOPRIVATE=gitlab.bixin.com
@@ -103,7 +103,7 @@ docker-setup:
 
 .PHONY: do-test
 do-test:
-	env PTESTING_ENV=docker	/root/.go/bin/gotestsum --format=testname ./internal/ptesting/...
+	env PTESTING_ENV=docker	/root/.go/bin/gotestsum --format=testname ./internal/ptesting/$(TEST_CHAIN)/...
 
 # show help
 help:
@@ -111,8 +111,7 @@ help:
 	@echo 'Usage:'
 	@echo ' make [target]'
 	@echo ''
-	@echo 'Targets:'
-	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
+	@echo 'Targets:	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
 	helpMessage = match(lastLine, /^# (.*)/); \
 		if (helpMessage) { \
 			helpCommand = substr($$1, 0, index($$1, ":")-1); \

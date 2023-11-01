@@ -28,6 +28,13 @@ data:
       connMaxLifetime: 3
       maxOpenConns: 10
       maxIdleConns: 10
+  kanban:
+    driver: postgres
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=kanban port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    pool:
+      connMaxLifetime: 3
+      maxOpenConns: 10
+      maxIdleConns: 10
 
 app:
   # Possible values: "debug", "release"
@@ -99,4 +106,3 @@ innerNodeList:
     type: "BTC"
 
 innerPublicNodeList:
-

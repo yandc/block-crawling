@@ -18,8 +18,26 @@ type Platform struct {
 	spider    *chain.BlockSpider
 }
 
-const SUI_CODE = "0x2::sui::SUI"
-const SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+const (
+	SUI_CODE  = "0x2::sui::SUI"
+	SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+	BFC_CODE  = "0x2::bfc::BFC"
+	BFC_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
+)
+
+func IsNative(coinType string) bool {
+	switch coinType {
+	case SUI_CODE, SUI_CODE1, BFC_CODE, BFC_CODE1:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsNativeContains(objectType string) bool {
+	return strings.Contains(objectType, SUI_CODE) || strings.Contains(objectType, SUI_CODE1) ||
+		strings.Contains(objectType, BFC_CODE) || strings.Contains(objectType, BFC_CODE1)
+}
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := value.Handler

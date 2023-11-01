@@ -6,9 +6,12 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/platform/sui/stypes"
+	suiswap "block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/platform/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -60,11 +63,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 
 	go func() {
-		_, err := swap.AttemptToPushSwapPairs(h.chainName, chainTx.ToAddress, chainBlock, chainTx, &tx)
+		results, err := swap.AttemptToPushSwapPairs(h.chainName, chainTx.ToAddress, chainBlock, chainTx, &tx)
 		if err != nil {
 			log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
 			return
 		}
+		h.saveBFStationRecords(chainBlock.Hash, results, status)
 	}()
 
 	fromAmountChangeMap := make(map[string]*AmountChange)
@@ -89,20 +93,20 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 		}
 		amount := balanceChange.Amount
-		if balanceChange.CoinType != SUI_CODE && balanceChange.CoinType != SUI_CODE1 {
+		if !IsNative(balanceChange.CoinType) {
 			txType = biz.TRANSFER
 			tokenAddress = balanceChange.CoinType
 		}
 		if strings.HasPrefix(balanceChange.Amount, "-") {
 			fromAmountChangeMap[tokenAddress] = &AmountChange{
-				FromAddress:  address,
+				FromAddress:  utils.EVMAddressToBFC(h.chainName, address),
 				TxType:       txType,
 				TokenAddress: tokenAddress,
 				Amount:       amount,
 			}
 		} else {
 			toAmountChangeMap[tokenAddress] = append(toAmountChangeMap[tokenAddress], &AmountChange{
-				ToAddress:    address,
+				ToAddress:    utils.EVMAddressToBFC(h.chainName, address),
 				TxType:       txType,
 				TokenAddress: tokenAddress,
 				Amount:       amount,
@@ -182,8 +186,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 		if sender != "" && toAddress != "" && objectType != "" && objectId != "" {
 			amountChange := &AmountChange{
-				FromAddress:  sender,
-				ToAddress:    toAddress,
+				FromAddress:  utils.EVMAddressToBFC(h.chainName, sender),
+				ToAddress:    utils.EVMAddressToBFC(h.chainName, toAddress),
 				TxType:       biz.TRANSFERNFT,
 				TokenAddress: objectType,
 				TokenId:      objectId,
@@ -219,8 +223,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			txType = biz.NATIVE
 		}
 		amountChange := &AmountChange{
-			FromAddress:  tx.Data.Sender,
-			ToAddress:    toAddress,
+			FromAddress:  utils.EVMAddressToBFC(h.chainName, tx.Data.Sender),
+			ToAddress:    utils.EVMAddressToBFC(h.chainName, toAddress),
 			TxType:       txType,
 			TokenAddress: "",
 			Amount:       value,
@@ -228,10 +232,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		amountChanges = append(amountChanges, amountChange)
 	}
 
+	// 资产变更数量大于1个的话就变成合约类型，因为普通类型没法展示多个资产变化
 	if len(amountChanges) > 1 {
 		isContract = true
 	}
-
 	index := 0
 	if !isContract {
 		txTime, _ := strconv.ParseInt(transactionInfo.TimestampMs, 10, 64)
@@ -256,7 +260,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			fromAddress = amountChange.FromAddress
 			toAddress = amountChange.ToAddress
 			amount = amountChange.Amount
-
 			if fromAddress != "" {
 				fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 				if err != nil {
@@ -383,7 +386,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		gasUsed = strconv.Itoa(gasUsedInt)
 		feeAmount = decimal.NewFromInt(int64(gasUsedInt))
 
-		if contractAddress != SUI_CODE && contractAddress != SUI_CODE1 && contractAddress != "" {
+		if !IsNative(contractAddress) && contractAddress != "" {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
 				log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
@@ -595,6 +598,69 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 	}
 	return nil
+}
+
+func (h *txHandler) saveBFStationRecords(blockHash string, pairs []*swap.Pair, status string) {
+	records := make([]data.BFCStationRecord, 0, len(pairs))
+	for _, item := range pairs {
+		if item.Dex != biz.BFStationDexSwap && item.Dex != biz.BFStationStable && item.Dex != biz.BFStationDexLiq {
+			continue
+		}
+		swapType := data.BSTxTypeSwap
+		if item.Dex == biz.BFStationStable {
+			var event *suiswap.BFStationStableEvent
+			if err := json.Unmarshal(item.RawEvent, &event); err != nil {
+				log.Error("STATION SWAP STABLE PARSE FAILED", zap.Any("item", item), zap.Error(err))
+				continue
+			}
+			swapType = data.BSTxTypeMint
+			if event.Atob {
+				swapType = data.BSTxRedeem
+			}
+		} else if item.Dex == biz.BFStationDexLiq {
+			var event *suiswap.BFStationDexLiqEvent
+			if err := json.Unmarshal(item.RawEvent, &event); err != nil {
+				log.Error("STATION DEX LIQ PARSE FAILED", zap.Any("item", item), zap.Error(err))
+				continue
+			}
+			if event.Action == "add" {
+				swapType = data.BSTxTypeAddLiquidity
+			} else {
+				swapType = data.BSTxTypeRemoveLiquidity
+			}
+		}
+
+		amountIn, _ := decimal.NewFromString(item.Input.Amount)
+		amountOut, _ := decimal.NewFromString(item.Output.Amount)
+
+		records = append(records, data.BFCStationRecord{
+			BlockHash:       blockHash,
+			BlockNumber:     item.BlockNumber,
+			TransactionHash: item.TxHash,
+			TxTime:          int64(item.TxTime),
+			WalletAddress:   item.FromAddress,
+			Type:            swapType,
+			Vault:           item.PairContract,
+			TokenAmountIn:   amountIn,
+			TokenAmountOut:  amountOut,
+			CoinTypeIn:      item.Input.Address,
+			CoinTypeOut:     item.Output.Address,
+			ParsedJson:      string(item.RawEvent),
+			CreatedAt:       time.Now().Unix(),
+			Status:          status,
+			UpdatedAt:       time.Now().Unix(),
+		})
+	}
+	if len(records) > 0 {
+		err := data.BFCStationRepoIns.BatchSave(context.Background(), h.chainName, records)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链插入链上 STATION SWAP 记录数据到数据库中失败", h.chainName)
+			alarmOpts := biz.WithMsgLevel("FATAL")
+			alarmOpts = biz.WithAlarmChannel("kanban")
+			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("插入链上 STATION SWAP 交易记录数据到数据库中失败", zap.Any("chainName", h.chainName), zap.Any("error", err))
+		}
+	}
 }
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {

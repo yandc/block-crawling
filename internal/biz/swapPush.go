@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -23,6 +24,8 @@ type SwapPair struct {
 	PairContract string       `json:"pairContract"`
 	Input        SwapPairItem `json:"input"`
 	Output       SwapPairItem `json:"output"`
+
+	RawEvent json.RawMessage `json:"rawEvent"`
 }
 
 type SwapPairItem struct {
@@ -49,6 +52,16 @@ type TransToken struct {
 
 func BulkPushSwapPairs(chainName string, pairs []*SwapPair) error {
 	for _, item := range pairs {
+		if IsCustomChain(item.Chain) && !IsCustomChainFeatured(chainName) {
+			continue
+		}
+		if IsTestNet(item.Chain) {
+			continue
+		}
+		if item.Dex == BFStationStable || item.Dex == BFStationDexLiq {
+			continue
+		}
+
 		amountIn, err := rawAmountToFloat(chainName, item.Input.Address, item.Input.Amount)
 		if err != nil {
 			log.Error("[SWAP] PARSE AMOUNT TO FLOAT FAILED", zap.Any("input", item.Input), zap.String("chainName", chainName), zap.Error(err))
@@ -58,13 +71,6 @@ func BulkPushSwapPairs(chainName string, pairs []*SwapPair) error {
 		if err != nil {
 			log.Error("[SWAP] PARSE AMOUNT TO FLOAT FAILED", zap.Any("output", item.Output), zap.String("chainName", chainName), zap.Error(err))
 			return err
-		}
-
-		if IsCustomChain(item.Chain) && !IsCustomChainFeatured(chainName) {
-			continue
-		}
-		if IsTestNet(item.Chain) {
-			continue
 		}
 		if real, ok := AppConfig.FeaturedCustomChain[item.Chain]; ok {
 			item.Chain = real

@@ -2,6 +2,7 @@ package swap
 
 import (
 	"block-crawling/internal/platform/sui/stypes"
+	"encoding/json"
 	"errors"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -72,15 +73,18 @@ func extractInputAndOutput(moveCall map[string]interface{}) (string, string, err
 	return typeArgs[0].(string), typeArgs[1].(string), nil
 }
 
-func extractEvents(module string, events []stypes.Event, out interface{}) error {
+func extractEvents(module string, events []stypes.Event, out interface{}) (json.RawMessage, error) {
 	for _, ev := range events {
 		if ev.TransactionModule != module {
 			continue
 		}
 		if err := ev.ParseJson(&out); err != nil {
-			return err
+			return nil, err
 		}
-		return nil
+		if out == nil {
+			continue
+		}
+		return ev.RawParsedJson, nil
 	}
-	return errors.New("missed swap event")
+	return nil, errors.New("missed swap event")
 }

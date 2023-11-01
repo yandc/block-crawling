@@ -6,7 +6,7 @@ platformTest:
     blockExplorerTxUrl: https://explorer.sui.io/transactions/
     blockExplorerUrl: https://explorer.sui.io/
     chain: SUITEST
-    chainId: 24
+    chainId: "24"
     coinId: 101012
     decimal: 9
     fullName: Sui Test Net

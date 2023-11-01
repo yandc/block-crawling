@@ -38,6 +38,9 @@ func (c *cetus) ExtractPairs(tx *chain.Transaction, args ...interface{}) ([]*swa
 			}
 			pkg := getStr(moveCall, "package")
 			eventData, err := c.extractEvents(events)
+			if eventData == nil {
+				continue
+			}
 
 			pairs = append(pairs, &swap.Pair{
 				TxHash:       transactionInfo.Digest,
@@ -68,7 +71,7 @@ type cetusEventData struct {
 
 func (c *cetus) extractEvents(events []stypes.Event) (*cetusEventData, error) {
 	var data *cetusEventData
-	err := extractEvents(c.swapModule, events, &data)
+	_, err := extractEvents(c.swapModule, events, &data)
 	return data, err
 }
 

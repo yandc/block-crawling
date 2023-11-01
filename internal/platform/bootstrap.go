@@ -101,6 +101,10 @@ func (b *Bootstrap) Start() {
 
 	table := strings.ToLower(b.Conf.Chain) + biz.TABLE_POSTFIX
 	biz.DynamicCreateTable(b.mr, b.db, table, b.Conf.Type)
+	if strings.HasPrefix(b.Conf.Chain, "Benfen") {
+		bfcTable := data.GetBFCStationTable(b.Conf.Chain)
+		b.db.Table(bfcTable).AutoMigrate(&data.BFCStationRecord{})
+	}
 
 	go func() {
 		if b.ChainName == "Osmosis" || b.ChainName == "Solana" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" || b.ChainName == "CelestiaMochaTEST" {

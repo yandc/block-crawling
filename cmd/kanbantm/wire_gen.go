@@ -49,7 +49,6 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	transactionCountRepo := data.NewTransactionCountRepo(db)
 	nervosCellRecordRepo := data.NewNervosCellRecordRepo(db)
 	utxoUnspentRecordRepo := data.NewUtxoUnspentRecordRepo(db)
-	biz.NewTransactionRecordRepo(db)
 	userGormDB, cleanup3, err := data.NewUserGormDB(confData)
 	if err != nil {
 		cleanup2()
@@ -66,7 +65,8 @@ func wireApp(server *conf.Server, confData *conf.Data, app *conf.App, addressSer
 	userSendRawHistoryRepo := data.NewUserSendRawHistoryRepo(db)
 	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
 	swapContractRepo := data.NewSwapContractRepo(db)
-	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo)
+	bfcStationRepo := data.NewBFCStationRepo(db)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo, bfcStationRepo)
 	appConf := biz.NewConfig(app)
 	bizLark := biz.NewLark(lark)
 	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)

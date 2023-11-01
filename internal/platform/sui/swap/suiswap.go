@@ -45,6 +45,9 @@ func (s *suiswap) ExtractPairs(tx *chain.Transaction, args ...interface{}) ([]*s
 			}
 			pkg := getStr(moveCall, "package")
 			eventData, err := s.extractEvents(events)
+			if err != nil {
+				return nil, err
+			}
 
 			pairs = append(pairs, &swap.Pair{
 				TxHash:       transactionInfo.Digest,
@@ -74,7 +77,7 @@ type suiswapEventData struct {
 
 func (s *suiswap) extractEvents(events []stypes.Event) (*suiswapEventData, error) {
 	var data *suiswapEventData
-	err := extractEvents(s.swapModule, events, &data)
+	_, err := extractEvents(s.swapModule, events, &data)
 	return data, err
 }
 
