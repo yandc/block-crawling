@@ -83,5 +83,6 @@ func main() {
 	//platform.HandleTransactionRecordCount()
 	//platform.UpdateAssetUid()
 	//platform.UpdateAssetTokenUri()
-	platform.UpdateSignAddress()
+	//platform.UpdateSignAddress()
+	platform.UpdateUserUtxo()
 }
