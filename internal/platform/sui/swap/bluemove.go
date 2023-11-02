@@ -38,6 +38,9 @@ func (s *bluemove) ExtractPairs(tx *chain.Transaction, args ...interface{}) ([]*
 			}
 			pkg := getStr(moveCall, "package")
 			eventData, err := s.extractEvents(events)
+			if err != nil {
+				return nil, err
+			}
 			var amountIn, amountOut string
 			if eventData.AmountXIn == "0" {
 				amountIn = eventData.AmountYIn
