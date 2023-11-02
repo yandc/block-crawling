@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
+	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/ethereum/rtypes"
 	"block-crawling/internal/platform/starcoin"
@@ -7786,4 +7787,73 @@ func UpdateSignAddress() {
 	}
 
 	log.Info("将签名记录中钱包地址转换为标准格式，处理用户资产表结束")
+}
+
+type AddressAndUid struct {
+	Address string
+	Uid     string
+}
+
+var btcUrls = []string{
+	"https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1",
+	"https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1",
+}
+
+// UpdateUserUtxo 更新所有用户的UTXO
+// 1、查询交易记录表中所有有uid的地址
+// 2、遍历所有地址，获取地址的UTXO并更新到数据库
+func UpdateUserUtxo() {
+
+	flag := "/bitcoin/mainnet/"
+	chainName := "BTC"
+
+	//从交易记录中查询有uid的fromAddress
+	var fromAddressAndUids []AddressAndUid
+	if err := data.BlockCreawlingDB.Table("btc_transaction_record").Select("distinct(from_address) as address,from_uid as uid").Where("from_uid != ''").Find(&fromAddressAndUids).Error; err != nil {
+		log.Error(err.Error())
+	}
+
+	//从交易记录中查询有uid的toAddress
+	var toAddressAndUids []AddressAndUid
+	if err := data.BlockCreawlingDB.Table("btc_transaction_record").Select("distinct(to_address) as address,to_uid as uid").Where("to_uid != ''").Find(&toAddressAndUids).Error; err != nil {
+		log.Error(err.Error())
+	}
+
+	//合并fromAddress和toAddress，遍历更新UTXO
+	addressAndUids := append(fromAddressAndUids, toAddressAndUids...)
+	for _, addressAndUid := range addressAndUids {
+
+		list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
+		for i := 0; i < len(btcUrls) && err != nil; i++ {
+			list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
+		}
+		if err != nil {
+			continue
+		}
+
+		for _, d := range list.Data {
+			var utxoUnspentRecord = &data.UtxoUnspentRecord{
+				Uid:       addressAndUid.Uid,
+				Hash:      d.Mined.TxId,
+				N:         d.Mined.Index,
+				ChainName: chainName,
+				Address:   addressAndUid.Address,
+				Script:    d.Mined.Meta.Script,
+				Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+				Amount:    strconv.Itoa(d.Value),
+				TxTime:    int64(d.Mined.Date),
+				UpdatedAt: time.Now().Unix(),
+			}
+
+			r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+			if err != nil {
+				log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", addressAndUid.Address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
+			}
+		}
+	}
 }
