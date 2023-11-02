@@ -1728,14 +1728,15 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		//https://polygonscan.com/tx/0xdd8635bfce70c989487eea4403826e691efbf230887e92cc958d53e79281b7b9#eventlog 合约地址：0xf0511f123164602042ab2bcf02111fa5d3fe97cd
 		//https://polygonscan.com/tx/0x1444da34ed2dff311adb0a79382e94af6987b861e525ea5c1ecc9e6a49988119 ob闪对 代币 动态approve处理 合约地址：0xb7fdda5330daea72514db2b84211afebd19277ca
 		//https://polygonscan.com/tx/0x948468d279eb77a23b43c6122d885ecae02a7cae930647ac831972ffb8dc70b2 ob闪对 代币 动态approve处理 合约地址：0xd0db2f29056e0226168c6b32363a339fe8fd46b5
-		if topic0 == APPROVAL_TOPIC {
-			if (("0xf0511f123164602042ab2bcf02111fa5d3fe97cd" != contractAddress || methodId != "41706c4e") &&
-				("0xb7fdda5330daea72514db2b84211afebd19277ca" != contractAddress || methodId != "4630a0d8") &&
-				("0xd0db2f29056e0226168c6b32363a339fe8fd46b5" != contractAddress || methodId != "11290d59")) ||
-				!strings.HasPrefix(h.chainName, "Polygon") {
-				continue
-			}
-		}
+		//if topic0 == APPROVAL_TOPIC {
+		//	if (("0xf0511f123164602042ab2bcf02111fa5d3fe97cd" != contractAddress || methodId != "41706c4e") &&
+		//		("0xb7fdda5330daea72514db2b84211afebd19277ca" != contractAddress || methodId != "4630a0d8") &&
+		//		("0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c" != contractAddress || methodId != "11290d59") &&
+		//		("0xd0db2f29056e0226168c6b32363a339fe8fd46b5" != contractAddress || methodId != "11290d59")) ||
+		//		!(strings.HasPrefix(h.chainName, "Polygon") || strings.HasPrefix(h.chainName, "BSC")) {
+		//		continue
+		//	}
+		//}
 
 		if len(tokens) > 0 {
 			for _, tokenInfo := range tokens {

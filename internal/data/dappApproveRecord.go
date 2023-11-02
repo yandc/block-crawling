@@ -42,6 +42,7 @@ type DappApproveRecordRepo interface {
 	UpdateAddressBalanceByTokenAndContract(ctx context.Context, fromAddress string, tokenAddress string, toAddress string, amount string, chainName string) (int64, error)
 	FindAddressGroup(ctx context.Context) ([]string, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
+	FindByFromChainAndAddressesWithValueIsZero(ctx context.Context, chain string, fromAddresses []string) ([]*DappApproveRecord, error)
 }
 
 type DappApproveRecordRepoImpl struct {
@@ -146,6 +147,7 @@ func (r *DappApproveRecordRepoImpl) ListByCondition(ctx context.Context, req *pb
 	}
 	return dars, nil
 }
+
 func (r *DappApproveRecordRepoImpl) GetDappListPageList(ctx context.Context, req *pb.DappPageListReq) ([]*DappApproveRecord, error) {
 	var dars []*DappApproveRecord
 	tx := r.gormDB.Where("amount != '0' ")
@@ -245,6 +247,7 @@ func (r *DappApproveRecordRepoImpl) GetAmountList(ctx context.Context, req *pb.O
 	}
 	return dars, nil
 }
+
 func (r *DappApproveRecordRepoImpl) FindByLasTxtHash(ctx context.Context, txHash string) (*DappApproveRecord, error) {
 	var dar *DappApproveRecord
 	ret := r.gormDB.Model(&DappApproveRecord{}).Where("last_txhash = ?", txHash).Find(&dar)
@@ -286,4 +289,14 @@ func (r *DappApproveRecordRepoImpl) UpdateUidByAddress(ctx context.Context, addr
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+
+func (r *DappApproveRecordRepoImpl) FindByFromChainAndAddressesWithValueIsZero(ctx context.Context, chain string, fromAddresses []string) ([]*DappApproveRecord, error) {
+	var dars []*DappApproveRecord
+
+	if err := r.gormDB.Where("chain_name = ? and amount != '0' and from in ?", chain, fromAddresses).Find(&dars).Error; err != nil {
+		log.Errore("page query evmTransactionRecord failed", err)
+		return nil, err
+	}
+	return dars, nil
 }

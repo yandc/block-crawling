@@ -1042,3 +1042,24 @@ func (c *Client) GetEvmTokenInfo(chainName string, tokenAddress string) (types.T
 	mutex.Unlock()
 	return tokenInfo, nil
 }
+
+func (c *Client) GetAllowance(contract, owner, spender string) (*big.Int, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	cli, err := getETHClient(c.url)
+	if err != nil {
+		return nil, err
+	}
+	defer cli.Close()
+	opts := &bind.CallOpts{
+		Context: ctx,
+	}
+	hexTokenAddress := common.HexToAddress(contract)
+	erc20Token, err := erc20.NewErc20(hexTokenAddress, cli)
+	if err != nil {
+		return nil, err
+	}
+
+	return erc20Token.Allowance(opts, common.HexToAddress(owner), common.HexToAddress(spender))
+}
