@@ -7828,15 +7828,15 @@ func UpdateUserUtxo() {
 	addressAndUids := append(fromAddressAndUids, toAddressAndUids...)
 	for _, addressAndUid := range addressAndUids {
 
-		list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
+		utxoList, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
 		for i := 0; i < len(btcUrls) && err != nil; i++ {
-			list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
+			utxoList, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
 		}
 		if err != nil {
 			continue
 		}
 
-		for _, d := range list.Data {
+		for _, d := range utxoList {
 			var utxoUnspentRecord = &data.UtxoUnspentRecord{
 				Uid:       addressAndUid.Uid,
 				Hash:      d.Mined.TxId,

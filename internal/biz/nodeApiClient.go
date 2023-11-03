@@ -2871,8 +2871,8 @@ func UtxoByAddress(chainName string, address string) (err error) {
 		return
 	}
 	log.Info(address, zap.Any("删除utxo条数", ret))
-	if list.Total > 0 {
-		for _, d := range list.Data {
+	if len(list) > 0 {
+		for _, d := range list {
 			var utxoUnspentRecord = &data.UtxoUnspentRecord{
 				Uid:       fromUid,
 				Hash:      d.Mined.TxId,
