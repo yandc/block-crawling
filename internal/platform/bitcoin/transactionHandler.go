@@ -262,7 +262,7 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 		return false, script, balance
 	}
 	utxoBalance := 0
-	for _, u := range list.Data {
+	for _, u := range list {
 		script = u.Mined.Meta.Script
 		utxoBalance = utxoBalance + u.Value
 	}
@@ -284,7 +284,7 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 			return false, script, balance
 		}
 		retryUtxoBalance := 0
-		for _, u := range retryList.Data {
+		for _, u := range retryList {
 			retryUtxoBalance = retryUtxoBalance + u.Value
 		}
 		ru := utils.StringDecimals(strconv.Itoa(retryUtxoBalance), 8)
@@ -313,8 +313,8 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 	}
 
 	log.Info(address, zap.Any("删除utxo条数", ret))
-	if list.Total > 0 {
-		for _, d := range list.Data {
+	if len(list) > 0 {
+		for _, d := range list {
 			var utxoUnspentRecord = &data.UtxoUnspentRecord{
 				Uid:       uid,
 				Hash:      d.Mined.TxId,
@@ -336,8 +336,8 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 	}
 
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
-	userUTXOs := make([]string, len(list.Data))
-	for i, utxo := range list.Data {
+	userUTXOs := make([]string, len(list))
+	for i, utxo := range list {
 		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Mined.TxId, string(rune(utxo.Mined.Index)))
 	}
 

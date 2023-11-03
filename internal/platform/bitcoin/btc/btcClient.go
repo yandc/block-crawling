@@ -39,20 +39,32 @@ func NewClient(nodeUrl string) Client {
 	return Client{nodeUrl, streamURL}
 }
 
-func GetUnspentUtxo(nodeUrl string, address string) (types.UbiquityUtxo, error) {
+func GetUnspentUtxo(nodeUrl string, address string) ([]types.UbiquityOutput, error) {
+	var utxos []types.UbiquityOutput
 	key, baseURL := parseKeyFromNodeURL(nodeUrl)
 	url := baseURL + "account/" + address + "/utxo"
-	var unspents types.UbiquityUtxo
-	var param = make(map[string]string)
-	param["spent"] = "false"
+	param := map[string]string{"spent": "false", "page_size": "100"}
 	timeoutMS := 10_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &unspents, &timeoutMS)
+	var result types.UbiquityUtxo
+	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &result, &timeoutMS)
+	if err != nil {
+		return nil, err
+	}
 
-	return unspents, err
+	utxos = result.Data
+	for result.Meta != nil {
+		param["page_token"] = result.Meta.Paging.NextPageToken
+		err = httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &result, &timeoutMS)
+		if err != nil {
+			return nil, err
+		}
+		utxos = append(utxos, result.Data...)
+	}
 
+	return utxos, nil
 }
 func GetUnspentUtxoByBlockcypher(chainName string, address string) (types.BlockcypherUtxo, error) {
-	url := "https://api.blockcypher.com/v1/" + strings.ToLower(chainName) + "/main/addrs/" + address +"?unspentOnly=true"
+	url := "https://api.blockcypher.com/v1/" + strings.ToLower(chainName) + "/main/addrs/" + address + "?unspentOnly=true"
 	var unspents types.BlockcypherUtxo
 	timeout := 10_000 * time.Millisecond
 	err := httpclient.HttpsGetForm(url, nil, &unspents, &timeout)
@@ -254,7 +266,7 @@ func GetTransactionByPendingHashByNode(json model.JsonRpcRequest, c *base.Client
 	return
 }
 
-//MemoryPoolTX
+// MemoryPoolTX
 func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
 	timeoutMS := 10_000 * time.Millisecond
 	err = httpclient.PostResponse(c.StreamURL, json, &txIds, &timeoutMS)
@@ -275,7 +287,7 @@ func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, erro
 	return block, err
 }
 
-//constructs BlockCypher URLs with parameters for requests
+// constructs BlockCypher URLs with parameters for requests
 func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, err error) {
 	target, err = url.Parse(c.URL + u)
 	if err != nil {

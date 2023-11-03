@@ -121,26 +121,33 @@ func (bucket *RecordRPCURLBucket) getPeriod(nowSecs int64) string {
 }
 
 type UbiquityUtxo struct {
-	Total int `json:"total"`
-	Data  []struct {
-		Status  string `json:"status"`
-		IsSpent bool   `json:"is_spent"`
-		Value   int    `json:"value"`
-		Mined   struct {
-			Index         int    `json:"index"`
-			TxId          string `json:"tx_id"`
-			Date          int    `json:"date"`
-			BlockId       string `json:"block_id"`
-			BlockNumber   int    `json:"block_number"`
-			Confirmations int    `json:"confirmations"`
-			Meta          struct {
-				Addresses  []string `json:"addresses"`
-				Index      int      `json:"index"`
-				Script     string   `json:"script"`
-				ScriptType string   `json:"script_type"`
-			} `json:"meta"`
-		} `json:"mined"`
-	} `json:"data"`
+	Total int              `json:"total"`
+	Data  []UbiquityOutput `json:"data"`
+	Meta  *struct {
+		Paging struct {
+			NextPageToken string `json:"next_page_token"`
+		} `json:"paging"`
+	} `json:"meta"`
+}
+
+type UbiquityOutput struct {
+	Status  string `json:"status"`
+	IsSpent bool   `json:"is_spent"`
+	Value   int    `json:"value"`
+	Mined   struct {
+		Index         int    `json:"index"`
+		TxId          string `json:"tx_id"`
+		Date          int    `json:"date"`
+		BlockId       string `json:"block_id"`
+		BlockNumber   int    `json:"block_number"`
+		Confirmations int    `json:"confirmations"`
+		Meta          struct {
+			Addresses  []string `json:"addresses"`
+			Index      int      `json:"index"`
+			Script     string   `json:"script"`
+			ScriptType string   `json:"script_type"`
+		} `json:"meta"`
+	} `json:"mined"`
 }
 
 type BlockcypherUtxo struct {
@@ -169,13 +176,12 @@ type BlockcypherUtxo struct {
 }
 
 type EvmTxInput struct {
-	ChainId               string `json:"chainId"`
-	Nonce                 string `json:"nonce"`
-	ToAddress             string `json:"toAddress"`
-	Transaction           struct {
+	ChainId     string `json:"chainId"`
+	Nonce       string `json:"nonce"`
+	ToAddress   string `json:"toAddress"`
+	Transaction struct {
 		Transfer struct {
 			Data string `json:"data"`
 		} `json:"transfer"`
 	} `json:"transaction"`
 }
-
