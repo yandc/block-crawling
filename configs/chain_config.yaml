@@ -555,7 +555,6 @@ platform:
       - https://poly-rpc.gateway.pokt.network
       - https://polygon.rpc.blxrbdn.com
       - https://polygon-bor.publicnode.com
-      - https://polygon.llamarpc.com
       - https://1rpc.io/matic
       - https://polygon.api.onfinality.io/public
       - https://endpoints.omniatech.io/v1/matic/mainnet/public
