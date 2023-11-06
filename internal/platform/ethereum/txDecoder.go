@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -1889,13 +1890,8 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 	}
 
 	if tx == nil {
-		log.Warn(
-			"tx is nil",
-			zap.String("chain", h.chainName),
-			zap.String("tx hash", txByHash.Hash),
-			zap.Uint64("height", curHeight),
-			zap.String("url", c.URL()),
-		)
+		//部分节点返回数据不准确，发现数据不匹配时，暂不处理，下次更换节点再处理
+		return errors.New("transaction's block number not match")
 	}
 
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
