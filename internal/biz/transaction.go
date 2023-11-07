@@ -2771,6 +2771,15 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 		req.TokenAddressList = utils.AddressListIbcToLower(req.TokenAddressList)
 	}
 
+	//utils.HexToAddress 会将格式不正确的地址转换成0地址，需要删除0地址
+	var tokenList []string
+	for _, tokenAddress := range req.TokenAddressList {
+		if tokenAddress != "0x0000000000000000000000000000000000000000" {
+			tokenList = append(tokenList, tokenAddress)
+		}
+	}
+	req.TokenAddressList = tokenList
+
 	var request = &data.AssetRequest{
 		ChainName:        req.ChainName,
 		Uid:              req.Uid,
