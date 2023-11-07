@@ -341,7 +341,7 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Mined.TxId, string(rune(utxo.Mined.Index)))
 	}
 
-	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: string(rune(data.UtxoStatusPending))})
+	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
 	for _, utxo := range pendingUTXOs {
 		u := fmt.Sprintf("%s#%s", utxo.Hash, string(rune(utxo.N)))
 		if !slices.Contains(userUTXOs, u) {
