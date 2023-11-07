@@ -6,9 +6,10 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"strconv"
 	"strings"
+
+	"github.com/shopspring/decimal"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -21,6 +22,7 @@ type ChainTypeAsset struct {
 	UidType   int8            `json:"uidType" form:"uidType" gorm:"type:bigint;index:,unique,composite:unique_dt_chain_name_uid_type"`
 	CnyAmount decimal.Decimal `json:"cnyAmount" form:"cnyAmount" gorm:"type:decimal(256,2);"`
 	UsdAmount decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`
+	BtcAmount decimal.Decimal `json:"btcAmount" form:"btcAmount" gorm:"type:decimal(256,8)"`
 	Dt        int64           `json:"dt" form:"dt" gorm:"type:bigint;index:,unique,composite:unique_dt_chain_name_uid_type"`
 	CreatedAt int64           `json:"createdAt" form:"createdAt"`
 	UpdatedAt int64           `json:"updatedAt" form:"updatedAt"`
@@ -40,6 +42,7 @@ type ChainTypeAssetRepo interface {
 	Update(context.Context, *ChainTypeAsset) (int64, error)
 	FindByID(context.Context, int64) (*ChainTypeAsset, error)
 	ListByID(context.Context, int64) ([]*ChainTypeAsset, error)
+	ListByCursor(context.Context, *int64, int) ([]*ChainTypeAsset, error)
 	ListAll(context.Context) ([]*ChainTypeAsset, error)
 	PageList(context.Context, *AssetRequest) ([]*ChainTypeAsset, int64, error)
 	List(context.Context, *AssetRequest) ([]*ChainTypeAsset, error)
@@ -119,7 +122,7 @@ func (r *ChainTypeAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, chainTyp
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "uid_type"}, {Name: "dt"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"cny_amount", "usd_amount", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"cny_amount", "usd_amount", "btc_amount", "updated_at"}),
 	}).Create(&chainTypeAssets)
 	err := ret.Error
 	if err != nil {
@@ -190,6 +193,20 @@ func (r *ChainTypeAssetRepoImpl) ListByID(ctx context.Context, id int64) ([]*Cha
 	if err != nil {
 		log.Errore("query chainTypeAsset failed", err)
 		return nil, err
+	}
+	return chainTypeAssetList, nil
+}
+
+func (r *ChainTypeAssetRepoImpl) ListByCursor(ctx context.Context, cursor *int64, limit int) ([]*ChainTypeAsset, error) {
+	var chainTypeAssetList []*ChainTypeAsset
+	ret := r.gormDB.WithContext(ctx).Where("id > ?", *cursor).Limit(limit).Order("id asc").Find(&chainTypeAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query chainTypeAsset failed", err)
+		return nil, err
+	}
+	if len(chainTypeAssetList) > 0 {
+		*cursor = chainTypeAssetList[len(chainTypeAssetList)-1].Id
 	}
 	return chainTypeAssetList, nil
 }
@@ -307,7 +324,7 @@ func (r *ChainTypeAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([
 	return chainTypeAssetList, nil
 }
 
-//维度：日期
+// 维度：日期
 func (r *ChainTypeAssetRepoImpl) ListAmountGroupByDt(ctx context.Context, req *AssetRequest) ([]*pb.AssetHistoryFundAmountResponse, error) {
 	var assetHistoryFundAmountResponse []*pb.AssetHistoryFundAmountResponse
 

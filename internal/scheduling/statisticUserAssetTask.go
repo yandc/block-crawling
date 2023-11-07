@@ -5,12 +5,14 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/utils"
+	"context"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type StatisticUserAssetTask struct {
@@ -45,12 +47,15 @@ func StatisticUserAsset() {
 	tm := time.Now()
 	nowTime := tm.Unix()
 	var dt = utils.GetDayTime(&tm)
-
+	btcUsd, err := biz.GetBTCUSDPrice(context.Background())
+	if err != nil {
+		panic(err)
+	}
 	StatisticChainTypeAddressAmount(nowTime, dt)
-	StatisticChainTypeAsset(nowTime, dt)
+	StatisticChainTypeAsset(nowTime, dt, btcUsd)
 }
 
-func StatisticChainTypeAsset(nowTime, dt int64) {
+func StatisticChainTypeAsset(nowTime, dt int64, btcUsd string) {
 	log.Info("统计用户资产金额，处理指标数据开始", zap.Any("dt", dt), zap.Any("nowTime", nowTime))
 
 	var request = &data.AssetRequest{
@@ -172,6 +177,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		UidType:   0,
 		CnyAmount: decimal.Zero,
 		UsdAmount: decimal.Zero,
+		BtcAmount: decimal.Zero,
 		Dt:        dt,
 		CreatedAt: nowTime,
 		UpdatedAt: nowTime,
@@ -195,10 +201,12 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		}
 		cnyPrices, _ := decimal.NewFromString(cnyPrice)
 		usdPrices, _ := decimal.NewFromString(usdPrice)
+		btcUsds, _ := decimal.NewFromString(btcUsd)
 		balance := userAsset.Balance
 		balances, _ := decimal.NewFromString(balance)
 		cnyAmount := cnyPrices.Mul(balances)
 		usdAmount := usdPrices.Mul(balances)
+		btcAmount := usdAmount.Div(btcUsds)
 
 		typeAssetMap, ok := chainTypeAssetMap[userAsset.ChainName]
 		if !ok {
@@ -208,6 +216,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				UidType:   userAsset.UidType,
 				CnyAmount: cnyAmount,
 				UsdAmount: usdAmount,
+				BtcAmount: btcAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
@@ -221,6 +230,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 					UidType:   userAsset.UidType,
 					CnyAmount: cnyAmount,
 					UsdAmount: usdAmount,
+					BtcAmount: btcAmount,
 					Dt:        dt,
 					CreatedAt: nowTime,
 					UpdatedAt: nowTime,
@@ -228,6 +238,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 			} else {
 				chainTypeAsset.CnyAmount = chainTypeAsset.CnyAmount.Add(cnyAmount)
 				chainTypeAsset.UsdAmount = chainTypeAsset.UsdAmount.Add(usdAmount)
+				chainTypeAsset.BtcAmount = chainTypeAsset.BtcAmount.Add(btcAmount)
 			}
 		}
 
@@ -238,6 +249,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				UidType:   0,
 				CnyAmount: cnyAmount,
 				UsdAmount: usdAmount,
+				BtcAmount: btcAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
@@ -245,6 +257,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		} else {
 			chainNameUserAsset.CnyAmount = chainNameUserAsset.CnyAmount.Add(cnyAmount)
 			chainNameUserAsset.UsdAmount = chainNameUserAsset.UsdAmount.Add(usdAmount)
+			chainNameUserAsset.BtcAmount = chainNameUserAsset.BtcAmount.Add(usdAmount)
 		}
 
 		uidTypeUserAsset, uok := chainTypeAssetUidTypeMap[userAsset.UidType]
@@ -254,6 +267,7 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 				UidType:   userAsset.UidType,
 				CnyAmount: cnyAmount,
 				UsdAmount: usdAmount,
+				BtcAmount: btcAmount,
 				Dt:        dt,
 				CreatedAt: nowTime,
 				UpdatedAt: nowTime,
@@ -261,10 +275,12 @@ func StatisticChainTypeAsset(nowTime, dt int64) {
 		} else {
 			uidTypeUserAsset.CnyAmount = uidTypeUserAsset.CnyAmount.Add(cnyAmount)
 			uidTypeUserAsset.UsdAmount = uidTypeUserAsset.UsdAmount.Add(usdAmount)
+			uidTypeUserAsset.BtcAmount = uidTypeUserAsset.BtcAmount.Add(btcAmount)
 		}
 
 		chainTypeAssetDt.CnyAmount = chainTypeAssetDt.CnyAmount.Add(cnyAmount)
 		chainTypeAssetDt.UsdAmount = chainTypeAssetDt.UsdAmount.Add(usdAmount)
+		chainTypeAssetDt.BtcAmount = chainTypeAssetDt.BtcAmount.Add(btcAmount)
 	}
 
 	for _, typeAssetMap := range chainTypeAssetMap {

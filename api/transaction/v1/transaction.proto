@@ -494,6 +494,7 @@ message AssetHistoryFundAmountResponse {
   string cnyAmount = 1;
   string usdAmount = 2;
   int64 dt = 3;
+	string btcAmount = 4;
 }
 
 message AssetHistoryAddressAmountListResponse {

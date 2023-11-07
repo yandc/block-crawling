@@ -44,6 +44,7 @@ func newLoggerConfig(c *conf.Logger) (loggerConfig zap.Config) {
 	default:
 		zapLevel = zap.InfoLevel
 	}
+
 	loggerConfig.Level = zap.NewAtomicLevelAt(zapLevel)
 	return
 }
