@@ -84,6 +84,6 @@ func main() {
 	//platform.UpdateAssetUid()
 	//platform.UpdateAssetTokenUri()
 	//platform.UpdateSignAddress()
-	// platform.UpdateUserUtxo()
-	platform.UpdateBTCAmount()
+	platform.UpdateUserUtxo()
+	//platform.UpdateBTCAmount()
 }
