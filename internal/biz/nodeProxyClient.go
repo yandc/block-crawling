@@ -34,6 +34,24 @@ var NftInfoMap = make(map[string]*v1.GetNftReply_NftInfoResp)
 var nftLock = common.NewSyncronized(0)
 var nftMutex = new(sync.Mutex)
 
+func GetBTCUSDPrice(ctx context.Context) (string, error) {
+	return GetTokenPriceRetryAlert(ctx, BTC, USD, "")
+}
+
+func GetBTCUSDPriceByTimestamp(ctx context.Context, ts uint32) (string, error) {
+	var getPriceKey string
+	if platInfo, ok := GetChainPlatInfo(BTC); ok {
+		getPriceKey = platInfo.GetPriceKey
+	} else {
+		return "", nil
+	}
+	r, err := DescribeCoinPriceByTimestamp("", getPriceKey, BTC, ts)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%f", r.GetPrice().GetUsd()), nil
+}
+
 func GetTokenPriceRetryAlert(ctx context.Context, chainName string, currency string, tokenAddress string) (string, error) {
 	price, err := GetTokenPrice(ctx, chainName, currency, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {

@@ -7789,6 +7789,45 @@ func UpdateSignAddress() {
 	log.Info("将签名记录中钱包地址转换为标准格式，处理用户资产表结束")
 }
 
+func UpdateBTCAmount() {
+	var cursor int64
+	pricesByDt := make(map[uint32]string)
+	for {
+		log.Info("HANDLING", zap.Int64("cursor", cursor))
+		list, err := data.ChainTypeAssetRepoClient.ListByCursor(context.Background(), &cursor, 100)
+		if err != nil {
+			log.Error("更新资陈记录 BTC 计价失败", zap.Error(err))
+			return
+		}
+		if len(list) == 0 {
+			return
+		}
+		toUpdated := make([]*data.ChainTypeAsset, 0, len(list))
+		for _, item := range list {
+			btcUsd, ok := pricesByDt[uint32(item.Dt)]
+			if !ok {
+				var err error
+				btcUsd, err = biz.GetBTCUSDPriceByTimestamp(context.Background(), uint32(item.Dt))
+				pricesByDt[uint32(item.Dt)] = btcUsd
+				if err != nil {
+					log.Warn("根据时间戳拉取 BTC 价格失败", zap.Error(err))
+					continue
+				}
+			}
+			if btcUsd == "" {
+				continue
+			}
+
+			btcUsds, _ := decimal.NewFromString(btcUsd)
+			item.BtcAmount = item.UsdAmount.Div(btcUsds)
+			toUpdated = append(toUpdated, item)
+		}
+		if len(toUpdated) > 0 {
+			data.ChainTypeAssetRepoClient.BatchSaveOrUpdate(context.Background(), toUpdated)
+		}
+	}
+}
+
 type AddressAndUid struct {
 	Address string
 	Uid     string
