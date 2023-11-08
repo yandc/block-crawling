@@ -801,3 +801,12 @@ func (s *TransactionService) KanbanContractChart(ctx context.Context, req *pb.Ka
 	defer cancel()
 	return s.ts.KanbanContractChart(subctx, req)
 }
+
+func (s *TransactionService) GetBlockHeight(ctx context.Context, req *pb.GetBlockHeightReq) (*pb.GetBlockHeightResponse, error) {
+	log.Info("request", zap.Any("request", req))
+	biz.ChainTypeAdd(req.ChainName)
+	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	result, err := s.ts.GetBlockHeight(subctx, req)
+	return result, err
+}

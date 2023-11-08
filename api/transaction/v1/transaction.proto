@@ -64,6 +64,8 @@ service Transaction {
   rpc KanbanTxChart(KanbanChartRequest) returns (KanbanChartResponse);
   // 看板合约数据
   rpc KanbanContractChart(KanbanChartRequest) returns (KanbanChartResponse);
+  // 获取块高
+  rpc GetBlockHeight(GetBlockHeightReq) returns (GetBlockHeightResponse);
 }
 
 message JsonReq {
@@ -700,4 +702,12 @@ message KanbanBar {
 message KanbanChartResponse {
   repeated KanbanBar numsByDay = 1;
   repeated KanbanBar accumulatedNums = 2;
+}
+
+message GetBlockHeightReq{
+  string chainName = 1;
+}
+
+message GetBlockHeightResponse{
+  int64 height = 1;
 }
