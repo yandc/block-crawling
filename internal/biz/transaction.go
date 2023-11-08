@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"reflect"
 	"sort"
@@ -31,18 +32,20 @@ import (
 )
 
 type TransactionUsecase struct {
-	gormDB  *gorm.DB
-	lark    Larker
-	kBundle *kanban.Bundle
+	gormDB          *gorm.DB
+	lark            Larker
+	chainListClient v1.ChainListClient
+	kBundle         *kanban.Bundle
 }
 
 var sendLock sync.RWMutex
 
-func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle, txcRepo TransactionRecordRepo) *TransactionUsecase {
+func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
 	return &TransactionUsecase{
-		gormDB:  grom,
-		lark:    lark,
-		kBundle: kBundle,
+		gormDB:          grom,
+		lark:            lark,
+		chainListClient: chainListClient,
+		kBundle:         kBundle,
 	}
 }
 
@@ -5701,4 +5704,38 @@ func (s *TransactionUsecase) SignTXBySessionId(ctx context.Context, req *SignTxR
 		Ok:                    true,
 		SessionTxhashInfoList: sts,
 	}, nil
+}
+
+// GetBlockHeight 获取节点块高
+func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBlockHeightReq) (*pb.GetBlockHeightResponse, error) {
+	key := BLOCK_NODE_HEIGHT_KEY + req.ChainName
+	heightCmd := data.RedisClient.Get(key)
+	height, err := heightCmd.Int()
+	if err == nil {
+		return &pb.GetBlockHeightResponse{Height: int64(height)}, nil
+	}
+
+	//如果从redis未获取到，evm系则从节点获取块高，其他系则返回error
+	if strings.HasPrefix(req.ChainName, "evm") {
+		chainId := strings.TrimPrefix(req.ChainName, "evm")
+		resp, err := s.chainListClient.GetChainNodeList(context.Background(), &v1.GetChainNodeListReq{ChainId: chainId})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, rpc := range resp.Data {
+			client, err := ethclient.Dial(rpc.Url)
+			if err != nil {
+				continue
+			}
+			blockNumber, err := client.BlockNumber(context.Background())
+			if err != nil {
+				continue
+			}
+			return &pb.GetBlockHeightResponse{Height: int64(blockNumber)}, nil
+		}
+	}
+
+	return nil, errors.New(fmt.Sprintf("can not get the height of the chain:%s", req.ChainName))
+
 }

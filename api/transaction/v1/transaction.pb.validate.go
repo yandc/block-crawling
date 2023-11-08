@@ -9483,3 +9483,211 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = KanbanChartResponseValidationError{}
+
+// Validate checks the field values on GetBlockHeightReq with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *GetBlockHeightReq) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetBlockHeightReq with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetBlockHeightReqMultiError, or nil if none found.
+func (m *GetBlockHeightReq) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetBlockHeightReq) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChainName
+
+	if len(errors) > 0 {
+		return GetBlockHeightReqMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetBlockHeightReqMultiError is an error wrapping multiple validation errors
+// returned by GetBlockHeightReq.ValidateAll() if the designated constraints
+// aren't met.
+type GetBlockHeightReqMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetBlockHeightReqMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetBlockHeightReqMultiError) AllErrors() []error { return m }
+
+// GetBlockHeightReqValidationError is the validation error returned by
+// GetBlockHeightReq.Validate if the designated constraints aren't met.
+type GetBlockHeightReqValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetBlockHeightReqValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetBlockHeightReqValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetBlockHeightReqValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetBlockHeightReqValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetBlockHeightReqValidationError) ErrorName() string {
+	return "GetBlockHeightReqValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetBlockHeightReqValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetBlockHeightReq.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetBlockHeightReqValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetBlockHeightReqValidationError{}
+
+// Validate checks the field values on GetBlockHeightResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetBlockHeightResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetBlockHeightResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetBlockHeightResponseMultiError, or nil if none found.
+func (m *GetBlockHeightResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetBlockHeightResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Height
+
+	if len(errors) > 0 {
+		return GetBlockHeightResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetBlockHeightResponseMultiError is an error wrapping multiple validation
+// errors returned by GetBlockHeightResponse.ValidateAll() if the designated
+// constraints aren't met.
+type GetBlockHeightResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetBlockHeightResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetBlockHeightResponseMultiError) AllErrors() []error { return m }
+
+// GetBlockHeightResponseValidationError is the validation error returned by
+// GetBlockHeightResponse.Validate if the designated constraints aren't met.
+type GetBlockHeightResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetBlockHeightResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetBlockHeightResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetBlockHeightResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetBlockHeightResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetBlockHeightResponseValidationError) ErrorName() string {
+	return "GetBlockHeightResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetBlockHeightResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetBlockHeightResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetBlockHeightResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetBlockHeightResponseValidationError{}
