@@ -14,7 +14,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"io"
 	"math/big"
+	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
@@ -5708,6 +5710,48 @@ func (s *TransactionUsecase) SignTXBySessionId(ctx context.Context, req *SignTxR
 
 // GetBlockHeight 获取节点块高
 func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBlockHeightReq) (*pb.GetBlockHeightResponse, error) {
+
+	//ETHW已经停止爬块，并且ChainList中没有，单独处理
+	if req.ChainName == "ETHW" {
+		client, err := ethclient.Dial("https://mainnet.ethereumpow.org")
+		if err != nil {
+			return nil, err
+		}
+		blockNumber, err := client.BlockNumber(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		return &pb.GetBlockHeightResponse{Height: int64(blockNumber)}, nil
+	}
+
+	//Solana由于出块太快，已经停止爬块，单独处理
+	if req.ChainName == "Solana" {
+		rpcUrl := "https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7"
+		body := "{\"jsonrpc\": \"2.0\",\"method\": \"getSlot\",\"params\": [],\"id\": 1}"
+		resp, err := http.Post(rpcUrl, "application/json", strings.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		bytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		heightResp := map[string]interface{}{}
+		err = json.Unmarshal(bytes, &heightResp)
+		if err != nil {
+			return nil, err
+		}
+
+		height, ok := heightResp["result"].(float64)
+		if !ok {
+			return nil, errors.New("get solana height error")
+		}
+
+		return &pb.GetBlockHeightResponse{Height: int64(height)}, nil
+	}
+
+	//如果在爬块的，直接从redis中取
 	key := BLOCK_NODE_HEIGHT_KEY + req.ChainName
 	heightCmd := data.RedisClient.Get(key)
 	height, err := heightCmd.Int()
@@ -5715,7 +5759,7 @@ func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 		return &pb.GetBlockHeightResponse{Height: int64(height)}, nil
 	}
 
-	//如果从redis未获取到，evm系则从节点获取块高，其他系则返回error
+	//如果从redis未获取到，evm系则从ChainList节点获取块高
 	if strings.HasPrefix(req.ChainName, "evm") {
 		chainId := strings.TrimPrefix(req.ChainName, "evm")
 		resp, err := s.chainListClient.GetChainNodeList(context.Background(), &v1.GetChainNodeListReq{ChainId: chainId})
@@ -5737,5 +5781,4 @@ func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 	}
 
 	return nil, errors.New(fmt.Sprintf("can not get the height of the chain:%s", req.ChainName))
-
 }
