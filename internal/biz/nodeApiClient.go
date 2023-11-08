@@ -2880,7 +2880,7 @@ func UtxoByAddress(chainName string, address string) (err error) {
 				ChainName: chainName,
 				Address:   address,
 				Script:    d.Mined.Meta.Script,
-				Unspent:   1, //1 未花费 2 已花费 联合索引
+				Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
 				Amount:    strconv.Itoa(d.Value),
 				TxTime:    int64(d.Mined.Date),
 				UpdatedAt: time.Now().Unix(),

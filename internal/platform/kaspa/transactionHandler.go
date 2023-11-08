@@ -307,7 +307,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 			deleteUtxoRecordMap[fromUserAssetKey] = &data.UtxoUnspentRecord{
 				ChainName: chainName,
 				Address:   record.FromAddress,
-				Unspent:   4,
+				Unspent:   data.UtxoStatusPending,
 			}
 		}
 
@@ -333,7 +333,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 			deleteUtxoRecordMap[toUserAssetKey] = &data.UtxoUnspentRecord{
 				ChainName: chainName,
 				Address:   record.ToAddress,
-				Unspent:   4,
+				Unspent:   data.UtxoStatusPending,
 			}
 		}
 	}
@@ -400,7 +400,7 @@ func doHandleUserUtxo(chainName string, client Client, uid string, address strin
 			Hash:      utxo.Outpoint.TransactionId,
 			N:         utxo.Outpoint.Index,
 			Script:    utxo.UtxoEntry.ScriptPublicKey.ScriptPublicKey,
-			Unspent:   1, //1 未花费 2 已花费 联合索引
+			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
 			Amount:    utxo.UtxoEntry.Amount,
 			TxTime:    txTime,
 			UpdatedAt: nowTime,
