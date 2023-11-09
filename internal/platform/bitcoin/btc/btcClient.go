@@ -2,6 +2,7 @@ package btc
 
 import (
 	"block-crawling/internal/httpclient"
+	"block-crawling/internal/log"
 	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/blockcypher/gobcy"
 )
@@ -110,20 +113,32 @@ type blockChain struct {
 }
 
 func GetBlockNumber(c *base.Client) (int, error) {
-	u, err := c.BuildURL("", nil)
-	if err != nil {
-		return 0, err
+	timeout := 5 * time.Second
+	var height int
+
+	if strings.Contains(c.URL, "ubiquity.api.blockdaemon.com") {
+		header := map[string]string{"Authorization": "Bearer " + c.URL[15:62]}
+		err := httpclient.HttpsSignGetForm("https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/sync/block_number", nil, header, &height, &timeout)
+		if err != nil {
+			log.Error("BTC BLOCK HEIGHT", zap.Error(err), zap.String("url", "https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/sync/block_number"))
+			return 0, err
+		}
+	} else if strings.Contains(c.URL, "api.blockcypher.com") {
+		u, err := c.BuildURL("", nil)
+		if err != nil {
+			return 0, err
+		}
+		var chain gobcy.Blockchain
+		err = httpclient.GetResponse(u.String(), nil, &chain, &timeout)
+		if err != nil {
+			log.Error("BTC BLOCK HEIGHT", zap.Error(err), zap.String("url", u.String()), zap.Any("r", chain))
+			return 0, err
+		}
+		height = chain.Height
 	}
-	var chain blockChain
-	timeoutMS := 5_000 * time.Millisecond
-	err = httpclient.GetResponse(u.String(), nil, &chain, &timeoutMS)
-	if err != nil {
-		return 0, err
-	}
-	if chain.Error != "" {
-		return 0, errors.New(chain.Error)
-	}
-	return chain.Height, nil
+
+	log.Info("BTC BLOCK HEIGHT", zap.String("url", c.URL), zap.Any("r", height))
+	return height, nil
 }
 
 func GetBlockHeight(c *base.Client) (int, error) {

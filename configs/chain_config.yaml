@@ -246,12 +246,12 @@ platform:
     proxyCacheTime: 60
     proxyKey: feeOracleBTC
     rpcURL:
-    - https://api.blockcypher.com/v1/btc/main
-    # - https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
-    # - https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
-    # - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
-    # - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
-    # - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
+     - https://api.blockcypher.com/v1/btc/main
+     - https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
+     - https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
+     - https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
+     - https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
+     - https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/
 #    - http://haotech:phzxiTvtjqHikHTBTnTthqg3@47.244.138.206:8332
 #    - https://chain.so
 #    - https://blockstream.info
