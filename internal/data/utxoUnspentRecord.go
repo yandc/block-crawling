@@ -142,7 +142,7 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 	var utxos []*UtxoUnspentRecord
 	tx := r.gormDB
 
-	if req.IsUnspent != string(rune(UtxoStatusAll)) {
+	if req.IsUnspent != strconv.Itoa(UtxoStatusAll) {
 		unspent, err := strconv.Atoi(req.IsUnspent)
 		if err == nil {
 			tx = tx.Where("unspent = ?", unspent)
