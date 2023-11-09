@@ -8,12 +8,13 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/blockcypher/gobcy"
 	"math/big"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/blockcypher/gobcy"
 )
 
 type Client struct {
@@ -102,15 +103,27 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	return btcValue, nil
 }
 
+type blockChain struct {
+	gobcy.Blockchain
+
+	Error string `json:"error"`
+}
+
 func GetBlockNumber(c *base.Client) (int, error) {
 	u, err := c.BuildURL("", nil)
 	if err != nil {
 		return 0, err
 	}
-	var chain gobcy.Blockchain
+	var chain blockChain
 	timeoutMS := 5_000 * time.Millisecond
 	err = httpclient.GetResponse(u.String(), nil, &chain, &timeoutMS)
-	return chain.Height, err
+	if err != nil {
+		return 0, err
+	}
+	if chain.Error != "" {
+		return 0, errors.New(chain.Error)
+	}
+	return chain.Height, nil
 }
 
 func GetBlockHeight(c *base.Client) (int, error) {
