@@ -4,6 +4,7 @@ import (
 	"block-crawling/internal/conf"
 	in "block-crawling/internal/types"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/nervosnetwork/ckb-sdk-go/types"
@@ -88,6 +89,10 @@ func IsCustomChainFeatured(chainName string) bool {
 	_, featured := AppConfig.FeaturedCustomChain[chainName]
 	return featured
 
+}
+
+func IsBenfenNet(chainName string) bool {
+	return strings.HasPrefix(chainName, "Benfen")
 }
 
 var AppConfig *conf.App
