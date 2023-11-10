@@ -1,6 +1,7 @@
 package biz
 
 import (
+	v1 "block-crawling/api/transaction/v1"
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
@@ -10,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -2890,6 +2892,22 @@ func UtxoByAddress(chainName string, address string) (err error) {
 			log.Info(address, zap.Any("chainName", chainName), zap.Any("插入utxo对象结果", r), zap.Any("error", error))
 		}
 	}
+
+	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
+	userUTXOs := make([]string, len(list))
+	for i, utxo := range list {
+		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Mined.TxId, utxo.Mined.Index)
+	}
+
+	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
+	for _, utxo := range pendingUTXOs {
+		u := fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
+		if !slices.Contains(userUTXOs, u) {
+			utxo.Unspent = data.UtxoStatusSpent
+			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
+		}
+	}
+
 	return
 }
 

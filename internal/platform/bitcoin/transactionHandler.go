@@ -338,12 +338,12 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
 	userUTXOs := make([]string, len(list))
 	for i, utxo := range list {
-		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Mined.TxId, string(rune(utxo.Mined.Index)))
+		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Mined.TxId, utxo.Mined.Index)
 	}
 
 	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
 	for _, utxo := range pendingUTXOs {
-		u := fmt.Sprintf("%s#%s", utxo.Hash, string(rune(utxo.N)))
+		u := fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
 		if !slices.Contains(userUTXOs, u) {
 			utxo.Unspent = data.UtxoStatusSpent
 			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
@@ -416,12 +416,12 @@ func HandleUTXOAssetByBlockcypher(chainName, address, uid, script string, balanc
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
 	userUTXOs := make([]string, len(re.Txrefs))
 	for i, utxo := range re.Txrefs {
-		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.TxHash, string(rune(utxo.TxOutputN)))
+		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.TxHash, utxo.TxOutputN)
 	}
 
-	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: string(rune(data.UtxoStatusPending))})
+	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
 	for _, utxo := range pendingUTXOs {
-		u := fmt.Sprintf("%s#%s", utxo.Hash, string(rune(utxo.N)))
+		u := fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
 		if !slices.Contains(userUTXOs, u) {
 			utxo.Unspent = data.UtxoStatusSpent
 			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
