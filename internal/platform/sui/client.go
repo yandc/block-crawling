@@ -178,8 +178,16 @@ type GetObject struct {
 	} `json:"data"`
 }
 
+func (c *Client) getRpcMethod(m string) string {
+	if biz.IsBenfenNet(c.chainName) {
+		m = strings.Replace(m, "sui_", "bfc_", 1)
+		m = strings.Replace(m, "suix_", "bfcx_", 1)
+	}
+	return m
+}
+
 func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tokenId string) (string, error) {
-	method := "sui_getObject"
+	method := c.getRpcMethod("sui_getObject")
 	params := []interface{}{tokenId, map[string]bool{
 		"showType":                true,
 		"showOwner":               true,
@@ -202,7 +210,7 @@ func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tok
 }
 
 func (c *Client) GetBlockNumber() (int, error) {
-	method := "sui_getLatestCheckpointSequenceNumber"
+	method := c.getRpcMethod("sui_getLatestCheckpointSequenceNumber")
 	var out string
 	timeoutMS := 3_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, nil, &timeoutMS)
@@ -232,7 +240,7 @@ type BlockerInfo struct {
 }
 
 func (c *Client) GetBlockByNumber(number uint64) (BlockerInfo, error) {
-	method := "sui_getCheckpoint"
+	method := c.getRpcMethod("sui_getCheckpoint")
 	var out BlockerInfo
 	params := []interface{}{strconv.Itoa(int(number))}
 	timeoutMS := 5_000 * time.Millisecond
@@ -241,7 +249,7 @@ func (c *Client) GetBlockByNumber(number uint64) (BlockerInfo, error) {
 }
 
 func (c *Client) GetTransactionByHash(hash string) (*stypes.TransactionInfo, error) {
-	method := "sui_getTransactionBlock"
+	method := c.getRpcMethod("sui_getTransactionBlock")
 	var out *stypes.TransactionInfo
 	params := []interface{}{hash, map[string]bool{
 		"showInput":          true,
@@ -263,7 +271,7 @@ func (c *Client) GetTransactionByHash(hash string) (*stypes.TransactionInfo, err
 }
 
 func (c *Client) GetTransactionByHashs(hashs []string) ([]*stypes.TransactionInfo, error) {
-	method := "sui_multiGetTransactionBlocks"
+	method := c.getRpcMethod("sui_multiGetTransactionBlocks")
 	//multi get transaction input limit is 50
 	pageSize := 50
 	hashSize := len(hashs)
@@ -349,7 +357,7 @@ func (c *Client) GetEventTransfer(tokenId string) (tar stypes.SuiObjectChanges, 
 	params := []interface{}{tokenParamReq, nil, 100, true}
 
 	tokenRequest := SuiTokenNftRecordReq{
-		Method:  "suix_queryTransactionBlocks",
+		Method:  c.getRpcMethod("suix_queryTransactionBlocks"),
 		Jsonrpc: "2.0",
 		Params:  params,
 		Id:      "1",
