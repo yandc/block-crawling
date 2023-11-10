@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gorm.io/datatypes"
@@ -557,6 +558,7 @@ type alarmOptions struct {
 	alarmInterval int
 	alarmAtUids   []string
 	chainName     string // to reflect chainType as channel
+	alarmBot      string
 }
 
 var DefaultAlarmOptions = alarmOptions{
@@ -631,6 +633,12 @@ func WithAlarmAtList(uids ...string) AlarmOption {
 func WithAlarmChannel(channel string) AlarmOption {
 	return newfuncAlarmOption(func(e *alarmOptions) {
 		e.channel = channel
+	})
+}
+
+func WithCollectBot() AlarmOption {
+	return newfuncAlarmOption(func(e *alarmOptions) {
+		e.alarmBot = "collect"
 	})
 }
 
@@ -1212,7 +1220,7 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 			user,
 			deviceId,
 		)
-		alarmOpts = WithAlarmChannel("node-proxy")
+		alarmOpts = WithCollectBot()
 	}
 	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 }
@@ -1459,4 +1467,34 @@ func HandleEventLogUid(chainName, recordFromAddress, recordToAddress, recordAmou
 		eventLogs = append(eventLogs, eventLog)
 	}
 	return eventLogs
+}
+
+var accBuckets sync.Map
+
+type accItem struct {
+	total   uint64
+	success uint64
+}
+
+func (ai *accItem) Incr(success bool) {
+	atomic.AddUint64(&ai.total, 1)
+	if success {
+		atomic.AddUint64(&ai.success, 1)
+	}
+}
+
+func (ai *accItem) Total() uint64 {
+	return atomic.LoadUint64(&ai.total)
+}
+
+func (ai *accItem) SuccessRate() int {
+	success := atomic.LoadUint64(&ai.success)
+	return int(success * 100 / ai.Total())
+}
+
+func AccumulateAlarmFactor(channel interface{}, success bool) (int, bool) {
+	raw, _ := accBuckets.LoadOrStore(channel, new(accItem))
+	item := raw.(*accItem)
+	item.Incr(success)
+	return item.SuccessRate(), item.Total() > 100
 }

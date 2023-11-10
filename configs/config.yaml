@@ -154,6 +154,10 @@ lark:
       uids: [ wanghui ]
 
   lockNum: 64
+  larkBots:
+    collect:
+      host: https://open.larksuite.com/open-apis/bot/v2/hook/c0381778-67ba-4060-b4d0-6f80c75ff920
+      secret: y9dycC1hJ6IeXHiOStYw7d
 
 logger:
   DEBUG: true
