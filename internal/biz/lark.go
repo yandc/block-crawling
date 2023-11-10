@@ -35,7 +35,7 @@ var LarkClient Larker
 
 // NewLark new a lark.
 func NewLark(c *conf.Lark) *Lark {
-	 l := &Lark{
+	l := &Lark{
 		conf: c,
 		lock: common.NewSyncronized(c.LockNum),
 	}
@@ -87,19 +87,29 @@ func (lark *Lark) MonitorLark(msg string, opts ...AlarmOption) {
 	}
 
 	c := make([]Content, 0, 4)
-
-	if lark.conf.GetLarkAtList() != "" {
-		atList := strings.Split(lark.conf.GetLarkAtList(), ",")
-		for _, v := range atList {
-			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+	larkHost := lark.conf.LarkHost
+	larkSecret := lark.conf.LarkSecret
+	if alarmOpts.alarmBot != "" {
+		if v, ok := lark.conf.LarkBots[alarmOpts.alarmBot]; ok {
+			larkHost = v.Host
+			larkSecret = v.Secret
+		} else {
+			log.Warn("NOT FOUND ALARM BOT CONFIGURED", zap.String("bot", alarmOpts.alarmBot))
 		}
 	} else {
-		c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
+		if lark.conf.GetLarkAtList() != "" {
+			atList := strings.Split(lark.conf.GetLarkAtList(), ",")
+			for _, v := range atList {
+				c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+			}
+		} else {
+			c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
+		}
 	}
 	c = append(c, Content{Tag: "text", Text: msg + "\n"})
 	c = append(c, Content{Tag: "text", Text: "开始时间:\n"}, Content{Tag: "text", Text: BjNow()})
 	t := time.Now().Unix()
-	sign, _ := GenSign(lark.conf.LarkSecret, t)
+	sign, _ := GenSign(larkSecret, t)
 	content := make([][]Content, 1)
 	content[0] = c
 	b, _ := json.Marshal(content)
@@ -118,7 +128,7 @@ func (lark *Lark) MonitorLark(msg string, opts ...AlarmOption) {
     	}
 	}`
 
-	req, err := http.NewRequest(http.MethodPost, lark.conf.LarkHost, strings.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, larkHost, strings.NewReader(data))
 	if err != nil {
 		log.Error("lark http.NewRequest error:", zap.Error(err))
 		return
@@ -186,22 +196,18 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 
 	c := make([]Content, 0, 6)
 
-	//atStrList := ""
-	//if lark.conf.GetLarkAtList() != "" {
-	//	atList := strings.Split(lark.conf.GetLarkAtList(), ",")
-	//	tmpList := make([]string, len(atList))
-	//
-	//	for i, v := range atList {
-	//		s := `<at user_id = "%s">%s</at>`
-	//		ss := fmt.Sprintf(s, v, v)
-	//		tmpList[i] = ss
-	//		c = append(c, Content{Tag: "at", UserID: v, UserName: v})
-	//
-	//	}
-	//
-	//	//atStrList = strings.Join(tmpList, " ")
-	//}
-	c = append(c, lark.handleAtList(alarmOpts)...)
+	larkHost := lark.conf.LarkHost
+	larkSecret := lark.conf.LarkSecret
+	if alarmOpts.alarmBot != "" {
+		if v, ok := lark.conf.LarkBots[alarmOpts.alarmBot]; ok {
+			larkHost = v.Host
+			larkSecret = v.Secret
+		} else {
+			log.Warn("NOT FOUND ALARM BOT CONFIGURED", zap.String("bot", alarmOpts.alarmBot))
+		}
+	} else {
+		c = append(c, lark.handleAtList(alarmOpts)...)
+	}
 	c = append(c, Content{Tag: "text", Text: msg + "\n"})
 
 	if len(usableRPC) > 0 {
@@ -241,7 +247,7 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 	}
 	c = append(c, Content{Tag: "text", Text: "开始时间:\n"}, Content{Tag: "text", Text: BjNow()})
 	t := time.Now().Unix()
-	sign, _ := GenSign(lark.conf.LarkSecret, t)
+	sign, _ := GenSign(larkSecret, t)
 	content := make([][]Content, 1)
 	content[0] = c
 	b, _ := json.Marshal(content)
@@ -260,7 +266,7 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
     	}
 	}`
 
-	req, err := http.NewRequest(http.MethodPost, lark.conf.LarkHost, strings.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, larkHost, strings.NewReader(data))
 	if err != nil {
 		log.Error("lark http.NewRequest error:", zap.Error(err))
 		return

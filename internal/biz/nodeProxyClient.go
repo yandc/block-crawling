@@ -889,6 +889,7 @@ func DescribeCoinPriceByTimestamp(tokenAddress, coinId, chainName string, timest
 }
 
 func GetMethodNameRetryAlert(ctx context.Context, chainName string, contractAddress string, methodId string) (string, error) {
+	channel := "GetMethodNameRetryAlter" + chainName
 	var methodName string
 	contractAbiList, err := GetContractAbi(ctx, chainName, contractAddress, methodId)
 	for i := 0; i < 3 && err != nil; i++ {
@@ -896,12 +897,25 @@ func GetMethodNameRetryAlert(ctx context.Context, chainName string, contractAddr
 		contractAbiList, err = GetContractAbi(ctx, chainName, contractAddress, methodId)
 	}
 	if err != nil {
-		// 调用nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中合约ABI失败，contractAddress:%s，methodId:%s", chainName, contractAddress, methodId)
-		alarmOpts := WithMsgLevel("FATAL")
-		alarmOpts = WithAlarmChannel("node-proxy")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-	} else if len(contractAbiList) > 0 {
+		rate, ok := AccumulateAlarmFactor(channel, false)
+		if rate <= 85 && ok {
+			// 调用nodeProxy出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中合约ABI查询整体成功率为 %d%%", chainName, rate)
+			alarmOpts := WithMsgLevel("FATAL")
+			alarmChOpts := WithAlarmChannel("node-proxy")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts, alarmChOpts)
+		}
+		log.Info(
+			"查询nodeProxy中合约ABI失败",
+			zap.String("contractAddress", contractAddress), zap.String("methodId", methodId),
+			zap.String("chainName", chainName),
+			zap.Int("rate", rate),
+			zap.Bool("rateOk", ok),
+		)
+		return methodName, err
+	}
+	AccumulateAlarmFactor(channel, true)
+	if len(contractAbiList) > 0 {
 		contractAbi := contractAbiList[0]
 		methodName = contractAbi.Name
 	}
