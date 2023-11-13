@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const chainId = 0x5
+var chainId = []byte("0x5")
 
 var (
 	// https://github.com/MetaMask/test-dapp/blob/fb848448bd58d4ef725d6817ad2f99bc86827a27/src/index.js#L1327
@@ -197,7 +197,7 @@ func TestEvmV1(t *testing.T) {
 		SessionId:   "",
 		Address:     "",
 		ChainName:   "",
-		ChainId:     chainId,
+		RawChainId:  chainId,
 		Application: "",
 		Message:     byts,
 	})
@@ -214,7 +214,7 @@ func TestEvmV3(t *testing.T) {
 		SessionId:   "",
 		Address:     "",
 		ChainName:   "",
-		ChainId:     chainId,
+		RawChainId:  chainId,
 		Application: "",
 		Message:     sbyts,
 	})
@@ -279,7 +279,7 @@ func TestEvmV4(t *testing.T) {
 		SessionId:   "",
 		Address:     "",
 		ChainName:   "",
-		ChainId:     chainId,
+		RawChainId:  chainId,
 		Application: "",
 		Message:     sbyts,
 	})
@@ -296,7 +296,7 @@ func TestEvmV4IntChainId(t *testing.T) {
 		SessionId:   "",
 		Address:     "",
 		ChainName:   "",
-		ChainId:     chainId,
+		RawChainId:  chainId,
 		Application: "",
 		Message:     sbyts,
 	})

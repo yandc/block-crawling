@@ -50,7 +50,11 @@ func (s *aptSignHash) Hash(req *SignMessageRequest) (string, error) {
 		fullMessages.WriteString(fmt.Sprintf("address: %s\n", req.Address))
 	}
 	if params.ChainId {
-		fullMessages.WriteString(fmt.Sprintf("chain_id: %d\n", req.ChainId))
+		chainId, err := req.ChainId()
+		if err != nil {
+			return "", err
+		}
+		fullMessages.WriteString(fmt.Sprintf("chain_id: %d\n", chainId))
 	}
 	if params.Application {
 		fullMessages.WriteString(fmt.Sprintf("application: %s\n", req.Application))
