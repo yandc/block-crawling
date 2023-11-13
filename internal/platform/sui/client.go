@@ -153,7 +153,7 @@ type TokenBalance struct {
 }
 
 func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (string, error) {
-	method := "suix_getBalance"
+	method := c.getRpcMethod("suix_getBalance")
 	params := []interface{}{address, tokenAddress}
 	var out TokenBalance
 	timeoutMS := 3_000 * time.Millisecond
