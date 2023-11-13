@@ -123,13 +123,13 @@ lark:
 
   larkSubscriptions:
     APTOS:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     COSMOS:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     CKB:
       uids: [ wanghui ]
     CSPR:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     EVM:
       uids: [ runhua ]
     POLKADOT:
@@ -137,9 +137,9 @@ lark:
     SOL:
       uids: [ wanghui ]
     STC:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     SUI:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     TVM:
       uids: [ runhua ]
     BTC:
@@ -149,7 +149,7 @@ lark:
     txinput:
       uids: [ dechen ]
     KASPA:
-      uids: [ dongdong ]
+      uids: [ wanghui ]
     kanban:
       uids: [ wanghui ]
 
