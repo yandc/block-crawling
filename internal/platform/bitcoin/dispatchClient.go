@@ -139,7 +139,11 @@ func (c *Client) getBlock(height uint64) (*chain.Block, error) {
 // 2. 返回 nil tx 表示调用 TxHandler.OnDroppedTx（兜底方案）
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
+
 	if err != nil {
+		if err.Error() == "The requested resource has not been found" {
+			return nil, nil
+		}
 		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
