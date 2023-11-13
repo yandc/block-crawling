@@ -26,11 +26,19 @@ func Hash(chainType string, payload *SignMessageRequest) (string, error) {
 }
 
 type SignMessageRequest struct {
-	SessionId   string `json:"sessionId"`
-	Address     string `json:"address"`
-	ChainName   string `json:"chainName"`
-	ChainId     int    `json:"chainId"`
-	Application string `json:"application"`
+	SessionId   string          `json:"sessionId"`
+	Address     string          `json:"address"`
+	ChainName   string          `json:"chainName"`
+	RawChainId  json.RawMessage `json:"chainId"`
+	Application string          `json:"application"`
 
 	Message json.RawMessage `json:"message"`
+}
+
+func (r *SignMessageRequest) ChainId() (int, error) {
+	var chainId int
+	if err := json.Unmarshal(r.RawChainId, &chainId); err != nil {
+		return 0, err
+	}
+	return chainId, nil
 }
