@@ -6,11 +6,11 @@ import (
 	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"flag"
-	"os"
-
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
+	"os"
+	"reflect"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -21,12 +21,15 @@ var (
 	Version string
 	// flagconf is the config flag.
 	flagconf string
+	//method 执行的方法
+	method string
 
 	id, _ = os.Hostname()
 )
 
 func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
+	flag.StringVar(&method, "method", "", "method name, eg: UpdateUserUtxo")
 }
 
 func newApp(*data.Bundle, platform.Server, platform.InnerPlatformContainer) *kratos.App {
@@ -62,6 +65,12 @@ func main() {
 		panic(err)
 	}
 	defer cleanup()
+	funcMap := map[string]interface{}{
+		"UpdateUserUtxo": platform.UpdateUserUtxo,
+	}
+
+	f := reflect.ValueOf(funcMap[method])
+	f.Call(nil)
 	//platform.MigrateRecord()
 	//platform.DappReset()
 	//platform.BtcReset()
@@ -84,6 +93,6 @@ func main() {
 	//platform.UpdateAssetUid()
 	//platform.UpdateAssetTokenUri()
 	//platform.UpdateSignAddress()
-	platform.UpdateUserUtxo()
+	//platform.UpdateUserUtxo()
 	//platform.UpdateBTCAmount()
 }
