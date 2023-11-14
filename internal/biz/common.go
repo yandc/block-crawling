@@ -370,7 +370,7 @@ type BroadcastRequest struct {
 	TxInputList         []string `json:"txInputList"`
 	ChainName           string   `json:"chainName"`
 	ErrMsg              string   `json:"errMsg"`
-	Stage               string   `json:"stage"` // txParams：获取交易参数, broadcast：交易广播
+	Stage               string   `json:"stage"` // txParams：获取交易参数, broadcast：交易广播,txHash:校验txHash,urlCheck:校验URL
 	NodeURL             string   `json:"nodeUrl"`
 	TransactionHashList []string `json:"transactionHashList"`
 	TransactionHash     string   `json:"transactionHash"`
@@ -1209,18 +1209,42 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 		)
 		alarmOpts = WithAlarmChannel("txinput")
 	} else {
-		msg = fmt.Sprintf(
-			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
-			req.ChainName,
-			req.NodeURL,
-			req.Address,
-			userAgent,
-			req.ErrMsg,
-			req.TxInput,
-			user,
-			deviceId,
-		)
+		//txHash:校验txHash,urlCheck，txParams：获取交易参数
 		alarmOpts = WithCollectBot()
+		if req.Stage == "urlCheck" {
+			msg = "chainData校验URL失败。"
+		} else if req.Stage == "txHash" {
+			msg = fmt.Sprintf(
+				"%s 链校验上链失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
+				req.ChainName,
+				req.NodeURL,
+				req.Address,
+				userAgent,
+				req.ErrMsg,
+				req.TxInput,
+				user,
+				deviceId,
+			)
+			alarmOpts = WithAlarmChannel("node-proxy")
+		} else {
+			msg = fmt.Sprintf(
+				"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
+				req.ChainName,
+				req.NodeURL,
+				req.Address,
+				userAgent,
+				req.ErrMsg,
+				req.TxInput,
+				user,
+				deviceId,
+			)
+			if req.Stage == "txParamsLark"{
+				alarmOpts = WithAlarmChannel("node-proxy")
+			}
+
+		}
+		//alarmOpts = WithCollectBot()
+		//alarmOpts = WithAlarmChannel("node-proxy")
 	}
 	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 }
