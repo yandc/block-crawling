@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/ethereum/rtypes"
+	"block-crawling/internal/platform/kaspa"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/types"
@@ -7848,44 +7849,147 @@ var btcUrls = []string{
 // 2、遍历所有地址，获取地址的UTXO并更新到数据库
 func UpdateUserUtxo() {
 
-	flag := "/bitcoin/mainnet/"
-	chainName := "BTC"
+	chains := []string{
+		//"BTC",
+		"LTC",
+		"DOGE",
+		"Kaspa",
+	}
+	var tableName string
+	for _, chainName := range chains {
+
+		//删除该链所有UTXO
+		if err := data.BlockCreawlingDB.Table("utxo_unspent_record").
+			Delete(nil, "chain_name = ?", chainName).Error; err != nil {
+			log.Error("delete utxo error", zap.String("chain name", chainName))
+			continue
+		}
+
+		if chainName == "Kaspa" {
+			UpdateKaspaUtxo()
+			continue
+		}
+
+		log.Info("start update utxo", zap.String("chainName", chainName))
+
+		var flag string
+		if chainName == "BTC" {
+			flag = "/bitcoin/mainnet/"
+			tableName = "btc_transaction_record"
+		} else if chainName == "LTC" {
+			flag = "/litecoin/mainnet/"
+			tableName = "ltc_transaction_record"
+		} else if chainName == "DOGE" {
+			flag = "/dogecoin/mainnet/"
+			tableName = "doge_transaction_record"
+		}
+
+		//从交易记录中查询有uid的fromAddress
+		var fromAddressAndUids []AddressAndUid
+		if err := data.BlockCreawlingDB.Table(tableName).Select("distinct(from_address) as address,from_uid as uid").Where("from_uid != ''").Find(&fromAddressAndUids).Error; err != nil {
+			log.Error(err.Error())
+		}
+
+		//从交易记录中查询有uid的toAddress
+		var toAddressAndUids []AddressAndUid
+		if err := data.BlockCreawlingDB.Table(tableName).Select("distinct(to_address) as address,to_uid as uid").Where("to_uid != ''").Find(&toAddressAndUids).Error; err != nil {
+			log.Error(err.Error())
+		}
+
+		//合并fromAddress和toAddress，遍历更新UTXO
+		addressAndUids := append(fromAddressAndUids, toAddressAndUids...)
+		//addressAndUids := []AddressAndUid{{
+		//	Address: "D8ZEVbgf4yPs3MK8dMJJ7PpSyBKsbd66TX",
+		//	Uid:     "uid",
+		//}}
+		for _, addressAndUid := range addressAndUids {
+			log.Info("start update user utxo", zap.String("address", addressAndUid.Address), zap.String("uid", addressAndUid.Uid))
+
+			utxoList, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
+			for i := 0; i < len(btcUrls) && err != nil; i++ {
+				utxoList, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
+			}
+			if err != nil {
+				continue
+			}
+
+			for _, d := range utxoList {
+				var utxoUnspentRecord = &data.UtxoUnspentRecord{
+					Uid:       addressAndUid.Uid,
+					Hash:      d.Mined.TxId,
+					N:         d.Mined.Index,
+					ChainName: chainName,
+					Address:   addressAndUid.Address,
+					Script:    d.Mined.Meta.Script,
+					Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+					Amount:    strconv.Itoa(d.Value),
+					TxTime:    int64(d.Mined.Date),
+					UpdatedAt: time.Now().Unix(),
+				}
+
+				r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+				if err != nil {
+					log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", addressAndUid.Address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
+				}
+			}
+		}
+	}
+
+}
+
+func UpdateKaspaUtxo() {
+	chainName := "Kaspa"
+	tableName := "kaspa_transaction_record"
+
+	log.Info("start update utxo", zap.String("chainName", chainName))
 
 	//从交易记录中查询有uid的fromAddress
 	var fromAddressAndUids []AddressAndUid
-	if err := data.BlockCreawlingDB.Table("btc_transaction_record").Select("distinct(from_address) as address,from_uid as uid").Where("from_uid != ''").Find(&fromAddressAndUids).Error; err != nil {
+	if err := data.BlockCreawlingDB.Table(tableName).Select("distinct(from_address) as address,from_uid as uid").Where("from_uid != ''").Find(&fromAddressAndUids).Error; err != nil {
 		log.Error(err.Error())
 	}
 
 	//从交易记录中查询有uid的toAddress
 	var toAddressAndUids []AddressAndUid
-	if err := data.BlockCreawlingDB.Table("btc_transaction_record").Select("distinct(to_address) as address,to_uid as uid").Where("to_uid != ''").Find(&toAddressAndUids).Error; err != nil {
+	if err := data.BlockCreawlingDB.Table(tableName).Select("distinct(to_address) as address,to_uid as uid").Where("to_uid != ''").Find(&toAddressAndUids).Error; err != nil {
 		log.Error(err.Error())
 	}
 
 	//合并fromAddress和toAddress，遍历更新UTXO
 	addressAndUids := append(fromAddressAndUids, toAddressAndUids...)
-	for _, addressAndUid := range addressAndUids {
+	//addressAndUids := []AddressAndUid{{
+	//	Address: "D8ZEVbgf4yPs3MK8dMJJ7PpSyBKsbd66TX",
+	//	Uid:     "uid",
+	//}}
 
-		utxoList, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
+	client := kaspa.NewClient(chainName, "https://api.kaspa.org")
+	for _, addressAndUid := range addressAndUids {
+		log.Info("start update user utxo", zap.String("address", addressAndUid.Address), zap.String("uid", addressAndUid.Uid))
+
+		utxoList, err := client.GetUtxo(addressAndUid.Address)
 		for i := 0; i < len(btcUrls) && err != nil; i++ {
-			utxoList, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
+			utxoList, err = client.GetUtxo(addressAndUid.Address)
 		}
 		if err != nil {
 			continue
 		}
 
 		for _, d := range utxoList {
+			tx, err := client.GetTransactionByHash(d.Outpoint.TransactionId)
+			if err != nil {
+				continue
+			}
+
 			var utxoUnspentRecord = &data.UtxoUnspentRecord{
-				Uid:       addressAndUid.Uid,
-				Hash:      d.Mined.TxId,
-				N:         d.Mined.Index,
 				ChainName: chainName,
+				Uid:       addressAndUid.Uid,
 				Address:   addressAndUid.Address,
-				Script:    d.Mined.Meta.Script,
+				Hash:      d.Outpoint.TransactionId,
+				N:         d.Outpoint.Index,
+				Script:    d.UtxoEntry.ScriptPublicKey.ScriptPublicKey,
 				Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
-				Amount:    strconv.Itoa(d.Value),
-				TxTime:    int64(d.Mined.Date),
+				Amount:    d.UtxoEntry.Amount,
+				TxTime:    tx.BlockTime / 1000,
 				UpdatedAt: time.Now().Unix(),
 			}
 

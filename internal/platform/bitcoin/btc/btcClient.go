@@ -58,6 +58,7 @@ func GetUnspentUtxo(nodeUrl string, address string) ([]types.UbiquityOutput, err
 	utxos = result.Data
 	for result.Meta != nil {
 		param["page_token"] = result.Meta.Paging.NextPageToken
+		result = types.UbiquityUtxo{}
 		err = httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &result, &timeoutMS)
 		if err != nil {
 			return nil, err
