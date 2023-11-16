@@ -402,12 +402,8 @@ platform:
     nativeCurrency: KLAY
     netType: main
     rpcURL:
-#    - https://klaytn.blockpi.network/v1/rpc/public
-    - https://rpc.ankr.com/klaytn/05dbff7644776cab194dcd76c681c9a183496003c17193f7638b0c70125f5cd9
-    - https://rpc.ankr.com/klaytn/0f6abaed361f516227f81c81656380888c2cb96d7261074e5e24307c949cd1cf
-    - https://rpc.ankr.com/klaytn/366102bcc04548bc7c81392ec68cd14adbe3618650be482db3ed4120d1043f4d
-    - https://rpc.ankr.com/klaytn/7cc9adb6df7138b00cfcabe1edfe7f50c713ef886b5b3ad3d4c976ec52585a21
-    - https://rpc.ankr.com/klaytn/cfc1a88a32ca248459de7d141991e51a1d879126f14f4b8ff2e949d01b128ba2
+      - https://open-platform.nodereal.io/f355989825f94be884bb67a2395722e8/klaytn/
+      - https://klaytn.blockpi.network/v1/rpc/public
     symbol: Klaytn
     type: EVM
     safelyConcurrentBlockDelta: 100
