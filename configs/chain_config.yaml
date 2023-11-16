@@ -791,6 +791,9 @@ platform:
       - https://api.cosmos.network
       - https://lcd-cosmoshub.keplr.app
       - https://rest.cosmos.directory/cosmoshub
+      - https://node.onekey.so/cosmos
+      - https://lcd-cosmoshub.blockapsis.com
+      - https://cosmos-lcd.quickapi.com
 #      - https://cosmos-mainnet-rpc.allthatnode.com:1317
 #      - https://us-atom-restapi.binancechain.io
     httpURL:
