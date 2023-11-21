@@ -17,7 +17,7 @@ import (
 
 type Platform interface {
 	Coin() coins.Coin
-	MonitorHeight(onAvailablityChanged func(bool))
+	MonitorHeight(onAvailablityChanged func(bool), liveInterval time.Duration)
 
 	CreateStateStore() chain.StateStore
 	CreateClient(url string) chain.Clienter
@@ -33,9 +33,12 @@ type CommPlatform struct {
 
 	HeightAlarmThr int
 	heightAlarmSeq uint64
+
+	lastNodeHeight      int
+	nodeHeightUpdatedAt int64
 }
 
-func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
+func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool), liveInterval time.Duration) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -73,6 +76,10 @@ func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
 		atomic.StoreUint64(&p.heightAlarmSeq, 0)
 	}
 
+	if ShouldChainAlarm(p.ChainName) {
+		p.monitorHeightChanging(height, liveInterval)
+	}
+
 	thr := 30
 
 	if p.HeightAlarmThr > 0 {
@@ -95,4 +102,33 @@ func (p *CommPlatform) MonitorHeight(onAvailablityChanged func(bool)) {
 			onAvailablityChanged(true)
 		}
 	}
+}
+
+func (p *CommPlatform) monitorHeightChanging(height int, liveInterval time.Duration) {
+	if p.lastNodeHeight != height {
+		p.lastNodeHeight = height
+		p.nodeHeightUpdatedAt = time.Now().Unix()
+	}
+
+	if p.nodeHeightUpdatedAt > 0 {
+		updatedAt := time.Unix(p.nodeHeightUpdatedAt, 0)
+		thr := liveInterval * 10
+		minThr := time.Minute * 10
+		if thr < minThr {
+			thr = minThr
+		}
+
+		if time.Now().Sub(updatedAt) > thr {
+			alarmMsg := fmt.Sprintf(
+				"请注意：%s链的链上块高已经长时间不更新，上次更新时间：%s，缓存链上块高: %d。",
+				p.ChainName, updatedAt.Format("2006-01-02 15:04:05"), height,
+			)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts, WithAlarmChainName(p.ChainName))
+		}
+	}
+}
+
+func LiveInterval(p Platform) time.Duration {
+	return time.Duration(p.Coin().LiveInterval) * time.Millisecond
 }
