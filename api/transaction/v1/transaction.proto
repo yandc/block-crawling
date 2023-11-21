@@ -10,6 +10,8 @@ import "validate/validate.proto";
 
 service Transaction {
   rpc CreateRecordFromWallet(TransactionReq) returns (CreateResponse);
+  //根据hash查询交易记录
+  rpc GetTransactionByHash(GetTransactionByHashRequest) returns (TransactionRecord);
   //分页查询交易记录列表
   rpc PageLists(PageListRequest) returns (PageListResponse);
   //分页查询交易记录列表(原交易、加速和取消的会折叠处理)
@@ -289,6 +291,13 @@ message TransactionReq {
   string feeData = 31;
   string operateType = 32;
   string originalHash = 33;
+}
+
+message GetTransactionByHashRequest{
+  string platform = 1;
+  int32 osVersion = 2;
+  string chainName = 3;
+  string hash = 4;
 }
 
 message PageListRequest {

@@ -35,6 +35,22 @@ func (s *TransactionService) CreateRecordFromWallet(ctx context.Context, req *pb
 	return result, err
 }
 
+func (s *TransactionService) GetTransactionByHash(ctx context.Context, req *pb.GetTransactionByHashRequest) (*pb.TransactionRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	chainType := biz.ChainTypeAdd(req.ChainName)[req.ChainName]
+
+	record, err := s.ts.GetTransactionByHash(ctx, req.ChainName, req.Hash)
+	if record == nil {
+		return nil, errors.New("transaction not found , hash : " + req.Hash)
+	}
+
+	convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
+
+	return record, err
+}
+
 func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -97,152 +113,7 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 			if record == nil {
 				continue
 			}
-
-			if record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
-				record.Status = biz.FAIL
-			}
-			if record.Status == biz.NO_STATUS {
-				record.Status = biz.PENDING
-			}
-			if record.Status == biz.ADDLIQUIDITY {
-				record.Status = biz.CONTRACT
-			}
-			for _, operateRecord := range record.OperateRecordList {
-				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
-					operateRecord.Status = biz.FAIL
-				}
-				if operateRecord.Status == biz.NO_STATUS {
-					operateRecord.Status = biz.PENDING
-				}
-				if operateRecord.Status == biz.ADDLIQUIDITY {
-					operateRecord.Status = biz.CONTRACT
-				}
-			}
-
-			if record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
-				if record.Amount == "" || record.Amount == "0" {
-					var data = record.Data
-					if data == "" {
-						if record.ClientData != "" {
-							clientData := make(map[string]interface{})
-							if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
-								dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
-								if dok {
-									data, _ = dappTxinfoMap["data"].(string)
-								}
-							}
-						}
-					}
-
-					if data == "" {
-						if record.TransactionType == biz.APPROVE {
-							record.TransactionType = biz.CANCELAPPROVE
-						} else if record.TransactionType == biz.APPROVENFT {
-							record.TransactionType = biz.CANCELAPPROVENFT
-						}
-					} else {
-						switch chainType {
-						case biz.EVM, biz.TVM:
-							if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
-								if record.TransactionType == biz.APPROVE {
-									record.TransactionType = biz.CANCELAPPROVE
-								} else if record.TransactionType == biz.APPROVENFT {
-									record.TransactionType = biz.CANCELAPPROVENFT
-								}
-							}
-						}
-					}
-				}
-			}
-			for _, operateRecord := range record.OperateRecordList {
-				if operateRecord.TransactionType == biz.APPROVE || operateRecord.TransactionType == biz.APPROVENFT {
-					if operateRecord.Amount == "" || operateRecord.Amount == "0" {
-						var data = operateRecord.Data
-						if data == "" {
-							if operateRecord.ClientData != "" {
-								clientData := make(map[string]interface{})
-								if jsonErr := json.Unmarshal([]byte(operateRecord.ClientData), &clientData); jsonErr == nil {
-									dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
-									if dok {
-										data, _ = dappTxinfoMap["data"].(string)
-									}
-								}
-							}
-						}
-
-						if data == "" {
-							if operateRecord.TransactionType == biz.APPROVE {
-								operateRecord.TransactionType = biz.CANCELAPPROVE
-							} else if operateRecord.TransactionType == biz.APPROVENFT {
-								operateRecord.TransactionType = biz.CANCELAPPROVENFT
-							}
-						} else {
-							switch chainType {
-							case biz.EVM, biz.TVM:
-								if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
-									if operateRecord.TransactionType == biz.APPROVE {
-										operateRecord.TransactionType = biz.CANCELAPPROVE
-									} else if operateRecord.TransactionType == biz.APPROVENFT {
-										operateRecord.TransactionType = biz.CANCELAPPROVENFT
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
-				if req.OsVersion < 2023040601 {
-					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
-						continue
-					}
-					if platInfo, ok := biz.GetChainPlatInfo(req.ChainName); ok {
-						mainDecimals := platInfo.Decimal
-						mainSymbol := platInfo.NativeCurrency
-						eventLogStr := record.EventLog
-						var eventLogs []*types.EventLogUid
-						err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
-						if err != nil {
-							continue
-						}
-						for _, eventLog := range eventLogs {
-							if eventLog.Token.Address == "" {
-								eventLog.Token.Address = "0x0000000000000000000000000000000000000000"
-								eventLog.Token.Amount = eventLog.Amount.String()
-								eventLog.Token.Decimals = int64(mainDecimals)
-								eventLog.Token.Symbol = mainSymbol
-							}
-						}
-						eventLogStr, _ = utils.JsonEncode(eventLogs)
-						record.EventLog = eventLogStr
-					}
-				}
-
-				if req.OsVersion < 2023052301 {
-					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
-						continue
-					}
-					eventLogStr := record.EventLog
-					var eventLogs []*types.EventLogUid
-					var newEventLogs []*types.EventLogUid
-					err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
-					if err != nil {
-						continue
-					}
-					for _, eventLog := range eventLogs {
-						if eventLog.Token.TokenType == "" || eventLog.Token.TokenType == biz.ERC20 {
-							newEventLogs = append(newEventLogs, eventLog)
-						}
-					}
-					if newEventLogs != nil {
-						eventLogStr, _ = utils.JsonEncode(newEventLogs)
-					} else {
-						eventLogStr = ""
-					}
-					record.EventLog = eventLogStr
-				}
-			}
+			convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
 		}
 	}
 	return result, err
@@ -310,151 +181,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 				continue
 			}
 
-			if record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
-				record.Status = biz.FAIL
-			}
-			if record.Status == biz.NO_STATUS {
-				record.Status = biz.PENDING
-			}
-			if record.Status == biz.ADDLIQUIDITY {
-				record.Status = biz.CONTRACT
-			}
-			for _, operateRecord := range record.OperateRecordList {
-				if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
-					operateRecord.Status = biz.FAIL
-				}
-				if operateRecord.Status == biz.NO_STATUS {
-					operateRecord.Status = biz.PENDING
-				}
-				if operateRecord.Status == biz.ADDLIQUIDITY {
-					operateRecord.Status = biz.CONTRACT
-				}
-			}
-
-			if record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
-				if record.Amount == "" || record.Amount == "0" {
-					var data = record.Data
-					if data == "" {
-						if record.ClientData != "" {
-							clientData := make(map[string]interface{})
-							if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
-								dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
-								if dok {
-									data, _ = dappTxinfoMap["data"].(string)
-								}
-							}
-						}
-					}
-
-					if data == "" {
-						if record.TransactionType == biz.APPROVE {
-							record.TransactionType = biz.CANCELAPPROVE
-						} else if record.TransactionType == biz.APPROVENFT {
-							record.TransactionType = biz.CANCELAPPROVENFT
-						}
-					} else {
-						switch chainType {
-						case biz.EVM, biz.TVM:
-							if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
-								if record.TransactionType == biz.APPROVE {
-									record.TransactionType = biz.CANCELAPPROVE
-								} else if record.TransactionType == biz.APPROVENFT {
-									record.TransactionType = biz.CANCELAPPROVENFT
-								}
-							}
-						}
-					}
-				}
-			}
-			for _, operateRecord := range record.OperateRecordList {
-				if operateRecord.TransactionType == biz.APPROVE || operateRecord.TransactionType == biz.APPROVENFT {
-					if operateRecord.Amount == "" || operateRecord.Amount == "0" {
-						var data = operateRecord.Data
-						if data == "" {
-							if operateRecord.ClientData != "" {
-								clientData := make(map[string]interface{})
-								if jsonErr := json.Unmarshal([]byte(operateRecord.ClientData), &clientData); jsonErr == nil {
-									dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
-									if dok {
-										data, _ = dappTxinfoMap["data"].(string)
-									}
-								}
-							}
-						}
-
-						if data == "" {
-							if operateRecord.TransactionType == biz.APPROVE {
-								operateRecord.TransactionType = biz.CANCELAPPROVE
-							} else if operateRecord.TransactionType == biz.APPROVENFT {
-								operateRecord.TransactionType = biz.CANCELAPPROVENFT
-							}
-						} else {
-							switch chainType {
-							case biz.EVM, biz.TVM:
-								if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
-									if operateRecord.TransactionType == biz.APPROVE {
-										operateRecord.TransactionType = biz.CANCELAPPROVE
-									} else if operateRecord.TransactionType == biz.APPROVENFT {
-										operateRecord.TransactionType = biz.CANCELAPPROVENFT
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if req.Platform == biz.ANDROID || req.Platform == biz.IOS {
-				if req.OsVersion < 2023040601 {
-					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
-						continue
-					}
-					if platInfo, ok := biz.GetChainPlatInfo(req.ChainName); ok {
-						mainDecimals := platInfo.Decimal
-						mainSymbol := platInfo.NativeCurrency
-						eventLogStr := record.EventLog
-						var eventLogs []*types.EventLogUid
-						err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
-						if err != nil {
-							continue
-						}
-						for _, eventLog := range eventLogs {
-							if eventLog.Token.Address == "" {
-								eventLog.Token.Address = "0x0000000000000000000000000000000000000000"
-								eventLog.Token.Amount = eventLog.Amount.String()
-								eventLog.Token.Decimals = int64(mainDecimals)
-								eventLog.Token.Symbol = mainSymbol
-							}
-						}
-						eventLogStr, _ = utils.JsonEncode(eventLogs)
-						record.EventLog = eventLogStr
-					}
-				}
-
-				if req.OsVersion < 2023052301 {
-					if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
-						continue
-					}
-					eventLogStr := record.EventLog
-					var eventLogs []*types.EventLogUid
-					var newEventLogs []*types.EventLogUid
-					err = json.Unmarshal([]byte(eventLogStr), &eventLogs)
-					if err != nil {
-						continue
-					}
-					for _, eventLog := range eventLogs {
-						if eventLog.Token.TokenType == "" || eventLog.Token.TokenType == biz.ERC20 {
-							newEventLogs = append(newEventLogs, eventLog)
-						}
-					}
-					if newEventLogs != nil {
-						eventLogStr, _ = utils.JsonEncode(newEventLogs)
-					} else {
-						eventLogStr = ""
-					}
-					record.EventLog = eventLogStr
-				}
-			}
+			convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
 		}
 	}
 	return result, err
@@ -809,4 +536,153 @@ func (s *TransactionService) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 	defer cancel()
 	result, err := s.ts.GetBlockHeight(subctx, req)
 	return result, err
+}
+
+func convertRecord(platform, chainName, chainType string, osVersion int32, record *pb.TransactionRecord) {
+
+	if record.Status == biz.DROPPED_REPLACED || record.Status == biz.DROPPED {
+		record.Status = biz.FAIL
+	}
+	if record.Status == biz.NO_STATUS {
+		record.Status = biz.PENDING
+	}
+	if record.Status == biz.ADDLIQUIDITY {
+		record.Status = biz.CONTRACT
+	}
+	for _, operateRecord := range record.OperateRecordList {
+		if operateRecord.Status == biz.DROPPED_REPLACED || operateRecord.Status == biz.DROPPED {
+			operateRecord.Status = biz.FAIL
+		}
+		if operateRecord.Status == biz.NO_STATUS {
+			operateRecord.Status = biz.PENDING
+		}
+		if operateRecord.Status == biz.ADDLIQUIDITY {
+			operateRecord.Status = biz.CONTRACT
+		}
+	}
+
+	if record.TransactionType == biz.APPROVE || record.TransactionType == biz.APPROVENFT {
+		if record.Amount == "" || record.Amount == "0" {
+			var data = record.Data
+			if data == "" {
+				if record.ClientData != "" {
+					clientData := make(map[string]interface{})
+					if jsonErr := json.Unmarshal([]byte(record.ClientData), &clientData); jsonErr == nil {
+						dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+						if dok {
+							data, _ = dappTxinfoMap["data"].(string)
+						}
+					}
+				}
+			}
+
+			if data == "" {
+				if record.TransactionType == biz.APPROVE {
+					record.TransactionType = biz.CANCELAPPROVE
+				} else if record.TransactionType == biz.APPROVENFT {
+					record.TransactionType = biz.CANCELAPPROVENFT
+				}
+			} else {
+				switch chainType {
+				case biz.EVM, biz.TVM:
+					if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+						if record.TransactionType == biz.APPROVE {
+							record.TransactionType = biz.CANCELAPPROVE
+						} else if record.TransactionType == biz.APPROVENFT {
+							record.TransactionType = biz.CANCELAPPROVENFT
+						}
+					}
+				}
+			}
+		}
+	}
+	for _, operateRecord := range record.OperateRecordList {
+		if operateRecord.TransactionType == biz.APPROVE || operateRecord.TransactionType == biz.APPROVENFT {
+			if operateRecord.Amount == "" || operateRecord.Amount == "0" {
+				var data = operateRecord.Data
+				if data == "" {
+					if operateRecord.ClientData != "" {
+						clientData := make(map[string]interface{})
+						if jsonErr := json.Unmarshal([]byte(operateRecord.ClientData), &clientData); jsonErr == nil {
+							dappTxinfoMap, dok := clientData["dappTxinfo"].(map[string]interface{})
+							if dok {
+								data, _ = dappTxinfoMap["data"].(string)
+							}
+						}
+					}
+				}
+
+				if data == "" {
+					if operateRecord.TransactionType == biz.APPROVE {
+						operateRecord.TransactionType = biz.CANCELAPPROVE
+					} else if operateRecord.TransactionType == biz.APPROVENFT {
+						operateRecord.TransactionType = biz.CANCELAPPROVENFT
+					}
+				} else {
+					switch chainType {
+					case biz.EVM, biz.TVM:
+						if len(data) == 136 && strings.HasSuffix(data, "0000000000000000000000000000000000000000000000000000000000000000") {
+							if operateRecord.TransactionType == biz.APPROVE {
+								operateRecord.TransactionType = biz.CANCELAPPROVE
+							} else if operateRecord.TransactionType == biz.APPROVENFT {
+								operateRecord.TransactionType = biz.CANCELAPPROVENFT
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if platform == biz.ANDROID || platform == biz.IOS {
+		if osVersion < 2023040601 {
+			if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+				return
+			}
+			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
+				mainDecimals := platInfo.Decimal
+				mainSymbol := platInfo.NativeCurrency
+				eventLogStr := record.EventLog
+				var eventLogs []*types.EventLogUid
+				err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
+				if err != nil {
+					return
+				}
+				for _, eventLog := range eventLogs {
+					if eventLog.Token.Address == "" {
+						eventLog.Token.Address = "0x0000000000000000000000000000000000000000"
+						eventLog.Token.Amount = eventLog.Amount.String()
+						eventLog.Token.Decimals = int64(mainDecimals)
+						eventLog.Token.Symbol = mainSymbol
+					}
+				}
+				eventLogStr, _ = utils.JsonEncode(eventLogs)
+				record.EventLog = eventLogStr
+			}
+		}
+
+		if osVersion < 2023052301 {
+			if record.TransactionType != biz.CONTRACT || record.EventLog == "" {
+				return
+			}
+			eventLogStr := record.EventLog
+			var eventLogs []*types.EventLogUid
+			var newEventLogs []*types.EventLogUid
+			err := json.Unmarshal([]byte(eventLogStr), &eventLogs)
+			if err != nil {
+				return
+			}
+			for _, eventLog := range eventLogs {
+				if eventLog.Token.TokenType == "" || eventLog.Token.TokenType == biz.ERC20 {
+					newEventLogs = append(newEventLogs, eventLog)
+				}
+			}
+			if newEventLogs != nil {
+				eventLogStr, _ = utils.JsonEncode(newEventLogs)
+			} else {
+				eventLogStr = ""
+			}
+			record.EventLog = eventLogStr
+		}
+	}
 }
