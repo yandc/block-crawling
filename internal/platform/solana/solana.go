@@ -121,11 +121,11 @@ func BatchSaveOrUpdate(txRecords []*data.SolTransactionRecord, tableName string)
 
 var monitorHeightSeq uint64
 
-func (p *Platform) MonitorHeight(f func(bool)) {
+func (p *Platform) MonitorHeight(f func(bool), l time.Duration) {
 	// 测试环境每 1 小时监控一次，生产环境每 6 小时监控一次。
 	seq := atomic.AddUint64(&monitorHeightSeq, 1)
 	if seq == 60 {
-		p.CommPlatform.MonitorHeight(f)
+		p.CommPlatform.MonitorHeight(f, l)
 		atomic.StoreUint64(&monitorHeightSeq, 0)
 	}
 }

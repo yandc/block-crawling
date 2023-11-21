@@ -107,7 +107,7 @@ func (b *Bootstrap) Start() {
 	}
 
 	go func() {
-		if b.ChainName == "Osmosis" || b.ChainName == "Solana" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" || b.ChainName == "CelestiaMochaTEST" {
+		if !b.shouldStartIndexing() {
 			return
 		}
 		log.Info("我启动啦", zap.Any(b.ChainName, b))
@@ -127,8 +127,8 @@ func (b *Bootstrap) Start() {
 			select {
 			case <-resultPlan.C:
 				go b.GetTransactionResultByTxhash()
-				if b.isAvailable() {
-					go b.Platform.MonitorHeight(b.onAvailablityChanged)
+				if b.isAvailable() && b.shouldStartIndexing() {
+					go b.Platform.MonitorHeight(b.onAvailablityChanged, b.liveInterval())
 				}
 			case <-b.pCtx.Done():
 				resultPlan.Stop()
@@ -136,6 +136,13 @@ func (b *Bootstrap) Start() {
 			}
 		}
 	}()
+}
+
+func (b *Bootstrap) shouldStartIndexing() bool {
+	if b.ChainName == "Osmosis" || b.ChainName == "Solana" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" || b.ChainName == "CelestiaMochaTEST" {
+		return false
+	}
+	return true
 }
 
 func (b *Bootstrap) onAvailablityChanged(available bool) {
@@ -263,7 +270,7 @@ func (b *Bootstrap) GetTransactionResultByTxhash() {
 }
 
 func (b *Bootstrap) liveInterval() time.Duration {
-	return time.Duration(b.Platform.Coin().LiveInterval) * time.Millisecond
+	return biz.LiveInterval(b.Platform)
 }
 
 type Server interface {
