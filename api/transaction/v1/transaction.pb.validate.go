@@ -3135,6 +3135,117 @@ var _ interface {
 	ErrorName() string
 } = TransactionReqValidationError{}
 
+// Validate checks the field values on GetTransactionByHashRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetTransactionByHashRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetTransactionByHashRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetTransactionByHashRequestMultiError, or nil if none found.
+func (m *GetTransactionByHashRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetTransactionByHashRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Platform
+
+	// no validation rules for OsVersion
+
+	// no validation rules for ChainName
+
+	// no validation rules for Hash
+
+	if len(errors) > 0 {
+		return GetTransactionByHashRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetTransactionByHashRequestMultiError is an error wrapping multiple
+// validation errors returned by GetTransactionByHashRequest.ValidateAll() if
+// the designated constraints aren't met.
+type GetTransactionByHashRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetTransactionByHashRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetTransactionByHashRequestMultiError) AllErrors() []error { return m }
+
+// GetTransactionByHashRequestValidationError is the validation error returned
+// by GetTransactionByHashRequest.Validate if the designated constraints
+// aren't met.
+type GetTransactionByHashRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetTransactionByHashRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetTransactionByHashRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetTransactionByHashRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetTransactionByHashRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetTransactionByHashRequestValidationError) ErrorName() string {
+	return "GetTransactionByHashRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetTransactionByHashRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetTransactionByHashRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetTransactionByHashRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetTransactionByHashRequestValidationError{}
+
 // Validate checks the field values on PageListRequest with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.
@@ -6117,6 +6228,8 @@ func (m *AssetHistoryFundAmountResponse) validate(all bool) error {
 	// no validation rules for UsdAmount
 
 	// no validation rules for Dt
+
+	// no validation rules for BtcAmount
 
 	if len(errors) > 0 {
 		return AssetHistoryFundAmountResponseMultiError(errors)

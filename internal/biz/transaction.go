@@ -1249,6 +1249,97 @@ func KaspaUpdateUtxo(pbb *pb.TransactionReq) {
 	}
 }
 
+func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName, hash string) (*pb.TransactionRecord, error) {
+	chainType, _ := GetChainNameType(chainName)
+
+	var record *pb.TransactionRecord
+	var err error
+	switch chainType {
+	case POLKADOT:
+		var oldRecord *data.DotTransactionRecord
+		oldRecord, err = data.DotTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case CASPER:
+		var oldRecord *data.CsprTransactionRecord
+		oldRecord, err = data.CsprTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case NERVOS:
+		var oldRecord *data.CkbTransactionRecord
+		oldRecord, err = data.CkbTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case BTC:
+		var oldRecord *data.BtcTransactionRecord
+		oldRecord, err = data.BtcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case EVM:
+		var oldRecord *data.EvmTransactionRecord
+		oldRecord, err = data.EvmTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+			record.GasFeeInfo = oldRecord.FeeTokenInfo
+		}
+	case STC:
+		var oldRecord *data.StcTransactionRecord
+		oldRecord, err = data.StcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case TVM:
+		var oldRecord *data.TrxTransactionRecord
+		oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case APTOS:
+		var oldRecord *data.AptTransactionRecord
+		oldRecord, err = data.AptTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case SUI:
+		var oldRecord *data.SuiTransactionRecord
+		oldRecord, err = data.SuiTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case SOLANA:
+		var oldRecord *data.SolTransactionRecord
+		oldRecord, err = data.SolTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case COSMOS:
+		var oldRecord *data.AtomTransactionRecord
+		oldRecord, err = data.AtomTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	case KASPA:
+		var oldRecord *data.KasTransactionRecord
+		oldRecord, err = data.KasTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
+	}
+
+	if record == nil {
+		return nil, errors.New("transaction not found , hash : " + hash)
+	}
+
+	if err == nil {
+		convertFeeData(chainName, chainType, "", record)
+	}
+	return record, err
+}
+
 func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListRequest) (*pb.PageListResponse, error) {
 	chainType, _ := GetChainNameType(req.ChainName)
 	switch chainType {
@@ -1404,13 +1495,11 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		result.Total = total
 		result.List = list
 		if len(list) > 0 {
-			now := time.Now().Unix()
 			for _, record := range list {
 				if record == nil {
 					continue
 				}
 
-				record.ChainName = req.ChainName
 				if orderByColumn == "id" {
 					record.Cursor = record.Id
 				} else if orderByColumn == "block_number" {
@@ -1425,87 +1514,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.Cursor = record.UpdatedAt
 				}
 
-				feeData := make(map[string]string)
-				switch chainType {
-				case BTC, SOLANA, KASPA:
-					feeData = nil
-				case EVM:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-					feeData["gas_price"] = record.GasPrice
-					feeData["base_fee"] = record.BaseFee
-					feeData["max_fee_per_gas"] = record.MaxFeePerGas
-					feeData["max_priority_fee_per_gas"] = record.MaxPriorityFeePerGas
-
-					//ParseData 字段
-					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
-					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
-					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
-					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
-						evm := make(map[string]interface{})
-						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
-							if record.Nonce == 0 {
-								evm["pendingMsg"] = GAS_FEE_LOW
-								parseDataStr, _ := utils.JsonEncode(evm)
-								record.ParseData = parseDataStr
-							} else {
-								ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
-								if err == nil {
-									if ret == nil {
-										//请填补空缺nonce交易 "nonceMsg":"2"
-										evm["pendingMsg"] = NONCE_BREAK
-									} else {
-										if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
-											// "gasfeeMsg" :"1"
-											evm["pendingMsg"] = GAS_FEE_LOW
-										}
-										if ret.Status == PENDING || ret.Status == NO_STATUS {
-											//"nonceMsg":"1"
-											evm["pendingMsg"] = NONCE_QUEUE
-										}
-										if ret.Status == DROPPED {
-											//请填补空缺nonce交易 "nonceMsg":"2"
-											evm["pendingMsg"] = NONCE_BREAK
-										}
-									}
-									parseDataStr, _ := utils.JsonEncode(evm)
-									record.ParseData = parseDataStr
-								}
-							}
-						}
-					}
-
-					if record.Status == FAIL {
-						evm := make(map[string]interface{})
-						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
-							//| 150878    | 149039
-							gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
-							gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
-
-							f := gasUsed / gasLimit
-							if f > 0.9 {
-								evm["failMsg"] = GAS_LIMIT_LOW
-								parseDataStr, _ := utils.JsonEncode(evm)
-								record.ParseData = parseDataStr
-							}
-						}
-					}
-				case TVM:
-					feeData["fee_limit"] = record.FeeLimit
-					feeData["net_usage"] = record.NetUsage
-					feeData["energy_usage"] = record.EnergyUsage
-				case SUI:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-				default:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-					feeData["gas_price"] = record.GasPrice
-				}
-				if feeData != nil {
-					feeDataStr, _ := utils.JsonEncode(feeData)
-					record.FeeData = feeDataStr
-				}
+				convertFeeData(req.ChainName, chainType, req.Address, record)
 			}
 		}
 	}
@@ -1869,13 +1878,11 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		result.Total = total
 		result.List = list
 		if len(list) > 0 {
-			now := time.Now().Unix()
 			for _, record := range list {
 				if record == nil {
 					continue
 				}
 
-				record.ChainName = req.ChainName
 				if orderByColumn == "id" {
 					record.Cursor = record.Id
 				} else if orderByColumn == "block_number" {
@@ -1890,87 +1897,7 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 					record.Cursor = record.UpdatedAt
 				}
 
-				feeData := make(map[string]string)
-				switch chainType {
-				case BTC, SOLANA, KASPA:
-					feeData = nil
-				case EVM:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-					feeData["gas_price"] = record.GasPrice
-					feeData["base_fee"] = record.BaseFee
-					feeData["max_fee_per_gas"] = record.MaxFeePerGas
-					feeData["max_priority_fee_per_gas"] = record.MaxPriorityFeePerGas
-
-					//ParseData 字段
-					//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
-					//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
-					//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
-					if (record.Status == PENDING || record.Status == NO_STATUS) && now-record.TxTime > 300 && req.Address == record.FromAddress {
-						evm := make(map[string]interface{})
-						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
-							if record.Nonce == 0 {
-								evm["pendingMsg"] = GAS_FEE_LOW
-								parseDataStr, _ := utils.JsonEncode(evm)
-								record.ParseData = parseDataStr
-							} else {
-								ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(req.ChainName), record.FromAddress, record.Nonce-1)
-								if err == nil {
-									if ret == nil {
-										//请填补空缺nonce交易 "nonceMsg":"2"
-										evm["pendingMsg"] = NONCE_BREAK
-									} else {
-										if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
-											// "gasfeeMsg" :"1"
-											evm["pendingMsg"] = GAS_FEE_LOW
-										}
-										if ret.Status == PENDING || ret.Status == NO_STATUS {
-											//"nonceMsg":"1"
-											evm["pendingMsg"] = NONCE_QUEUE
-										}
-										if ret.Status == DROPPED {
-											//请填补空缺nonce交易 "nonceMsg":"2"
-											evm["pendingMsg"] = NONCE_BREAK
-										}
-									}
-									parseDataStr, _ := utils.JsonEncode(evm)
-									record.ParseData = parseDataStr
-								}
-							}
-						}
-					}
-
-					if record.Status == FAIL {
-						evm := make(map[string]interface{})
-						if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
-							//| 150878    | 149039
-							gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
-							gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
-
-							f := gasUsed / gasLimit
-							if f > 0.9 {
-								evm["failMsg"] = GAS_LIMIT_LOW
-								parseDataStr, _ := utils.JsonEncode(evm)
-								record.ParseData = parseDataStr
-							}
-						}
-					}
-				case TVM:
-					feeData["fee_limit"] = record.FeeLimit
-					feeData["net_usage"] = record.NetUsage
-					feeData["energy_usage"] = record.EnergyUsage
-				case SUI:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-				default:
-					feeData["gas_limit"] = record.GasLimit
-					feeData["gas_used"] = record.GasUsed
-					feeData["gas_price"] = record.GasPrice
-				}
-				if feeData != nil {
-					feeDataStr, _ := utils.JsonEncode(feeData)
-					record.FeeData = feeDataStr
-				}
+				convertFeeData(req.ChainName, chainType, req.Address, record)
 			}
 		}
 	}
@@ -5781,4 +5708,89 @@ func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 	}
 
 	return nil, errors.New(fmt.Sprintf("can not get the height of the chain:%s", req.ChainName))
+}
+
+func convertFeeData(chainName, chainType, reqAddress string, record *pb.TransactionRecord) {
+	record.ChainName = chainName
+	feeData := make(map[string]string)
+	switch chainType {
+	case BTC, SOLANA, KASPA:
+		feeData = nil
+	case EVM:
+		feeData["gas_limit"] = record.GasLimit
+		feeData["gas_used"] = record.GasUsed
+		feeData["gas_price"] = record.GasPrice
+		feeData["base_fee"] = record.BaseFee
+		feeData["max_fee_per_gas"] = record.MaxFeePerGas
+		feeData["max_priority_fee_per_gas"] = record.MaxPriorityFeePerGas
+
+		//ParseData 字段
+		//pending时间超过5分钟，交易手续费太低导致，可以尝试加速解决  "gasfeeMsg" :"1"
+		//pending时间超过5分钟，有未完成交易正在排队，可以尝试加速取消起该笔之前的未完成交易 "nonceMsg":"1"
+		//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
+		if (record.Status == PENDING || record.Status == NO_STATUS) && time.Now().Unix()-record.TxTime > 300 && (reqAddress == "" || reqAddress == record.FromAddress) {
+			evm := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+				if record.Nonce == 0 {
+					evm["pendingMsg"] = GAS_FEE_LOW
+					parseDataStr, _ := utils.JsonEncode(evm)
+					record.ParseData = parseDataStr
+				} else {
+					ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(chainName), record.FromAddress, record.Nonce-1)
+					if err == nil {
+						if ret == nil {
+							//请填补空缺nonce交易 "nonceMsg":"2"
+							evm["pendingMsg"] = NONCE_BREAK
+						} else {
+							if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
+								// "gasfeeMsg" :"1"
+								evm["pendingMsg"] = GAS_FEE_LOW
+							}
+							if ret.Status == PENDING || ret.Status == NO_STATUS {
+								//"nonceMsg":"1"
+								evm["pendingMsg"] = NONCE_QUEUE
+							}
+							if ret.Status == DROPPED {
+								//请填补空缺nonce交易 "nonceMsg":"2"
+								evm["pendingMsg"] = NONCE_BREAK
+							}
+						}
+						parseDataStr, _ := utils.JsonEncode(evm)
+						record.ParseData = parseDataStr
+					}
+				}
+			}
+		}
+
+		if record.Status == FAIL {
+			evm := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
+				//| 150878    | 149039
+				gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
+				gasUsed, _ := strconv.ParseFloat(record.GasUsed, 64)
+
+				f := gasUsed / gasLimit
+				if f > 0.9 {
+					evm["failMsg"] = GAS_LIMIT_LOW
+					parseDataStr, _ := utils.JsonEncode(evm)
+					record.ParseData = parseDataStr
+				}
+			}
+		}
+	case TVM:
+		feeData["fee_limit"] = record.FeeLimit
+		feeData["net_usage"] = record.NetUsage
+		feeData["energy_usage"] = record.EnergyUsage
+	case SUI:
+		feeData["gas_limit"] = record.GasLimit
+		feeData["gas_used"] = record.GasUsed
+	default:
+		feeData["gas_limit"] = record.GasLimit
+		feeData["gas_used"] = record.GasUsed
+		feeData["gas_price"] = record.GasPrice
+	}
+	if feeData != nil {
+		feeDataStr, _ := utils.JsonEncode(feeData)
+		record.FeeData = feeDataStr
+	}
 }
