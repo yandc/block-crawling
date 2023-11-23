@@ -1285,6 +1285,7 @@ func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
 			record.GasFeeInfo = oldRecord.FeeTokenInfo
+			handleNativeTokenEvent(chainName, record)
 		}
 	case STC:
 		var oldRecord *data.StcTransactionRecord
@@ -1428,10 +1429,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if len(list) > 0 {
 			for _, record := range list {
 				//将发送给合约的主币转成一条eventLog
-				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
-					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
-					record.EventLog = eventLogStr
-				}
+				handleNativeTokenEvent(req.ChainName, record)
 			}
 		}
 	case STC:
@@ -1449,10 +1447,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		if len(list) > 0 {
 			for _, record := range list {
 				//将发送给合约的主币转成一条eventLog
-				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
-					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
-					record.EventLog = eventLogStr
-				}
+				handleNativeTokenEvent(req.ChainName, record)
 			}
 		}
 	case APTOS:
@@ -1620,11 +1615,7 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 					transactionHashNotInList = append(transactionHashNotInList, record.TransactionHash)
 				}
 
-				//将发送给合约的主币转成一条eventLog
-				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
-					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
-					record.EventLog = eventLogStr
-				}
+				handleNativeTokenEvent(req.ChainName, record)
 			}
 			operateRequest := &data.TransactionRequest{
 				Nonce:                    -1,
@@ -1832,10 +1823,7 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		if len(list) > 0 {
 			for _, record := range list {
 				//将发送给合约的主币转成一条eventLog
-				if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
-					eventLogStr := handleEventLog(req.ChainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
-					record.EventLog = eventLogStr
-				}
+				handleNativeTokenEvent(req.ChainName, record)
 			}
 		}
 	case APTOS:
@@ -5792,5 +5780,13 @@ func convertFeeData(chainName, chainType, reqAddress string, record *pb.Transact
 	if feeData != nil {
 		feeDataStr, _ := utils.JsonEncode(feeData)
 		record.FeeData = feeDataStr
+	}
+}
+
+// 将发送给合约的主币转成一条eventLog
+func handleNativeTokenEvent(chainName string, record *pb.TransactionRecord) {
+	if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
+		eventLogStr := handleEventLog(chainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
+		record.EventLog = eventLogStr
 	}
 }
