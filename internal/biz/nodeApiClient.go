@@ -11,12 +11,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -1230,7 +1231,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			return
 		}
 	}()
-
+	log.Info("QUERY TXNS OF ADDRESS", zap.String("chainName", chainName), zap.String("address", address), zap.Strings("urls", urls))
 	req := &data.TransactionRequest{
 		Nonce:       -1,
 		FromAddress: address,
@@ -1259,18 +1260,22 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			solTransactionRecordList, err = getRecordBySolanaBeach(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
 		} else if url == "https://api.solscan.io" {
 			solTransactionRecordList, err = getRecordBySolscan(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
+
+			// 一些 SPL 和 SOL 转账的交易记录不会出现在 Transactions 里
+			// 调用https://api.solscan.io节点查询SOL Transfers
+			if records, err := getTxRecordBySolscan(chainName, "https://api.solscan.io/account/soltransfer", address, dbLastRecordSlotNumber, dbLastRecordHash); err == nil {
+				solTransactionRecordList = append(solTransactionRecordList, records...)
+			} else {
+				log.Error("QUERY TXNS OF ADDRESS SOLSCAN ERROR", zap.String("chainName", chainName), zap.String("address", address), zap.String("stage", "soltransfer"), zap.Error(err))
+			}
+			// 调用https://api.solscan.io节点查询SPL Transfers
+			if records, err := getTxRecordBySolscan(chainName, "https://api.solscan.io/account/token", address, dbLastRecordSlotNumber, dbLastRecordHash); err == nil {
+				solTransactionRecordList = append(solTransactionRecordList, records...)
+			} else {
+				log.Error("QUERY TXNS OF ADDRESS SOLSCAN ERROR", zap.String("chainName", chainName), zap.String("address", address), zap.String("stage", "token"), zap.Error(err))
+			}
 		} else {
 			solTransactionRecordList, err = getRecordByRpcNode(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
-		}
-
-		//调用https://api.solscan.io节点查询SOL Transfers
-		if err == nil && len(solTransactionRecordList) == 0 {
-			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/soltransfer", address, dbLastRecordSlotNumber, dbLastRecordHash)
-		}
-
-		//调用https://api.solscan.io节点查询SPL Transfers
-		if err == nil && len(solTransactionRecordList) == 0 {
-			solTransactionRecordList, err = getTxRecordBySolscan(chainName, "https://api.solscan.io/account/token", address, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
 		if err == nil {

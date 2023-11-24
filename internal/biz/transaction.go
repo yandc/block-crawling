@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"io"
 	"math/big"
 	"net/http"
@@ -23,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/ethclient"
 
 	"gorm.io/datatypes"
 
@@ -4903,12 +4904,15 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		}
 	}
 	if diffBet {
-		platInfo, _ := GetChainPlatInfo(req.ChainName)
+		platInfo, ok := GetChainPlatInfo(req.ChainName)
 		if platInfo != nil {
+			log.Warn("STARTING QUERY TXNS OF ADDRESS", zap.String("chainName", req.ChainName), zap.String("address", req.Address), zap.Strings("urls", platInfo.HttpURL))
 			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL)
+		} else {
+			log.Warn("QUERY TXNS OF ADDRESS MISSED PLATFORM", zap.String("chainName", req.ChainName), zap.Bool("exists", ok))
 		}
 	}
-	return struct{}{}, nil
+	return map[string]interface{}{"hasDiff": diffBet}, nil
 }
 
 func (s *TransactionUsecase) correctZeroDecimals(ctx context.Context, req *UserAssetUpdateRequest, asset *UserAsset) {
