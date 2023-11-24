@@ -672,6 +672,7 @@ platform:
       - https://solana-mainnet.g.alchemy.com/v2/wyuFXpGqrGkBFAuyWH8vlUUk_eUhXAFI
       - https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7
     httpURL:
+      - https://api.solscan.io
       - https://api.mainnet-beta.solana.com
       - https://node.onekey.so/sol
       - https://docs-demo.solana-mainnet.quiknode.pro
@@ -680,7 +681,6 @@ platform:
       - https://light-fittest-fog.solana-mainnet.discover.quiknode.pro/13ca4fbaf1faa3ec6fa045d886ca5ae5836ead4c
       - https://old-solemn-arm.solana-mainnet.discover.quiknode.pro/74a526617581f37872e09198367a681e8dc91678
       - https://public-api.solanabeach.io
-      - https://api.solscan.io
     symbol: Solana
     type: SOL
     safelyConcurrentBlockDelta: 50
