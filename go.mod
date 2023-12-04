@@ -25,7 +25,7 @@ require (
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
-	gitlab.bixin.com/mili/node-driver v0.0.0-20231108070732-bf8d22b81f47
+	gitlab.bixin.com/mili/node-driver v0.0.0-20231204071837-264813662bb0
 	go.uber.org/zap v1.13.0
 	golang.org/x/crypto v0.1.0
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
