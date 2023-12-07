@@ -164,6 +164,7 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 
 	isPending := tx.BlockHeight <= 0
 	if isPending {
+		common.SetTxResult(txByHash, record)
 		return nil
 	}
 
