@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -16,7 +17,16 @@ type Client struct {
 }
 
 func (c *Client) BuildURL(u string, params map[string]string) (target *url.URL, err error) {
-	target, err = url.Parse(c.URL + u)
+	return BuildURL(u, c.URL, params)
+}
+
+func BuildURL(u string, nodeURL string, params map[string]string) (target *url.URL, err error) {
+	target, err = url.Parse(
+		strings.Join([]string{
+			strings.TrimRight(nodeURL, "/"),
+			strings.TrimLeft(u, "/"),
+		}, "/"),
+	)
 	if err != nil {
 		return
 	}
@@ -32,6 +42,10 @@ func (c *Client) BuildURL(u string, params map[string]string) (target *url.URL, 
 }
 
 func (c *Client) BuildURLBTC(u string, node string, params map[string]string) (target *url.URL, err error) {
+	return BuildURLBTC(u, node, params)
+}
+
+func BuildURLBTC(u string, node string, params map[string]string) (target *url.URL, err error) {
 	target, err = url.Parse(node + u)
 	if err != nil {
 		return
@@ -47,7 +61,7 @@ func (c *Client) BuildURLBTC(u string, node string, params map[string]string) (t
 	return
 }
 
-//块信息根据块高
+// 块信息根据块高
 func (c *Client) GetBlockHash(height int) (blockHash model.UTXOBlockHash, err error) {
 	countParam := model.JsonRpcRequest{
 		Jsonrpc: "1.0",
@@ -62,7 +76,7 @@ func (c *Client) GetBlockHash(height int) (blockHash model.UTXOBlockHash, err er
 	return
 }
 
-//获取内存池数据
+// 获取内存池数据
 func (c *Client) GetMemoryPoolTXByNode() (txIds model.MemoryPoolTX, err error) {
 	memoryTxId := model.JsonRpcRequest{
 		Jsonrpc: "1.0",
@@ -130,7 +144,7 @@ func (c *Client) GetUTXOBlockByHash(blockHash string) (utxoBlockInfo model.UTXOB
 	return
 }
 
-//当前块高
+// 当前块高
 func (c *Client) GetBlockCount() (count model.BTCCount, err error) {
 	countParam := model.JsonRpcRequest{
 		Jsonrpc: "1.0",
@@ -144,7 +158,7 @@ func (c *Client) GetBlockCount() (count model.BTCCount, err error) {
 	return
 }
 
-//未花费信息查询
+// 未花费信息查询
 func (c *Client) GetTxOut(txid string, n int, unconfirmed bool) (utxoList model.UnSpent, err error) {
 	param := model.JsonRpcRequest{
 		Jsonrpc: "1.0",

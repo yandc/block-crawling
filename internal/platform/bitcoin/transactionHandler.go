@@ -9,9 +9,10 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"strconv"
 	"time"
+
+	"golang.org/x/exp/slices"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -93,9 +94,6 @@ func UnspentTx(chainName string, client Client, txRecords []*data.BtcTransaction
 			return
 		}
 	}()
-
-	baseClient := client.DispatchClient
-	baseClient.StreamURL = urlMap[chainName]
 
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
