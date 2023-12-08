@@ -2,20 +2,12 @@ package btc
 
 import (
 	"block-crawling/internal/httpclient"
-	"block-crawling/internal/log"
-	"block-crawling/internal/model"
 	"block-crawling/internal/platform/bitcoin/base"
 	"block-crawling/internal/types"
-	"block-crawling/internal/utils"
-	"errors"
 	"fmt"
-	"math/big"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
-
-	"go.uber.org/zap"
 
 	"github.com/blockcypher/gobcy"
 )
@@ -23,12 +15,76 @@ import (
 type Client struct {
 	URL       string
 	StreamURL string
+
+	node   Noder
+	stream Streamer
 }
 
-var urlMap = map[string]string{
-	"https://api.blockcypher.com/v1/btc/main":                                  "https://blockstream.info/api",
-	"https://api.blockcypher.com/v1/btc/test3":                                 "https://blockstream.info/testnet/api",
-	"http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332",
+const defaultStreamURL = "https://blockstream.info/api"
+
+var urlMap = map[string]*nodeConf{
+	"https://api.blockcypher.com/v1/btc/main": {
+		streamURL: defaultStreamURL,
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockcypherNode(nodeURL)
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	"https://api.blockcypher.com/v1/btc/test3": {
+		streamURL: "https://blockstream.info/testnet/api",
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockcypherNode(nodeURL)
+
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	"https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/": {
+		streamURL: "https://blockstream.info/api",
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockdaemonNode(nodeURL)
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	"https://blockstream.info": {
+		streamURL: "https://blockstream.info/api",
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockstreamNode(nodeURL)
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	"https://btcscan.org": {
+		streamURL: "https://btcscan.org/api",
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockstreamNode(nodeURL)
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	"https://mempool.space": {
+		streamURL: "https://mempool.space/api",
+		nodeFactory: func(nodeURL string) Noder {
+			return newBlockstreamNode(nodeURL)
+		},
+		streamFactory: func(streamURL string) Streamer {
+			return newBTCStream(streamURL)
+		},
+	},
+	// "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332": "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332",
+}
+
+type nodeConf struct {
+	streamURL     string
+	nodeFactory   func(string) Noder
+	streamFactory func(string) Streamer
 }
 
 const TO_TYPE = "utxo_output"
@@ -36,11 +92,19 @@ const FROM_TYPE = "utxo_input"
 const FEE_TYPE = "fee"
 
 func NewClient(nodeUrl string) Client {
-	streamURL := "https://blockstream.info/api"
-	if value, ok := urlMap[nodeUrl]; ok {
-		streamURL = value
+	_, baseURL := parseKeyFromNodeURL(nodeUrl)
+	if value, ok := urlMap[baseURL]; ok {
+		return Client{
+			URL:       nodeUrl,
+			StreamURL: value.streamURL,
+			node:      value.nodeFactory(nodeUrl),
+			stream:    value.streamFactory(value.streamURL),
+		}
 	}
-	return Client{nodeUrl, streamURL}
+	return Client{
+		URL:       nodeUrl,
+		StreamURL: defaultStreamURL,
+	}
 }
 
 func GetUnspentUtxo(nodeUrl string, address string) ([]types.UbiquityOutput, error) {
@@ -92,19 +156,8 @@ func parseKeyFromNodeURL(nodeURL string) (key, restURL string) {
 	return "", nodeURL
 }
 
-func GetBalance(address string, c *base.Client) (string, error) {
-	u, err := c.BuildURLBTC("/addrs/"+address+"/balance", "https://api.blockcypher.com/v1/btc/main", nil)
-	if err != nil {
-		return "", err
-	}
-	var addr gobcy.Addr
-	timeoutMS := 5_000 * time.Millisecond
-	err = httpclient.GetResponse(u.String(), nil, &addr, &timeoutMS)
-	if err != nil {
-		return "", err
-	}
-	btcValue := utils.BigIntString(&addr.Balance, 8)
-	return btcValue, nil
+func GetBalance(address string, c *Client) (string, error) {
+	return c.node.GetBalance(address)
 }
 
 type blockChain struct {
@@ -113,199 +166,28 @@ type blockChain struct {
 	Error string `json:"error"`
 }
 
-func GetBlockNumber(c *base.Client) (int, error) {
-	timeout := 5 * time.Second
-	var height int
-
-	if strings.Contains(c.URL, "ubiquity.api.blockdaemon.com") {
-		header := map[string]string{"Authorization": "Bearer " + c.URL[15:62]}
-		err := httpclient.HttpsSignGetForm("https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/sync/block_number", nil, header, &height, &timeout)
-		if err != nil {
-			log.Error("BTC BLOCK HEIGHT", zap.Error(err), zap.String("url", "https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/sync/block_number"))
-			return 0, err
-		}
-	} else if strings.Contains(c.URL, "api.blockcypher.com") {
-		u, err := c.BuildURL("", nil)
-		if err != nil {
-			return 0, err
-		}
-		var chain gobcy.Blockchain
-		err = httpclient.GetResponse(u.String(), nil, &chain, &timeout)
-		if err != nil {
-			log.Error("BTC BLOCK HEIGHT", zap.Error(err), zap.String("url", u.String()), zap.Any("r", chain))
-			return 0, err
-		}
-		height = chain.Height
-	}
-
-	log.Info("BTC BLOCK HEIGHT", zap.String("url", c.URL), zap.Any("r", height))
-	return height, nil
+func GetBlockNumber(c *Client) (int, error) {
+	return c.node.GetBlockNumber()
 }
 
-func GetBlockHeight(c *base.Client) (int, error) {
-	url := c.StreamURL + "/blocks/tip/height"
-	var height int
-	timeoutMS := 5_000 * time.Millisecond
-	err := httpclient.HttpsGetForm(url, nil, &height, &timeoutMS)
-	return height, err
+func GetBlockHeight(c *Client) (int, error) {
+	return c.stream.GetBlockHeight()
 }
 
-func GetMempoolTxIds(c *base.Client) ([]string, error) {
-	url := c.StreamURL + "/mempool/txids"
-	var txIds []string
-	timeoutMS := 5_000 * time.Millisecond
-	err := httpclient.HttpsGetForm(url, nil, &txIds, &timeoutMS)
-	return txIds, err
+func GetMempoolTxIds(c *Client) ([]string, error) {
+	return c.stream.GetMempoolTxIds()
 }
 
-func GetBlockHashByNumber(number int, c *base.Client) (string, error) {
-	url := c.StreamURL + "/block-height/" + fmt.Sprintf("%d", number)
-	return httpclient.HttpsGetFormString(url, nil)
+func GetBlockHashByNumber(number int, c *Client) (string, error) {
+	return c.stream.GetBlockHashByNumber(number)
 }
 
-func GetTestBlockByHeight(height int, c *base.Client) (result types.BTCTestBlockerInfo, err error) {
-	//get block hash
-	hash, err := GetBlockHashByNumber(height, c)
-	if err != nil {
-		return result, err
-	}
-	starIndex := 0
-	pageSize := 25
-	timeoutMS := 10_000 * time.Millisecond
-	for {
-		var block types.BTCTestBlockerInfo
-		url := c.StreamURL + "/block/" + hash + "/txs/" + fmt.Sprintf("%d", starIndex*pageSize)
-		err = httpclient.HttpsGetForm(url, nil, &block, &timeoutMS)
-		starIndex++
-		result = append(result, block...)
-		if len(block) < pageSize {
-			break
-		}
-	}
-	return
+func GetTestBlockByHeight(height int, c *Client) (result types.BTCTestBlockerInfo, err error) {
+	return c.stream.GetTestBlockByHeight(height)
 }
 
-func GetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
-	if c.URL == "https://api.blockcypher.com/v1/btc/main" {
-		tx, err = DoGetTransactionByHash(hash+"?instart=0&outstart=0&limit=500", c)
-		if err != nil {
-			return
-		}
-		putsTx := tx
-		for (putsTx.NextInputs != "" && len(putsTx.Inputs) > 80) || (putsTx.NextOutputs != "" && len(putsTx.Outputs) > 80) {
-			putsTx, err = DoGetTransactionByHash(hash+"?instart="+strconv.Itoa(len(putsTx.Inputs))+"&outstart="+strconv.Itoa(len(putsTx.Outputs))+"&limit=500", c)
-			if err != nil {
-				return
-			}
-			for _, input := range putsTx.Inputs {
-				tx.Inputs = append(tx.Inputs, input)
-			}
-			for _, output := range putsTx.Outputs {
-				tx.Outputs = append(tx.Outputs, output)
-			}
-		}
-		return
-	}
-	if strings.Contains(c.URL, "ubiquity.api.blockdaemon.com") {
-		utxoTxByDD, e := GetTransactionsByTXHash(hash, c)
-		if e != nil {
-			err = e
-			return
-		} else {
-			if utxoTxByDD.Detail == "The requested resource has not been found" {
-				return tx, errors.New(utxoTxByDD.Detail)
-			} else {
-				var inputs []gobcy.TXInput
-				var inputAddress []string
-				var outs []gobcy.TXOutput
-				var outputAddress []string
-
-				var feeAmount int64
-
-				for _, event := range utxoTxByDD.Events {
-					if event.Type == FROM_TYPE {
-						input := gobcy.TXInput{
-							OutputValue: int(event.Amount),
-							Addresses:   append(inputAddress, event.Source),
-						}
-						inputs = append(inputs, input)
-					}
-					if event.Type == TO_TYPE {
-						out := gobcy.TXOutput{
-							Value:     *big.NewInt(event.Amount),
-							Addresses: append(outputAddress, event.Destination),
-						}
-						outs = append(outs, out)
-					}
-					if event.Type == FEE_TYPE {
-						feeAmount = event.Amount
-					}
-				}
-
-				txTime := time.Unix(int64(utxoTxByDD.Date), 0)
-				tx = types.TX{
-					BlockHash:   utxoTxByDD.BlockId,
-					BlockHeight: utxoTxByDD.BlockNumber,
-					Hash:        utxoTxByDD.Id,
-					Fees:        *big.NewInt(feeAmount),
-					Confirmed:   txTime,
-					Inputs:      inputs,
-					Outputs:     outs,
-					Error:       "",
-				}
-				return tx, nil
-			}
-		}
-	}
-	return
-}
-
-func DoGetTransactionByHash(hash string, c *base.Client) (tx types.TX, err error) {
-	u, err := c.BuildURL("/txs/"+hash, nil)
-	if err != nil {
-		return
-	}
-	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.GetResponse(u.String(), nil, &tx, &timeoutMS)
-	return
-}
-
-func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
-	key, baseURL := parseKeyFromNodeURL(c.URL)
-	url := baseURL + "tx/" + tx
-	var txInfo types.TxInfo
-	timeoutMS := 10_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
-	return txInfo, err
-}
-
-func GetTransactionByPendingHash(hash string, c *base.Client) (tx types.TXByHash, err error) {
-	u, err := c.BuildURL("/txs/"+hash, nil)
-	if err != nil {
-		return
-	}
-	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.GetResponse(u.String(), nil, &tx, &timeoutMS)
-	return
-}
-
-func GetTransactionByPendingHashByNode(json model.JsonRpcRequest, c *base.Client) (tx model.BTCTX, err error) {
-	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.PostResponse(c.StreamURL, json, &tx, &timeoutMS)
-	return
-}
-
-// MemoryPoolTX
-func GetMemoryPoolTXByNode(json model.JsonRpcRequest, c *base.Client) (txIds model.MemoryPoolTX, err error) {
-	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.PostResponse(c.StreamURL, json, &txIds, &timeoutMS)
-	return
-}
-
-func GetBlockCount(json model.JsonRpcRequest, c *base.Client) (count model.BTCCount, err error) {
-	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.PostResponse(c.StreamURL, json, &count, &timeoutMS)
-	return
+func GetTransactionByHash(hash string, c *Client) (tx types.TX, err error) {
+	return c.node.GetTransactionByHash(hash)
 }
 
 func GetBTCBlockByNumber(number int, c *base.Client) (types.BTCBlockerInfo, error) {

@@ -31,15 +31,21 @@ var errIrrationalHeight = errors.New("irrational height, zero or less than zero"
 
 type Client struct {
 	*common.NodeDefaultIn
+
 	nodeURL        string
 	chainName      string
 	DispatchClient base.Client
+
+	btcClient *btc.Client
 }
 
 func NewClient(nodeUrl string, chainName string) Client {
 	var r base.Client
+	var btcClient *btc.Client
 	if chainName == "BTC" {
-		utils.CopyProperties(btc.NewClient(nodeUrl), &r)
+		c := btc.NewClient(nodeUrl)
+		utils.CopyProperties(c, &r)
+		btcClient = &c
 	} else if chainName == "LTC" || chainName == "DOGE" {
 		utils.CopyProperties(doge.NewClient(nodeUrl), &r)
 	}
@@ -51,6 +57,7 @@ func NewClient(nodeUrl string, chainName string) Client {
 		nodeURL:        nodeUrl,
 		chainName:      chainName,
 		DispatchClient: r,
+		btcClient:      btcClient,
 	}
 }
 
@@ -72,7 +79,7 @@ func (c *Client) Detect() error {
 func (c *Client) GetBlockHeight() (uint64, error) {
 	start := time.Now()
 	if c.ChainName == "BTC" {
-		btcHeigth, err := btc.GetBlockNumber(&c.DispatchClient)
+		btcHeigth, err := btc.GetBlockNumber(c.btcClient)
 		return uint64(btcHeigth), err
 	} else {
 		result, err := doge.GetBlockNumber(&c.DispatchClient)
@@ -141,9 +148,6 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	rawTx, err := c.GetTransactionByHash(txHash)
 
 	if err != nil {
-		if err.Error() == "The requested resource has not been found" {
-			return nil, nil
-		}
 		log.Error("get transaction by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err
 	}
@@ -164,7 +168,7 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 // chainso 源
 func (c *Client) GetBalance(address string) (string, error) {
 	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetBalance(address, &c.DispatchClient)
+		return btc.GetBalance(address, c.btcClient)
 	} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
 		return doge.GetBalance(address, &c.DispatchClient)
 	}
@@ -193,7 +197,7 @@ func (c *Client) GetBlockNumber() (int, error) {
 
 func (c *Client) GetMempoolTxIds() ([]string, error) {
 	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetMempoolTxIds(&c.DispatchClient)
+		return btc.GetMempoolTxIds(c.btcClient)
 	} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
 		return doge.GetMempoolTxIds(&c.DispatchClient)
 	}
@@ -202,32 +206,18 @@ func (c *Client) GetMempoolTxIds() ([]string, error) {
 
 func (c *Client) GetTestBlockByHeight(height int) (result types.BTCTestBlockerInfo, err error) {
 	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetTestBlockByHeight(height, &c.DispatchClient)
+		return btc.GetTestBlockByHeight(height, c.btcClient)
 	}
 	return nil, err
 }
-func (c *Client) GetTransactionByPendingHash(hash string) (tx types.TXByHash, err error) {
-	//20220905 未用到
-	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetTransactionByPendingHash(hash, &c.DispatchClient)
-	}
-	return tx, err
-}
-func (c *Client) GetTransactionByPendingHashByNode(json model.JsonRpcRequest) (tx model.BTCTX, err error) {
-	if c.DispatchClient.ChainName == "BTC" {
-		return btc.GetTransactionByPendingHashByNode(json, &c.DispatchClient)
-	} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
-		return doge.GetTransactionByPendingHashByNode(json, &c.DispatchClient)
-	}
-	return tx, err
-}
+
 func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
 	if c.DispatchClient.URL == "https://chain.so/" {
 		return doge.GetTxByHashFromChainSo(hash, &c.DispatchClient)
 	}
 	//UTXOTX --- utxo
 	if c.DispatchClient.ChainName == "BTC" {
-		tx, err = btc.GetTransactionByHash(hash, &c.DispatchClient)
+		tx, err = btc.GetTransactionByHash(hash, c.btcClient)
 		if strings.Contains(tx.Error, "Limits reached") {
 			//抛出异常
 			return tx, errors.New(tx.Error)
