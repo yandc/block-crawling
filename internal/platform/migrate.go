@@ -8128,11 +8128,12 @@ func cleanupBenfenNFTAsset(chainName string) error {
 			c := client.(*sui.Client)
 			return c.Erc721BalanceByTokenId(r.Address, r.TokenAddress, r.TokenId)
 		})
-		balance := rawBalance.(string)
 		var errStr string
 		if err != nil {
 			errStr = err.Error()
+			rawBalance = "0"
 		}
+		balance := rawBalance.(string)
 		if balance == "0" || err != nil {
 			println("Cleaning, id: ", r.Id, ", address: ", r.Address, ", tokenAddress: ", r.TokenAddress, ", tokenId: ", r.TokenId, ", balance: ", balance, ", err: ", errStr)
 			if _, err := data.UserNftAssetRepoClient.DeleteByID(context.Background(), r.Id); err != nil {
