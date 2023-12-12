@@ -7837,13 +7837,11 @@ type AddressAndUid struct {
 }
 
 var btcUrls = []string{
-	"https://zpka_a96686455d374da6a418f65eaca8a0a5_1652e9a7@svc.blockdaemon.com/universal/v1",
-	//"https://Bearer:bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk@ubiquity.api.blockdaemon.com/v1",
-	//"https://Bearer:bd1aVy9tvRY7WkuPNe2CQRsgb3tQKpYXWS5bT15seqSMrkz@ubiquity.api.blockdaemon.com/v1",
-	//"https://Bearer:bd1bIoqNrQkip0utr61Toh6oN85O9Clm1y1Ty0entqFPSlU@ubiquity.api.blockdaemon.com/v1",
-	//"https://Bearer:bd1bsqxVyRAGqrEwfVRhClEhuZ0wIFhug8uiw9l665OXFYQ@ubiquity.api.blockdaemon.com/v1",
-	//"https://Bearer:bd1boNssO6THUBKd3Gr02LFrniEZgQ9E301p3ja4R72qQPN@ubiquity.api.blockdaemon.com/v1",
-	//"https://Bearer:bd1bib9hNBb6rTeWQ7zarCgWZq7j0tKfdUVfPqnaxXtdDmn@ubiquity.api.blockdaemon.com/v1",
+	"https://zpka_a96686455d374da6a418f65eaca8a0a5_1652e9a7@svc.blockdaemon.com/universal/v1/",
+	"https://zpka_2991d45e50054722ba547e54e739a7e8_41cff525@svc.blockdaemon.com/universal/v1/",
+	"https://zpka_630c27c7492847b18b0b21aa346fc0ab_011359a9@svc.blockdaemon.com/universal/v1/",
+	"https://zpka_8976bc36b6c84ef6b493460b1dc4a8ce_4e56d164@svc.blockdaemon.com/universal/v1/",
+	"https://zpka_ea8d8727c06349e6b93d939d328e0e04_4085b24f@svc.blockdaemon.com/universal/v1/",
 }
 
 // UpdateUserUtxo 更新所有用户的UTXO
