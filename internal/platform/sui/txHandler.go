@@ -10,8 +10,6 @@ import (
 	"block-crawling/internal/platform/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
-	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -68,7 +66,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			log.Info("EXTRACT SWAP FAILED", zap.String("chainName", h.chainName), zap.Error(err))
 			return
 		}
-		h.saveBFStationRecords(chainBlock.Hash, results, status)
+		bfh := &bfstationHandler{
+			chainName:   h.chainName,
+			repo:        data.BFCStationRepoIns,
+			blockNumber: curHeight,
+			blockHash:   chainBlock.Hash,
+		}
+		if biz.IsBenfenNet(h.chainName) {
+			bfh.Handle(transactionInfo, results, status)
+		}
 	}()
 
 	fromAmountChangeMap := make(map[string]*AmountChange)
@@ -77,25 +83,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	balanceChanges := transactionInfo.BalanceChanges
 	for _, balanceChange := range balanceChanges {
 		txType := biz.NATIVE
-		var address, tokenAddress string
-		if taddress, ok := balanceChange.Owner.(string); ok {
-			//https://suiexplorer.com/txblock/6xKvAZfQANGnJPbuReez3RjnYNqWDt73WkiEThMsCGze
-			address = taddress
-		} else {
-			owner := balanceChange.Owner.(map[string]interface{})
-			if owner != nil {
-				if owner["AddressOwner"] != nil {
-					address = owner["AddressOwner"].(string)
-				} else if owner["ObjectOwner"] != nil {
-					//https://suiexplorer.com/txblock/5XaTqu2CJ4WBpHw5NeSt46EVYPPYDTxirRUNYZbU7Sb3
-					address = owner["ObjectOwner"].(string)
-				}
-			}
-		}
+		var tokenAddress string
+		address := getOwnerAddress(balanceChange.Owner)
 		amount := balanceChange.Amount
 		if !IsNative(balanceChange.CoinType) {
 			txType = biz.TRANSFER
-			tokenAddress = balanceChange.CoinType
+			tokenAddress = suiswap.NormalizeBenfenCoinType(h.chainName, balanceChange.CoinType)
 		}
 		if strings.HasPrefix(balanceChange.Amount, "-") {
 			fromAmountChangeMap[tokenAddress] = &AmountChange{
@@ -166,30 +159,19 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if owner == nil {
 			continue
 		}
-		if strings.HasPrefix(objectType, "0x2::") || strings.HasPrefix(objectType, "0x3::") ||
-			strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000002::") ||
-			strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000003::") {
+		if IsNativePrefixs(objectType) {
 			continue
 		}
 		var toAddress string
 		if objectChange.Owner != nil {
-			ownerMap, ok := owner.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			if addressOwner, aok := ownerMap["AddressOwner"]; aok {
-				toAddress = addressOwner.(string)
-			} else if objectOwner, ook := ownerMap["ObjectOwner"]; ook {
-				toAddress = objectOwner.(string)
-			}
+			toAddress = getOwnerAddress(objectChange.Owner)
 		}
 		if sender != "" && toAddress != "" && objectType != "" && objectId != "" {
 			amountChange := &AmountChange{
 				FromAddress:  utils.EVMAddressToBFC(h.chainName, sender),
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, toAddress),
 				TxType:       biz.TRANSFERNFT,
-				TokenAddress: objectType,
+				TokenAddress: suiswap.NormalizeBenfenCoinType(h.chainName, objectType),
 				TokenId:      objectId,
 				Amount:       "1",
 			}
@@ -200,7 +182,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	isContract := false
 	transactions := tx.Data.Transaction.Transactions
 	for _, transaction := range transactions {
-		if transaction.MoveCall != nil {
+		if transaction.RawMoveCall != nil {
 			isContract = true
 			break
 		}
@@ -238,15 +220,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 	index := 0
 	if !isContract {
-		txTime, _ := strconv.ParseInt(transactionInfo.TimestampMs, 10, 64)
-		txTime = txTime / 1000
-		gasLimit := transactionInfo.Transaction.Data.GasData.Budget
-		computationCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.ComputationCost)
-		storageCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageCost)
-		storageRebate, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageRebate)
-		gasUsedInt := computationCost + storageCost - storageRebate
-		gasUsed := strconv.Itoa(gasUsedInt)
-		feeAmount := decimal.NewFromInt(int64(gasUsedInt))
+		gasLimit, gasUsed, feeAmount := getFees(transactionInfo)
 
 		for _, amountChange := range amountChanges {
 			txType := biz.NATIVE
@@ -324,7 +298,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				FeeAmount:       feeAmount,
 				Amount:          amountValue,
 				Status:          status,
-				TxTime:          txTime,
+				TxTime:          transactionInfo.TxTime(),
 				ContractAddress: contractAddress,
 				ParseData:       parseData,
 				GasLimit:        gasLimit,
@@ -340,7 +314,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			h.txRecords = append(h.txRecords, suiTransactionRecord)
 		}
 	} else {
-		var txTime int64
 		var gasLimit string
 		var gasUsed string
 		var feeAmount decimal.Decimal
@@ -376,15 +349,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			return
 		}
 
-		txTime, _ = strconv.ParseInt(transactionInfo.TimestampMs, 10, 64)
-		txTime = txTime / 1000
-		gasLimit = transactionInfo.Transaction.Data.GasData.Budget
-		computationCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.ComputationCost)
-		storageCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageCost)
-		storageRebate, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageRebate)
-		gasUsedInt := computationCost + storageCost - storageRebate
-		gasUsed = strconv.Itoa(gasUsedInt)
-		feeAmount = decimal.NewFromInt(int64(gasUsedInt))
+		gasLimit, gasUsed, feeAmount = getFees(transactionInfo)
 
 		if !IsNative(contractAddress) && contractAddress != "" {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
@@ -411,7 +376,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			FeeAmount:       feeAmount,
 			Amount:          amountValue,
 			Status:          status,
-			TxTime:          txTime,
+			TxTime:          transactionInfo.TxTime(),
 			ContractAddress: contractAddress,
 			ParseData:       parseData,
 			GasLimit:        gasLimit,
@@ -575,7 +540,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				FeeAmount:       feeAmount,
 				Amount:          amountValue,
 				Status:          status,
-				TxTime:          txTime,
+				TxTime:          transactionInfo.TxTime(),
 				ContractAddress: contractAddress,
 				ParseData:       eventParseData,
 				GasLimit:        gasLimit,
@@ -600,67 +565,29 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	return nil
 }
 
-func (h *txHandler) saveBFStationRecords(blockHash string, pairs []*swap.Pair, status string) {
-	records := make([]data.BFCStationRecord, 0, len(pairs))
-	for _, item := range pairs {
-		if item.Dex != biz.BFStationDexSwap && item.Dex != biz.BFStationStable && item.Dex != biz.BFStationDexLiq {
-			continue
-		}
-		swapType := data.BSTxTypeSwap
-		if item.Dex == biz.BFStationStable {
-			var event *suiswap.BFStationStableEvent
-			if err := json.Unmarshal(item.RawEvent, &event); err != nil {
-				log.Error("STATION SWAP STABLE PARSE FAILED", zap.Any("item", item), zap.Error(err))
-				continue
-			}
-			swapType = data.BSTxTypeMint
-			if event.Atob {
-				swapType = data.BSTxRedeem
-			}
-		} else if item.Dex == biz.BFStationDexLiq {
-			var event *suiswap.BFStationDexLiqEvent
-			if err := json.Unmarshal(item.RawEvent, &event); err != nil {
-				log.Error("STATION DEX LIQ PARSE FAILED", zap.Any("item", item), zap.Error(err))
-				continue
-			}
-			if event.Action == "add" {
-				swapType = data.BSTxTypeAddLiquidity
-			} else {
-				swapType = data.BSTxTypeRemoveLiquidity
-			}
-		}
+func getFees(transactionInfo *stypes.TransactionInfo) (gasLimit, gasUsed string, feeAmount decimal.Decimal) {
+	return transactionInfo.GasLimit(), transactionInfo.GasUsed(), transactionInfo.FeeAmount()
+}
 
-		amountIn, _ := decimal.NewFromString(item.Input.Amount)
-		amountOut, _ := decimal.NewFromString(item.Output.Amount)
-
-		records = append(records, data.BFCStationRecord{
-			BlockHash:       blockHash,
-			BlockNumber:     item.BlockNumber,
-			TransactionHash: item.TxHash,
-			TxTime:          int64(item.TxTime),
-			WalletAddress:   item.FromAddress,
-			Type:            swapType,
-			Vault:           item.PairContract,
-			TokenAmountIn:   amountIn,
-			TokenAmountOut:  amountOut,
-			CoinTypeIn:      item.Input.Address,
-			CoinTypeOut:     item.Output.Address,
-			ParsedJson:      string(item.RawEvent),
-			CreatedAt:       time.Now().Unix(),
-			Status:          status,
-			UpdatedAt:       time.Now().Unix(),
-		})
-	}
-	if len(records) > 0 {
-		err := data.BFCStationRepoIns.BatchSave(context.Background(), h.chainName, records)
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链插入链上 STATION SWAP 记录数据到数据库中失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			alarmOpts = biz.WithAlarmChannel("kanban")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("插入链上 STATION SWAP 交易记录数据到数据库中失败", zap.Any("chainName", h.chainName), zap.Any("error", err))
+func getOwnerAddress(owner interface{}) (address string) {
+	if taddress, ok := owner.(string); ok {
+		//https://suiexplorer.com/txblock/6xKvAZfQANGnJPbuReez3RjnYNqWDt73WkiEThMsCGze
+		address = taddress
+	} else {
+		owner, ok := owner.(map[string]interface{})
+		if !ok {
+			return
+		}
+		if owner != nil {
+			if owner["AddressOwner"] != nil {
+				address = owner["AddressOwner"].(string)
+			} else if owner["ObjectOwner"] != nil {
+				//https://suiexplorer.com/txblock/5XaTqu2CJ4WBpHw5NeSt46EVYPPYDTxirRUNYZbU7Sb3
+				address = owner["ObjectOwner"].(string)
+			}
 		}
 	}
+	return
 }
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {

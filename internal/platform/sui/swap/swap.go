@@ -4,6 +4,8 @@ import (
 	"block-crawling/internal/platform/sui/stypes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -20,10 +22,14 @@ type defaultIn struct {
 func (d *defaultIn) Is(chainName string, tx *chain.Transaction) (bool, error) {
 	transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-		if tx.MoveCall == nil {
+		moveCall, err := tx.MoveCall()
+		if err != nil {
+			return false, err
+		}
+
+		if moveCall == nil {
 			continue
 		}
-		moveCall := tx.MoveCall.(map[string]interface{})
 		if d.isSwapMoveCall(moveCall) {
 			return true, nil
 		}
@@ -31,26 +37,21 @@ func (d *defaultIn) Is(chainName string, tx *chain.Transaction) (bool, error) {
 	return false, nil
 }
 
-func (d *defaultIn) isSwapMoveCall(moveCall map[string]interface{}) bool {
-	_, ok := d.contracts[getStr(moveCall, "package")]
+func (d *defaultIn) isSwapMoveCall(moveCall *stypes.MoveCall) bool {
+	_, ok := d.contracts[moveCall.Package]
 	if !ok {
 		return false
 	}
-	module := getStr(moveCall, "module")
-	function := getStr(moveCall, "function")
-	return module == d.swapModule && function == d.swapFunction
+	return isMoveFnCalled(moveCall, moveCall.Package, d.swapModule, d.swapFunction)
 }
 
-func getStr(obj map[string]interface{}, key string) string {
-	rawVal, ok := obj[key]
-	if !ok {
-		return ""
-	}
-	val, ok := rawVal.(string)
-	if !ok {
-		return ""
-	}
-	return val
+// isMoveFnCalled Returns true if specific function called.
+//
+// Example:
+//
+//	isMoveFnCalled(tx.MoveCall, "BFCa5e3d1ae22b6fa1b238a8552752eb6a6d39835889fc4abed82cc287f55b84a8885c7", "pool_script", "create_pool")
+func isMoveFnCalled(moveCall *stypes.MoveCall, pkg, mod, fn string) bool {
+	return moveCall.Package == pkg && moveCall.Module == mod && moveCall.Function == fn
 }
 
 // Name implements swap.SwapContract
@@ -58,24 +59,27 @@ func (d *defaultIn) Name() string {
 	return d.name
 }
 
-func extractInputAndOutput(moveCall map[string]interface{}) (string, string, error) {
-	rawTypeArgs, ok := moveCall["type_arguments"]
-	if !ok {
-		return "", "", errors.New("missed type_arguments")
-	}
-	typeArgs, ok := rawTypeArgs.([]interface{})
-	if !ok {
-		return "", "", errors.New("type mismatch of type_arguments")
-	}
+func extractInputAndOutput(moveCall *stypes.MoveCall) (string, string, error) {
+	typeArgs := moveCall.TypeArguments
 	if len(typeArgs) != 2 {
 		return "", "", errors.New("the length of type_arguments must be 2")
 	}
 	return typeArgs[0].(string), typeArgs[1].(string), nil
 }
 
-func extractEvents(module string, events []stypes.Event, out interface{}) (json.RawMessage, error) {
+func extractEvents(module string, events []stypes.Event, out interface{}, eventTypes ...string) (json.RawMessage, error) {
 	for _, ev := range events {
 		if ev.TransactionModule != module {
+			continue
+		}
+		matchedEvent := len(eventTypes) == 0
+		for _, suffix := range eventTypes {
+			if strings.HasSuffix(ev.Type, suffix) {
+				matchedEvent = true
+				break
+			}
+		}
+		if !matchedEvent {
 			continue
 		}
 		if err := ev.ParseJson(&out); err != nil {
@@ -87,4 +91,34 @@ func extractEvents(module string, events []stypes.Event, out interface{}) (json.
 		return ev.RawParsedJson, nil
 	}
 	return nil, errors.New("missed swap event")
+}
+
+// ExtractMoveCallEvent Parse Event from special move calls.
+func ExtractMoveCallEvent(expectedMoveCall *stypes.MoveCall, txInfo *stypes.TransactionInfo, out interface{}) error {
+	for _, tx := range txInfo.Transaction.Data.Transaction.Transactions {
+		moveCall, err := tx.MoveCall()
+		if err != nil {
+			return fmt.Errorf("[parseMoveCall] %w", err)
+		}
+
+		if moveCall == nil {
+			continue
+		}
+		if moveCall.Package != expectedMoveCall.Package {
+			continue
+		}
+		if moveCall.Module != expectedMoveCall.Module {
+			continue
+		}
+		if moveCall.Function != expectedMoveCall.Function {
+			continue
+		}
+		events, err := txInfo.Events()
+		if err != nil {
+			return fmt.Errorf("[parseEvents] %w", err)
+		}
+		_, err = extractEvents(expectedMoveCall.Module, events, out)
+		return err
+	}
+	return nil
 }

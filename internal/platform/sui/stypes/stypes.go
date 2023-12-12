@@ -3,6 +3,10 @@ package stypes
 import (
 	"block-crawling/internal/types"
 	"encoding/json"
+	"errors"
+	"strconv"
+
+	"github.com/shopspring/decimal"
 )
 
 type SuiObjectChanges struct {
@@ -157,6 +161,7 @@ type TransactionInfo struct {
 		MessageVersion string `json:"messageVersion"`
 		Status         struct {
 			Status string `json:"status"`
+			Error  string `json:"error"`
 		} `json:"status"`
 		ExecutedEpoch string `json:"executedEpoch"`
 		GasUsed       struct {
@@ -215,18 +220,44 @@ type TransactionInfo struct {
 		PreviousVersion string      `json:"previousVersion,omitempty"`
 		Digest          string      `json:"digest"`
 	} `json:"objectChanges"`
-	BalanceChanges []struct {
-		/*Owner struct {
-			AddressOwner string `json:"AddressOwner"`
-		} `json:"owner"`*/
-		Owner    interface{} `json:"owner"`
-		CoinType string      `json:"coinType"`
-		Amount   string      `json:"amount"`
-	} `json:"balanceChanges"`
-	TimestampMs string             `json:"timestampMs"`
-	Checkpoint  string             `json:"checkpoint"`
-	Errors      []string           `json:"errors,omitempty"`
-	Error       *types.ErrorObject `json:"error,omitempty"`
+	BalanceChanges []BalanceChange    `json:"balanceChanges"`
+	TimestampMs    string             `json:"timestampMs"`
+	Checkpoint     string             `json:"checkpoint"`
+	Errors         []string           `json:"errors,omitempty"`
+	Error          *types.ErrorObject `json:"error,omitempty"`
+}
+
+func (transactionInfo *TransactionInfo) TxTime() int64 {
+	txTime, _ := strconv.ParseInt(transactionInfo.TimestampMs, 10, 64)
+	return txTime / 1000
+}
+
+func (transactionInfo *TransactionInfo) GasLimit() string {
+	return transactionInfo.Transaction.Data.GasData.Budget
+}
+
+func (transactionInfo *TransactionInfo) GasUsedInt() int {
+	computationCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.ComputationCost)
+	storageCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageCost)
+	storageRebate, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageRebate)
+	return computationCost + storageCost - storageRebate
+}
+
+func (transactionInfo *TransactionInfo) GasUsed() string {
+	return strconv.Itoa(transactionInfo.GasUsedInt())
+}
+
+func (transactionInfo *TransactionInfo) FeeAmount() decimal.Decimal {
+	return decimal.NewFromInt(int64(transactionInfo.GasUsedInt()))
+}
+
+type BalanceChange struct {
+	/*Owner struct {
+		AddressOwner string `json:"AddressOwner"`
+	} `json:"owner"`*/
+	Owner    interface{} `json:"owner"`
+	CoinType string      `json:"coinType"`
+	Amount   string      `json:"amount"`
 }
 
 func (ti *TransactionInfo) Events() ([]Event, error) {
@@ -237,27 +268,10 @@ func (ti *TransactionInfo) Events() ([]Event, error) {
 
 type Transaction struct {
 	Data struct {
-		MessageVersion string `json:"messageVersion"`
-		Transaction    struct {
-			Kind   string `json:"kind"`
-			Inputs []struct {
-				Type                 string      `json:"type"`
-				ValueType            string      `json:"valueType,omitempty"`
-				Value                interface{} `json:"value,omitempty"`
-				ObjectType           string      `json:"objectType,omitempty"`
-				ObjectId             string      `json:"objectId,omitempty"`
-				InitialSharedVersion string      `json:"initialSharedVersion,omitempty"`
-				Mutable              bool        `json:"mutable,omitempty"`
-			} `json:"inputs"`
-			Transactions []struct {
-				MergeCoins      []interface{} `json:"MergeCoins,omitempty"`
-				SplitCoins      []interface{} `json:"SplitCoins,omitempty"`
-				TransferObjects []interface{} `json:"TransferObjects,omitempty"`
-				MoveCall        interface{}   `json:"MoveCall,omitempty"`
-			} `json:"transactions"`
-		} `json:"transaction"`
-		Sender  string `json:"sender"`
-		GasData struct {
+		MessageVersion string          `json:"messageVersion"`
+		Transaction    TransactionData `json:"transaction"`
+		Sender         string          `json:"sender"`
+		GasData        struct {
 			/*Payment []struct {
 				ObjectId string `json:"objectId"`
 				Version  int    `json:"version"`
@@ -269,6 +283,92 @@ type Transaction struct {
 		} `json:"gasData"`
 	} `json:"data"`
 	//TxSignatures []string `json:"txSignatures"`
+}
+
+type TransactionData struct {
+	Kind         string             `json:"kind"`
+	Inputs       []TransactionInput `json:"inputs"`
+	Transactions []TransactionEnum  `json:"transactions"`
+}
+
+type TransactionInput struct {
+	Type                 string      `json:"type"`
+	ValueType            string      `json:"valueType,omitempty"`
+	Value                interface{} `json:"value,omitempty"`
+	ObjectType           string      `json:"objectType,omitempty"`
+	ObjectId             string      `json:"objectId,omitempty"`
+	InitialSharedVersion string      `json:"initialSharedVersion,omitempty"`
+	Mutable              bool        `json:"mutable,omitempty"`
+}
+
+type TransactionEnum struct {
+	MergeCoins      []interface{}   `json:"MergeCoins,omitempty"`
+	SplitCoins      []interface{}   `json:"SplitCoins,omitempty"`
+	TransferObjects []interface{}   `json:"TransferObjects,omitempty"`
+	RawMoveCall     json.RawMessage `json:"MoveCall,omitempty"`
+
+	innerMoveCall *MoveCall
+}
+
+func (ti *TransactionEnum) MoveCall() (*MoveCall, error) {
+	if ti.innerMoveCall != nil {
+		return ti.innerMoveCall, nil
+	}
+	if ti.RawMoveCall == nil {
+		return nil, nil
+	}
+	err := json.Unmarshal(ti.RawMoveCall, &ti.innerMoveCall)
+	return ti.innerMoveCall, err
+}
+
+type MoveCall struct {
+	Package  string `json:"package"`
+	Module   string `json:"module"`
+	Function string `json:"function"`
+
+	TypeArguments []interface{} `json:"type_arguments"`
+	Args          []MoveCallArg `json:"arguments"`
+}
+
+// FuncEquals returns true if the two are the same regardless of type arguments and arguments
+func (m *MoveCall) FuncEquals(other *MoveCall) bool {
+	if m.Package != other.Package {
+		return false
+	}
+	if m.Module != other.Module {
+		return false
+	}
+	if m.Function != other.Function {
+		return false
+	}
+	return true
+}
+
+func (m *MoveCall) GetArgInput(pos int, txData *TransactionData) (*TransactionInput, error) {
+	if pos >= len(m.Args) {
+		return nil, errors.New("arguments position overflow")
+	}
+	arg := m.Args[pos]
+	if arg.Input >= len(txData.Inputs) {
+		return nil, errors.New("input position overflow")
+	}
+	return &txData.Inputs[arg.Input], nil
+
+}
+
+func (m *MoveCall) GetArgObjectID(pos int, txData *TransactionData) (string, error) {
+	input, err := m.GetArgInput(pos, txData)
+	if err != nil {
+		return "", err
+	}
+	if input.Type != "object" {
+		return "", errors.New("argument is not a object")
+	}
+	return input.ObjectId, nil
+}
+
+type MoveCallArg struct {
+	Input int `json:"Input"`
 }
 
 type Event struct {

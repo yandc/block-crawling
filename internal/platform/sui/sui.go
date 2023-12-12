@@ -23,11 +23,12 @@ const (
 	SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
 	BFC_CODE  = "0x2::bfc::BFC"
 	BFC_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
+	BFC_CODE2 = "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::bfc::BFC"
 )
 
 func IsNative(coinType string) bool {
 	switch coinType {
-	case SUI_CODE, SUI_CODE1, BFC_CODE, BFC_CODE1:
+	case SUI_CODE, SUI_CODE1, BFC_CODE, BFC_CODE1, BFC_CODE2:
 		return true
 	default:
 		return false
@@ -37,6 +38,13 @@ func IsNative(coinType string) bool {
 func IsNativeContains(objectType string) bool {
 	return strings.Contains(objectType, SUI_CODE) || strings.Contains(objectType, SUI_CODE1) ||
 		strings.Contains(objectType, BFC_CODE) || strings.Contains(objectType, BFC_CODE1)
+}
+
+func IsNativePrefixs(objectType string) bool {
+	return strings.HasPrefix(objectType, "0x2::") || strings.HasPrefix(objectType, "0x3::") ||
+		strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000002::") ||
+		strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000003::") ||
+		strings.HasPrefix(objectType, "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::")
 }
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {

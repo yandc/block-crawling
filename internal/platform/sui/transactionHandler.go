@@ -398,7 +398,7 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 		tokenAddress := record.ContractAddress
 		address := record.ToAddress
 		uid := record.ToUid
-		if IsNative(tokenAddress) && tokenAddress != "" && address != "" && uid != "" {
+		if !IsNative(tokenAddress) && tokenAddress != "" && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    chainName,
 				Uid:          uid,

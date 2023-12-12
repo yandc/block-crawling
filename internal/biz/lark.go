@@ -202,6 +202,7 @@ func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts .
 		if v, ok := lark.conf.LarkBots[alarmOpts.alarmBot]; ok {
 			larkHost = v.Host
 			larkSecret = v.Secret
+			c = append(c, lark.handleBotAtList(v.AtUids)...)
 		} else {
 			log.Warn("NOT FOUND ALARM BOT CONFIGURED", zap.String("bot", alarmOpts.alarmBot))
 		}
@@ -325,6 +326,16 @@ func (lark *Lark) handleAtList(alarmOpts alarmOptions) []Content {
 		}
 	} else {
 		c = append(c, Content{Tag: "at", UserID: "all", UserName: "所有人"})
+	}
+	return c
+}
+
+func (lark *Lark) handleBotAtList(atUids []string) []Content {
+	c := make([]Content, 0, len(atUids))
+	for _, user := range atUids {
+		if v, ok := lark.conf.LarkUids[user]; ok {
+			c = append(c, Content{Tag: "at", UserID: v, UserName: v})
+		}
 	}
 	return c
 }

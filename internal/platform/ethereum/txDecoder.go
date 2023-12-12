@@ -1910,8 +1910,18 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) er
 
 	h.block = block // to let below invocation work.
 
-	err = h.handleEachTransaction(client, block, tx, tx.Raw.(*Transaction), meta, rawReceipt)
-	return err
+	if err := h.handleEachTransaction(client, block, tx, tx.Raw.(*Transaction), meta, rawReceipt); err != nil {
+		return err
+	}
+	matchedUser := meta.User.MatchFrom || meta.User.MatchTo
+	if len(h.txRecords) == 0 && txByHash.Record != nil && !matchedUser {
+		if record, ok := txByHash.Record.(*data.EvmTransactionRecord); ok {
+			record.Status = biz.DROPPED
+			h.txRecords = append(h.txRecords, record)
+			log.Info("PENDING TX DROPPED AS NOT MATCH ANY", zap.String("chainName", h.chainName), zap.Any("record", record))
+		}
+	}
+	return nil
 }
 
 func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {

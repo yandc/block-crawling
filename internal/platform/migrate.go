@@ -11,6 +11,8 @@ import (
 	"block-crawling/internal/platform/ethereum/rtypes"
 	"block-crawling/internal/platform/kaspa"
 	"block-crawling/internal/platform/starcoin"
+	"block-crawling/internal/platform/sui"
+	"block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/platform/tron"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
@@ -7999,4 +8001,145 @@ func UpdateKaspaUtxo() {
 			}
 		}
 	}
+}
+
+func NormalizeBenfenCoinType() {
+	chainName := "BenfenTEST"
+	records, err := data.UserAssetRepoClient.ListByChainNames(context.Background(), []string{chainName})
+	if err != nil {
+		panic(err)
+	}
+	toUpdate := make([]*data.UserAsset, 0, 4)
+	for _, item := range records {
+		if len(item.TokenAddress) == 0 {
+			continue
+		}
+		item.TokenAddress = swap.NormalizeBenfenCoinType(chainName, item.TokenAddress)
+		toUpdate = append(toUpdate, item)
+	}
+	if len(toUpdate) > 0 {
+		_, err = data.UserAssetRepoClient.BatchSaveOrUpdate(context.Background(), toUpdate)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	txRecords, err := data.SuiTransactionRecordRepoClient.ListAll(context.Background(), biz.GetTableName(chainName))
+	if err != nil {
+		panic(err)
+	}
+	toUpdated := make([]*data.SuiTransactionRecord, 0, 4)
+	for _, record := range txRecords {
+		if strings.Contains(record.ContractAddress, "::") {
+			record.ContractAddress = swap.NormalizeBenfenCoinType(chainName, record.ContractAddress)
+			toUpdated = append(toUpdated, record)
+		}
+	}
+	if len(toUpdated) > 0 {
+		_, err = data.SuiTransactionRecordRepoClient.BatchSaveOrUpdate(context.Background(), biz.GetTableName(chainName), toUpdated)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func CleanupBefenAsset() {
+	chainName := "BenfenTEST"
+	if err := fixupBenfenToken(chainName); err != nil {
+		panic(err)
+	}
+	if err := cleanupBenfenTokenAsset(chainName); err != nil {
+		panic(err)
+	}
+	if err := cleanupBenfenNFTAsset(chainName); err != nil {
+		panic(err)
+	}
+}
+
+func fixupBenfenToken(chainName string) error {
+	records, err := data.BFCStationRepoIns.ListAllAccountTokens(context.Background(), chainName)
+	if err != nil {
+		return err
+	}
+	for _, r := range records {
+		var yes bool
+		if strings.HasPrefix(r.TokenCoinType, "0x") {
+			r.TokenCoinType = r.TokenCoinType[2:]
+			yes = true
+		}
+		rawBalance, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+			c := client.(*sui.Client)
+			return c.GetTokenBalance(r.Address, "0x"+r.TokenCoinType, 0)
+		})
+		if err != nil {
+			rawBalance = "0"
+		}
+		balance, _ := decimal.NewFromString(rawBalance.(string))
+		if balance.String() != r.Balance.String() {
+			r.Balance = balance
+			println("new balance of address: %s", r.Address, ", token: %s", r.TokenCoinType, ", balance: ", balance.String())
+			yes = true
+		}
+		if yes {
+			err = data.BFCStationRepoIns.SaveAccountToken(context.Background(), chainName, &r)
+			if err != nil {
+				println(err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func cleanupBenfenTokenAsset(chainName string) error {
+	records, err := data.UserAssetRepoClient.ListByChainNames(context.Background(), []string{chainName})
+	if err != nil {
+		return fmt.Errorf("[listAssets] %w", err)
+	}
+	for _, r := range records {
+		if r.TokenAddress == "" {
+			continue
+		}
+		rawBalance, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+			c := client.(*sui.Client)
+			return c.GetTokenBalance(r.Address, r.TokenAddress, 0)
+		})
+		balance := rawBalance.(string)
+		var errStr string
+		if err != nil {
+			errStr = err.Error()
+		}
+		if balance == "0" || err != nil {
+			println("Cleaning, id: ", r.Id, ", address: ", r.Address, ", tokenAddress: ", r.TokenAddress, ", balance: ", balance, ", err: ", errStr)
+			if _, err := data.UserAssetRepoClient.DeleteByID(context.Background(), r.Id); err != nil {
+				return fmt.Errorf("[deleteAsset] %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func cleanupBenfenNFTAsset(chainName string) error {
+	records, err := data.UserNftAssetRepoClient.ListByChainNames(context.Background(), []string{chainName})
+	if err != nil {
+		return fmt.Errorf("[listNfts] %w", err)
+	}
+	for _, r := range records {
+		rawBalance, err := biz.ExecuteRetry(chainName, func(client chain.Clienter) (interface{}, error) {
+			c := client.(*sui.Client)
+			return c.Erc721BalanceByTokenId(r.Address, r.TokenAddress, r.TokenId)
+		})
+		balance := rawBalance.(string)
+		var errStr string
+		if err != nil {
+			errStr = err.Error()
+		}
+		if balance == "0" || err != nil {
+			println("Cleaning, id: ", r.Id, ", address: ", r.Address, ", tokenAddress: ", r.TokenAddress, ", tokenId: ", r.TokenId, ", balance: ", balance, ", err: ", errStr)
+			if _, err := data.UserNftAssetRepoClient.DeleteByID(context.Background(), r.Id); err != nil {
+				return fmt.Errorf("[deleteNft] %w", err)
+			}
+		}
+	}
+	return nil
 }

@@ -35,10 +35,13 @@ func doExtractPairs(t *testing.T, th string, options ...string) []*swap.Pair {
 	transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 	var contract string
 	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-		if tx.MoveCall == nil {
+		moveCall, err := tx.MoveCall()
+		assert.NoError(t, err, "parse move call")
+		if moveCall == nil {
 			continue
 		}
-		contract = tx.MoveCall.(map[string]interface{})["package"].(string)
+		contract = moveCall.Package
+
 	}
 	println("contract", contract)
 	pairs, err := swap.AttemptToExtractSwapPairs(chain, contract, tx)
