@@ -453,7 +453,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			continue
 		}
 		tokenType := tokenInfo.TokenType
-		if tokenType != biz.SUINFT {
+		if tokenType != biz.SUINFT && tokenType != biz.BENFENNFT {
 			continue
 		}
 		if !((record.FromAddress != "" && record.FromUid != "") || (record.ToAddress != "" && record.ToUid != "")) {

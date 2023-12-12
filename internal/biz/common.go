@@ -175,6 +175,7 @@ const (
 	ERC1155   = "ERC1155"
 	APTOSNFT  = "AptosNFT"
 	SUINFT    = "SuiNFT"
+	BENFENNFT = "BenfenNFT"
 	SOLANANFT = "SolanaNFT"
 	COSMOSNFT = "CosmosNFT"
 )
