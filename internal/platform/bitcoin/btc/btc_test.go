@@ -11,7 +11,7 @@ import (
 
 const (
 	nodeURLCypher  = "https://api.blockcypher.com/v1/btc/main"
-	nodeURLDaemon  = "https://Bearer:bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd@ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/"
+	nodeURLDaemon  = "https://zpka_a96686455d374da6a418f65eaca8a0a5_1652e9a7@svc.blockdaemon.com/universal/v1/bitcoin/mainnet/"
 	nodeURLStream  = "https://blockstream.info"
 	nodeURLScan    = "https://btcscan.org"
 	nodeURLMempool = "https://mempool.space"

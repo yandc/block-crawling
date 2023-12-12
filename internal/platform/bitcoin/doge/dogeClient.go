@@ -38,7 +38,7 @@ func GetBlockNumber(c *base.Client) (int, error) {
 	url := baseURL + "sync/block_number"
 	var height int
 	timeoutMS := 5_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &height, &timeoutMS)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"X-API-Key": key}, &height, &timeoutMS)
 	return height, err
 }
 
@@ -63,7 +63,7 @@ func GetBlockByNumber(number int, c *base.Client) (types.Dogecoin, error) {
 	url := baseURL + "block/" + fmt.Sprintf("%d", number)
 	var block types.Dogecoin
 	timeoutMS := 10_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &block, &timeoutMS)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"X-API-Key": key}, &block, &timeoutMS)
 
 	return block, err
 }
@@ -73,7 +73,7 @@ func GetBalance(address string, c *base.Client) (string, error) {
 	url := baseURL + "account/" + address
 	var balances []types.Balances
 	timeoutMS := 5_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &balances, &timeoutMS)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"X-API-Key": key}, &balances, &timeoutMS)
 	if err == nil {
 		if len(balances) > 0 {
 			btcValue := utils.StringDecimals(balances[0].ConfirmedBalance, 8)
@@ -88,7 +88,7 @@ func GetTransactionsByTXHash(tx string, c *base.Client) (types.TxInfo, error) {
 	url := baseURL + "tx/" + tx
 	var txInfo types.TxInfo
 	timeoutMS := 10_000 * time.Millisecond
-	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": key}, &txInfo, &timeoutMS)
+	err := httpclient.HttpsSignGetForm(url, nil, map[string]string{"X-API-Key": key}, &txInfo, &timeoutMS)
 	return txInfo, err
 }
 

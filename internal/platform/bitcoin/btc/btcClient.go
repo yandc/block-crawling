@@ -42,7 +42,7 @@ var urlMap = map[string]*nodeConf{
 			return newBTCStream(streamURL)
 		},
 	},
-	"https://ubiquity.api.blockdaemon.com/v1/bitcoin/mainnet/": {
+	"https://svc.blockdaemon.com/universal/v1/bitcoin/mainnet/": {
 		streamURL: "https://blockstream.info/api",
 		nodeFactory: func(nodeURL string) Noder {
 			return newBlockdaemonNode(nodeURL)
@@ -114,7 +114,7 @@ func GetUnspentUtxo(nodeUrl string, address string) ([]types.UbiquityOutput, err
 	param := map[string]string{"spent": "false", "page_size": "100"}
 	timeoutMS := 10_000 * time.Millisecond
 	var result types.UbiquityUtxo
-	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &result, &timeoutMS)
+	err := httpclient.HttpsSignGetForm(url, param, map[string]string{"X-API-Key": key}, &result, &timeoutMS)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func GetUnspentUtxo(nodeUrl string, address string) ([]types.UbiquityOutput, err
 	for result.Meta != nil {
 		param["page_token"] = result.Meta.Paging.NextPageToken
 		result = types.UbiquityUtxo{}
-		err = httpclient.HttpsSignGetForm(url, param, map[string]string{"Authorization": key}, &result, &timeoutMS)
+		err = httpclient.HttpsSignGetForm(url, param, map[string]string{"X-API-Key": key}, &result, &timeoutMS)
 		if err != nil {
 			return nil, err
 		}
