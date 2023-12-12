@@ -160,8 +160,8 @@ lark:
       host: https://open.larksuite.com/open-apis/bot/v2/hook/c0381778-67ba-4060-b4d0-6f80c75ff920
       secret: y9dycC1hJ6IeXHiOStYw7d
     bfstation:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/8c6a85c5-1847-402a-b632-e3a34b533e72
-      secret: D8IaC8ZW7j1YJoFpW3nlH
+      host: https://open.larksuite.com/open-apis/bot/v2/hook/7d62d6c8-24e0-4630-a70b-2f98ca9c8980
+      secret: MeijxdQz9UXJdgS80N0MIc
       atUids:
         - wanghui
 
