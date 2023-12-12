@@ -174,7 +174,7 @@ innerNodeList:
     handler: "bitcoin"
     nativeCurrency: BTC
     rpcURL:
-      - "http://haotech:phzxiTvtjqHikHTBTnTthqsUHTY2g3@chain01.openblock.top:8332"
+      - "https://haotech:phzxiTvtjqHikHTBTnTthqg3@btc.benfen.org:8943"
     symbol: "BTC"
     type: "BTC"
 
@@ -187,7 +187,7 @@ innerNodeList:
     handler: "dogecoin"
     nativeCurrency: DOGE
     rpcURL:
-      - "http://haotech:jHoNTnHnZZY6pXsdfsopweuiUWoUwZKC@chain01.openblock.top:22555"
+      - "https://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@https://doge.benfen.org:8943"
     symbol: DOGE
     type: "BTC"
 
@@ -200,7 +200,7 @@ innerNodeList:
     handler: "litecoin"
     nativeCurrency: LTC
     rpcURL:
-      - "http://haotech:BFHsdfsUYTBN2HbaTZBvHJER4fyHy@chain01.openblock.top:9332"
+      - "https://haotech:BFHGDCQHbaTZBvHJER4fyHy@https://ltc.benfen.org:8943"
     symbol: LTC
     type: "BTC"
 
