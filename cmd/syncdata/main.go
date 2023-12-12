@@ -67,7 +67,8 @@ func main() {
 	}
 	defer cleanup()
 	funcMap := map[string]interface{}{
-		"UpdateUserUtxo": platform.UpdateUserUtxo,
+		"UpdateUserUtxo":         platform.UpdateUserUtxo,
+		"CleanupBenfenTESTAsset": platform.CleanupBefenAsset,
 	}
 
 	f := reflect.ValueOf(funcMap[method])
@@ -97,5 +98,4 @@ func main() {
 	//platform.UpdateUserUtxo()
 	//platform.UpdateBTCAmount()
 	// platform.NormalizeBenfenCoinType()
-	platform.CleanupBefenAsset()
 }
