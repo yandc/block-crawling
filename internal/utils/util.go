@@ -533,14 +533,31 @@ func ZeroPoint() time.Duration {
 
 // Some address on BFC may not convert correctly.
 func EVMAddressToBFC(chainName, address string) string {
-	if strings.HasPrefix(strings.ToLower(chainName), "benfen") {
-		if strings.HasPrefix(address, "0x") {
+	if IsBenfenChain(chainName) {
+		hasPrefix := strings.HasPrefix(address, "0x")
+		start := 0
+		if hasPrefix || len(address) == 64 {
+			if hasPrefix {
+				start = 2
+			}
+
 			h := sha256.New()
-			h.Write([]byte(address)[2:])
+			h.Write([]byte(address)[start:])
 			checkSum := fmt.Sprintf("%x", h.Sum(nil))[0:4]
-			return fmt.Sprintf("BFC%s%s", []byte(address)[2:], checkSum)
+			return fmt.Sprintf("BFC%s%s", []byte(address)[start:], checkSum)
 		}
 		return address
 	}
 	return address
+}
+
+func IsBenfenChain(chainName string) bool {
+	return strings.HasPrefix(strings.ToLower(chainName), "benfen")
+}
+
+func UnifyBFCAddress(chainName string, address string) string {
+	if IsBenfenChain(chainName) && len(address) == 71 {
+		return EVMAddressToBFC(chainName, "0x"+address[3:67])
+	}
+	return EVMAddressToBFC(chainName, address)
 }

@@ -23,6 +23,9 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BFStationClient interface {
 	PageListTxns(ctx context.Context, in *PageListTxnsRequest, opts ...grpc.CallOption) (*PageListTxnsResponse, error)
+	CountPoolHolders(ctx context.Context, in *PoolHolderRequest, opts ...grpc.CallOption) (*CountResponse, error)
+	CountTokenHolders(ctx context.Context, in *TokenHolderRequest, opts ...grpc.CallOption) (*CountResponse, error)
+	PageListCollectFees(ctx context.Context, in *PageListFeesRequest, opts ...grpc.CallOption) (*PageListFeesResponse, error)
 }
 
 type bFStationClient struct {
@@ -42,11 +45,41 @@ func (c *bFStationClient) PageListTxns(ctx context.Context, in *PageListTxnsRequ
 	return out, nil
 }
 
+func (c *bFStationClient) CountPoolHolders(ctx context.Context, in *PoolHolderRequest, opts ...grpc.CallOption) (*CountResponse, error) {
+	out := new(CountResponse)
+	err := c.cc.Invoke(ctx, "/api.bfstation.v1.BFStation/CountPoolHolders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bFStationClient) CountTokenHolders(ctx context.Context, in *TokenHolderRequest, opts ...grpc.CallOption) (*CountResponse, error) {
+	out := new(CountResponse)
+	err := c.cc.Invoke(ctx, "/api.bfstation.v1.BFStation/CountTokenHolders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bFStationClient) PageListCollectFees(ctx context.Context, in *PageListFeesRequest, opts ...grpc.CallOption) (*PageListFeesResponse, error) {
+	out := new(PageListFeesResponse)
+	err := c.cc.Invoke(ctx, "/api.bfstation.v1.BFStation/PageListCollectFees", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BFStationServer is the server API for BFStation service.
 // All implementations must embed UnimplementedBFStationServer
 // for forward compatibility
 type BFStationServer interface {
 	PageListTxns(context.Context, *PageListTxnsRequest) (*PageListTxnsResponse, error)
+	CountPoolHolders(context.Context, *PoolHolderRequest) (*CountResponse, error)
+	CountTokenHolders(context.Context, *TokenHolderRequest) (*CountResponse, error)
+	PageListCollectFees(context.Context, *PageListFeesRequest) (*PageListFeesResponse, error)
 	mustEmbedUnimplementedBFStationServer()
 }
 
@@ -56,6 +89,15 @@ type UnimplementedBFStationServer struct {
 
 func (UnimplementedBFStationServer) PageListTxns(context.Context, *PageListTxnsRequest) (*PageListTxnsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListTxns not implemented")
+}
+func (UnimplementedBFStationServer) CountPoolHolders(context.Context, *PoolHolderRequest) (*CountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CountPoolHolders not implemented")
+}
+func (UnimplementedBFStationServer) CountTokenHolders(context.Context, *TokenHolderRequest) (*CountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CountTokenHolders not implemented")
+}
+func (UnimplementedBFStationServer) PageListCollectFees(context.Context, *PageListFeesRequest) (*PageListFeesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PageListCollectFees not implemented")
 }
 func (UnimplementedBFStationServer) mustEmbedUnimplementedBFStationServer() {}
 
@@ -88,6 +130,60 @@ func _BFStation_PageListTxns_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BFStation_CountPoolHolders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PoolHolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BFStationServer).CountPoolHolders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.bfstation.v1.BFStation/CountPoolHolders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BFStationServer).CountPoolHolders(ctx, req.(*PoolHolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BFStation_CountTokenHolders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenHolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BFStationServer).CountTokenHolders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.bfstation.v1.BFStation/CountTokenHolders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BFStationServer).CountTokenHolders(ctx, req.(*TokenHolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BFStation_PageListCollectFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PageListFeesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BFStationServer).PageListCollectFees(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.bfstation.v1.BFStation/PageListCollectFees",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BFStationServer).PageListCollectFees(ctx, req.(*PageListFeesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BFStation_ServiceDesc is the grpc.ServiceDesc for BFStation service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -98,6 +194,18 @@ var BFStation_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PageListTxns",
 			Handler:    _BFStation_PageListTxns_Handler,
+		},
+		{
+			MethodName: "CountPoolHolders",
+			Handler:    _BFStation_CountPoolHolders_Handler,
+		},
+		{
+			MethodName: "CountTokenHolders",
+			Handler:    _BFStation_CountTokenHolders_Handler,
+		},
+		{
+			MethodName: "PageListCollectFees",
+			Handler:    _BFStation_PageListCollectFees_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

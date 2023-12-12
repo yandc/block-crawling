@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBFStation(t *testing.T) {
-	pairs := doExtractBlockPairs(t, 59_307, "http://yobcrpc.openblock.vip", "BenfenTEST")
+func TestBFStationFailed(t *testing.T) {
+	pairs := doExtractBlockPairs(t, 988_748, "https://obcrpc.openblock.vip", "BenfenTEST")
 	assert.Equal(t, 1, len(pairs), "extract 1 pairs")
 	assert.Equal(t, "BFC12c4d095ef555abd3bd398df224262cec56a32f82008d8f0436c7a2f1a54c4a4f107", pairs[0].PairContract, "[0].pairContract")
 	assert.Equal(t, "200000000000", pairs[0].Input.Amount, "[0].inputAmount")
@@ -37,10 +37,12 @@ func doExtractBlockPairs(t *testing.T, height int, options ...string) []*swap.Pa
 		transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 		var contract string
 		for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-			if tx.MoveCall == nil {
+			moveCall, err := tx.MoveCall()
+			assert.NoError(t, err, "parse move call")
+			if moveCall == nil {
 				continue
 			}
-			contract = tx.MoveCall.(map[string]interface{})["package"].(string)
+			contract = moveCall.Package
 		}
 		pairs, err := swap.AttemptToExtractSwapPairs(chain, contract, tx)
 

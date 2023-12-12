@@ -637,8 +637,16 @@ func WithAlarmChannel(channel string) AlarmOption {
 }
 
 func WithCollectBot() AlarmOption {
+	return WithBot("collect")
+}
+
+func WithStationBot() AlarmOption {
+	return WithBot("bfstation")
+}
+
+func WithBot(bot string) AlarmOption {
 	return newfuncAlarmOption(func(e *alarmOptions) {
-		e.alarmBot = "collect"
+		e.alarmBot = bot
 	})
 }
 

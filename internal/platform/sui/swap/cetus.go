@@ -27,16 +27,19 @@ func (c *cetus) ExtractPairs(tx *chain.Transaction, args ...interface{}) ([]*swa
 	}
 
 	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-		if tx.MoveCall == nil {
+		moveCall, err := tx.MoveCall()
+		if err != nil {
+			return nil, err
+		}
+
+		if moveCall == nil {
 			continue
 		}
-		moveCall := tx.MoveCall.(map[string]interface{})
 		if c.isSwapMoveCall(moveCall) {
 			input, output, err := extractInputAndOutput(moveCall)
 			if err != nil {
 				return nil, err
 			}
-			pkg := getStr(moveCall, "package")
 			eventData, err := c.extractEvents(events)
 			if eventData == nil {
 				continue
@@ -45,7 +48,7 @@ func (c *cetus) ExtractPairs(tx *chain.Transaction, args ...interface{}) ([]*swa
 			pairs = append(pairs, &swap.Pair{
 				TxHash:       transactionInfo.Digest,
 				Dex:          c.Name(),
-				DexContract:  pkg,
+				DexContract:  moveCall.Package,
 				PairContract: eventData.Pool,
 				Input: swap.PairItem{
 					Address: input,

@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/platform/sui/stypes"
+	"block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
@@ -154,6 +155,7 @@ type TokenBalance struct {
 
 func (c *Client) GetTokenBalance(address, tokenAddress string, decimals int) (string, error) {
 	method := c.getRpcMethod("suix_getBalance")
+	tokenAddress = swap.DenormalizeBenfenCoinType(c.chainName, tokenAddress)
 	params := []interface{}{address, tokenAddress}
 	var out TokenBalance
 	timeoutMS := 3_000 * time.Millisecond
@@ -372,4 +374,31 @@ type SuiTokenNftRecordReq struct {
 	Jsonrpc string        `json:"jsonrpc"`
 	Params  []interface{} `json:"params"`
 	Id      string        `json:"id"`
+}
+
+// SuiSimpleStructTag Struct Tag without type arguments
+type SuiSimpleStructTag struct {
+	Address string
+	Module  string
+	Name    string
+}
+
+func (st *SuiSimpleStructTag) Equals(other *SuiSimpleStructTag) bool {
+	return st.Address == other.Address && st.Module == other.Module && st.Name == other.Name
+}
+
+func ParseSuiSimpleStructTag(chainName, s string) (*SuiSimpleStructTag, error) {
+	if strings.Contains(s, "<") && strings.HasSuffix(s, ">") {
+		parts := strings.Split(s, "<")
+		s = parts[0]
+	}
+	parts := strings.Split(s, "::")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid segments number")
+	}
+	return &SuiSimpleStructTag{
+		Address: utils.EVMAddressToBFC(chainName, parts[0]),
+		Module:  parts[1],
+		Name:    parts[2],
+	}, nil
 }

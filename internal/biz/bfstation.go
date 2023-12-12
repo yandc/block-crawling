@@ -30,6 +30,7 @@ func (c *BFStationUsecase) PageListTxns(ctx context.Context, req *pb.PageListTxn
 			TransactionHash: item.TransactionHash,
 			WalletAddress:   item.WalletAddress,
 			Type:            string(item.Type),
+			PoolId:          item.PoolID,
 			Vault:           item.Vault,
 			TokenAmountIn:   item.TokenAmountIn.String(),
 			TokenAmountOut:  item.TokenAmountOut.String(),
@@ -38,9 +39,51 @@ func (c *BFStationUsecase) PageListTxns(ctx context.Context, req *pb.PageListTxn
 			ParsedJson:      item.ParsedJson,
 			Status:          item.Status,
 			CreatedAt:       item.CreatedAt,
+			WalletUid:       item.WalletUID,
+			FeeAmount:       item.FeeAmount.String(),
+			GasLimit:        item.GasLimit,
+			GasUsed:         item.GasUsed,
+			FromOBWallet:    item.WalletAddress != "",
+			CoinInfoIn:      item.CoinInfoIn,
+			CoinInfoOut:     item.CoinInfoOut,
 		})
 	}
 	return response, nil
+}
+
+func (c *BFStationUsecase) CountPoolHolders(ctx context.Context, chainName, poolID string) (int64, error) {
+	return data.BFCStationRepoIns.CountPoolHolders(ctx, chainName, poolID)
+}
+
+func (c *BFStationUsecase) CountTokenHolders(ctx context.Context, chainName, coinType string) (int64, error) {
+	return data.BFCStationRepoIns.CountTokenHolders(ctx, chainName, coinType)
+}
+
+func (c *BFStationUsecase) PageListCollectFees(ctx context.Context, req *pb.PageListFeesRequest) (*pb.PageListFeesResponse, error) {
+	records, total, err := data.BFCStationRepoIns.PageListCollectFees(ctx, req.ChainName, req)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*pb.BFStationCollectFeeRecord, 0, len(records))
+	for _, record := range records {
+		results = append(results, &pb.BFStationCollectFeeRecord{
+			Id:              record.Id,
+			TransactionHash: record.TxHash,
+			TxTime:          record.TxTime,
+			WalletAddress:   record.Address,
+			PoolId:          record.PoolID,
+			PositionId:      record.Position,
+			AmountA:         record.AmountA.String(),
+			AmountB:         record.AmountB.String(),
+			CoinTypeA:       record.CoinTypeA,
+			CoinTypeB:       record.CoinTypeB,
+			CreatedAt:       record.CreatedAt,
+		})
+	}
+	return &pb.PageListFeesResponse{
+		Total: total,
+		List:  results,
+	}, nil
 }
 
 func NewBFStationUsecase(gorm *gorm.DB) *BFStationUsecase {

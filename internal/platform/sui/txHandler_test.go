@@ -18,7 +18,7 @@ func TestTransferObj(t *testing.T) {
 	h := &txHandler{
 		chainName: chainName,
 		block: &chain.Block{
-			Hash: tx.Certificate.TransactionDigest,
+			Hash: tx.Digest,
 			Raw:  tx,
 			Transactions: []*chain.Transaction{
 				{
@@ -48,7 +48,7 @@ func TestTransferSui(t *testing.T) {
 	h := &txHandler{
 		chainName: chainName,
 		block: &chain.Block{
-			Hash: tx.Certificate.TransactionDigest,
+			Hash: tx.Digest,
 			Raw:  tx,
 			Transactions: []*chain.Transaction{
 				{

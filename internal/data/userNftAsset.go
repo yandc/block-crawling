@@ -7,10 +7,11 @@ import (
 	"block-crawling/internal/utils"
 	"context"
 	"fmt"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"strconv"
 	"strings"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // UserNftAsset is a UserNftAsset model.
@@ -97,6 +98,7 @@ type UserNftAssetRepo interface {
 	ListAll(context.Context) ([]*UserNftAsset, error)
 	PageList(context.Context, *NftAssetRequest) ([]*UserNftAsset, int64, error)
 	List(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
+	ListByChainNames(context.Context, []string) ([]*UserNftAsset, error)
 	ListBalanceGroup(context.Context, *NftAssetRequest) ([]*UserNftAsset, error)
 	PageListGroup(context.Context, *pb.PageListNftAssetRequest) ([]*UserNftAssetGroup, int64, int64, error)
 	DeleteByID(context.Context, int64) (int64, error)
@@ -321,6 +323,18 @@ func (r *UserNftAssetRepoImpl) FindByUniqueKey(ctx context.Context, req *pb.NftA
 		return nil, err
 	}
 	return userNftAsset, nil
+}
+
+// ListByChainNames implements UserNftAssetRepo
+func (r *UserNftAssetRepoImpl) ListByChainNames(ctx context.Context, chainNames []string) ([]*UserNftAsset, error) {
+	var userNftAssetList []*UserNftAsset
+	ret := r.gormDB.WithContext(ctx).Where("chain_name in ?", chainNames).Find(&userNftAssetList)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query userNftAsset failed", err)
+		return nil, err
+	}
+	return userNftAssetList, nil
 }
 
 func (r *UserNftAssetRepoImpl) ListByID(ctx context.Context, id int64) ([]*UserNftAsset, error) {

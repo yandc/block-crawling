@@ -102,8 +102,7 @@ func (b *Bootstrap) Start() {
 	table := strings.ToLower(b.Conf.Chain) + biz.TABLE_POSTFIX
 	biz.DynamicCreateTable(b.mr, b.db, table, b.Conf.Type)
 	if biz.IsBenfenNet(b.Conf.Chain) {
-		bfcTable := data.GetBFCStationTable(b.Conf.Chain)
-		b.db.Table(bfcTable).AutoMigrate(&data.BFCStationRecord{})
+		data.AutoMigrateBFStationTables(b.db, b.Conf.Chain)
 	}
 
 	go func() {

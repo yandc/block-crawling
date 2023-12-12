@@ -71,6 +71,7 @@ message App {
   string marketRpc = 9;
 	map<string, string>    featuredCustomChain = 10;
 	CMQ cmq = 11;
+  string bfstationRpc = 12;
 }
 
 message CMQ {
@@ -104,8 +105,9 @@ message Lark {
 }
 
 message LarkBot {
-  string host = 2;
-  string secret = 3;
+  string host = 1;
+  string secret = 2;
+	repeated string atUids = 3;
 }
 
 message Logger {

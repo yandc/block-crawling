@@ -1206,9 +1206,9 @@ platformTest:
     maxConcurrency: 15
     monitorHeightAlarmThr: 0
   BenfenTEST:
-    blockExplorerAddrUrl: https://obc.openblock.vip/addresses/
-    blockExplorerTxUrl: https://obc.openblock.vip/transactions/
-    blockExplorerUrl: https://obc.openblock.vip/
+    blockExplorerAddrUrl: https://testnet.benfen.org/addresses/
+    blockExplorerTxUrl: https://testnet.benfen.org/txblock/
+    blockExplorerUrl:  https://testnet.benfen.org/
     chain: BenfenTEST
     chainId: ""
     coinId: 1010120
@@ -1220,7 +1220,7 @@ platformTest:
     nativeCurrency: BFC
     netType: test
     rpcURL:
-      - https://obcrpc.openblock.vip
+      - https://testrpc.benfen.org/
     symbol: BFC
     type: SUI
     safelyConcurrentBlockDelta: 50

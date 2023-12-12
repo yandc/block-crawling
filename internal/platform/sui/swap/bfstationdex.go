@@ -7,11 +7,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
+// https://tk3en79uf0.larksuite.com/wiki/ReEpwA0ykinzNzkOzveuthZKssg
+const BFStationContract = "BFC16fed99d2437f6aa1138a5841179c0998400cabc3c00c0b63ba7dbe55d806e728e7e"
+
 var bfstationDexContracts = map[string]bool{
-	"BFC4efe978bd7e02ed9f1cc199cec277c765357b7b3b812f8b63393b01d3000d391a3f8": true,
+	// "BFC4efe978bd7e02ed9f1cc199cec277c765357b7b3b812f8b63393b01d3000d391a3f8": true,
+	BFStationContract: true,
 }
 
 type bfstationDexSwap struct {
@@ -28,35 +33,102 @@ func (s *bfstationDexSwap) ExtractPairs(tx *chain.Transaction, args ...interface
 	}
 
 	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-		if tx.MoveCall == nil {
+		moveCall, err := tx.MoveCall()
+		if err != nil {
+			return nil, err
+		}
+
+		if moveCall == nil {
 			continue
 		}
-		moveCall := tx.MoveCall.(map[string]interface{})
 		if s.isSwapMoveCall(moveCall) {
-			pkg := getStr(moveCall, "package")
-			rawEvent, eventData, err := s.extractEvents(events)
+			var pair *swap.Pair
+			var err error
+			if len(events) > 0 {
+				pair, err = s.extractPairFromEvents(events)
+			} else {
+				pair, err = s.extractPairFromMoveCall(&transactionInfo.Transaction.Data.Transaction, moveCall)
+			}
 			if err != nil {
 				return nil, err
 			}
+			if pair == nil {
+				continue
+			}
 
-			pairs = append(pairs, &swap.Pair{
-				TxHash:       transactionInfo.Digest,
-				Dex:          s.Name(),
-				DexContract:  pkg,
-				PairContract: eventData.Pool,
-				Input: swap.PairItem{
-					Address: eventData.CoinTypeIn,
-					Amount:  eventData.AmountIn,
-				},
-				Output: swap.PairItem{
-					Address: eventData.CoinTypeOut,
-					Amount:  eventData.AmountOut,
-				},
-				RawEvent: rawEvent,
-			})
+			pair.TxHash = transactionInfo.Digest
+			pair.DexContract = moveCall.Package
+			pairs = append(pairs, pair)
 		}
 	}
 	return pairs, nil
+}
+
+func (s *bfstationDexSwap) extractPairFromEvents(events []stypes.Event) (*swap.Pair, error) {
+	rawEvent, eventData, err := s.extractEvents(events)
+	if err != nil {
+		return nil, err
+	}
+	var input, output string
+	if eventData.Atob {
+		input = eventData.CoinTypeA
+		output = eventData.CoinTypeB
+	} else {
+		input = eventData.CoinTypeB
+		output = eventData.CoinTypeA
+	}
+	amountIn, _ := decimal.NewFromString(eventData.AmountIn)
+	feeAmount, _ := decimal.NewFromString(eventData.FeeAmount)
+	amountIn = amountIn.Add(feeAmount)
+	return &swap.Pair{
+		Dex:          s.Name(),
+		PairContract: eventData.Pool,
+		Input: swap.PairItem{
+			Address: input,
+			Amount:  amountIn.String(),
+		},
+		Output: swap.PairItem{
+			Address: output,
+			Amount:  eventData.AmountOut,
+		},
+		RawEvent: rawEvent,
+	}, nil
+}
+
+func (s *bfstationDexSwap) extractPairFromMoveCall(txData *stypes.TransactionData, moveCall *stypes.MoveCall) (*swap.Pair, error) {
+	var inputToken, outputToken string
+	input, err := moveCall.GetArgInput(4, txData)
+	if err != nil {
+		return nil, err
+	}
+	amount := input.Value.(string)
+	pool, err := moveCall.GetArgObjectID(1, txData)
+	if err != nil {
+		return nil, err
+	}
+	switch moveCall.Function {
+	case dexA2BFunction:
+		inputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		outputToken = normalizeBenfenCoinType(moveCall.TypeArguments[1].(string))
+	case dexB2AFunction:
+		outputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		inputToken = normalizeBenfenCoinType(moveCall.TypeArguments[1].(string))
+	default:
+		return nil, nil
+	}
+	return &swap.Pair{
+		Dex:          s.Name(),
+		PairContract: pool,
+		Input: biz.SwapPairItem{
+			Address: inputToken,
+			Amount:  amount,
+		},
+		Output: biz.SwapPairItem{
+			Address: outputToken,
+			Amount:  amount,
+		},
+		RawEvent: []byte(`{"__spiderMock": true}`),
+	}, nil
 }
 
 type BFStationDexSwapEvent struct {
@@ -65,8 +137,8 @@ type BFStationDexSwapEvent struct {
 	Atob            bool   `json:"a_to_b"`
 	AmountIn        string `json:"amount_in"`
 	AmountOut       string `json:"amount_out"`
-	CoinTypeIn      string `json:"coin_type_in"`
-	CoinTypeOut     string `json:"coin_type_out"`
+	CoinTypeA       string `json:"coin_type_a"`
+	CoinTypeB       string `json:"coin_type_b"`
 	Steps           string `json:"steps"`
 	Pool            string `json:"pool"`
 	Sender          string `json:"sender"`
@@ -106,12 +178,14 @@ func (s *bfstationDexLiq) ExtractPairs(tx *chain.Transaction, args ...interface{
 	}
 
 	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
-		if tx.MoveCall == nil {
+		moveCall, err := tx.MoveCall()
+		if err != nil {
+			return nil, err
+		}
+		if moveCall == nil {
 			continue
 		}
-		moveCall := tx.MoveCall.(map[string]interface{})
 		if s.isSwapMoveCall(moveCall) {
-			pkg := getStr(moveCall, "package")
 			rawEvent, eventData, err := s.extractEvents(events)
 			if err != nil {
 				return nil, err
@@ -120,7 +194,7 @@ func (s *bfstationDexLiq) ExtractPairs(tx *chain.Transaction, args ...interface{
 			pairs = append(pairs, &swap.Pair{
 				TxHash:       transactionInfo.Digest,
 				Dex:          s.Name(),
-				DexContract:  pkg,
+				DexContract:  moveCall.Package,
 				PairContract: eventData.Pool,
 				Input: swap.PairItem{
 					Address: eventData.CoinTypeA,
@@ -138,21 +212,28 @@ func (s *bfstationDexLiq) ExtractPairs(tx *chain.Transaction, args ...interface{
 }
 
 type BFStationDexLiqEvent struct {
-	Action         string `json:"action"`
-	Liquidity      string `json:"liquidity"`
-	AfterLiquidity string `json:"after_liquidity"`
-	AmountA        string `json:"amount_a"`
-	AmountB        string `json:"amount_b"`
-	CoinTypeA      string `json:"coin_type_a"`
-	CoinTypeB      string `json:"coin_type_b"`
-	Pool           string `json:"pool"`
-	Sender         string `json:"sender"`
-	Position       string `json:"position"`
+	Action                  string `json:"action"`
+	DeltaLiquidity          string `json:"delta_liquidity"`
+	BeforePoolLiquidity     string `json:"before_pool_liquidity"`
+	AfterPoolLiquidity      string `json:"after_pool_liquidity"`
+	BeforePositionLiquidity string `json:"before_position_liquidity"`
+	AfterPositionLiquidity  string `json:"after_position_liquidity"`
+	AmountA                 string `json:"amount_a"`
+	AmountB                 string `json:"amount_b"`
+	CoinTypeA               string `json:"coin_type_a"`
+	CoinTypeB               string `json:"coin_type_b"`
+	Pool                    string `json:"pool"`
+	Sender                  string `json:"sender"`
+	Position                string `json:"position"`
 }
 
 func (s *bfstationDexLiq) extractEvents(events []stypes.Event) (json.RawMessage, *BFStationDexLiqEvent, error) {
+	var filterEventTypes []string
+	if s.swapFunction == dexOpenLiqFunction {
+		filterEventTypes = append(filterEventTypes, "event::LiquidityEvent")
+	}
 	var data *BFStationDexLiqEvent
-	raw, err := extractEvents(s.swapModule, events, &data)
+	raw, err := extractEvents(s.swapModule, events, &data, filterEventTypes...)
 	return raw, data, err
 }
 
@@ -173,6 +254,7 @@ const (
 	dexB2AFunction       = "swap_b2a"
 	dexAddLiqFunction    = "add_liquidity"
 	dexRemoveLiqFunction = "remove_liquidity"
+	dexOpenLiqFunction   = "open_position_with_liquidity_with_all"
 )
 
 func init() {
@@ -181,4 +263,5 @@ func init() {
 
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexAddLiqFunction))
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexRemoveLiqFunction))
+	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexOpenLiqFunction))
 }

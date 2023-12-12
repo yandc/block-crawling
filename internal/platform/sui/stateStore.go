@@ -5,6 +5,10 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
+	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -62,5 +66,39 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 		})
 	}
 	log.Info("LOAD PENDING TXs", zap.String("chainName", store.chainName), zap.Any("records", records))
+	go store.notifyTimeoutStationTxns()
 	return txs, nil
+}
+
+func (store *stateStore) notifyTimeoutStationTxns() {
+	records, err := data.BFCStationRepoIns.LoadTimeoutRecords(context.Background(), store.chainName, 15*time.Minute)
+	if err != nil {
+		log.Error("LOAD TIMEOUT RECORDS", zap.String("chainName", store.chainName), zap.Error(err))
+	}
+	if len(records) == 0 {
+		return
+	}
+	var msgBody strings.Builder
+	for _, r := range records {
+		msgBody.WriteString(fmt.Sprintf(`
+ID: %d
+Type: %s
+TxHash: %s
+Wallet: %s
+TxTime: %d
+`,
+
+			r.Id,
+			r.Type,
+			r.TransactionHash,
+			r.WalletAddress,
+			r.TxTime,
+		))
+	}
+
+	alarmMsg := fmt.Sprintf(`%s Station 订单已超时。\n%s`,
+		store.chainName,
+		msgBody.String(),
+	)
+	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, biz.WithStationBot())
 }

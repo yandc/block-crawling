@@ -10,15 +10,23 @@ import "validate/validate.proto";
 
 service BFStation {
 	rpc PageListTxns(PageListTxnsRequest) returns (PageListTxnsResponse);
+	rpc CountPoolHolders(PoolHolderRequest) returns (CountResponse);
+	rpc CountTokenHolders(TokenHolderRequest) returns (CountResponse);
+	rpc PageListCollectFees(PageListFeesRequest) returns (PageListFeesResponse);
 }
 
 
 message PageListTxnsRequest {
   string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
   string walletAddress = 2;  // mint, redeem,swap,add,remove
-	string type = 3;
+  string type = 3;
   int32 pageNum = 4 [(validate.rules).int32.gte = 0];
   int32 pageSize = 5 [(validate.rules).int32.gte = 0];
+  string walletAddressOrUid = 6;
+  string status = 7; // success,fail,pending
+  int64 startTime = 8 [(validate.rules).int64.gte = 0];
+  int64 stopTime = 9 [(validate.rules).int64.gte = 0];
+	bool fromOBWallet = 10;
 }
 
 message PageListTxnsResponse {
@@ -28,18 +36,69 @@ message PageListTxnsResponse {
 
 message BFStationTxRecord {
   int64 id = 1;
-	string blockHash = 2;
-	int64 blockNumber = 3;
-	int64 txTime = 4;
-	string transactionHash = 5;
-	string walletAddress = 6;
-	string type = 7; // mint, redeem,swap,add,remove
-	string vault = 8;
-	string tokenAmountIn = 9;
-	string tokenAmountOut = 10;
-	string coinTypeIn = 11;
-	string coinTypeOut = 12;
-	string parsedJson = 13;
-	string status = 14;   // pending,success,fail
-	int64 createdAt = 15;
+  string blockHash = 2;
+  int64 blockNumber = 3;
+  int64 txTime = 4;
+  string transactionHash = 5;
+  string walletAddress = 6;
+  string type = 7;            // mint, redeem,swap,add,remove
+	string poolId = 8;          // non-empty if type is one of swap,add or remove
+  string vault = 9;           // non-empty if type is one of mint or redeem
+  string tokenAmountIn = 10;   // amount_a if type is add or remove
+  string tokenAmountOut = 11; // amount_b if type is add or remove
+  string coinTypeIn = 12;     // coin_type_a if type is add or remove
+  string coinTypeOut = 13;    // coin_type_b if type is add or remove
+  string parsedJson = 14;
+  string status = 15;         // pending,success,fail
+  int64 createdAt = 16;
+  string walletUid = 17;
+  string feeAmount = 18;
+  string gasLimit = 19;
+  string gasUsed = 20;
+  bool fromOBWallet = 21;
+  string coinInfoIn = 22;
+  string coinInfoOut = 23;
+}
+
+
+message PoolHolderRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
+  string poolId = 2  [(validate.rules).string = {min_len: 1}];
+}
+
+message TokenHolderRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
+  string coinType = 2  [(validate.rules).string = {min_len: 1}];
+}
+
+message CountResponse {
+  int64 total = 1;
+}
+
+message PageListFeesRequest {
+  string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
+  string poolId = 2  [(validate.rules).string = {min_len: 1}];
+  int32 pageNum = 3 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 4 [(validate.rules).int32.gte = 0];
+  int64 startTime = 5 [(validate.rules).int64.gte = 0]; // txTime starts at
+  int64 stopTime = 6 [(validate.rules).int64.gte = 0];  // txTime stops at
+}
+
+message PageListFeesResponse {
+  int64 total = 1;
+	repeated BFStationCollectFeeRecord list = 2;
+}
+
+message BFStationCollectFeeRecord {
+  int64 id = 1;
+  string transactionHash = 2;
+  int64 txTime = 3;
+  string walletAddress = 4;
+  string poolId = 5;
+  string positionId = 6;
+  string amountA = 7;
+  string amountB = 8;
+  string coinTypeA = 9;
+  string coinTypeB = 10;
+  int64 createdAt = 11;
 }

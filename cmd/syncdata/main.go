@@ -6,11 +6,12 @@ import (
 	bizLog "block-crawling/internal/log"
 	"block-crawling/internal/platform"
 	"flag"
+	"os"
+	"reflect"
+
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
-	"os"
-	"reflect"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -95,4 +96,6 @@ func main() {
 	//platform.UpdateSignAddress()
 	//platform.UpdateUserUtxo()
 	//platform.UpdateBTCAmount()
+	// platform.NormalizeBenfenCoinType()
+	platform.CleanupBefenAsset()
 }

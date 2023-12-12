@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package api.common;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+import "google/protobuf/empty.proto";
+import "bfstation/v1/bfstation.proto";
+
+option go_package = "gitlab.bixin.com/benfen-station/api/bfstation/common;common";
+
+service BFStation {
+  rpc GetPageListTxns (GetPageListTxnsRequest) returns (GetPageListTxnsReply) {
+    option (google.api.http) = {
+      get: "/api/bfstation/common/list_txns",
+    };
+  };
+  rpc SyncSwapEvent(SyncSwapEventRequest) returns (google.protobuf.Empty);
+  rpc SyncLiquidityEvent(SyncLiquidityEventRequest) returns (google.protobuf.Empty);
+}
+
+message ListTxnsInfo {
+  int64 total = 1;
+  repeated api.bfstation.v1.BFStationTxRecord list = 2;
+}
+
+message GetPageListTxnsReply {
+  // 状态码
+  int32 code = 1;
+  // 错误时返回的信息
+  string message = 2;
+  ListTxnsInfo data = 3;
+}
+
+
+message GetPageListTxnsRequest {
+  string walletAddress = 1;  // mint, redeem,swap,add,remove
+  string type = 2;
+  int32 pageNum = 3 [(validate.rules).int32.gte = 0];
+  int32 pageSize = 4 [(validate.rules).int32.gte = 0];
+}
+
+message SyncSwapEventRequest {
+  string poolID = 1;
+  bool a2b = 2;
+  string senderAddress = 3;
+  string coinTypeA = 4;
+  string coinTypeB = 5;
+  uint64 amountIn = 6;
+  uint64 amountOut = 7;
+  uint64 feeAmount = 8;
+  uint64 before_sqrt_price = 9;
+  uint64 after_sqrt_price = 10;
+}
+
+message SyncLiquidityEventRequest {
+  string poolID = 1;
+  string positionID = 2;
+  string senderAddress = 3;
+  string coinTypeA = 4;
+  string coinTypeB = 5;
+  uint64 deltaLiquidity = 6;
+  uint64 beforePositioinLiquidity = 7;
+  uint64 beforePoolLiquidity = 8;
+  uint64 afterPositionLiquidity = 9;
+  uint64 afterPoolLiquidity = 10;
+  uint64 amountA = 11;
+  uint64 amountB = 12;
+  string action = 13;
+}
