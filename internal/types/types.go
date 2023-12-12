@@ -34,7 +34,7 @@ type TokenInfo struct {
 	Decimals       int64       `json:"decimals"`
 	Symbol         string      `json:"symbol"`
 	TokenUri       string      `json:"token_uri,omitempty"`
-	CollectionName string      `json:"collection_name,omitempty"`
+	CollectionName string      `json:"collection_name"`
 	TokenType      string      `json:"token_type,omitempty"`
 	TokenId        string      `json:"token_id,omitempty"`
 	ItemName       string      `json:"item_name,omitempty"`
