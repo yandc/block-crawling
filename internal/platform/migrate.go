@@ -8102,11 +8102,12 @@ func cleanupBenfenTokenAsset(chainName string) error {
 			c := client.(*sui.Client)
 			return c.GetTokenBalance(r.Address, r.TokenAddress, 0)
 		})
-		balance := rawBalance.(string)
 		var errStr string
 		if err != nil {
 			errStr = err.Error()
+			rawBalance = "0"
 		}
+		balance := rawBalance.(string)
 		if balance == "0" || err != nil {
 			println("Cleaning, id: ", r.Id, ", address: ", r.Address, ", tokenAddress: ", r.TokenAddress, ", balance: ", balance, ", err: ", errStr)
 			if _, err := data.UserAssetRepoClient.DeleteByID(context.Background(), r.Id); err != nil {
