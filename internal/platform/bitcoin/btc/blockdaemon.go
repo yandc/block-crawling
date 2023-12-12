@@ -31,7 +31,7 @@ func newBlockdaemonNode(nodeURL string) *blockdaemonNode {
 
 func (n *blockdaemonNode) GetBalance(address string) (string, error) {
 	timeout := 5 * time.Second
-	header := map[string]string{"Authorization": n.key}
+	header := map[string]string{"X-API-Key": n.key}
 	u, err := base.BuildURL("/account/"+address, n.baseURL, nil)
 	if err != nil {
 		return "", err
@@ -69,7 +69,7 @@ type blockdaemonBalanceCurrency struct {
 func (n *blockdaemonNode) GetBlockNumber() (int, error) {
 	timeout := 5 * time.Second
 	var height int
-	header := map[string]string{"Authorization": n.key}
+	header := map[string]string{"X-API-Key": n.key}
 	u, err := base.BuildURL("/sync/block_number", n.baseURL, nil)
 	if err != nil {
 		return 0, err
@@ -144,6 +144,6 @@ func (n *blockdaemonNode) getTransactionsByTXHash(tx string) (types.TxInfo, erro
 	url := u.String()
 	var txInfo types.TxInfo
 	timeoutMS := 10_000 * time.Millisecond
-	err = httpclient.HttpsSignGetForm(url, nil, map[string]string{"Authorization": n.key}, &txInfo, &timeoutMS)
+	err = httpclient.HttpsSignGetForm(url, nil, map[string]string{"X-API-Key": n.key}, &txInfo, &timeoutMS)
 	return txInfo, err
 }
