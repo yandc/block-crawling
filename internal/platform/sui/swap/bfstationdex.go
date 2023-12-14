@@ -253,6 +253,7 @@ const (
 	dexA2BFunction       = "swap_a2b"
 	dexB2AFunction       = "swap_b2a"
 	dexAddLiqFunction    = "add_liquidity"
+	dexAddLiqFunction2   = "add_liquidity_fix_coin_with_all"
 	dexRemoveLiqFunction = "remove_liquidity"
 	dexOpenLiqFunction   = "open_position_with_liquidity_with_all"
 )
@@ -262,6 +263,7 @@ func init() {
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexSwap(biz.BFStationDexSwap, bfstationDexContracts, dexModule, dexB2AFunction))
 
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexAddLiqFunction))
+	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexAddLiqFunction2))
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexRemoveLiqFunction))
 	swap.RegisterSwapContract(biz.SUI, newBfstationDexLiq(biz.BFStationDexLiq, bfstationDexContracts, dexModule, dexOpenLiqFunction))
 }
