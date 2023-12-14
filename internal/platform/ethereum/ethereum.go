@@ -5,7 +5,6 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/data/kanban"
 	"fmt"
 	"strings"
 	"time"
@@ -205,8 +204,6 @@ type Platform struct {
 	biz.CommPlatform
 	CoinIndex uint
 	spider    *chain.BlockSpider
-
-	kanbanEnabled bool
 }
 
 type Config struct {
@@ -223,8 +220,7 @@ func Init(handler string, c *conf.PlatInfo, nodeURL []string) *Platform {
 	chainName := c.Chain   // ETH
 
 	return &Platform{
-		CoinIndex:     coins.HandleMap[handler],
-		kanbanEnabled: c.GetEnableKanban(),
+		CoinIndex: coins.HandleMap[handler],
 		CommPlatform: biz.CommPlatform{
 			Chain:          chainType,
 			ChainName:      chainName,
@@ -246,7 +242,7 @@ func (p *Platform) CreateClient(url string) chain.Clienter {
 }
 
 func (p *Platform) CreateBlockHandler(liveInterval time.Duration) chain.BlockHandler {
-	return newHandler(p.ChainName, liveInterval, p.kanbanEnabled)
+	return newHandler(p.ChainName, liveInterval)
 }
 
 func (p *Platform) GetBlockSpider() *chain.BlockSpider {
@@ -257,7 +253,7 @@ func (p *Platform) SetBlockSpider(blockSpider *chain.BlockSpider) {
 	p.spider = blockSpider
 }
 
-func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string, saveKanban bool) error {
+func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string) error {
 
 	total := len(txRecords)
 	pageSize := biz.PAGE_SIZE
@@ -267,9 +263,6 @@ func BatchSaveOrUpdate(txRecords []*data.EvmTransactionRecord, tableName string,
 		stop = total
 	}
 	repoMethod := data.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective
-	if saveKanban {
-		repoMethod = kanban.EvmTransactionRecordRepoClient.BatchSaveOrUpdateSelective
-	}
 	for start < stop {
 		subTxRecords := txRecords[start:stop]
 		start = stop

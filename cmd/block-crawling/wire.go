@@ -9,7 +9,6 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/scheduling"
 	"block-crawling/internal/server"
 	"block-crawling/internal/service"
@@ -24,9 +23,7 @@ func wireApp(*conf.Server, *conf.Data, *conf.App, *conf.AddressServer, *conf.Lar
 	panic(wire.Build(
 		server.ProviderSet,
 		data.ConnProviderSet,
-		kanban.ConnProviderSet,
 		data.ProviderSet,
-		kanban.ProviderSet,
 		biz.LarkProviderSet,
 		biz.ProviderSet,
 		service.ProviderSet,

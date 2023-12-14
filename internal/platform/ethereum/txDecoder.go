@@ -43,10 +43,8 @@ type txDecoder struct {
 
 	txRecords      []*data.EvmTransactionRecord
 	txNonceRecords []*data.EvmTransactionRecord
-	kanbanRecords  []*data.EvmTransactionRecord
 
-	kanbanEnabled bool
-	matchedUser   bool
+	matchedUser bool
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
@@ -111,7 +109,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo
 
 	// Ignore this transaction.
-	if !h.matchedUser && !h.kanbanEnabled {
+	if !h.matchedUser {
 		if methodId == "" || transaction.To() == nil {
 			if !(strings.HasPrefix(h.chainName, "Polygon") && tx.FromAddress == "0x0000000000000000000000000000000000000000" && tx.ToAddress == "0x0000000000000000000000000000000000000000") {
 				return nil
@@ -588,10 +586,6 @@ func (h *txDecoder) handleEachTransaction(
 		}
 	}
 
-	if h.kanbanEnabled {
-		h.kanbanRecords = append(h.kanbanRecords, evmTransactionRecord)
-	}
-
 	var isMint bool
 	for index, eventLog := range eventLogs {
 		eventMap := map[string]interface{}{
@@ -643,10 +637,6 @@ func (h *txDecoder) handleEachTransaction(
 			if !h.newTxs {
 				h.txNonceRecords = append(h.txNonceRecords, evmTransactionRecord)
 			}
-		}
-
-		if h.kanbanEnabled {
-			h.kanbanRecords = append(h.kanbanRecords, evmlogTransactionRecord)
 		}
 
 		if (eventLog.From == "" || eventLog.From == "0x0000000000000000000000000000000000000000") && evmTransactionRecord.FromAddress == eventLog.To && (eventLog.Token.TokenType == biz.ERC721 || eventLog.Token.TokenType == biz.ERC1155) {
@@ -2077,25 +2067,13 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 	txRecords := h.txRecords
 	txNonceRecords := h.txNonceRecords
 
-	if h.kanbanRecords != nil && len(h.kanbanRecords) > 0 {
-		err := BatchSaveOrUpdate(h.kanbanRecords, biz.GetTableName(h.chainName), true)
-		if err != nil {
-			// postgres出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("扫块，将数据插入到数据库中失败", zap.Any("chainName", h.chainName), zap.Any("current", h.block.Number), zap.Any("error", err))
-			return err
-		}
-	}
-
 	// Id may be setted when save to kanban, we need to reset it to zero to avoid conflict.
 	for _, item := range txRecords {
 		item.Id = 0
 	}
 
 	if txRecords != nil && len(txRecords) > 0 {
-		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName), false)
+		err := BatchSaveOrUpdate(txRecords, biz.GetTableName(h.chainName))
 		if err != nil {
 			// postgres出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链扫块，将数据插入到数据库中失败", h.chainName)

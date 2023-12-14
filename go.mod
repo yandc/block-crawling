@@ -25,7 +25,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/starcoinorg/starcoin-go v0.0.0-20220105024102-530daedc128b
 	github.com/stretchr/testify v1.8.1
-	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	gitlab.bixin.com/mili/node-driver v0.0.0-20231204071837-264813662bb0
 	go.uber.org/zap v1.13.0
 	golang.org/x/crypto v0.1.0
@@ -39,6 +38,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.1.0 // indirect
 	github.com/Danny-Dasilva/fhttp v0.0.0-20220524230104-f801520157d6 // indirect
 	github.com/Danny-Dasilva/utls v0.0.0-20220604023528-30cb107b834e // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
@@ -47,7 +47,6 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
@@ -62,6 +61,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/subcommands v1.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -82,16 +82,15 @@ require (
 	github.com/onsi/gomega v1.10.4 // indirect
 	github.com/phoreproject/bls v0.0.0-20200525203911-a88a5ae26844 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.opentelemetry.io/otel v1.7.0 // indirect
 	go.opentelemetry.io/otel/trace v1.7.0 // indirect
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
+	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect

@@ -10,7 +10,6 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
-	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/platform"
 	"block-crawling/internal/scheduling"
 	"block-crawling/internal/server"
@@ -64,19 +63,9 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	bfcStationRepo := data.NewBFCStationRepo(db)
 	userWalletAssetHistoryRepo := data.NewUserWalletAssetHistoryRepo(db)
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo, bfcStationRepo, userWalletAssetHistoryRepo)
-	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
-	if err != nil {
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	kanbanEvmTransactionRecordRepo := kanban.NewEvmTransactionRecordRepo(kanbanGormDB)
-	walletRepo := kanban.NewWalletRepo(kanbanGormDB)
-	trendingRepo := kanban.NewTrendingRepo(kanbanGormDB)
-	kanbanBundle := kanban.NewBundle(kanbanEvmTransactionRecordRepo, walletRepo, trendingRepo)
 	transactionRecordRepo := biz.NewTransactionRecordRepo(db)
 	chainListClient := biz.NewChainListClient(app)
-	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, bundle, kanbanBundle, transactionRecordRepo, chainListClient)
+	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, bundle, transactionRecordRepo, chainListClient)
 	appConf := biz.NewConfig(app)
 	migrationRepo := data.NewMigrationRepo(db)
 	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
@@ -92,7 +81,6 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	scheduledTask := scheduling.NewScheduledTask()
 	kratosApp := newApp(logLogger, grpcServer, httpServer, platformServer, customConfigProvider, scheduledTask)
 	return kratosApp, func() {
-		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil
