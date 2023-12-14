@@ -33,6 +33,11 @@ const (
 	bfStationTableCollFee  = "bfc_station_collect_fees"
 )
 
+const (
+	bfStationSouceUser = "station"
+	bfStationSourceMgt = "mgt"
+)
+
 type BFCStationRecord struct {
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	BlockHash       string          `json:"blockHash" form:"blockHash" gorm:"type:character varying(71)"`
@@ -354,6 +359,9 @@ func (r *bfcStationRepoImpl) PageList(ctx context.Context, chainName string, req
 	}
 	if req.Type != "" {
 		db = db.Where("type = ?", req.Type)
+	}
+	if req.Source != bfStationSourceMgt {
+		db = db.Where("type != ?", BSTxTypeCollectFee)
 	}
 	if req.WalletAddressOrUid != "" {
 		db = db.Where("(wallet_uid = ? OR wallet_address = ?)", req.WalletAddressOrUid, req.WalletAddressOrUid)

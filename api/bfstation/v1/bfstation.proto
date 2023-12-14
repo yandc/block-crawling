@@ -27,6 +27,7 @@ message PageListTxnsRequest {
   int64 startTime = 8 [(validate.rules).int64.gte = 0];
   int64 stopTime = 9 [(validate.rules).int64.gte = 0];
 	bool fromOBWallet = 10;
+  string source = 11; // station or mgt
 }
 
 message PageListTxnsResponse {
