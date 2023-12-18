@@ -1,9 +1,11 @@
 package signhash
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"strings"
 
 	"golang.org/x/crypto/sha3"
@@ -24,10 +26,17 @@ func (s *tvmSignHash) Hash(req *SignMessageRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	message := fmt.Sprintf("\x19TRON Signed Message:\n%d%s", len(data), string(data))
+	var hasher hash.Hash
+	var message []byte
+	if req.Method == "signRawTxWithSha256" {
+		hasher = sha256.New()
+		message = data
+	} else {
+		message = []byte(fmt.Sprintf("\x19TRON Signed Message:\n%d%s", len(data), string(data)))
+		hasher = sha3.NewLegacyKeccak256()
+	}
 
-	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write([]byte(message))
+	hasher.Write(message)
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 

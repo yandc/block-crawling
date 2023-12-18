@@ -32,6 +32,7 @@ type SignMessageRequest struct {
 	RawChainId  json.RawMessage `json:"chainId"`
 	Application string          `json:"application"`
 
+	Method  string          `json:"method"`
 	Message json.RawMessage `json:"message"`
 }
 
