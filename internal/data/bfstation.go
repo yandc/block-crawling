@@ -45,7 +45,7 @@ type BFCStationRecord struct {
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
 	TxTime          int64           `json:"txTime" form:"txTime" gorm:"type:bigint;index"`
 	WalletAddress   string          `json:"walletAddress" form:"walletAddress" gorm:"type:character varying(71);index"`
-	WalletUID       string          `json:"walletUid" form:"walletUid" gorm:"type:character varying(36);index"`
+	WalletUID       string          `json:"walletUid" form:"walletUid" gorm:"type:character varying(71);index"`
 	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
 	GasLimit        string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(30)"`
 	GasUsed         string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(10)"`

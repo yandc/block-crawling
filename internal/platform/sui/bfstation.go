@@ -104,6 +104,9 @@ func (h *bfstationHandler) do(txInfo *stypes.TransactionInfo, pairs []*swap.Pair
 		amountIn, _ := decimal.NewFromString(item.Input.Amount)
 		amountOut, _ := decimal.NewFromString(item.Output.Amount)
 		_, walletUID, _ := biz.UserAddressSwitchRetryAlert(h.chainName, item.FromAddress)
+		if walletUID == "" {
+			walletUID = item.FromAddress
+		}
 		record := data.BFCStationRecord{
 			BlockHash:       h.blockHash,
 			BlockNumber:     item.BlockNumber,
