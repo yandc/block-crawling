@@ -18,8 +18,8 @@ service BFStation {
 
 message PageListTxnsRequest {
   string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
-  string walletAddress = 2;  // mint, redeem,swap,add,remove,collect
-  string type = 3;
+  string walletAddress = 2;
+  string type = 3;   // mint, redeem,swap,add,remove,collect,protocol
   int32 pageNum = 4 [(validate.rules).int32.gte = 0];
   int32 pageSize = 5 [(validate.rules).int32.gte = 0];
   string walletAddressOrUid = 6;
