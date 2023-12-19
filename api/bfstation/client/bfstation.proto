@@ -41,30 +41,34 @@ message GetPageListTxnsRequest {
 }
 
 message SyncSwapEventRequest {
-  string poolID = 1;
-  bool a2b = 2;
-  string senderAddress = 3;
-  string coinTypeA = 4;
-  string coinTypeB = 5;
-  uint64 amountIn = 6;
-  uint64 amountOut = 7;
-  uint64 feeAmount = 8;
-  uint64 before_sqrt_price = 9;
-  uint64 after_sqrt_price = 10;
+  string chainName = 1;
+  string poolID = 2;
+  bool a2b = 3;
+  string senderAddress = 4;
+  string coinTypeA = 5;
+  string coinTypeB = 6;
+  string amountIn = 7;
+  string amountOut = 8;
+  string feeAmount = 9;
+  string before_sqrt_price = 10;
+  string after_sqrt_price = 11;
+  int64 createdAt = 12;
 }
 
 message SyncLiquidityEventRequest {
-  string poolID = 1;
-  string positionID = 2;
-  string senderAddress = 3;
-  string coinTypeA = 4;
-  string coinTypeB = 5;
-  uint64 deltaLiquidity = 6;
-  uint64 beforePositioinLiquidity = 7;
-  uint64 beforePoolLiquidity = 8;
-  uint64 afterPositionLiquidity = 9;
-  uint64 afterPoolLiquidity = 10;
-  uint64 amountA = 11;
-  uint64 amountB = 12;
-  string action = 13;
+  string chainName = 1;
+  string poolID = 2;
+  string positionID = 3;
+  string senderAddress = 4;
+  string coinTypeA = 5;
+  string coinTypeB = 6;
+  string deltaLiquidity = 7;
+  string beforePositioinLiquidity = 8;
+  string beforePoolLiquidity = 9;
+  string afterPositionLiquidity = 10;
+  string afterPoolLiquidity = 11;
+  string amountA = 12;
+  string amountB = 13;
+  string action = 14;
+  int64 createdAt = 15;
 }

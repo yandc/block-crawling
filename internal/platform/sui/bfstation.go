@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -175,49 +174,41 @@ func (h *bfstationHandler) doPushEvent(record *data.BFCStationRecord) error {
 		if err := json.Unmarshal([]byte(record.ParsedJson), &raw); err != nil {
 			return err
 		}
-		amountIn, _ := strconv.ParseUint(raw.AmountIn, 10, 64)
-		amountOut, _ := strconv.ParseUint(raw.AmountOut, 10, 64)
-		feeAmount, _ := strconv.ParseUint(raw.FeeAmount, 10, 64)
-		bsp, _ := strconv.ParseUint(raw.BeforeSqrtPrice, 10, 64)
-		asp, _ := strconv.ParseUint(raw.AfterSqrtPrice, 10, 64)
 		return biz.PushBFStationSwapEvent(context.Background(), &v1.SyncSwapEventRequest{
+			ChainName:       h.chainName,
 			PoolID:          raw.Pool,
 			A2B:             raw.Atob,
 			SenderAddress:   raw.Sender,
 			CoinTypeA:       raw.CoinTypeA,
 			CoinTypeB:       raw.CoinTypeB,
-			AmountIn:        amountIn,
-			AmountOut:       amountOut,
-			FeeAmount:       feeAmount,
-			BeforeSqrtPrice: bsp,
-			AfterSqrtPrice:  asp,
+			AmountIn:        raw.AmountIn,
+			AmountOut:       raw.AmountOut,
+			FeeAmount:       raw.FeeAmount,
+			BeforeSqrtPrice: raw.BeforeSqrtPrice,
+			AfterSqrtPrice:  raw.AfterSqrtPrice,
+			CreatedAt:       record.CreatedAt,
 		})
 	case data.BSTxTypeAddLiquidity, data.BSTxTypeRemoveLiquidity:
 		var raw *suiswap.BFStationDexLiqEvent
 		if err := json.Unmarshal([]byte(record.ParsedJson), &raw); err != nil {
 			return err
 		}
-		dLiq, _ := strconv.ParseUint(raw.DeltaLiquidity, 10, 64)
-		bPosLiq, _ := strconv.ParseUint(raw.BeforePositionLiquidity, 10, 64)
-		aPosLiq, _ := strconv.ParseUint(raw.AfterPositionLiquidity, 10, 64)
-		bPoolLiq, _ := strconv.ParseUint(raw.BeforePoolLiquidity, 10, 64)
-		aPoolLiq, _ := strconv.ParseUint(raw.AfterPoolLiquidity, 10, 64)
-		aa, _ := strconv.ParseUint(raw.AmountA, 10, 64)
-		ab, _ := strconv.ParseUint(raw.AmountB, 10, 64)
 		return biz.PushBFStationLiquidityEvent(context.Background(), &v1.SyncLiquidityEventRequest{
+			ChainName:                h.chainName,
 			PoolID:                   raw.Pool,
 			PositionID:               raw.Position,
 			SenderAddress:            raw.Sender,
 			CoinTypeA:                raw.CoinTypeA,
 			CoinTypeB:                raw.CoinTypeB,
-			DeltaLiquidity:           dLiq,
-			BeforePositioinLiquidity: bPosLiq,
-			BeforePoolLiquidity:      bPoolLiq,
-			AfterPositionLiquidity:   aPosLiq,
-			AfterPoolLiquidity:       aPoolLiq,
-			AmountA:                  aa,
-			AmountB:                  ab,
+			DeltaLiquidity:           raw.DeltaLiquidity,
+			BeforePositioinLiquidity: raw.BeforePositionLiquidity,
+			BeforePoolLiquidity:      raw.BeforePoolLiquidity,
+			AfterPositionLiquidity:   raw.AfterPositionLiquidity,
+			AfterPoolLiquidity:       raw.AfterPoolLiquidity,
+			AmountA:                  raw.AmountA,
+			AmountB:                  raw.AmountB,
 			Action:                   raw.Action,
+			CreatedAt:                record.CreatedAt,
 		})
 	}
 	return nil

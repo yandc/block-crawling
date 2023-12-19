@@ -18,7 +18,7 @@ service BFStation {
 
 message PageListTxnsRequest {
   string chainName = 1 [(validate.rules).string = {min_len: 1}]; // BenfenTEST or Benfen
-  string walletAddress = 2;  // mint, redeem,swap,add,remove
+  string walletAddress = 2;  // mint, redeem,swap,add,remove,collect
   string type = 3;
   int32 pageNum = 4 [(validate.rules).int32.gte = 0];
   int32 pageSize = 5 [(validate.rules).int32.gte = 0];
@@ -26,8 +26,10 @@ message PageListTxnsRequest {
   string status = 7; // success,fail,pending
   int64 startTime = 8 [(validate.rules).int64.gte = 0];
   int64 stopTime = 9 [(validate.rules).int64.gte = 0];
-	bool fromOBWallet = 10;
+  bool fromOBWallet = 10;
   string source = 11; // station or mgt
+  string coinTypeIn = 12;     // coin_type_a if type is add or remove
+  string coinTypeOut = 13;    // coin_type_b if type is add or remove
 }
 
 message PageListTxnsResponse {
