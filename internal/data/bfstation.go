@@ -54,8 +54,8 @@ type BFCStationRecord struct {
 	Vault           string          `json:"vault" form:"vault" gorm:"type:character varying(1024);index"`
 	TokenAmountIn   decimal.Decimal `json:"tokenAmountIn" form:"tokenAmountIn" sql:"type:decimal(128,0);"`
 	TokenAmountOut  decimal.Decimal `json:"tokenAmountOut" form:"tokenAmountOut" sql:"type:decimal(128,0);"`
-	CoinTypeIn      string          `json:"coinTypeIn" form:"coinTypeIn" gorm:"type:character varying(1024)"`
-	CoinTypeOut     string          `json:"coinTypeOut" form:"coinTypeOut" gorm:"type:character varying(1024)"`
+	CoinTypeIn      string          `json:"coinTypeIn" form:"coinTypeIn" gorm:"type:character varying(1024);index"`
+	CoinTypeOut     string          `json:"coinTypeOut" form:"coinTypeOut" gorm:"type:character varying(1024);index"`
 	CoinInfoIn      string          `json:"coinInfoIn" form:"coinInfoIn"`
 	CoinInfoOut     string          `json:"coinInfoOut" form:"coinInfoOut"`
 	ParsedJson      string          `json:"parsedJson" form:"parsedJson"`
@@ -368,7 +368,12 @@ func (r *bfcStationRepoImpl) PageList(ctx context.Context, chainName string, req
 	}
 	if req.FromOBWallet {
 		db = db.Where("(wallet_uid != ''")
-
+	}
+	if req.CoinTypeIn != "" {
+		db = db.Where("coin_type_in = ?", req.CoinTypeIn)
+	}
+	if req.CoinTypeOut != "" {
+		db = db.Where("coin_type_out = ?", req.CoinTypeOut)
 	}
 	if req.Status != "" {
 		db = db.Where("status = ?", req.Status)
