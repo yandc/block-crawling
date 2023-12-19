@@ -20,6 +20,7 @@ const TRXSTAKE2 = "FreezeBalanceV2Contract"
 const TRXUNSTAKE2 = "UnfreezeBalanceV2Contract"
 const DELEGATERESOURCES = "DelegateResourceContract"
 const RECLAIMRESOURCES = "UnDelegateResourceContract"
+const FEE_TOPIC = "659c4fc92b5147ed868a977e38bf2d34ea6f5fb08daa778299a0531cbacf9466"
 
 var TronBridgeWhiteAddressList = []string{
 	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",
