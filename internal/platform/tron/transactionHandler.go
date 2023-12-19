@@ -117,8 +117,6 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 	now := time.Now().Unix()
 	var userAssets []*data.UserAsset
 	userAssetMap := make(map[string]*data.UserAsset)
-	var mainDecimals int32
-	var mainSymbol string
 	for _, record := range txRecords {
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
@@ -182,16 +180,11 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 		fromUserAssetKey := chainName + record.FromAddress
 		if _, ok := userAssetMap[fromUserAssetKey]; !ok {
-			if platInfo, ok := biz.GetChainPlatInfo(chainName); ok {
-				mainDecimals = platInfo.Decimal
-				mainSymbol = platInfo.NativeCurrency
-			} else {
+			if _, ok := biz.GetChainPlatInfo(chainName); !ok {
 				continue
 			}
-			tokenInfo := &types.TokenInfo{
-				Decimals: int64(mainDecimals),
-				Symbol:   mainSymbol,
-			}
+
+			tokenInfo, _ := biz.ParseGetTokenInfo(chainName, record.ParseData)
 			fromUserAsset, err := doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, "", tokenInfo, now)
 			for i := 0; i < 10 && err != nil; i++ {
 				time.Sleep(time.Duration(i*5) * time.Second)

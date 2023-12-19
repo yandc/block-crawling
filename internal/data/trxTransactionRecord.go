@@ -44,8 +44,13 @@ type TrxTransactionRecord struct {
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
+	FeeTokenInfo    string          `json:"feeTokenInfo" form:"feeTokenInfo"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (*TrxTransactionRecord) Version() string {
+	return "20231208"
 }
 
 // TrxTransactionRecordRepo is a Greater repo.

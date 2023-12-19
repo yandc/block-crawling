@@ -665,6 +665,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			NetUsage:        feeDataMap["net_usage"],
 			FeeLimit:        feeDataMap["fee_limit"],
 			EnergyUsage:     feeDataMap["energy_usage"],
+			FeeTokenInfo:    feeDataMap["fee_token_info"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
 			TransactionType: pbb.TransactionType,
@@ -1299,6 +1300,7 @@ func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName
 		oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
+			record.GasFeeInfo = oldRecord.FeeTokenInfo
 		}
 	case APTOS:
 		var oldRecord *data.AptTransactionRecord
@@ -1442,8 +1444,11 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 	case TVM:
 		var recordList []*data.TrxTransactionRecord
 		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
-		if err == nil {
-			err = utils.CopyProperties(recordList, &list)
+		for _, rl := range recordList {
+			var ptr *pb.TransactionRecord
+			err = utils.CopyProperties(rl, &ptr)
+			ptr.GasFeeInfo = rl.FeeTokenInfo
+			list = append(list, ptr)
 		}
 		if len(list) > 0 {
 			for _, record := range list {
@@ -1819,7 +1824,12 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		var recordList []*data.TrxTransactionRecord
 		recordList, total, err = data.TrxTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
-			err = utils.CopyProperties(recordList, &list)
+			for _, rl := range recordList {
+				var ptr *pb.TransactionRecord
+				err = utils.CopyProperties(rl, &ptr)
+				ptr.GasFeeInfo = rl.FeeTokenInfo
+				list = append(list, ptr)
+			}
 		}
 		if len(list) > 0 {
 			for _, record := range list {
@@ -2483,7 +2493,7 @@ func (s *TransactionUsecase) BackendPageListAsset(ctx context.Context, req *pb.P
 				balances, _ := decimal.NewFromString(record.Balance)
 				cnyAmount := prices.Mul(balances)
 				record.CurrencyAmount = cnyAmount.String()
-				//record.Price = price
+				record.Price = price
 			}
 		}
 

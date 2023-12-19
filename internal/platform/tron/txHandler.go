@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"strconv"
 
@@ -36,6 +37,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	rawBlock := block.Raw.(*types.BlockResponse)
 	rawTx := tx.Raw.(*RawTxWrapper)
 	transactionHash := rawTx.TxID
+	txToAddress := tx.ToAddress
 
 	meta, err := common.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
@@ -56,7 +58,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		}
 	}
 
-
 	client := c.(*Client)
 	status := biz.PENDING
 	if len(rawTx.Ret) > 0 {
@@ -74,9 +75,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		return err
 	}
 	energyFee := int64(txInfo.Receipt.EnergyUsage)
-	eneryTotal := int64(txInfo.Receipt.EnergyUsageTotal)
-	if energyFee != 0 && eneryTotal != 0 {
-		gasPrice := decimal.NewFromInt(energyFee).Div(decimal.NewFromInt(eneryTotal)).String()
+	energyTotal := int64(txInfo.Receipt.EnergyUsageTotal)
+	netUsage := txInfo.Receipt.NetUsage
+	if netUsage == 0 {
+		netUsage = txInfo.Receipt.NetFee
+	}
+	if energyFee != 0 && energyTotal != 0 {
+		gasPrice := decimal.NewFromInt(energyFee).Div(decimal.NewFromInt(energyTotal)).String()
 		go biz.ChainFeeSwitchRetryAlert(h.chainName, "", "", gasPrice, uint64(rawBlock.BlockHeader.RawData.Number), transactionHash)
 	}
 	if tx.TxType == biz.TRANSFER || tx.TxType == biz.APPROVE {
@@ -198,18 +203,29 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 					continue
 				}
 				eventLogs = append(eventLogs, eventLogInfo)
+			} else if topic0 == FEE_TOPIC { //gas 代付，处理 to 地址
+				logData, err := hexutil.Decode(log_.Data)
+				if err != nil {
+					continue
+				}
+				//https://tronscan.org/#/transaction/380891a3c51cfbfded646b737cf47fa537c21fb7bd1aaa48d43e2d4dbeef8017
+				transferType := new(big.Int).SetBytes(logData[32:])
+				if transferType.Int64() != 2 {
+					continue
+				}
+				txToAddress = utils.TronHexToBase58(ADDRESS_PREFIX + log_.Topics[2])
 			}
 		}
 	}
 
 	feeData := map[string]interface{}{
-		"net_usage": txInfo.Receipt.NetUsage,
+		"net_usage": netUsage,
 	}
 	if rawTx.contractAddress != "" {
 		feeData["fee_limit"] = rawTx.RawData.FeeLimit
 	}
-	if txInfo.Receipt.EnergyUsage > 0 {
-		feeData["energy_usage"] = txInfo.Receipt.EnergyUsage
+	if txInfo.Receipt.EnergyUsageTotal > 0 {
+		feeData["energy_usage"] = txInfo.Receipt.EnergyUsageTotal
 	}
 	feeAmount := 0
 	if txInfo.Fee > 0 {
@@ -231,6 +247,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// Transfer TRC10 token
 	if contractType == biz.TRON_TRANSFER_TRC10 {
+		return nil
+	}
+
+	// 代理能量
+	if contractType == DELEGATERESOURCES || contractType == RECLAIMRESOURCES {
 		return nil
 	}
 
@@ -276,7 +297,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		BlockNumber:     rawBlock.BlockHeader.RawData.Number,
 		TransactionHash: transactionHash,
 		FromAddress:     tx.FromAddress,
-		ToAddress:       tx.ToAddress,
+		ToAddress:       txToAddress,
 		FromUid:         meta.User.FromUid,
 		ToUid:           meta.User.ToUid,
 		FeeAmount:       decimal.NewFromInt(int64(feeAmount)),
@@ -287,9 +308,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		LogAddress:      logAddress,
 		ContractAddress: rawTx.contractAddress,
 		ParseData:       parseData,
-		NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
+		NetUsage:        strconv.Itoa(netUsage),
 		FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
 		TransactionType: string(tx.TxType),
 		DappData:        "",
 		ClientData:      "",
@@ -326,9 +347,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				TxTime:          exTime,
 				ContractAddress: contractAddress,
 				ParseData:       eventParseData,
-				NetUsage:        strconv.Itoa(txInfo.Receipt.NetUsage),
+				NetUsage:        strconv.Itoa(netUsage),
 				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
 				TransactionType: txType,
 				DappData:        "",
 				ClientData:      "",
