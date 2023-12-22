@@ -556,10 +556,7 @@ func (r *EvmTransactionRecordRepoImpl) PageListRecord(ctx context.Context, table
 	if req.StopTime > 0 {
 		sqlStr += " and created_at < " + strconv.Itoa(int(req.StopTime))
 	}
-	if req.TokenAddress != "" {
-		if req.TokenAddress == MAIN_ADDRESS_PARAM {
-			req.TokenAddress = ""
-		}
+	if req.TokenAddress != "" && req.TokenAddress != MAIN_ADDRESS_PARAM{
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
 		sqlStr += " and ((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))"
 	}
@@ -737,10 +734,7 @@ func (r *EvmTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 	if req.StopTime > 0 {
 		db = db.Where("created_at < ?", req.StopTime)
 	}
-	if req.TokenAddress != "" {
-		if req.TokenAddress == MAIN_ADDRESS_PARAM {
-			req.TokenAddress = ""
-		}
+	if req.TokenAddress != "" && req.TokenAddress != MAIN_ADDRESS_PARAM {
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
 		db = db.Where("((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))")
 	}
