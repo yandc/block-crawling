@@ -10,7 +10,7 @@ import (
 var LarkProviderSet = wire.NewSet(NewLark, wire.Bind(new(Larker), new(*Lark)))
 
 // ProviderSet is biz providers.
-var ProviderSet = wire.NewSet(NewConfig, NewTransactionUsecase, NewBFStationUsecase, NewTransactionRecordRepo, NewChainListClient)
+var ProviderSet = wire.NewSet(NewConfig, NewTransactionUsecase, NewBFStationUsecase, NewTransactionRecordRepo, NewChainListClient, NewUserWalletAssetUsecase)
 
 var ChainListClient v1.ChainListClient
 

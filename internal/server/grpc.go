@@ -3,6 +3,7 @@ package server
 import (
 	bfstation "block-crawling/api/bfstation/v1"
 	transaction "block-crawling/api/transaction/v1"
+	userWalletAsset "block-crawling/api/userWalletAsset/v1"
 	"block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/service"
@@ -15,7 +16,7 @@ import (
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(c *conf.Server, ts *service.TransactionService, logger log.Logger, bs *service.BFStationService) *grpc.Server {
+func NewGRPCServer(c *conf.Server, ts *service.TransactionService, logger log.Logger, bs *service.BFStationService, us *service.UserWalletAssetService) *grpc.Server {
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(recovery.WithHandler(common.HandlerFunction)),
@@ -35,5 +36,6 @@ func NewGRPCServer(c *conf.Server, ts *service.TransactionService, logger log.Lo
 	srv := grpc.NewServer(opts...)
 	transaction.RegisterTransactionServer(srv, ts)
 	bfstation.RegisterBFStationServer(srv, bs)
+	userWalletAsset.RegisterUserWalletAssetServer(srv, us)
 	return srv
 }

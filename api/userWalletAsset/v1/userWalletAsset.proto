@@ -1,0 +1,381 @@
+syntax = "proto3";
+
+package api.userWalletAsset.v1;
+
+option go_package = "block-crawling/api/user_wallet_asset/v1;v1";
+
+// 用户钱包资产接口
+service UserWalletAsset {
+
+  // 获取用户全部钱包资产总值
+  rpc UserWalletAssetTotal (UserWalletAssetTotalReq) returns (UserWalletAssetTotalResp) {}
+
+  // 获取用户全部钱包资产总值历史
+  rpc UserWalletAssetHistory (UserWalletAssetHistoryReq) returns (UserWalletAssetHistoryResp) {}
+
+  // 获取用户全部钱包收益历史
+  rpc UserWalletIncomeHistory (UserWalletIncomeHistoryReq) returns (UserWalletIncomeHistoryResp) {}
+
+  // 获取用户全部有资产的钱包uid
+  rpc UserWallet (UserWalletReq) returns (UserWalletResp) {}
+
+  // 获取用户全部有资产的链
+  rpc UserChain (UserChainReq) returns (UserChainResp) {}
+
+  // 批量获取用户链资产汇总
+  rpc UserChainAmount (UserChainAmountReq) returns (UserChainAmountResp) {}
+
+  // 获取用户全部有资产的Token
+  rpc UserToken (UserTokenReq) returns (UserTokenResp) {}
+
+  // 获取用户全部资产列表
+  rpc UserAssetList (UserAssetListReq) returns (UserAssetListResp) {}
+
+  // 用户资产分布饼状图
+  rpc UserAssetDistribution (UserAssetDistributionReq) returns (UserAssetDistributionResp) {}
+
+  // 用户单链资产分布饼状图
+  rpc UserChainAssetDistribution (UserChainAssetDistributionReq) returns (UserChainAssetDistributionResp) {}
+
+  // 用户网络分布饼状图
+  rpc UserChainDistribution (UserChainDistributionReq) returns (UserChainDistributionResp) {}
+
+  // 用户钱包分布饼状图
+  rpc UserWalletDistribution (UserWalletDistributionReq) returns (UserWalletDistributionResp) {}
+
+  // 用户单链资产分析
+  rpc UserChainAssetFilter (UserChainAssetFilterReq) returns (UserChainAssetFilterResp) {}
+
+}
+
+message Currency{
+  //人民币
+  string cny = 1;
+  //美元
+  string usd = 2;
+  //USDT
+  string usdt = 3;
+  //BTC
+  string btc = 4;
+}
+
+message UserWalletAssetTotalReq{
+  //钱包id
+  repeated string uids = 1;
+}
+
+message UserWalletAssetTotalResp{
+  //换算人民币总资产
+  UserWalletAssetTotal cny = 1;
+  //换算美元总资产
+  UserWalletAssetTotal usd = 2;
+  //换算USDT总资产
+  UserWalletAssetTotal usdt = 3;
+  //换算BTC总资产
+  UserWalletAssetTotal btc = 4;
+  //收益百分比
+  string incomePercentage = 5;
+
+  message UserWalletAssetTotal{
+    //总资产
+    string amount = 1;
+    //收益
+    string income = 2;
+  }
+}
+
+message UserWalletAssetHistoryReq{
+  // 钱包id
+  repeated string uids = 1;
+  // 时间范围，7d,30d,90d,180d
+  string range = 2;
+}
+
+message UserWalletAssetHistoryResp{
+  //总资产
+  Currency amount = 1;
+  //今日收益
+  Currency income = 2;
+  //今日收益率
+  string percentage = 3;
+  //图表数据
+  repeated UserWalletAssetHistory histories = 4;
+
+  message UserWalletAssetHistory{
+    //时间
+    int64 time = 1;
+    //人民币金额
+    string cnyAmount = 2;
+    //美元金额
+    string usdAmount = 3;
+    //USDT金额
+    string usdtAmount = 4;
+    //BTC金额
+    string btcAmount = 5;
+  }
+}
+
+message UserWalletIncomeHistoryReq{
+  // 钱包id
+  repeated string uids = 1;
+  // 时间范围，7d,30d,90d,180d
+  string range = 2;
+}
+
+message UserWalletIncomeHistoryResp{
+  //总收益
+  Currency amount = 1;
+  //总收益百分比
+  string percentage = 2;
+  //图表数据
+  repeated UserWalletIncomeHistory histories = 3;
+
+  message UserWalletIncomeHistory{
+    //时间
+    int64 time = 1;
+    //资产
+    string cnyAmount = 2;
+    string usdAmount = 3;
+    string usdtAmount = 4;
+    string btcAmount = 5;
+  }
+}
+
+message UserWalletReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserWalletResp{
+  // 钱包id
+  repeated UserWallet userWalletList = 1;
+
+  message UserWallet{
+    string uid = 1;
+    Currency amount = 2;
+  }
+
+
+}
+
+message UserChainReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserChainResp{
+  // 用户的链
+  repeated UserChain chains = 1;
+
+  message UserChain{
+    //链名称
+    string chainName = 1;
+    //链Logo
+    string chainLogo = 2;
+  }
+}
+
+message UserChainAmountReq{
+  // 钱包 id
+  repeated string uids = 1;
+  // chainName 列表
+  repeated string chainNames = 2;
+}
+
+message UserChainAmountResp{
+  repeated UserChainAmount userChainAmountList = 1;
+
+  message UserChainAmount{
+    string chainName = 1;
+    string chainLogo = 2;
+    Currency amount = 3;
+  }
+}
+
+message UserTokenReq{
+  // 钱包id
+  repeated string uids = 1;
+  // chain name
+  repeated string chainNames = 2;
+}
+
+message UserTokenResp{
+  // 钱包id
+  repeated UserToken tokens = 1;
+
+  message UserToken{
+    //链名称
+    string chainName = 1;
+    //链 logo
+    string chainLogo = 2;
+    //代币地址
+    string tokenAddress = 3;
+    //代币名称
+    string tokenSymbol = 4;
+    //代币 logo
+    string tokenLogo = 5;
+  }
+}
+
+message UserAssetListReq{
+  //页码
+  int64 pageSize = 1;
+  //每页数量
+  int64 pageNumber = 2;
+  //钱包 id
+  repeated string uids = 3;
+  //链名
+  repeated string chainNames = 4;
+  //token address，需要穿入chainname，例如：ETH_0XAB12
+  repeated string tokenAddresses = 5;
+  //排序，asc 或 desc
+  string order = 6;
+}
+
+message UserAssetListResp{
+  //总数据条数
+  int64 total = 1;
+  //总资产
+  Currency totalAmount = 2;
+  //资产列表
+  repeated UserAsset userAssetList = 3;
+
+  message UserAsset{
+    //代币地址
+    string tokenAddress = 1;
+    //代币symbol
+    string tokenSymbol = 3;
+    //代币 logo
+    string tokenLogo = 4;
+    //链名
+    string chainName = 5;
+    //钱包 id
+    string uid = 6;
+    //数量
+    string amount = 7;
+    //价值
+    Currency currencyAmount = 8;
+    //价格
+    Currency price = 9;
+    //价格 24 小时变化
+    string priceDelta24h = 13;
+    //成本价
+    Currency costPrice = 10;
+    //收益
+    Currency income = 11;
+    //收益百分比
+    string incomePercentage = 12;
+  }
+
+}
+
+message UserAssetDistributionReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserAssetDistributionResp{
+  //用户资产列表
+  repeated UserAsset userAssetList = 1;
+
+  message UserAsset{
+    //代币名称
+    string tokenSymbol = 1;
+    //数量
+    string amount = 2;
+    //换算价值
+    Currency currencyAmount = 3;
+    //百分比
+    string percentage = 4;
+
+  }
+
+}
+
+message UserChainAssetDistributionReq{
+  //链名
+  string chainName = 1;
+  // 钱包id
+  repeated string uids = 2;
+}
+
+message UserChainAssetDistributionResp{
+  //用户资产列表
+  repeated UserAsset userAssetList = 1;
+
+  message UserAsset{
+    //代币名称
+    string tokenSymbol = 1;
+    //数量
+    string amount = 2;
+    //换算价值
+    Currency currencyAmount = 3;
+    //百分比
+    string percentage = 4;
+  }
+}
+
+message UserChainDistributionReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserChainDistributionResp{
+  //链列表
+  repeated UserChain userChainList = 1;
+
+  message UserChain{
+    //链名
+    string chainName = 1;
+    //换算金额
+    Currency currencyAmount = 2;
+    //百分比
+    string percentage = 3;
+  }
+
+}
+
+message UserWalletDistributionReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserWalletDistributionResp{
+  //钱包列表
+  repeated UserWallet userWalletList = 1;
+
+  message UserWallet{
+    //钱包id
+    string uid = 1;
+    //换算价值
+    Currency currencyAmount = 2;
+    //百分比
+    string percentage = 3;
+  }
+
+}
+
+message UserChainAssetFilterReq{
+  // 钱包id
+  repeated string uids = 1;
+}
+
+message UserChainAssetFilterResp{
+  //用户的链列表
+  repeated UserChain userChainList = 1;
+
+  message UserChain{
+    //链名称
+    string chainName = 1;
+    //用户链资产列表
+    repeated UserChainAsset userChainAssetList = 2;
+  }
+
+  message UserChainAsset{
+    //钱包 id
+    string uid = 1;
+    //地址
+    string address = 2;
+  }
+
+}
