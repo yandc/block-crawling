@@ -136,11 +136,11 @@ platform:
     proxyCacheTime: 60
     proxyKey: feeOracleLTC
     rpcURL:
-      - https://zpka_6fcb516767e641788d81729aa4c1e424_126062cf@svc.blockdaemon.com/universal/v1/dogecoin/mainnet/
-      - https://zpka_4b1caefd905344c0b7421d59db313978_056073db@svc.blockdaemon.com/universal/v1/dogecoin/mainnet/
-      - https://zpka_de0aedcf3fdf4f35a619bc25a4a76161_6e3b2032@svc.blockdaemon.com/universal/v1/dogecoin/mainnet/
-      - https://zpka_97260809ad9843d989d69cbab3c7ba3d_16d3e166@svc.blockdaemon.com/universal/v1/dogecoin/mainnet/
-      - https://zpka_31c85f0b836a40cd8f8b64496a39213d_758cb8e7@svc.blockdaemon.com/universal/v1/dogecoin/mainnet/
+      - https://zpka_6fcb516767e641788d81729aa4c1e424_126062cf@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
+      - https://zpka_4b1caefd905344c0b7421d59db313978_056073db@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
+      - https://zpka_de0aedcf3fdf4f35a619bc25a4a76161_6e3b2032@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
+      - https://zpka_97260809ad9843d989d69cbab3c7ba3d_16d3e166@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
+      - https://zpka_31c85f0b836a40cd8f8b64496a39213d_758cb8e7@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
       - https://zpka_88e506f3cbd04f598b2d69d7281dad56_649e7352@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
       - https://zpka_04775fe772954e40a4b90571ebc41ce2_2c080edb@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
       - https://zpka_a92cabf094b44a5d900c1887560416ef_641a1abf@svc.blockdaemon.com/universal/v1/litecoin/mainnet/
