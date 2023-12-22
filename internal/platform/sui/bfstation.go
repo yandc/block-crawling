@@ -147,13 +147,14 @@ func (h *bfstationHandler) do(txInfo *stypes.TransactionInfo, pairs []*swap.Pair
 		if err != nil {
 			return fmt.Errorf("[batchSave] %w", err)
 		}
-	}
-	if status == biz.SUCCESS {
-		if err := h.handleBFStationHolders(records, txInfo); err != nil {
-			return fmt.Errorf("[handleBFStationHolders] %w", err)
+
+		if status == biz.SUCCESS {
+			if err := h.handleBFStationHolders(records, txInfo); err != nil {
+				return fmt.Errorf("[handleBFStationHolders] %w", err)
+			}
+		} else if status == biz.FAIL {
+			h.notifyBFStationFailure(records, txInfo.Effects.Status.Error)
 		}
-	} else if status == biz.FAIL {
-		h.notifyBFStationFailure(records, txInfo.Effects.Status.Error)
 	}
 	return nil
 }
