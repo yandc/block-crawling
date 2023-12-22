@@ -24,6 +24,7 @@ type Bundle struct {
 	UserRecord             UserRecordRepo
 	UserAsset              UserAssetRepo
 	UserAssetHistory       UserAssetHistoryRepo
+	UserWalletAssetHistory UserWalletAssetHistoryRepo
 	ChainTypeAsset         ChainTypeAssetRepo
 	ChainTypeAddressAmount ChainTypeAddressAmountRepo
 	DAPP                   DappApproveRecordRepo
@@ -64,6 +65,7 @@ func NewBundle(
 	market MarketCoinHistoryRepo,
 	swap SwapContractRepo,
 	bfs BFCStationRepo,
+	userWalletAssetHistoryRepo UserWalletAssetHistoryRepo,
 ) *Bundle {
 	return &Bundle{
 		ATM:                    atm,
@@ -94,5 +96,6 @@ func NewBundle(
 		History:                history,
 		Market:                 market,
 		Swap:                   swap,
+		UserWalletAssetHistory: userWalletAssetHistoryRepo,
 	}
 }

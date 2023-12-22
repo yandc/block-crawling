@@ -938,7 +938,7 @@ platform:
     fullName: Ronin
     getPriceKey: ronin
     handler: ronin
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Ronin.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ronin.jpg
     nativeCurrency: RON
     netType: main
     rpcURL:

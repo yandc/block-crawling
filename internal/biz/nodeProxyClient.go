@@ -888,6 +888,29 @@ func DescribeCoinPriceByTimestamp(tokenAddress, coinId, chainName string, timest
 
 }
 
+func GetCnyRate() (*v1.DescribeRateReply, error) {
+	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := v1.NewMarketClient(conn)
+	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
+	defer cancel()
+	result, err := client.DescribeRate(context, &v1.DescribeRateRequest{
+		EventId:  "100010001000",
+		Currency: "cny",
+	})
+	if err != nil {
+		// nodeProxy出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	}
+	return result, err
+}
+
 func GetMethodNameRetryAlert(ctx context.Context, chainName string, contractAddress string, methodId string) (string, error) {
 	channel := "GetMethodNameRetryAlter" + chainName
 	var methodName string

@@ -1,6 +1,7 @@
 package biz
 
 import (
+	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/signhash"
@@ -12,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"math"
 	"math/big"
 	"regexp"
@@ -40,7 +42,9 @@ const (
 	DEFAULT_ALARM_INTERVAL = 3600
 	LARK_MSG_KEY           = "lark:msg:%s"
 
-	PAGE_SIZE = 200
+	PAGE_SIZE  = 200
+	DAY        = time.Hour * 24
+	DAY_SECOND = 3600 * 24
 
 	REDIS_NIL_KEY                   = "redis: nil"
 	BLOCK_HEIGHT_KEY                = "block:height:"
@@ -181,6 +185,9 @@ const (
 )
 
 const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
+
+const PriceKeyBTC = "bitcoin"
+const ETH_USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 
 var rocketMsgLevels = map[string]int{
 	"DEBUG":   0,
@@ -1247,7 +1254,7 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 				user,
 				deviceId,
 			)
-			if req.Stage == "txParamsLark"{
+			if req.Stage == "txParamsLark" {
 				alarmOpts = WithAlarmChannel("node-proxy")
 			}
 
@@ -1530,4 +1537,164 @@ func AccumulateAlarmFactor(channel interface{}, success bool) (int, bool) {
 	item := raw.(*accItem)
 	item.Incr(success)
 	return item.SuccessRate(), item.Total() > 100
+}
+
+type MarketPrice struct {
+	Price    float64
+	Delta24H float64
+}
+
+func GetAssetsPrice(assets []*data.UserAsset) (map[string]MarketPrice, error) {
+	if len(assets) == 0 {
+		return make(map[string]MarketPrice), nil
+	}
+
+	coinIdSet := map[string]struct{}{}
+	tokenSet := map[string]*v1.Tokens{}
+
+	//去重
+	for _, userAsset := range assets {
+		platInfo, _ := GetChainPlatInfo(userAsset.ChainName)
+		if platInfo == nil {
+			continue
+		}
+
+		//coin 去重
+		if userAsset.TokenAddress == "" {
+			coinIdSet[platInfo.GetPriceKey] = struct{}{}
+		} else {
+			//token 去重
+			key := fmt.Sprintf("%s_%s", userAsset.ChainName, strings.ToLower(userAsset.TokenAddress))
+			tokenSet[key] = &v1.Tokens{
+				Chain:   userAsset.ChainName,
+				Address: userAsset.TokenAddress,
+			}
+		}
+	}
+
+	var coinIds []string
+	for k, _ := range coinIdSet {
+		coinIds = append(coinIds, k)
+	}
+	//默认添加 BTC 价格
+	if !slices.Contains(coinIds, PriceKeyBTC) {
+		coinIds = append(coinIds, PriceKeyBTC)
+	}
+
+	tokens := make([]*v1.Tokens, 0)
+	for _, v := range tokenSet {
+		tokens = append(tokens, v)
+	}
+	//默认添加 USDT 价格
+	tokens = append(tokens, &v1.Tokens{
+		Chain:   "ETH",
+		Address: ETH_USDT_ADDRESS,
+	})
+
+	tokenPrices, err := GetPriceFromMarket(tokens, coinIds)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenPriceMap := map[string]MarketPrice{}
+	for _, coin := range tokenPrices.Coins {
+		tokenPriceMap[coin.CoinID] = MarketPrice{
+			Price:    coin.Price.Usd,
+			Delta24H: coin.Delta24H,
+		}
+	}
+
+	for _, token := range tokenPrices.Tokens {
+		key := fmt.Sprintf("%s_%s", token.Chain, strings.ToLower(token.Address))
+		tokenPriceMap[key] = MarketPrice{
+			Price:    token.Price.Usd,
+			Delta24H: token.Delta24H,
+		}
+	}
+
+	return tokenPriceMap, err
+}
+
+// UpdateAssetCostPrice 查出数据库中原始 balance 和 costPrice，与即将入库的资产运算出新的 costPrice
+// （最近一次转入前的成本*数量+最近一次转入时的价格*数量）/最近一次转入后的持仓量」
+func UpdateAssetCostPrice(ctx context.Context, assets []*data.UserAsset) error {
+	tokenPriceMap, err := GetAssetsPrice(assets)
+	if err != nil {
+		return err
+	}
+
+	for _, asset := range assets {
+
+		platInfo, _ := GetChainPlatInfo(asset.ChainName)
+		if platInfo == nil {
+			continue
+		}
+
+		//过滤测试网
+		if platInfo.NetType != MAIN_NET_TYPE {
+			continue
+		}
+
+		var key string
+		if asset.TokenAddress == "" {
+			key = platInfo.GetPriceKey
+		} else {
+			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
+		}
+
+		latestPrice := decimal.NewFromFloat(tokenPriceMap[key].Price)
+
+		//如果数据库中没有该资产，或资产为 0，则成本价为最新价
+		dbAsset, _ := data.UserAssetRepoClient.GetByChainNameAndAddress(ctx, asset.ChainName, asset.Address, asset.TokenAddress)
+		if dbAsset == nil || dbAsset.Balance == "0" {
+			asset.CostPrice = latestPrice.String()
+			continue
+		}
+
+		dbBalance, err := decimal.NewFromString(dbAsset.Balance)
+		if err != nil {
+			asset.CostPrice = dbAsset.CostPrice
+			continue
+		}
+		balance, err := decimal.NewFromString(asset.Balance)
+		if err != nil {
+			asset.CostPrice = dbAsset.CostPrice
+			continue
+		}
+
+		//如果是转出或者金额不变，则成本价不变
+		if balance.LessThanOrEqual(dbBalance) {
+			asset.CostPrice = dbAsset.CostPrice
+			continue
+		}
+
+		dbCostPrice, err := decimal.NewFromString(dbAsset.CostPrice)
+		if err != nil {
+			dbCostPrice = decimal.NewFromFloat(0)
+		}
+
+		//新成本价 = ( 旧余额*旧成本价 + (新余额-旧余额) * 最新价 ) / 新余额
+		newCostPrice := dbBalance.Mul(dbCostPrice).Add(balance.Sub(dbBalance).Mul(latestPrice)).Div(balance)
+		asset.CostPrice = newCostPrice.String()
+	}
+
+	return nil
+
+}
+
+// Pow10 return x * 10^y
+func Pow10(x decimal.Decimal, y int) decimal.Decimal {
+	if y == 0 {
+		return x
+	} else if y > 0 {
+		for i := 0; i < y; i++ {
+			x = x.Mul(decimal.NewFromInt(10))
+		}
+	} else {
+		for i := 0; i < -y; i++ {
+			x = x.Div(decimal.NewFromInt(10))
+		}
+
+	}
+	return x
 }

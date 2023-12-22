@@ -61,7 +61,8 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	marketCoinHistoryRepo := data.NewMarketCoinHistoryRepo(db)
 	swapContractRepo := data.NewSwapContractRepo(db)
 	bfcStationRepo := data.NewBFCStationRepo(db)
-	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo, bfcStationRepo)
+	userWalletAssetHistoryRepo := data.NewUserWalletAssetHistoryRepo(db)
+	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo, bfcStationRepo, userWalletAssetHistoryRepo)
 	kanbanGormDB, cleanup3, err := kanban.NewGormDB(confData)
 	if err != nil {
 		cleanup2()
@@ -83,7 +84,9 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	transactionService := service.NewTransactionService(transactionUsecase, platformServer, innerPlatformContainer)
 	bfStationUsecase := biz.NewBFStationUsecase(db)
 	bfStationService := service.NewBFStationService(bfStationUsecase)
-	grpcServer := server.NewGRPCServer(confServer, transactionService, logLogger, bfStationService)
+	userWalletAssetUsecase := biz.NewUserWalletAssetUsecase(db, bizLark)
+	userWalletAssetService := service.NewUserWalletAssetService(userWalletAssetUsecase)
+	grpcServer := server.NewGRPCServer(confServer, transactionService, logLogger, bfStationService, userWalletAssetService)
 	httpServer := server.NewHTTPServer(confServer, transactionService, logLogger, bfStationService)
 	kratosApp := newApp(logLogger, grpcServer, httpServer, platformServer, customConfigProvider)
 	return kratosApp, func() {

@@ -69,6 +69,7 @@ func main() {
 	funcMap := map[string]interface{}{
 		"UpdateUserUtxo":         platform.UpdateUserUtxo,
 		"CleanupBenfenTESTAsset": platform.CleanupBefenAsset,
+		"InitUserAssetCostPrice": platform.InitUserAssetCostPrice,
 	}
 
 	f := reflect.ValueOf(funcMap[method])

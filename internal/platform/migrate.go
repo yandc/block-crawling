@@ -2,6 +2,7 @@ package platform
 
 import (
 	"block-crawling/internal/biz"
+	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/aptos"
@@ -8147,4 +8148,98 @@ func cleanupBenfenNFTAsset(chainName string) error {
 		}
 	}
 	return nil
+}
+
+func InitUserAssetCostPrice() {
+	log.Info("InitUserAssetCostPrice start")
+	now := time.Now().Unix()
+
+	//获取自定义链配置
+	chainNodeInUsedList, _ := biz.GetCustomChainList(nil)
+	for _, chainInfo := range chainNodeInUsedList.Data {
+		cp := &conf.PlatInfo{
+			Chain:          chainInfo.Chain,
+			Type:           chainInfo.Type,
+			RpcURL:         chainInfo.Urls,
+			ChainId:        chainInfo.ChainId,
+			Decimal:        int32(chainInfo.Decimals),
+			NativeCurrency: chainInfo.CurrencyName,
+			Source:         biz.SOURCE_REMOTE,
+			Handler:        chainInfo.Chain,
+			GetPriceKey:    chainInfo.GetPriceKey,
+		}
+		if chainInfo.IsTest {
+			cp.NetType = biz.TEST_NET_TYPE
+		} else {
+			cp.NetType = biz.MAIN_NET_TYPE
+		}
+		biz.SetChainPlatInfo(cp.Chain, cp)
+	}
+
+	//分页查询所有uid
+	ctx := context.Background()
+	var uids []string
+	var offset, limit = 0, 50
+	var err error
+
+	//分页查询uid
+	for {
+		uids, err = data.UserAssetRepoClient.FindDistinctUidByOffset(ctx, offset, limit)
+		offset += limit
+		if err != nil {
+			log.Error("FindDistinctUidByOffset error", zap.String("error", err.Error()))
+			continue
+		}
+
+		if len(uids) == 0 {
+			return
+		}
+
+		//批量查询用户资产
+		userAssets, err := data.UserAssetRepoClient.FindByUids(ctx, uids)
+		if err != nil {
+			log.Error("FindByUids error", zap.String("error", err.Error()))
+			continue
+		}
+
+		if len(userAssets) == 0 {
+			continue
+		}
+		//获取所有币价
+		tokenPriceMap, err := biz.GetAssetsPrice(userAssets)
+		if err != nil {
+			continue
+		}
+
+		for _, asset := range userAssets {
+			//只更新成本价为 0 的资产
+			if asset.CostPrice != "0" {
+				continue
+			}
+
+			//余额为 0 没有成本价
+			if asset.Balance == "0" {
+				continue
+			}
+			var key string
+			if asset.TokenAddress == "" {
+				platInfo, _ := biz.GetChainPlatInfo(asset.ChainName)
+				if platInfo == nil {
+					continue
+				}
+				key = platInfo.GetPriceKey
+			} else {
+				key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
+			}
+			price := decimal.NewFromFloat(tokenPriceMap[key].Price)
+			asset.CostPrice = price.String()
+			asset.UpdatedAt = now
+		}
+
+		_, err = data.UserAssetRepoClient.BatchSaveOrUpdate(ctx, userAssets)
+		if err != nil {
+			continue
+		}
+
+	}
 }

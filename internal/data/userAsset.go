@@ -25,6 +25,7 @@ type UserAsset struct {
 	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
 	Decimals     int32  `json:"decimals" form:"decimals"`
 	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(128);index"`
+	CostPrice    string `json:"costPrice" form:"costPrice" gorm:"type:character varying(40);index;default:'0'"` //成本价
 	UidType      int8   `json:"uidType" form:"uidType"`
 	CreatedAt    int64  `json:"createdAt" form:"createdAt"`
 	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`
@@ -32,6 +33,7 @@ type UserAsset struct {
 
 type AssetRequest struct {
 	ChainName                        string
+	ChainNameList                    []string
 	Uid                              string
 	UidList                          []string
 	Address                          string
@@ -82,6 +84,13 @@ type UserAssetRepo interface {
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
 	UpdateTokenUriByChainTokenAddress(context.Context, string, string, string) (int64, error)
 	FindByID(context.Context, int64) (*UserAsset, error)
+	GetByChainNameAndAddress(ctx context.Context, chainName, address, tokenAddress string) (*UserAsset, error)
+	FindByUids(ctx context.Context, uids []string) ([]*UserAsset, error)
+	FindByUidsAndChainNameWithNotZero(ctx context.Context, chainName string, uids []string) ([]*UserAsset, error)
+	FindByUidsAndChainNamesWithNotZero(ctx context.Context, uids, chainNames []string) ([]*UserAsset, error)
+	FindDistinctChainNameByUids(ctx context.Context, uids []string) ([]string, error)
+	FindDistinctChainNameAndTokenByUidsAndChainNames(ctx context.Context, uids []string, chainNames []string) ([]*UserAsset, error)
+	FindDistinctUidByOffset(ctx context.Context, offset, limit int) ([]string, error)
 	ListByID(context.Context, int64) ([]*UserAsset, error)
 	ListAll(context.Context) ([]*UserAsset, error)
 	PageList(context.Context, *AssetRequest) ([]*UserAsset, int64, error)
@@ -167,7 +176,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAssets []
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "token_uri", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "token_uri", "updated_at", "cost_price"}),
 	}).Create(&userAssets)
 	err := ret.Error
 	if err != nil {
@@ -323,6 +332,94 @@ func (r *UserAssetRepoImpl) FindByID(ctx context.Context, id int64) (*UserAsset,
 		return nil, err
 	}
 	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) GetByChainNameAndAddress(ctx context.Context, chainName, address, tokenAddress string) (*UserAsset, error) {
+	var userAsset *UserAsset
+	ret := r.gormDB.WithContext(ctx).Where("chain_name = ? and address = ? and token_address = ?", chainName, address, tokenAddress).First(&userAsset)
+	err := ret.Error
+	if err != nil {
+		if fmt.Sprintf("%s", err) == POSTGRES_NOT_FOUND {
+			err = nil
+		} else {
+			log.Errore("query userAsset failed", err)
+		}
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindByUids(ctx context.Context, uids []string) ([]*UserAsset, error) {
+	var userAsset []*UserAsset
+	if err := r.gormDB.WithContext(ctx).Where("uid in ?", uids).Find(&userAsset).Error; err != nil {
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindByUidsAndChainNameWithNotZero(ctx context.Context, chainName string, uids []string) ([]*UserAsset, error) {
+	var userAsset []*UserAsset
+	tx := r.gormDB.WithContext(ctx).Where("uid in ? and balance != '0'", uids)
+	if chainName != "" {
+		tx = tx.Where("chain_name = ?", chainName)
+	}
+	if err := tx.Find(&userAsset).Error; err != nil {
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindByUidsAndChainNamesWithNotZero(ctx context.Context, uids, chainNames []string) ([]*UserAsset, error) {
+	var userAsset []*UserAsset
+	tx := r.gormDB.WithContext(ctx).Where("uid in ? and balance != '0'", uids)
+
+	if len(chainNames) != 0 {
+		tx.Where("chain_name in ?", chainNames)
+	}
+
+	if err := tx.Find(&userAsset).Error; err != nil {
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindDistinctChainNameByUids(ctx context.Context, uids []string) ([]string, error) {
+	var chainNames []string
+	if err := r.gormDB.WithContext(ctx).Table("user_asset").
+		Distinct("chain_name").
+		Where("uid in ?", uids).
+		Find(&chainNames).Error; err != nil {
+		return nil, err
+	}
+	return chainNames, nil
+}
+
+func (r *UserAssetRepoImpl) FindDistinctChainNameAndTokenByUidsAndChainNames(ctx context.Context, uids []string, chainNames []string) ([]*UserAsset, error) {
+	var userAsset []*UserAsset
+	tx := r.gormDB.WithContext(ctx).
+		Distinct("chain_name,token_address,token_uri,symbol").
+		Where("uid in ?", uids)
+
+	if len(chainNames) != 0 {
+		tx = tx.Where("chain_name in ?", chainNames)
+	}
+
+	if err := tx.Find(&userAsset).Error; err != nil {
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindDistinctUidByOffset(ctx context.Context, offset, limit int) ([]string, error) {
+	var uids []string
+	if err := r.gormDB.WithContext(ctx).Table("user_asset").
+		Distinct("uid").
+		Order("uid desc").Offset(offset).Limit(limit).
+		Find(&uids).
+		Error; err != nil {
+		return nil, err
+	}
+	return uids, nil
 }
 
 func (r *UserAssetRepoImpl) ListByID(ctx context.Context, id int64) ([]*UserAsset, error) {
@@ -506,6 +603,9 @@ func (r *UserAssetRepoImpl) List(ctx context.Context, req *AssetRequest) ([]*Use
 	}
 	if len(req.AddressList) > 0 {
 		db = db.Where("address in(?)", req.AddressList)
+	}
+	if len(req.ChainNameList) > 0 {
+		db = db.Where("chain_name in ?", req.ChainNameList)
 	}
 	if req.TokenAddress != "" {
 		db = db.Where("token_address = ?", req.TokenAddress)

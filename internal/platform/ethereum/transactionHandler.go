@@ -345,6 +345,10 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 		userAsset.UidType = uidType
 		userAssets = append(userAssets, userAsset)
 	}
+
+	//更新用户资产成本价
+	_ = biz.UpdateAssetCostPrice(nil, userAssets)
+
 	_, err := data.UserAssetRepoClient.PageBatchSaveOrUpdate(nil, userAssets, biz.PAGE_SIZE)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i*1) * time.Second)
