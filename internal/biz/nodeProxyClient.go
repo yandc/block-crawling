@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"strings"
 	"sync"
 	"time"
@@ -139,103 +140,76 @@ func GetTokensPriceRetryAlert(ctx context.Context, currency string, chainNameTok
 }
 
 func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressMap map[string][]string) (map[string]map[string]string, error) {
-	var coinNames []string
-	var coinNameMap = make(map[string]string)
-	var coinAddresses []string
-	var getPriceKeyMap = make(map[string][]string)
-	var handlerMap = make(map[string]string)
-	var resultMap = make(map[string]map[string]string)
+	var coinIds []string
+	tokens := make([]*v1.Tokens, 0)
+	var nativeTokenChainNames []string
 
-	for chainName, tokenAddressList := range chainNameTokenAddressMap {
-		if IsTestNet(chainName) {
+	for chainName, tokenAddresses := range chainNameTokenAddressMap {
+		for _, tokenAddress := range tokenAddresses {
+
+			if tokenAddress == "" { //主币
+				platInfo, _ := GetChainPlatInfo(chainName)
+				if platInfo == nil {
+					continue
+				}
+				nativeTokenChainNames = append(nativeTokenChainNames, chainName)
+				coinIds = append(coinIds, platInfo.GetPriceKey)
+			} else { //代币
+				tokens = append(tokens, &v1.Tokens{
+					Chain:   chainName,
+					Address: tokenAddress,
+				})
+			}
+		}
+	}
+
+	tokenPrices, err := GetPriceFromMarket(tokens, coinIds)
+	if err != nil {
+		return nil, err
+	}
+
+	resultMap := make(map[string]map[string]string)
+	coinMap := map[string]*v1.DescribePriceByCoinAddressReply_CoinCurrency{}
+	for _, coin := range tokenPrices.Coins {
+		coinMap[coin.CoinID] = coin
+	}
+
+	for _, chainName := range nativeTokenChainNames {
+		platInfo, _ := GetChainPlatInfo(chainName)
+		if platInfo == nil {
 			continue
 		}
-		if platInfo, ok := GetChainPlatInfo(chainName); ok {
-			getPriceKey := platInfo.GetPriceKey
-			handler := platInfo.Handler
-			chainNames, ok := getPriceKeyMap[getPriceKey]
-			if !ok {
-				chainNames = make([]string, 0)
-			}
-			chainNames = append(chainNames, chainName)
-			getPriceKeyMap[getPriceKey] = chainNames
-			handlerMap[handler] = chainName
+		tokenAddressPriceMap, ok := resultMap[chainName]
+		if !ok || tokenAddressPriceMap == nil {
+			tokenAddressPriceMap = make(map[string]string)
+			resultMap[chainName] = tokenAddressPriceMap
+		}
 
-			for _, tokenAddress := range tokenAddressList {
-				if tokenAddress == "" {
-					if _, ok := coinNameMap[getPriceKey]; !ok {
-						coinNames = append(coinNames, getPriceKey)
-						coinNameMap[getPriceKey] = ""
-					}
-				} else {
-					coinAddresses = append(coinAddresses, handler+"_"+tokenAddress)
-				}
-			}
+		coin := coinMap[platInfo.GetPriceKey]
+		if coin == nil || coin.Price == nil {
+			continue
+		}
+
+		if strings.ToLower(currency) == "usd" {
+			resultMap[chainName][chainName] = decimal.NewFromFloat(coin.Price.Usd).String()
+		} else {
+			resultMap[chainName][chainName] = decimal.NewFromFloat(coin.Price.Cny).String()
 		}
 	}
 
-	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
-	if err != nil {
-		return resultMap, err
-	}
-	defer conn.Close()
-	client := v1.NewCommRPCClient(conn)
-
-	if ctx == nil {
-		context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
-		ctx = context
-		defer cancel()
-	}
-
-	var paramMap = make(map[string]interface{})
-	paramMap["currency"] = currency
-	paramMap["coin_name"] = coinNames
-	paramMap["coin_address"] = coinAddresses
-	params, err := utils.JsonEncode(paramMap)
-	if err != nil {
-		return resultMap, err
-	}
-	response, err := client.ExecNodeProxyRPC(ctx, &v1.ExecNodeProxyRPCRequest{
-		Id:      ID,
-		Jsonrpc: JSONRPC,
-		Method:  "GetPriceV2",
-		Params:  params,
-	})
-	if err != nil {
-		return resultMap, err
-	}
-	if !response.Ok {
-		return nil, errors.New(response.ErrMsg)
-	}
-
-	result := make(map[string]map[string]string)
-	err = json.Unmarshal([]byte(response.Result), &result)
-	if err != nil {
-		return resultMap, err
-	}
-	for key, value := range result {
-		chainNames := getPriceKeyMap[key]
-		price := value[currency]
-		var tokenAddress string
-		if len(chainNames) == 0 {
-			handlerTokenAddressList := strings.Split(key, "_")
-			handler := handlerTokenAddressList[0]
-			chainNames = []string{handlerMap[handler]}
-			tokenAddress = handlerTokenAddressList[1]
+	for _, token := range tokenPrices.Tokens {
+		tokenAddressPriceMap, ok := resultMap[token.Chain]
+		if !ok {
+			tokenAddressPriceMap = make(map[string]string)
+			resultMap[token.Chain] = tokenAddressPriceMap
 		}
-		for _, chainName := range chainNames {
-			tokenAddressPriceMap, ok := resultMap[chainName]
-			if !ok {
-				tokenAddressPriceMap = make(map[string]string)
-				resultMap[chainName] = tokenAddressPriceMap
-			}
-			if tokenAddress == "" {
-				tokenAddressPriceMap[chainName] = price
-			} else {
-				tokenAddressPriceMap[tokenAddress] = price
-			}
+		if strings.ToLower(currency) == "usd" {
+			resultMap[token.Chain][token.Address] = decimal.NewFromFloat(token.Price.Usd).String()
+		} else {
+			resultMap[token.Chain][token.Address] = decimal.NewFromFloat(token.Price.Cny).String()
 		}
 	}
+
 	return resultMap, nil
 }
 
@@ -710,39 +684,6 @@ func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, er
 }
 
 func GetPriceFromMarket(tokenAddress []*v1.Tokens, coinIds []string) (*v1.DescribePriceByCoinAddressReply, error) {
-	//========================
-	//coinss := make([]*v1.DescribePriceByCoinAddressReply_CoinCurrency, 0)
-	//for _, ci := range coinIds {
-	//	coinss = append(coinss, &v1.DescribePriceByCoinAddressReply_CoinCurrency{
-	//		Price: &v1.Currency{
-	//			Cny: 1,
-	//			Usd: 10,
-	//		},
-	//		Icon:   "dfdfdfd",
-	//		CoinID: ci,
-	//	})
-	//
-	//}
-	//tokens := make([]*v1.DescribePriceByCoinAddressReply_Tokens, 0)
-	//for _, ta := range tokenAddress {
-	//	tokens = append(tokens, &v1.DescribePriceByCoinAddressReply_Tokens{
-	//		Price: &v1.Currency{
-	//			Cny: 1,
-	//			Usd: 10,
-	//		},
-	//		Icon:    "dfdfdfd",
-	//		Chain:   ta.Chain,
-	//		Address: ta.Address,
-	//		CoinID:  "ddddd",
-	//	})
-	//}
-	//
-	//return &v1.DescribePriceByCoinAddressReply{
-	//	Coins:  coinss,
-	//	Tokens: tokens,
-	//}, nil
-	//========================
-
 	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
 	if err != nil {
 		return nil, err

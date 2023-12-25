@@ -679,17 +679,12 @@ func GetAlarmTimestamp(key string) (int64, error) {
 }
 
 func IsTestNet(chainName string) bool {
-	if platInfo, ok := GetChainPlatInfo(chainName); ok {
-		netType := platInfo.NetType
-		if netType != "" {
-			if netType == "test" {
-				return true
-			}
-		} else if strings.HasSuffix(chainName, "TEST") {
-			return true
-		}
-	} else if strings.HasSuffix(chainName, "TEST") {
+	if strings.Contains(strings.ToLower(chainName), TEST_NET_TYPE) {
 		return true
+	}
+
+	if platInfo, ok := GetChainPlatInfo(chainName); ok {
+		return platInfo.NetType == TEST_NET_TYPE
 	}
 
 	return false

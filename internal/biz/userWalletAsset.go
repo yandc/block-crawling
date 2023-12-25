@@ -194,7 +194,9 @@ func (uc UserWalletAssetUsecase) getTodayAssetChange(asset *data.UserAsset) deci
 }
 
 func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req *pb.UserWalletAssetHistoryReq) (*pb.UserWalletAssetHistoryResp, error) {
-	end := time.Now().Unix()
+	now := time.Now()
+	date := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	end := date.Unix()
 	var start int64
 	switch req.Range {
 	case "7d":
@@ -251,6 +253,16 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 		return a.Time < b.Time
 	})
 
+	//补充结尾 0 资产数据
+	lastDt := historiesList[len(historiesList)-1].Time
+	for lastDt+1 < end {
+		lastDt += DAY_SECOND
+		historiesList = append(historiesList, &pb.UserWalletAssetHistoryResp_UserWalletAssetHistory{
+			Time:      lastDt, //快照时间为0点，-1为了将时间显示为前一天
+			CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0",
+		})
+	}
+
 	result := &pb.UserWalletAssetHistoryResp{
 		Amount: &pb.Currency{
 			Cny:  historiesList[len(historiesList)-1].CnyAmount,
@@ -264,7 +276,9 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 }
 
 func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, req *pb.UserWalletIncomeHistoryReq) (*pb.UserWalletIncomeHistoryResp, error) {
-	end := time.Now().Unix()
+	now := time.Now()
+	date := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	end := date.Unix()
 	var start int64
 	switch req.Range {
 	case "7d":
@@ -335,12 +349,26 @@ func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, re
 		return a.Time < b.Time
 	})
 
+	//填充结尾零数据
+	lastHistory := historiesList[len(historiesList)-1]
+	lastDt := historiesList[len(historiesList)-1].Time
+	for lastDt+1 < end {
+		lastDt += DAY_SECOND
+		historiesList = append(historiesList, &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
+			Time:       lastDt,
+			CnyAmount:  lastHistory.CnyAmount,
+			UsdAmount:  lastHistory.UsdAmount,
+			UsdtAmount: lastHistory.UsdtAmount,
+			BtcAmount:  lastHistory.BtcAmount,
+		})
+	}
+
 	result := &pb.UserWalletIncomeHistoryResp{
 		Amount: &pb.Currency{
-			Cny:  historiesList[len(historiesList)-1].CnyAmount,
-			Usd:  historiesList[len(historiesList)-1].UsdAmount,
-			Usdt: historiesList[len(historiesList)-1].UsdtAmount,
-			Btc:  historiesList[len(historiesList)-1].BtcAmount},
+			Cny:  lastHistory.CnyAmount,
+			Usd:  lastHistory.UsdAmount,
+			Usdt: lastHistory.UsdtAmount,
+			Btc:  lastHistory.BtcAmount},
 		Histories: historiesList,
 	}
 	return result, nil

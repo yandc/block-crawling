@@ -2984,6 +2984,9 @@ func (s *TransactionUsecase) ListAmountUidDimension(ctx context.Context, req *pb
 			}
 
 			chainName := record.ChainName
+			if IsTestNet(chainName) {
+				continue
+			}
 			tokenAddress := record.TokenAddress
 			var price string
 			tokenAddressPriceMap := resultMap[chainName]
