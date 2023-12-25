@@ -110,6 +110,9 @@ func (task *UserWalletAssetHistoryTask) Run() {
 			if asset.UpdatedAt > yesterdayTimestamp {
 				assetChange := task.getYesterdayAssetChange(asset, date)
 				userAmountChange[asset.Uid] = userAmountChange[asset.Uid].Add(assetChange.Mul(price))
+				if _, ok := userAmountMap[asset.Uid]; !ok {
+					userAmountMap[asset.Uid] = decimal.Decimal{} //有交易记录时初始化资产，防止资产为 0 时未打快照
+				}
 			}
 
 			if asset.Balance == "" || asset.Balance == "0" {
