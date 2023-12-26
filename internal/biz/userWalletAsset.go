@@ -214,11 +214,19 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 	}
 
 	if len(histories) == 0 {
-		return &pb.UserWalletAssetHistoryResp{
-			Amount:     &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"},
-			Income:     &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"},
-			Percentage: "0",
-		}, nil
+		if req.Platform == IOS || req.Platform == ANDROID { //若无数据，安卓和 iOS 需要返回起始和终止的两个 0 数据
+			return &pb.UserWalletAssetHistoryResp{
+				Amount: &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"},
+				Histories: []*pb.UserWalletAssetHistoryResp_UserWalletAssetHistory{
+					{Time: start - 1, CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0"},
+					{Time: end - 1, CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0"}},
+			}, nil
+		} else {
+			return &pb.UserWalletAssetHistoryResp{
+				Amount:    &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"},
+				Histories: nil,
+			}, nil
+		}
 	}
 
 	btcPrice, usdtPrice, err := uc.getBTCAndUsdtPrice()
@@ -296,7 +304,17 @@ func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, re
 	}
 
 	if len(histories) == 0 {
-		return &pb.UserWalletIncomeHistoryResp{Amount: &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"}}, nil
+		if req.Platform == IOS || req.Platform == ANDROID { //若无数据，安卓和 iOS 需要返回起始和终止的两个 0 数据
+			return &pb.UserWalletIncomeHistoryResp{
+				Amount: &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"},
+				Histories: []*pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
+					{Time: start - 1, CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0"},
+					{Time: end - 1, CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0"},
+				},
+			}, nil
+		} else {
+			return &pb.UserWalletIncomeHistoryResp{Amount: &pb.Currency{Cny: "0", Usd: "0", Usdt: "0", Btc: "0"}}, nil
+		}
 	}
 
 	btcPrice, usdtPrice, err := uc.getBTCAndUsdtPrice()
@@ -622,7 +640,17 @@ func (uc UserWalletAssetUsecase) UserToken(ctx context.Context, req *pb.UserToke
 	userTokenMap := map[string]*data.UserAsset{}
 	for _, asset := range userAssets {
 		key := fmt.Sprintf("%s_%s", asset.ChainName, asset.TokenAddress)
-		userTokenMap[key] = asset
+
+		if userAsset, ok := userTokenMap[key]; ok { //保留资产大的那个，后面要过滤 10U
+			userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)
+			assetBalance, _ := decimal.NewFromString(asset.Balance)
+			if assetBalance.GreaterThan(userAssetBalance) {
+				userTokenMap[key] = asset
+			}
+		} else {
+			userTokenMap[key] = asset
+		}
+
 	}
 
 	var userTokens []*pb.UserTokenResp_UserToken
@@ -657,7 +685,11 @@ func (uc UserWalletAssetUsecase) UserToken(ctx context.Context, req *pb.UserToke
 		//主币的 logo 为链的 logo
 		var tokenLogo string
 		if asset.TokenAddress == "" {
-			tokenLogo = platInfo.Icon
+			if platInfo.NativeCurrencyIcon != "" {
+				tokenLogo = platInfo.NativeCurrencyIcon
+			} else {
+				tokenLogo = platInfo.Icon
+			}
 		} else {
 			tokenLogo = asset.TokenUri
 		}
@@ -925,7 +957,11 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 		//主币的 logo 为链的 logo
 		var tokenLogo string
 		if userAsset.TokenAddress == "" {
-			tokenLogo = platInfo.Icon
+			if platInfo.NativeCurrencyIcon != "" {
+				tokenLogo = platInfo.NativeCurrencyIcon
+			} else {
+				tokenLogo = platInfo.Icon
+			}
 		} else {
 			tokenLogo = userAsset.TokenUri
 		}

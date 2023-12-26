@@ -139,6 +139,7 @@ message PlatInfo {
   repeated string httpURL = 11;
   string tokenPrice = 12;
   string icon = 25;
+  string nativeCurrencyIcon = 26;
 
   // chainId 区分链唯一标识
   string chainId = 13;

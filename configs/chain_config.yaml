@@ -31,6 +31,7 @@ platform:
     fullName: Linea
     getPriceKey: ethereum
     handler: linea
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Linea.jpeg
     nativeCurrency: ETH
     netType: main
     proxyCacheTime: 15
@@ -57,6 +58,8 @@ platform:
     fullName: Arbitrum
     getPriceKey: ethereum
     handler: arbitrum
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Arbitrum2.png
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/ArbitrumEth.png
     nativeCurrency: ETH
     netType: main
     proxyCacheTime: 15
@@ -89,6 +92,7 @@ platform:
     fullName: Dogecoin
     getPriceKey: dogecoin
     handler: dogecoin
+    icon: https://obstatic.243096.com/mili/images/currency/chain/DOGE.png
     nativeCurrency: DOGE
     netType: main
     proxyCacheTime: 60
@@ -130,7 +134,7 @@ platform:
     fullName: Litecoin
     getPriceKey: litecoin
     handler: litecoin
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Bitcoin.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/LTC.png
     nativeCurrency: LTC
     netType: main
     proxyCacheTime: 60
@@ -472,6 +476,7 @@ platform:
     getPriceKey: ethereum
     handler: optimism
     icon: https://obstatic.243096.com/mili/images/currency/chain/Optimism.png
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/OptimismEth.png
     nativeCurrency: ETH
     netType: main
     rpcURL:
@@ -805,7 +810,7 @@ platform:
     fullName: Cosmos
     getPriceKey: cosmos
     handler: cosmos
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpeg
     nativeCurrency: ATOM
     netType: main
     proxyCacheTime: 0
@@ -863,7 +868,7 @@ platform:
     fullName: Harmony
     getPriceKey: harmony
     handler: harmony
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Harmony.png
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Harmony.jpg
     nativeCurrency: ONE
     netType: main
     rpcURL:
@@ -973,6 +978,7 @@ platform:
     fullName: ArbitrumNova
     getPriceKey: ethereum
     handler: arbitrumnova
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/ArbitrumNovaEth.png
     icon: https://obstatic.243096.com/mili/images/currency/chain/ArbitrumNova.png
     nativeCurrency: ETH
     netType: main
@@ -1036,6 +1042,7 @@ platform:
     getPriceKey: ethereum
     handler: zksync
     icon: https://obstatic.243096.com/mili/images/currency/chain/zkSync.jpeg
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/zksync-eth.png
     nativeCurrency: ETH
     netType: main
     proxyCacheTime: 0
@@ -1106,7 +1113,7 @@ platform:
     fullName: Kaspa
     getPriceKey: kaspa
     handler: kaspa
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Kaspa.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Kaspa.jpeg
     nativeCurrency: KAS
     netType: main
     proxyCacheTime: 0
@@ -1133,7 +1140,7 @@ platform:
     fullName: Sei
     getPriceKey: sei-network
     handler: sei
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpeg
     nativeCurrency: SEI
     netType: main
     proxyCacheTime: 0
@@ -1164,7 +1171,7 @@ platform:
     fullName: Scroll
     getPriceKey: ethereum
     handler: scroll
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Scroll.jpeg
     nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/scroll-eth.png
     nativeCurrency: ETH
     netType: main
@@ -1237,7 +1244,7 @@ platformTest:
     fullName: Benfen Test Net
     getPriceKey: ''
     handler: sui
-    icon: https://obstatic.243096.com/mili/images/currency/chain/BFC.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Benfen2.png
     nativeCurrency: BFC
     netType: test
     rpcURL:
@@ -1596,7 +1603,7 @@ platformTest:
     fullName: Cosmos Test Net
     getPriceKey: cosmos
     handler: cosmos
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Cosmos.jpeg
     nativeCurrency: ATOM
     netType: test
     proxyCacheTime: 0
@@ -1622,6 +1629,7 @@ platformTest:
     fullName: zkSync Test Net
     getPriceKey: ethereum
     handler: zksync
+    nativeCurrencyIcon: https://obstatic.243096.com/mili/images/currency/chain/zksync-eth.png
     icon: https://obstatic.243096.com/mili/images/currency/chain/zkSync.jpeg
     nativeCurrency: ETH
     netType: test
@@ -1646,7 +1654,7 @@ platformTest:
     fullName: Sei Test Net
     getPriceKey: sei
     handler: sei
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Sei.jpeg
     nativeCurrency: SEI
     netType: test
     proxyCacheTime: 0
@@ -1675,7 +1683,7 @@ platformTest:
     fullName: Celestia Mocha Test Net
     getPriceKey: celestia
     handler: celestia
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Celestia.jpg
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Celestia.jpeg
     nativeCurrency: TIA
     netType: test
     proxyCacheTime: 0
