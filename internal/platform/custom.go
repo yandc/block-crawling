@@ -82,6 +82,7 @@ func (p *customConfigProviderImpl) provide() []*conf.PlatInfo {
 			ChainId:                    chainInfo.ChainId,
 			Decimal:                    int32(chainInfo.Decimals),
 			NativeCurrency:             chainInfo.CurrencySymbol,
+			Icon:                       chainInfo.Logo,
 			Source:                     biz.SOURCE_REMOTE,
 			MonitorHeightAlarmThr:      &mhat,
 			MaxConcurrency:             &mc,
