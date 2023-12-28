@@ -51,7 +51,7 @@ func (r UserWalletAssetHistoryRepoImpl) SaveBatch(ctx context.Context, userWalle
 
 func (r UserWalletAssetHistoryRepoImpl) FindByUidsAndDTRange(ctx context.Context, uids []string, start, end int64) ([]*UserWalletAssetHistory, error) {
 	var histories []*UserWalletAssetHistory
-	err := r.gormDB.Where("uid in ? and dt between ? and ?", uids, start, end).Find(&histories).Error
+	err := r.gormDB.Where("uid in ? and dt > ? and dt <= ?", uids, start, end).Find(&histories).Error
 	if err != nil {
 		return nil, err
 	}

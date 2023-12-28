@@ -88,6 +88,7 @@ type UserAssetRepo interface {
 	FindByUids(ctx context.Context, uids []string) ([]*UserAsset, error)
 	FindByUidsAndChainNameWithNotZero(ctx context.Context, chainName string, uids []string) ([]*UserAsset, error)
 	FindByUidsAndChainNamesWithNotZero(ctx context.Context, uids, chainNames []string) ([]*UserAsset, error)
+	FindByUidsAndAddressesAndChainNamesWithNotZero(ctx context.Context, uids, addresses, chainNames []string) ([]*UserAsset, error)
 	FindDistinctChainNameByUids(ctx context.Context, uids []string) ([]string, error)
 	FindDistinctChainNameAndTokenByUidsAndChainNames(ctx context.Context, uids []string, chainNames []string) ([]*UserAsset, error)
 	FindDistinctUidByOffset(ctx context.Context, offset, limit int) ([]string, error)
@@ -375,6 +376,28 @@ func (r *UserAssetRepoImpl) FindByUidsAndChainNamesWithNotZero(ctx context.Conte
 
 	if len(chainNames) != 0 {
 		tx.Where("chain_name in ?", chainNames)
+	}
+
+	if err := tx.Find(&userAsset).Error; err != nil {
+		return nil, err
+	}
+	return userAsset, nil
+}
+
+func (r *UserAssetRepoImpl) FindByUidsAndAddressesAndChainNamesWithNotZero(ctx context.Context, uids, addresses, chainNames []string) ([]*UserAsset, error) {
+	var userAsset []*UserAsset
+	tx := r.gormDB.WithContext(ctx).Where("balance != '0'")
+
+	if len(uids) != 0 {
+		tx = tx.Where("uid in ?", uids)
+	}
+
+	if len(addresses) != 0 {
+		tx = tx.Where("address in ?", addresses)
+	}
+
+	if len(chainNames) != 0 {
+		tx = tx.Where("chain_name in ?", chainNames)
 	}
 
 	if err := tx.Find(&userAsset).Error; err != nil {
