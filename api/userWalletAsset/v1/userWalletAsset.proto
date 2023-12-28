@@ -89,7 +89,7 @@ message UserWalletAssetHistoryReq{
   repeated string uids = 1;
   // 时间范围，7d,30d,90d,180d
   string range = 2;
-  //平台
+  //平台 web android ios
   string platform = 3;
 }
 
@@ -122,7 +122,7 @@ message UserWalletIncomeHistoryReq{
   repeated string uids = 1;
   // 时间范围，7d,30d,90d,180d
   string range = 2;
-  //平台
+  //平台 web android ios
   string platform = 3;
 }
 
@@ -234,6 +234,10 @@ message UserAssetListReq{
   repeated string tokenAddresses = 5;
   //排序，asc 或 desc
   string order = 6;
+  //钱包地址
+  repeated string addresses = 7;
+  //填充不存在的资产。如果未查到某 token 资产，则填充改资产的基本信息
+  bool fillNotExitAsset = 8;
 }
 
 message UserAssetListResp{

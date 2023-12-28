@@ -83,10 +83,8 @@ func (uc UserWalletAssetUsecase) UserWalletAssetTotal(ctx context.Context, req *
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if amount.IsZero() { //过滤保留两位小数四舍五入之后的资产
 			continue
 		}
 		assetTotal = assetTotal.Add(amount)
@@ -241,9 +239,23 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 	}
 
 	//按照时间分组求和
+	minDT := histories[0].Dt
 	historyMap := map[int64]decimal.Decimal{}
 	for _, history := range histories {
 		historyMap[history.Dt] = historyMap[history.Dt].Add(history.UsdAmount)
+
+		if history.Dt < minDT {
+			minDT = history.Dt
+		}
+	}
+
+	//缺失数据补充 0
+	dt := minDT + DAY_SECOND
+	for dt <= end {
+		if _, ok := historyMap[dt]; !ok {
+			historyMap[dt] = decimal.Decimal{}
+		}
+		dt += DAY_SECOND
 	}
 
 	var historiesList []*pb.UserWalletAssetHistoryResp_UserWalletAssetHistory
@@ -260,16 +272,6 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 	slices.SortFunc(historiesList, func(a, b *pb.UserWalletAssetHistoryResp_UserWalletAssetHistory) bool {
 		return a.Time < b.Time
 	})
-
-	//补充结尾 0 资产数据
-	lastDt := historiesList[len(historiesList)-1].Time
-	for lastDt+1 < end {
-		lastDt += DAY_SECOND
-		historiesList = append(historiesList, &pb.UserWalletAssetHistoryResp_UserWalletAssetHistory{
-			Time:      lastDt, //快照时间为0点，-1为了将时间显示为前一天
-			CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0",
-		})
-	}
 
 	result := &pb.UserWalletAssetHistoryResp{
 		Amount: &pb.Currency{
@@ -333,6 +335,8 @@ func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, re
 		return a.Dt < b.Dt
 	})
 
+	minDT := histories[0].Dt
+
 	//当日资产按照 dt 分组求和
 	//净划入资产分组求和 dt当天净划入资产为前几日净划入之和
 	totalMap := map[int64]decimal.Decimal{}
@@ -348,39 +352,49 @@ func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, re
 	}
 
 	startTimestamp := histories[0].Dt //期初时间戳
-	var historiesList []*pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory
+	historyMap := map[int64]*pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{}
 	for dt, amount := range totalMap {
-
 		//收益 = 期末资产(dt) - 期初资产( min(dt) ) - 净划入资产( min(dt)~dt change之和 )
 		income := amount.Sub(totalMap[startTimestamp]).Sub(changeMap[dt]).Round(2)
-
-		historiesList = append(historiesList, &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
-			Time:       dt - 1, //快照时间为0点，-1为了将时间显示为前一天
+		historyMap[dt] = &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
+			Time:       dt,
 			CnyAmount:  income.Mul(decimal.NewFromFloat(cnyRate.Rate)).Round(2).String(),
 			UsdAmount:  income.String(),
 			UsdtAmount: income.Div(decimal.NewFromFloat(usdtPrice)).Round(2).String(),
 			BtcAmount:  income.Div(decimal.NewFromFloat(btcPrice)).String(),
-		})
+		}
+	}
+
+	//填充缺失数据,将缺失的数据填充为前一日数据
+	dt := minDT + DAY_SECOND
+	for dt <= end {
+		if _, ok := historyMap[dt]; !ok {
+			preHistory := historyMap[dt-DAY_SECOND]
+			if preHistory == nil {
+				historyMap[dt] = &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
+					Time: dt, CnyAmount: "0", UsdAmount: "0", UsdtAmount: "0", BtcAmount: "0",
+				}
+			} else {
+				historyMap[dt] = &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
+					Time: dt, CnyAmount: preHistory.CnyAmount, UsdAmount: preHistory.UsdAmount, UsdtAmount: preHistory.UsdtAmount, BtcAmount: preHistory.BtcAmount,
+				}
+			}
+		}
+		dt += DAY_SECOND
+	}
+
+	var historiesList []*pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory
+	for _, history := range historyMap {
+		//快照时间为0点，-1为了将时间显示为前一天
+		history.Time -= 1
+		historiesList = append(historiesList, history)
 	}
 
 	slices.SortFunc(historiesList, func(a, b *pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory) bool {
 		return a.Time < b.Time
 	})
 
-	//填充结尾零数据
 	lastHistory := historiesList[len(historiesList)-1]
-	lastDt := historiesList[len(historiesList)-1].Time
-	for lastDt+1 < end {
-		lastDt += DAY_SECOND
-		historiesList = append(historiesList, &pb.UserWalletIncomeHistoryResp_UserWalletIncomeHistory{
-			Time:       lastDt,
-			CnyAmount:  lastHistory.CnyAmount,
-			UsdAmount:  lastHistory.UsdAmount,
-			UsdtAmount: lastHistory.UsdtAmount,
-			BtcAmount:  lastHistory.BtcAmount,
-		})
-	}
-
 	result := &pb.UserWalletIncomeHistoryResp{
 		Amount: &pb.Currency{
 			Cny:  lastHistory.CnyAmount,
@@ -440,9 +454,8 @@ func (uc UserWalletAssetUsecase) UserWallet(ctx context.Context, req *pb.UserWal
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if amount.IsZero() { //过滤四舍五入保留两位小数为 0 的资产
 			continue
 		}
 		assetTotalMap[asset.Uid] = assetTotalMap[asset.Uid].Add(amount)
@@ -493,7 +506,6 @@ func (uc UserWalletAssetUsecase) UserChain(ctx context.Context, req *pb.UserChai
 		return nil, err
 	}
 
-	//获取大于 $10 的主网资产
 	var assets []*data.UserAsset
 	for _, userAsset := range userAssets {
 		platInfo, _ := GetChainPlatInfo(userAsset.ChainName)
@@ -515,9 +527,9 @@ func (uc UserWalletAssetUsecase) UserChain(ctx context.Context, req *pb.UserChai
 			key = fmt.Sprintf("%s_%s", userAsset.ChainName, strings.ToLower(userAsset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		//过滤保留两位小数四舍五入后为 0 的资产
+		if amount.IsZero() {
 			continue
 		}
 
@@ -640,17 +652,7 @@ func (uc UserWalletAssetUsecase) UserToken(ctx context.Context, req *pb.UserToke
 	userTokenMap := map[string]*data.UserAsset{}
 	for _, asset := range userAssets {
 		key := fmt.Sprintf("%s_%s", asset.ChainName, asset.TokenAddress)
-
-		if userAsset, ok := userTokenMap[key]; ok { //保留资产大的那个，后面要过滤 10U
-			userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)
-			assetBalance, _ := decimal.NewFromString(asset.Balance)
-			if assetBalance.GreaterThan(userAssetBalance) {
-				userTokenMap[key] = asset
-			}
-		} else {
-			userTokenMap[key] = asset
-		}
-
+		userTokenMap[key] = asset
 	}
 
 	var userTokens []*pb.UserTokenResp_UserToken
@@ -675,10 +677,10 @@ func (uc UserWalletAssetUsecase) UserToken(ctx context.Context, req *pb.UserToke
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
+		amount := balanceDecimal.Mul(price).Round(2)
 
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		//过滤保留两位小数四舍五入后为 0 的资产
+		if amount.IsZero() {
 			continue
 		}
 
@@ -710,9 +712,29 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 
 	//因为需要对资产 实时价格 进行排序，无法实现数据库翻页，所以需要查询用户资产之后，计算出价格再进行排序、分页
 	//查询用户资产，并过滤筛选条件
-	userAssets, err := data.UserAssetRepoClient.FindByUidsAndChainNamesWithNotZero(ctx, req.Uids, req.ChainNames)
+	userAssets, err := data.UserAssetRepoClient.FindByUidsAndAddressesAndChainNamesWithNotZero(ctx, req.Uids, req.Addresses, req.ChainNames)
 	if err != nil {
 		return nil, err
+	}
+
+	//如果查询资产不存在，则填充查询的资产信息
+	if req.FillNotExitAsset && len(req.TokenAddresses) != 0 {
+		for _, chanAndAddress := range req.TokenAddresses {
+			chainName, address, found := strings.Cut(chanAndAddress, "_")
+			if !found {
+				continue
+			}
+
+			if !slices.ContainsFunc(userAssets, func(asset *data.UserAsset) bool {
+				return asset.ChainName == chainName && strings.ToLower(asset.TokenAddress) == strings.ToLower(address)
+			}) {
+				userAssets = append(userAssets, &data.UserAsset{
+					ChainName:    chainName,
+					TokenAddress: address,
+					Balance:      "0",
+				})
+			}
+		}
 	}
 
 	if len(userAssets) == 0 {
@@ -752,12 +774,10 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 		balanceDecimal, _ := decimal.NewFromString(asset.Amount)
 
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
+		amount := balanceDecimal.Mul(price).Round(2)
 
 		assetTotal = assetTotal.Add(amount)
 	}
-
-	assetTotal = assetTotal.Round(2)
 
 	//资产总额换算
 	cnyAmount := assetTotal.Mul(decimal.NewFromFloat(cnyRate.Rate))
@@ -877,12 +897,16 @@ func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]M
 
 	//总价值
 	balance, _ := decimal.NewFromString(asset.Amount)
+	usdAmount := balance.Mul(usdPrice).Round(2)
+	cnyAmount := usdAmount.Mul(decimal.NewFromFloat(cnyRate.Rate))
+	usdtAmount := usdAmount.Div(decimal.NewFromFloat(tokenPriceMap[fmt.Sprintf("%s_%s", "ETH", strings.ToLower(ETH_USDT_ADDRESS))].Price))
+	btcAmount := usdAmount.Div(decimal.NewFromFloat(tokenPriceMap[PriceKeyBTC].Price))
 
 	asset.CurrencyAmount = &pb.Currency{
-		Cny:  balance.Mul(cnyPrice).Round(2).String(),
-		Usd:  balance.Mul(usdPrice).Round(2).String(),
-		Usdt: balance.Mul(usdtPrice).Round(2).String(),
-		Btc:  balance.Mul(btcPrice).String(),
+		Cny:  cnyAmount.Round(2).String(),
+		Usd:  usdAmount.String(),
+		Usdt: usdtAmount.Round(2).String(),
+		Btc:  btcAmount.Mul(btcPrice).String(),
 	}
 
 	//收益
@@ -915,7 +939,7 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 		})
 
 		//如果没有 tokenAddress 筛选条件，则不过滤
-		if len(req.TokenAddresses) == 0 {
+		if len(req.TokenAddresses) == 0 || (len(req.TokenAddresses) == 1 && req.TokenAddresses[0] == "") {
 			contains = true
 		}
 
@@ -924,7 +948,7 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 		}
 
 		// 过滤 0 资产
-		if userAsset.Balance == "" || userAsset.Balance == "0" {
+		if !req.FillNotExitAsset && (userAsset.Balance == "" || userAsset.Balance == "0") {
 			continue
 		}
 
@@ -940,7 +964,7 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 
 		balanceDecimal, _ := decimal.NewFromString(userAsset.Balance)
 
-		//过滤小于 $10 的资产
+		//过滤资产保留两位小数后等于 0 的资产
 		var key string
 		if userAsset.TokenAddress == "" {
 			key = platInfo.GetPriceKey
@@ -949,8 +973,8 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 		}
 
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if !req.FillNotExitAsset && amount.IsZero() {
 			continue
 		}
 
@@ -1030,11 +1054,11 @@ func (uc UserWalletAssetUsecase) UserAssetDistribution(ctx context.Context, req 
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if amount.IsZero() { //过滤保留两位小数之后四舍五入为 0 的资产
 			continue
 		}
+
 		symbolAmountMap[asset.Symbol] = symbolAmountMap[asset.Symbol].Add(amount)
 		symbolBalanceMap[asset.Symbol] = symbolBalanceMap[asset.Symbol].Add(balanceDecimal)
 		totalAmount = totalAmount.Add(amount)
@@ -1249,17 +1273,22 @@ func (uc UserWalletAssetUsecase) UserChainDistribution(ctx context.Context, req 
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if amount.IsZero() { //过滤保留两位小数之后四舍五入为 0 的资产
 			continue
 		}
+
 		chainAmountMap[asset.ChainName] = chainAmountMap[asset.ChainName].Add(amount)
 		totalAmount = totalAmount.Add(amount)
 	}
 
 	var userAssetList []*pb.UserChainDistributionResp_UserChain
 	for chainName, usdAmount := range chainAmountMap {
+
+		//过滤保留两位小数之后四舍五入为 0 的资产
+		if usdAmount.Round(2).IsZero() {
+			continue
+		}
 
 		percentage := usdAmount.Div(totalAmount)
 
@@ -1339,9 +1368,8 @@ func (uc UserWalletAssetUsecase) UserWalletDistribution(ctx context.Context, req
 			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
 		}
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price)
-		//小于 10 美元不计入统计
-		if amount.LessThan(decimal.NewFromFloat(10)) {
+		amount := balanceDecimal.Mul(price).Round(2)
+		if amount.IsZero() { //过滤保留两位小数之后四舍五入为 0 的资产
 			continue
 		}
 		uidAmountMap[asset.Uid] = uidAmountMap[asset.Uid].Add(amount)

@@ -124,10 +124,12 @@ func (task *UserWalletAssetHistoryTask) Run() {
 				continue
 			}
 
-			amount := balanceDecimal.Mul(price)
-			if amount.LessThan(decimal.NewFromFloat(10)) {
+			//过滤保留两位小数四舍五入资产为 0 的资产
+			amount := balanceDecimal.Mul(price).Round(2)
+			if amount.IsZero() {
 				continue
 			}
+
 			userAmountMap[asset.Uid] = userAmountMap[asset.Uid].Add(amount)
 		}
 
