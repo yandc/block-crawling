@@ -958,7 +958,7 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 		}
 
 		// 过滤测试网
-		if platInfo.NetType != MAIN_NET_TYPE {
+		if !req.ShowTest && platInfo.NetType != MAIN_NET_TYPE {
 			continue
 		}
 
@@ -974,7 +974,7 @@ func (uc UserWalletAssetUsecase) userAssetListFilter(userAssets []*data.UserAsse
 
 		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
 		amount := balanceDecimal.Mul(price).Round(2)
-		if !req.FillNotExitAsset && amount.IsZero() {
+		if !req.ShowZeroValue && amount.IsZero() {
 			continue
 		}
 

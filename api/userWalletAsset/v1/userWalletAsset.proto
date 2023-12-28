@@ -238,6 +238,10 @@ message UserAssetListReq{
   repeated string addresses = 7;
   //填充不存在的资产。如果未查到某 token 资产，则填充改资产的基本信息
   bool fillNotExitAsset = 8;
+  //是否展示测试链资产
+  bool showTest = 9;
+  //是否展示价值为 0 的资产
+  bool showZeroValue = 10;
 }
 
 message UserAssetListResp{
