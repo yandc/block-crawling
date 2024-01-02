@@ -186,7 +186,7 @@ innerNodeList:
     handler: "dogecoin"
     nativeCurrency: DOGE
     rpcURL:
-      - "https://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@https://doge.benfen.org:8943"
+      - "https://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@doge.benfen.org:8943"
     symbol: DOGE
     type: "BTC"
 
@@ -199,7 +199,7 @@ innerNodeList:
     handler: "litecoin"
     nativeCurrency: LTC
     rpcURL:
-      - "https://haotech:BFHGDCQHbaTZBvHJER4fyHy@https://ltc.benfen.org:8943"
+      - "https://haotech:BFHGDCQHbaTZBvHJER4fyHy@ltc.benfen.org:8943"
     symbol: LTC
     type: "BTC"
 
