@@ -26,9 +26,9 @@ type PageListTxnsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ChainName          string `protobuf:"bytes,1,opt,name=chainName,proto3" json:"chainName,omitempty"`         // BenfenTEST or Benfen
-	WalletAddress      string `protobuf:"bytes,2,opt,name=walletAddress,proto3" json:"walletAddress,omitempty"` // mint, redeem,swap,add,remove,collect
-	Type               string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	ChainName          string `protobuf:"bytes,1,opt,name=chainName,proto3" json:"chainName,omitempty"` // BenfenTEST or Benfen
+	WalletAddress      string `protobuf:"bytes,2,opt,name=walletAddress,proto3" json:"walletAddress,omitempty"`
+	Type               string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // mint, redeem,swap,add,remove,collect,protocol
 	PageNum            int32  `protobuf:"varint,4,opt,name=pageNum,proto3" json:"pageNum,omitempty"`
 	PageSize           int32  `protobuf:"varint,5,opt,name=pageSize,proto3" json:"pageSize,omitempty"`
 	WalletAddressOrUid string `protobuf:"bytes,6,opt,name=walletAddressOrUid,proto3" json:"walletAddressOrUid,omitempty"`

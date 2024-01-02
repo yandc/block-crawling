@@ -4,7 +4,6 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
-	"block-crawling/internal/data/kanban"
 	"block-crawling/internal/log"
 	"block-crawling/internal/signhash"
 	"block-crawling/internal/types"
@@ -38,17 +37,15 @@ type TransactionUsecase struct {
 	gormDB          *gorm.DB
 	lark            Larker
 	chainListClient v1.ChainListClient
-	kBundle         *kanban.Bundle
 }
 
 var sendLock sync.RWMutex
 
-func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, kBundle *kanban.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
+func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
 	return &TransactionUsecase{
 		gormDB:          grom,
 		lark:            lark,
 		chainListClient: chainListClient,
-		kBundle:         kBundle,
 	}
 }
 
@@ -5173,138 +5170,17 @@ func (s *TransactionUsecase) SigningMessage(ctx context.Context, req *signhash.S
 }
 
 func (s *TransactionUsecase) KanbanSummary(ctx context.Context, req *pb.KanbanSummaryRequest) (*pb.KanbanSummaryResponse, error) {
-	summary, err := s.kBundle.Wallet.LoadSummary(ctx, req.ChainName, req.Address)
-	if err != nil {
-
-		if err != gorm.ErrRecordNotFound {
-			return nil, err
-		}
-		summary = &kanban.WalletSummaryRecord{}
-	}
-
-	price, err := GetTokenPriceRetryAlert(ctx, "ETH", "USD", "")
-	if err != nil {
-		return nil, err
-	}
-
-	totalTxsRanks, totalTxTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_num", decimal.New(summary.TotalTxNum, 0), price)
-	if err != nil {
-		return nil, err
-	}
-	totalTxAmountRanks, totalTxAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_amount", summary.TotalTxAmount, price)
-	if err != nil {
-		return nil, err
-	}
-	totalContractRanks, totalContractTp, err := s.loadRanks(ctx, req.ChainName, "total_contract_num", decimal.New(summary.TotalContractNum, 0), price)
-	if err != nil {
-		return nil, err
-	}
-	totalTxInAmountRanks, totalTxInAmountTp, err := s.loadRanks(ctx, req.ChainName, "total_tx_in_amount", summary.TotalTxInAmount, price)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.KanbanSummaryResponse{
-		FirstTxTime:          uint64(summary.FirstTradeTime) * 1000,
-		TotalTxNum:           uint64(summary.TotalTxNum),
-		TotalTxAmount:        s.currencyAmount(utils.StringDecimals(summary.TotalTxAmount.String(), 18), price),
-		TotalContract:        uint64(summary.TotalContractNum),
-		TotalTxInAmount:      s.currencyAmount(utils.StringDecimals(summary.TotalTxInAmount.String(), 18), price),
-		TotalTxsRanks:        totalTxsRanks,
-		TotalTxAmountRanks:   totalTxAmountRanks,
-		TotalContractRanks:   totalContractRanks,
-		TotalTxInAmountRanks: totalTxInAmountRanks,
-		TopPercents: &pb.KanbanTopPercent{
-			TotalTx:         totalTxTp,
-			TotalTxAmount:   totalTxAmountTp,
-			TotalContract:   totalContractTp,
-			TotalTxInAmount: totalTxInAmountTp,
-		},
-	}, nil
-}
-
-func (s *TransactionUsecase) currencyAmount(amount string, price string) string {
-	prices, _ := decimal.NewFromString(price)
-	balances, _ := decimal.NewFromString(amount)
-	cAmount := prices.Mul(balances)
-	return cAmount.String()
-}
-
-func (s *TransactionUsecase) loadRanks(ctx context.Context, chainName, key string, value decimal.Decimal, price string) ([]*pb.KanbanRank, int32, error) {
-	trendings, err := s.kBundle.Trending.Load(ctx, chainName, key)
-	if err != nil {
-		return nil, 0, err
-	}
-	rankTopPercents := map[int]bool{
-		10: true,
-		20: true,
-		30: true,
-		50: true,
-	}
-	topPercent := 99
-	results := make([]*pb.KanbanRank, 0, 10)
-	for _, item := range trendings {
-		if _, ok := rankTopPercents[item.TopPercent]; ok {
-			lower_bound := item.Rank.String()
-			if strings.HasSuffix(key, "_amount") {
-				lower_bound = s.currencyAmount(utils.StringDecimals(lower_bound, 18), price)
-			}
-			results = append(results, &pb.KanbanRank{
-				TopPercent: int32(item.TopPercent),
-				LowerBound: lower_bound,
-			})
-		}
-		if value.Cmp(item.Rank) >= 0 {
-			topPercent = item.TopPercent
-		}
-	}
-	sort.Slice(results, func(i, j int) bool {
-		return uint64(results[i].TopPercent) < uint64(results[j].TopPercent)
-	})
-	return results, int32(topPercent), nil
+	return nil, nil
 }
 
 // 看板交易数据
 func (s *TransactionUsecase) KanbanTxChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
-	return s.kanbanChart(ctx, req, func(item *kanban.WalletDaySummaryRecord) uint64 {
-		return uint64(item.TotalTxNum)
-	})
+	return nil, nil
 }
 
 // 看板合约数据
 func (s *TransactionUsecase) KanbanContractChart(ctx context.Context, req *pb.KanbanChartRequest) (*pb.KanbanChartResponse, error) {
-	return s.kanbanChart(ctx, req, func(item *kanban.WalletDaySummaryRecord) uint64 {
-		return uint64(item.TotalTxContract)
-	})
-}
-
-func (s *TransactionUsecase) kanbanChart(ctx context.Context, req *pb.KanbanChartRequest, accessor func(*kanban.WalletDaySummaryRecord) uint64) (*pb.KanbanChartResponse, error) {
-	byDay, err := s.kBundle.Wallet.RangeDaySummary(ctx, req.ChainName, req.Address, int64(req.StartTime/1000), int64(req.EndTime/1000))
-	if err != nil {
-		return nil, err
-	}
-
-	result := &pb.KanbanChartResponse{
-		NumsByDay:       make([]*pb.KanbanBar, 0, len(byDay)),
-		AccumulatedNums: make([]*pb.KanbanBar, 0, len(byDay)),
-	}
-	var acc uint64
-	for _, item := range byDay {
-		v := accessor(item)
-		if v == 0 {
-			continue
-		}
-		acc += v
-		result.NumsByDay = append(result.NumsByDay, &pb.KanbanBar{
-			Time:  uint64(item.Sharding) * 1000,
-			Value: v,
-		})
-		result.AccumulatedNums = append(result.AccumulatedNums, &pb.KanbanBar{
-			Time:  uint64(item.Sharding) * 1000,
-			Value: acc,
-		})
-	}
-	return result, nil
+	return nil, nil
 }
 
 // CountOutTx 统计两个地址之间转账次数

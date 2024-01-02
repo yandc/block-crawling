@@ -21,15 +21,13 @@ type handler struct {
 	chainName         string
 	liveBlockInterval time.Duration
 	blocksStore       map[uint64]*chain.Block
-	kanbanEnabled     bool
 }
 
-func newHandler(chainName string, liveBlockInterval time.Duration, kanbanEnabled bool) chain.BlockHandler {
+func newHandler(chainName string, liveBlockInterval time.Duration) chain.BlockHandler {
 	return &handler{
 		chainName:         chainName,
 		liveBlockInterval: liveBlockInterval,
 		blocksStore:       make(map[uint64]*chain.Block),
-		kanbanEnabled:     kanbanEnabled,
 	}
 }
 
@@ -46,12 +44,11 @@ func (h *handler) BlockMayFork() bool {
 
 func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	decoder := &txDecoder{
-		chainName:     h.chainName,
-		block:         block,
-		newTxs:        true,
-		blockHash:     "",
-		now:           time.Now().Unix(),
-		kanbanEnabled: h.kanbanEnabled,
+		chainName: h.chainName,
+		block:     block,
+		newTxs:    true,
+		blockHash: "",
+		now:       time.Now().Unix(),
 	}
 	/*log.Info(
 		"GOT NEW BLOCK",
@@ -96,8 +93,6 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 		newTxs:      false,
 		now:         time.Now().Unix(),
 		blocksStore: h.blocksStore,
-
-		kanbanEnabled: h.kanbanEnabled,
 	}
 	return decoder, nil
 }
