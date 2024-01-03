@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"math"
 	"math/big"
 	"regexp"
@@ -22,6 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/exp/slices"
 
 	"gorm.io/datatypes"
 
@@ -971,7 +972,7 @@ func UpdateMap(chainName string, value string, blockNumber uint64, businessMap *
 					//}
 					if dr[0] > 0 {
 						err = data.RedisClient.Set(bizRedisKey, val, 0).Err()
-						log.Info(bizRedisKey+"推荐值", zap.Any("推荐", val), zap.Any(chainName, blockNumber))
+						log.InfoS(bizRedisKey+"推荐值", zap.Any("推荐", val), zap.Any(chainName, blockNumber))
 					}
 				}
 			}
