@@ -66,7 +66,9 @@ func (store *stateStore) LoadPendingTxs() (txs []*chain.Transaction, err error) 
 		})
 	}
 	log.Info("LOAD PENDING TXs", zap.String("chainName", store.chainName), zap.Any("records", records))
-	go store.notifyTimeoutStationTxns()
+	if biz.IsBenfenNet(store.chainName) {
+		go store.notifyTimeoutStationTxns()
+	}
 	return txs, nil
 }
 

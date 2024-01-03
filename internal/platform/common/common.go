@@ -225,6 +225,10 @@ func LogBlock(chainName, level string, err error, optHeights ...chain.HeightInfo
 	if err == nil {
 		return
 	}
+	// Ignore the custom chain that's not featured.
+	if biz.IsCustomChain(chainName) && !biz.IsCustomChainFeatured(chainName) {
+		return
+	}
 	nerr := utils.SubError(err)
 	fields := make([]zap.Field, 0, 4)
 	fields = append(

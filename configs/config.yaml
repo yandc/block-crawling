@@ -16,13 +16,13 @@ data:
       maxIdleConns: 10
   redis:
     address: 127.0.0.1:6379
-    db: 2
+    db: 0
     password: ""
     read_timeout: 0.2s
     write_timeout: 0.2s
   user:
     driver: postgres
-    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    source: host=10.10.2.77 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
     pool:
       connMaxLifetime: 3
       maxOpenConns: 10
@@ -31,14 +31,12 @@ data:
 app:
   # Possible values: "debug", "release"
 #  mode: ""
-  mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,zkSyncTEST,SeiTEST,CelestiaMochaTEST,BenfenTEST"
+  mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,CosmosTEST,zkSyncTEST,ScrollL2TEST,SeiTEST,PolygonTEST,CelestiaMochaTEST,BenfenTEST"
   scanAll: false
   addr: 127.0.0.1:9001
-  marketRpc: 127.0.0.1:9011
-  bfstationRpc: 10.228.97.34:9381
+  marketRpc: 10.10.2.77:9011
+  bfstationRpc: 10.10.2.80:9381
   starScan: true
-  target: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
-  source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
   dogeKey:  # DEPRECATED @2022-09-29: HAVE BEEN MOVED TO THERE URL.
     - "Bearer bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd"
     - "Bearer bd1bBH8zDd2J2BDx2pX9ERgPCY0kSDwBkgvWo5cWypHrLjk"
@@ -61,10 +59,10 @@ app:
       swapPairs:
         name: trans_on_chain
         # Test
-        # id: queue-dEAZdQQ9Sz6Wuv9uLv5s86
+        id: queue-dEAZdQQ9Sz6Wuv9uLv5s86
         # Production
-        id: queue-eXgpKznr5yWieTrjyR5Hsx
-    endpoint: http://localhost:6371/api/cmq/send_queue_message
+        # id: queue-eXgpKznr5yWieTrjyR5Hsx
+    endpoint: http://10.10.2.77:6371/api/cmq/send_queue_message
 
   httpProxies:
     # https://gitlab.bixin.com/mili/block-crawling/-/issues/2
@@ -153,14 +151,14 @@ lark:
       host: https://open.larksuite.com/open-apis/bot/v2/hook/c0381778-67ba-4060-b4d0-6f80c75ff920
       secret: y9dycC1hJ6IeXHiOStYw7d
     bfstation:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/7d62d6c8-24e0-4630-a70b-2f98ca9c8980
-      secret: MeijxdQz9UXJdgS80N0MIc
+      host: https://open.larksuite.com/open-apis/bot/v2/hook/c78baed1-e814-4df4-b949-e93330749237
+      secret: NFl9SLcTGZ2Uh5QgIlyD6
       atUids:
         - wanghui
 
 logger:
   DEBUG: true
-  fileName: "block-crawling.log"
+  fileName: "stdout"
   level: "info"
 
 innerNodeList:
