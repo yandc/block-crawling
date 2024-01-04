@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/aptos"
 	"block-crawling/internal/platform/bitcoin"
-	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/platform/ethereum"
 	"block-crawling/internal/platform/ethereum/rtypes"
 	"block-crawling/internal/platform/kaspa"
@@ -7864,7 +7863,7 @@ func UpdateUserUtxo() {
 		"BTC",
 		"LTC",
 		"DOGE",
-		"Kaspa",
+		//"Kaspa",
 	}
 	var tableName string
 	for _, chainName := range chains {
@@ -7883,15 +7882,11 @@ func UpdateUserUtxo() {
 
 		log.Info("start update utxo", zap.String("chainName", chainName))
 
-		var flag string
 		if chainName == "BTC" {
-			flag = "/bitcoin/mainnet/"
 			tableName = "btc_transaction_record"
 		} else if chainName == "LTC" {
-			flag = "/litecoin/mainnet/"
 			tableName = "ltc_transaction_record"
 		} else if chainName == "DOGE" {
-			flag = "/dogecoin/mainnet/"
 			tableName = "doge_transaction_record"
 		}
 
@@ -7910,31 +7905,35 @@ func UpdateUserUtxo() {
 		//合并fromAddress和toAddress，遍历更新UTXO
 		addressAndUids := append(fromAddressAndUids, toAddressAndUids...)
 		//addressAndUids := []AddressAndUid{{
-		//	Address: "D8ZEVbgf4yPs3MK8dMJJ7PpSyBKsbd66TX",
+		//	Address: "DHQsfy66JsYSnwjCABFN6NNqW4kHQe63oU",
 		//	Uid:     "uid",
 		//}}
+		platInfo, _ := biz.GetChainPlatInfo(chainName)
+		decimals := int(platInfo.Decimal)
+		client := bitcoin.NewOklinkClient(chainName, "https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
 		for _, addressAndUid := range addressAndUids {
 			log.Info("start update user utxo", zap.String("address", addressAndUid.Address), zap.String("uid", addressAndUid.Uid))
 
-			utxoList, err := btc.GetUnspentUtxo(btcUrls[0]+flag, addressAndUid.Address)
-			for i := 0; i < len(btcUrls) && err != nil; i++ {
-				utxoList, err = btc.GetUnspentUtxo(btcUrls[i]+flag, addressAndUid.Address)
-			}
+			utxoList, err := client.GetUTXO(addressAndUid.Address)
 			if err != nil {
 				continue
 			}
 
-			for _, d := range utxoList {
+			for _, utxo := range utxoList {
+				index, _ := strconv.Atoi(utxo.Index)
+				blockTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
+				amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
+				amount := biz.Pow10(amountDecimal, decimals).BigInt().String()
 				var utxoUnspentRecord = &data.UtxoUnspentRecord{
 					Uid:       addressAndUid.Uid,
-					Hash:      d.Mined.TxId,
-					N:         d.Mined.Index,
+					Hash:      utxo.Txid,
+					N:         index,
 					ChainName: chainName,
 					Address:   addressAndUid.Address,
-					Script:    d.Mined.Meta.Script,
+					Script:    utxo.Address,
 					Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
-					Amount:    strconv.Itoa(d.Value),
-					TxTime:    int64(d.Mined.Date),
+					Amount:    amount,
+					TxTime:    blockTime,
 					UpdatedAt: time.Now().Unix(),
 				}
 
