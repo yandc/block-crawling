@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"strconv"
 	"time"
 
@@ -256,10 +257,19 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 
 	//判断总金额 与 balance是否 一至 不一致 则再去差unspentutxo 并 报警
 	//删除原来 记录， 更新 未花费记录
-	list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, address)
-	for i := 0; i < len(btcUrls) && err != nil; i++ {
-		list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, address)
+	platInfo, _ := biz.GetChainPlatInfo(chainName)
+	decimals := int(platInfo.Decimal)
+	var utxos []OklinkUTXO
+	if chainName == "DOGE" || chainName == "LTC" {
+		utxoInterface, _ := ExecuteRetry(chainName, func(client Client) (interface{}, error) {
+			return client.oklinkClient.GetUTXO(address)
+		})
+		utxos = utxoInterface.([]OklinkUTXO)
+	} else if chainName == "BTC" {
+		client := NewOklinkClient("BTC", "https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
+		utxos, err = client.GetUTXO(address)
 	}
+
 	if err != nil {
 		alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，query utxo balance error", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
@@ -268,36 +278,17 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 		return false, script, balance
 	}
 	utxoBalance := 0
-	for _, u := range list {
-		script = u.Mined.Meta.Script
-		utxoBalance = utxoBalance + u.Value
+	for _, utxo := range utxos {
+		script = utxo.Address
+		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
+		amount := biz.Pow10(amountDecimal, decimals).BigInt().Int64()
+		utxoBalance = utxoBalance + int(amount)
 	}
 	ub := utils.StringDecimals(strconv.Itoa(utxoBalance), 8)
 
 	checkFlag := ub != balance
 	log.Info("======666=====", zap.Any("ub", ub), zap.Any("balance", balance))
 
-	if checkFlag {
-		retryList, retryErr := btc.GetUnspentUtxo(btcUrls[0]+flag, address)
-		for i := 0; i < len(btcUrls) && retryErr != nil; i++ {
-			retryList, retryErr = btc.GetUnspentUtxo(btcUrls[i]+flag, address)
-		}
-		if err != nil {
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，retry query utxo balance error", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户UTXO，retry update utxo query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("txHash", transactionHash), zap.Any("error", err))
-			return false, script, balance
-		}
-		retryUtxoBalance := 0
-		for _, u := range retryList {
-			retryUtxoBalance = retryUtxoBalance + u.Value
-		}
-		ru := utils.StringDecimals(strconv.Itoa(retryUtxoBalance), 8)
-
-		checkFlag = ru != balance
-
-	}
 	if checkFlag {
 		alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，query utxo balance not equal utxo value error", chainName)
 		alarmOpts := biz.WithMsgLevel("FATAL")
@@ -319,32 +310,34 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 	}
 
 	log.Info(address, zap.Any("删除utxo条数", ret))
-	if len(list) > 0 {
-		for _, d := range list {
-			var utxoUnspentRecord = &data.UtxoUnspentRecord{
-				Uid:       uid,
-				Hash:      d.Mined.TxId,
-				N:         d.Mined.Index,
-				ChainName: chainName,
-				Address:   address,
-				Script:    d.Mined.Meta.Script,
-				Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
-				Amount:    strconv.Itoa(d.Value),
-				TxTime:    int64(d.Mined.Date),
-				UpdatedAt: time.Now().Unix(),
-			}
-			//插入所有未花费的UTXO
-			r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
-			if err != nil {
-				log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
-			}
+	for _, utxo := range utxos {
+		index, _ := strconv.Atoi(utxo.Index)
+		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
+		amount := biz.Pow10(amountDecimal, decimals).BigInt().String()
+		txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
+		var utxoUnspentRecord = &data.UtxoUnspentRecord{
+			Uid:       uid,
+			Hash:      utxo.Txid,
+			N:         index,
+			ChainName: chainName,
+			Address:   address,
+			Script:    address,
+			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+			Amount:    amount,
+			TxTime:    txTime,
+			UpdatedAt: time.Now().Unix(),
+		}
+		//插入所有未花费的UTXO
+		r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+		if err != nil {
+			log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
 		}
 	}
 
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
-	userUTXOs := make([]string, len(list))
-	for i, utxo := range list {
-		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Mined.TxId, utxo.Mined.Index)
+	userUTXOs := make([]string, len(utxos))
+	for i, utxo := range utxos {
+		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Txid, utxo.Index)
 	}
 
 	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})

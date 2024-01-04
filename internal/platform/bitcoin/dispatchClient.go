@@ -31,7 +31,7 @@ var errIrrationalHeight = errors.New("irrational height, zero or less than zero"
 
 type Client struct {
 	*common.NodeDefaultIn
-
+	oklinkClient   OklinkBtcClient
 	nodeURL        string
 	chainName      string
 	DispatchClient base.Client
@@ -57,6 +57,7 @@ func NewClient(nodeUrl string, chainName string) Client {
 		nodeURL:        nodeUrl,
 		chainName:      chainName,
 		DispatchClient: r,
+		oklinkClient:   NewOklinkClient(chainName, nodeUrl),
 		btcClient:      btcClient,
 	}
 }
@@ -82,22 +83,25 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 		btcHeigth, err := btc.GetBlockNumber(c.btcClient)
 		return uint64(btcHeigth), err
 	} else {
-		result, err := doge.GetBlockNumber(&c.DispatchClient)
+		result, err := c.oklinkClient.GetBlockHeight()
 		if err != nil {
 			return 0, err
 		}
 		log.Debug(
 			"RETRIEVED CHAIN HEIGHT FROM NODE",
-			zap.Int("height", result),
+			zap.Uint64("height", result),
 			zap.String("nodeUrl", c.nodeURL),
 			zap.String("chainName", c.chainName),
 			zap.String("elapsed", time.Now().Sub(start).String()),
 		)
-		return uint64(result), err
+		return result, err
 	}
 }
 
 func (c *Client) GetBlock(height uint64) (block *chain.Block, err error) {
+	if c.chainName == "DOGE" || c.chainName == "LTC" {
+		return c.oklinkClient.GetBlock(height)
+	}
 	block, err = c.getBlock(height)
 	if err != nil {
 		return nil, err
@@ -145,6 +149,9 @@ func (c *Client) getBlock(height uint64) (*chain.Block, error) {
 // 1. 返回 non-nil tx 表示调用 TxHandler.OnSealedTx
 // 2. 返回 nil tx 表示调用 TxHandler.OnDroppedTx（兜底方案）
 func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
+	if c.chainName == "DOGE" || c.chainName == "LTC" {
+		return c.oklinkClient.GetTxByHash(txHash)
+	}
 	rawTx, err := c.GetTransactionByHash(txHash)
 
 	if err != nil {
@@ -170,18 +177,15 @@ func (c *Client) GetBalance(address string) (string, error) {
 	if c.DispatchClient.ChainName == "BTC" {
 		return btc.GetBalance(address, c.btcClient)
 	} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
-		return doge.GetBalance(address, &c.DispatchClient)
+		return c.oklinkClient.GetBalance(address)
 	}
 	return "", nil
 }
 func (c *Client) GetBlockNumber() (int, error) {
-	//if c.DispatchClient.ChainName == "BTC" {
-	//	return btc.GetBlockNumber(&c.DispatchClient)
-	//} else if c.DispatchClient.ChainName == "LTC" || c.DispatchClient.ChainName == "DOGE" {
-	//	return doge.GetBlockNumber(0, &c.DispatchClient)
-	//}
-	//return 0, nil
-
+	if c.chainName == "DOGE" || c.chainName == "LTC" {
+		result, err := c.oklinkClient.GetBlockHeight()
+		return int(result), err
+	}
 	countInfo, err := c.DispatchClient.GetBlockCount()
 	if err != nil {
 		return 0, err
@@ -212,6 +216,10 @@ func (c *Client) GetTestBlockByHeight(height int) (result types.BTCTestBlockerIn
 }
 
 func (c *Client) GetTransactionByHash(hash string) (tx types.TX, err error) {
+	if c.chainName == "DOGE" || c.chainName == "LTC" {
+		return c.oklinkClient.GetTransactionByHash(hash)
+	}
+
 	if c.DispatchClient.URL == "https://chain.so/" {
 		return doge.GetTxByHashFromChainSo(hash, &c.DispatchClient)
 	}
