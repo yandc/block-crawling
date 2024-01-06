@@ -7930,7 +7930,6 @@ func UpdateUserUtxo() {
 					N:         index,
 					ChainName: chainName,
 					Address:   addressAndUid.Address,
-					Script:    utxo.Address,
 					Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
 					Amount:    amount,
 					TxTime:    blockTime,

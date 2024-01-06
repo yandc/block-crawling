@@ -321,7 +321,6 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string, f
 			N:         index,
 			ChainName: chainName,
 			Address:   address,
-			Script:    address,
 			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
 			Amount:    amount,
 			TxTime:    txTime,
