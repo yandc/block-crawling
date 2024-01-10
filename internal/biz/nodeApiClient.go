@@ -5,19 +5,17 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
-	"block-crawling/internal/platform/bitcoin/btc"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slices"
 
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -27,24 +25,6 @@ import (
 
 var pageSize = 50
 var timeout = 10_000 * time.Millisecond
-
-var btcUrls = []string{
-	"https://zpka_6fcb516767e641788d81729aa4c1e424_126062cf@svc.blockdaemon.com/universal/v1",
-	"https://zpka_4b1caefd905344c0b7421d59db313978_056073db@svc.blockdaemon.com/universal/v1",
-	"https://zpka_de0aedcf3fdf4f35a619bc25a4a76161_6e3b2032@svc.blockdaemon.com/universal/v1",
-	"https://zpka_97260809ad9843d989d69cbab3c7ba3d_16d3e166@svc.blockdaemon.com/universal/v1",
-	"https://zpka_31c85f0b836a40cd8f8b64496a39213d_758cb8e7@svc.blockdaemon.com/universal/v1",
-	"https://zpka_88e506f3cbd04f598b2d69d7281dad56_649e7352@svc.blockdaemon.com/universal/v1",
-	"https://zpka_04775fe772954e40a4b90571ebc41ce2_2c080edb@svc.blockdaemon.com/universal/v1",
-	"https://zpka_a92cabf094b44a5d900c1887560416ef_641a1abf@svc.blockdaemon.com/universal/v1",
-	"https://zpka_d310f812910c40c8a808d6d4296b81a0_67fdfbf8@svc.blockdaemon.com/universal/v1",
-	"https://zpka_febc2cded89d4359b744af2d41eda59f_7a7c7e75@svc.blockdaemon.com/universal/v1",
-	"https://zpka_a96686455d374da6a418f65eaca8a0a5_1652e9a7@svc.blockdaemon.com/universal/v1",
-	"https://zpka_2991d45e50054722ba547e54e739a7e8_41cff525@svc.blockdaemon.com/universal/v1",
-	"https://zpka_630c27c7492847b18b0b21aa346fc0ab_011359a9@svc.blockdaemon.com/universal/v1",
-	"https://zpka_8976bc36b6c84ef6b493460b1dc4a8ce_4e56d164@svc.blockdaemon.com/universal/v1",
-	"https://zpka_ea8d8727c06349e6b93d939d328e0e04_4085b24f@svc.blockdaemon.com/universal/v1",
-}
 
 func GetTxByAddress(chainName string, address string, urls []string) (err error) {
 	defer func() {
@@ -84,15 +64,15 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 		err = StarcoinGetTxByAddress(chainName, address, urls)
 	case "DOGE":
 		err = DogeGetTxByAddress(chainName, address, urls)
-		err = UtxoByAddress(chainName, address)
+		err = UpdateUtxoByAddress(chainName, address)
 	case "Polkadot":
 		err = DotGetTxByAddress(chainName, address, urls)
 	case "BTC":
 		err = BTCGetTxByAddress(chainName, address, urls)
-		err = UtxoByAddress(chainName, address)
+		err = UpdateUtxoByAddress(chainName, address)
 	case "LTC":
 		err = LtcGetTxByAddress(chainName, address, urls)
-		err = UtxoByAddress(chainName, address)
+		err = UpdateUtxoByAddress(chainName, address)
 	case "TRX":
 		err = TrxGetTxByAddress(chainName, address, urls)
 	case "Nervos":
@@ -2831,13 +2811,13 @@ chainFlag:
 	return
 }
 
-func UtxoByAddress(chainName string, address string) (err error) {
+func UpdateUtxoByAddress(chainName string, address string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				log.Errore("UtxoByAddress error, chainName:"+chainName+", address:"+address, e)
+				log.Errore("UpdateUtxoByAddress error, chainName:"+chainName+", address:"+address, e)
 			} else {
-				log.Errore("UtxoByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+				log.Errore("UpdateUtxoByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
 			}
 
 			// 程序出错 接入lark报警
@@ -2847,69 +2827,58 @@ func UtxoByAddress(chainName string, address string) (err error) {
 			return
 		}
 	}()
-	var flag string
-	if chainName == "BTC" {
-		flag = "/bitcoin/mainnet/"
-	} else if chainName == "LTC" {
-		flag = "/litecoin/mainnet/"
-	} else if chainName == "DOGE" {
-		flag = "/dogecoin/mainnet/"
-	} else {
-		flag = ""
-	}
 
-	list, err := btc.GetUnspentUtxo(btcUrls[0]+flag, address)
-	for i := 0; i < len(btcUrls) && err != nil; i++ {
-		list, err = btc.GetUnspentUtxo(btcUrls[i]+flag, address)
-	}
+	err = RefreshUserUTXO(chainName, address)
 
+	return
+}
+
+func RefreshUserUTXO(chainName, address string) (err error) {
+	userAsset, err := data.UserAssetRepoClient.GetByChainNameAndAddress(nil, chainName, address, "")
 	if err != nil {
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，query utxo balance error", chainName)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("通过用户资产变更爬取交易记录，update utxo query balance error", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 		return err
 	}
-	_, fromUid, err1 := UserAddressSwitchRetryAlert(chainName, address)
-	if err1 != nil {
-		log.Error("通过用户资产变更爬取交易记录，从redis中获取用户地址失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err1))
-		return
-	}
-	ret, err := data.UtxoUnspentRecordRepoClient.DeleteByUid(nil, fromUid, chainName, address)
 
-	if err != nil {
-		// postgres出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，链删除数据库utxo数据失败", chainName)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error("通过用户资产变更爬取交易记录，链删除数据库utxo数据失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
-		return
+	platInfo, _ := GetChainPlatInfo(chainName)
+	decimals := int(platInfo.Decimal)
+
+	//从 oklink 获取 utxo
+	utxos, err := data.OklinkRepoClient.GetUtxo(chainName, address)
+
+	//如果查出来没有，则不更新
+	if len(utxos) == 0 {
+		return nil
 	}
-	log.Info(address, zap.Any("删除utxo条数", ret))
-	if len(list) > 0 {
-		for _, d := range list {
-			var utxoUnspentRecord = &data.UtxoUnspentRecord{
-				Uid:       fromUid,
-				Hash:      d.Mined.TxId,
-				N:         d.Mined.Index,
-				ChainName: chainName,
-				Address:   address,
-				Script:    d.Mined.Meta.Script,
-				Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
-				Amount:    strconv.Itoa(d.Value),
-				TxTime:    int64(d.Mined.Date),
-				UpdatedAt: time.Now().Unix(),
-			}
-			log.Info(address, zap.Any("chainName", chainName), zap.Any("插入utxo对象", utxoUnspentRecord))
-			r, error := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
-			log.Info(address, zap.Any("chainName", chainName), zap.Any("插入utxo对象结果", r), zap.Any("error", error))
+
+	_, _ = data.UtxoUnspentRecordRepoClient.DeleteByAddressWithNotPending(nil, chainName, address)
+
+	for _, utxo := range utxos {
+		index, _ := strconv.Atoi(utxo.Index)
+		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
+		amount := Pow10(amountDecimal, decimals).BigInt().String()
+		txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
+		var utxoUnspentRecord = &data.UtxoUnspentRecord{
+			Uid:       userAsset.Uid,
+			Hash:      utxo.Txid,
+			N:         index,
+			ChainName: chainName,
+			Address:   address,
+			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+			Amount:    amount,
+			TxTime:    txTime,
+			UpdatedAt: time.Now().Unix(),
+		}
+		//插入所有未花费的UTXO
+		r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
+		if err != nil {
+			log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
 		}
 	}
 
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
-	userUTXOs := make([]string, len(list))
-	for i, utxo := range list {
-		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Mined.TxId, utxo.Mined.Index)
+	userUTXOs := make([]string, len(utxos))
+	for i, utxo := range utxos {
+		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Txid, utxo.Index)
 	}
 
 	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
@@ -2920,8 +2889,7 @@ func UtxoByAddress(chainName string, address string) (err error) {
 			data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
 		}
 	}
-
-	return
+	return nil
 }
 
 func TrxGetTxByAddress(chainName string, address string, urls []string) (err error) {

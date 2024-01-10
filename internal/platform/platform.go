@@ -77,7 +77,7 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 			}
 		}
 		if p, ok := platform.(*bitcoin.Platform); ok {
-			biz.GetUTXOByHash[value.Chain] = func(txHash string) (tx in.TX, err error) {
+			biz.GetTxByHashFuncMap[value.Chain] = func(txHash string) (tx in.TX, err error) {
 				return p.GetUTXOByHash(txHash)
 			}
 		}

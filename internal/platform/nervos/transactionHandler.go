@@ -346,7 +346,7 @@ func HandleUTXO(chainName string, client Client, txRecords []*data.CkbTransactio
 					}
 					index := ci.PreviousOutput.Index
 					preTxHash := ci.PreviousOutput.TxHash
-					//preTx, err := client.GetUTXOByHash(preTxHash.String())
+					//preTx, err := client.GetTxByHashFuncMap(preTxHash.String())
 					//if err != nil {
 					//	log.Error(chainName+"调用GetCellByHash失败！", zap.Any("error", err))
 					//	continue
