@@ -42,6 +42,7 @@ type TransactionUsecase struct {
 var sendLock sync.RWMutex
 
 func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
+	data.NewOklinkRepo("https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
 	return &TransactionUsecase{
 		gormDB:          grom,
 		lark:            lark,
@@ -1148,10 +1149,10 @@ func UpdateUtxo(pbb *pb.TransactionReq) {
 	}()
 
 	time.Sleep(time.Duration(1) * time.Minute)
-	tx, err := GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
+	tx, err := GetTxByHashFuncMap[pbb.ChainName](pbb.TransactionHash)
 	for i := 0; i < 10 && err != nil; i++ {
 		time.Sleep(time.Duration(i*5) * time.Second)
-		tx, err = GetUTXOByHash[pbb.ChainName](pbb.TransactionHash)
+		tx, err = GetTxByHashFuncMap[pbb.ChainName](pbb.TransactionHash)
 	}
 	if err != nil {
 		// 更新用户资产出错 接入lark报警
@@ -1168,8 +1169,8 @@ func UpdateUtxo(pbb *pb.TransactionReq) {
 		th := ci.PrevHash
 		index := ci.OutputIndex
 		//更新 状态为pending
-		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(nil, pbb.Uid, pbb.ChainName, pbb.FromAddress, index, th)
-		if err != nil || ret == 0 {
+		_, err := data.UtxoUnspentRecordRepoClient.UpdateUnspentToPending(nil, pbb.ChainName, pbb.FromAddress, index, th, pbb.TransactionHash)
+		if err != nil {
 			// postgres出错 接入lark报警
 			alarmMsg := fmt.Sprintf("请注意：%s链插入pending记录，更新用户UTXO状态，将UTXO插入到数据库中失败，txHash:%s", pbb.ChainName, pbb.TransactionHash)
 			alarmOpts := WithMsgLevel("FATAL")
@@ -3488,6 +3489,39 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 			result.Ok = false
 			return result, err
 		}
+
+		//如果库中查出来没有，从链上再获取
+		if len(dbUnspentRecord) == 0 && req.IsUnspent == strconv.Itoa(data.UtxoStatusUnSpend) {
+			utxos, err := data.OklinkRepoClient.GetUtxo(req.ChainName, req.Address)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, utxo := range utxos {
+				txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
+				n, _ := strconv.Atoi(utxo.Index)
+				var r *pb.UnspentList
+				db := &data.UtxoUnspentRecord{
+					Uid:       req.Uid,
+					Hash:      utxo.Txid,
+					N:         n,
+					ChainName: req.ChainName,
+					Address:   req.Address,
+					Script:    "",
+					Unspent:   data.UtxoStatusUnSpend,
+					Amount:    utxo.UnspentAmount,
+					TxTime:    txTime,
+				}
+				r.Index = fmt.Sprint(db.N)
+				utils.CopyProperties(r, &db)
+				unspentList = append(unspentList, r)
+				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, db)
+			}
+			result.Ok = true
+			result.UtxoList = unspentList
+			return result, nil
+		}
+
 		for _, db := range dbUnspentRecord {
 			var r *pb.UnspentList
 			utils.CopyProperties(db, &r)
@@ -5443,7 +5477,7 @@ func (s *TransactionUsecase) ChangeUtxoPending(ctx context.Context, req *CreateU
 
 	for _, utxo := range req.CreateUtxoPendingList {
 		//更新 状态为pending
-		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspent(ctx, utxo.Uid, utxo.ChainName, utxo.Address, utxo.N, utxo.Hash)
+		ret, err := data.UtxoUnspentRecordRepoClient.UpdateUnspentToPending(ctx, utxo.ChainName, utxo.Address, utxo.N, utxo.Hash, req.TxHash)
 		if err != nil || ret == 0 {
 			log.Error(utxo.Hash, zap.Any("更新数据库失败！", err))
 			return &pb.CreateResponse{

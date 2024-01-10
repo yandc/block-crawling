@@ -493,6 +493,7 @@ type CountOutTxResponse struct {
 }
 
 type CreateUtxoPendingReq struct {
+	TxHash                string              `json:"tx_hash"`
 	CreateUtxoPendingList []CreateUtxoPending `json:"createUtxoPendingList,omitempty"`
 }
 

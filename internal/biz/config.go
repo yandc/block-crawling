@@ -97,7 +97,7 @@ func IsBenfenNet(chainName string) bool {
 
 var AppConfig *conf.App
 var GetNervosUTXOTransaction func(string) (*types.TransactionWithStatus, error)
-var GetUTXOByHash = make(map[string]func(string) (tx in.TX, err error))
+var GetTxByHashFuncMap = make(map[string]func(string) (tx in.TX, err error))
 var GetKaspaUTXOTransaction func(string) (*in.KaspaTransactionInfo, error)
 
 type AppConf *conf.App

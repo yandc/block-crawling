@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"strconv"
+	"time"
 )
 
 const (
@@ -18,18 +19,19 @@ const (
 )
 
 type UtxoUnspentRecord struct {
-	Id        int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	ChainName string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_hash_n"` //联合索引
-	Uid       string `json:"uid" form:"uid"  gorm:"type:character varying(66)"`
-	Address   string `json:"address" form:"address" gorm:"type:character varying(72);index:,unique,composite:unique_chain_name_address_hash_n"` //联合索引
-	Hash      string `json:"hash" form:"hash" gorm:"type:character varying(80);index:,unique,composite:unique_chain_name_address_hash_n"`
-	N         int    `json:"n" form:"n" gorm:"type:int ;index:,unique,composite:unique_chain_name_address_hash_n"`
-	Script    string `json:"script" form:"script" gorm:"type:character varying(300)"`
-	Unspent   int32  `json:"unspent" form:"unspent" gorm:"type:bigint"` //1 未花费 2 已花费 联合索引 3 所有 4 pending 5 取消花费
-	Amount    string `json:"amount" form:"amount" sql:"type:text"`
-	TxTime    int64  `json:"txTime" form:"txTime"`
-	CreatedAt int64  `json:"createdAt" form:"createdAt"`
-	UpdatedAt int64  `json:"updatedAt" form:"updatedAt"`
+	Id          int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	ChainName   string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_hash_n"` //联合索引
+	Uid         string `json:"uid" form:"uid"  gorm:"type:character varying(66)"`
+	Address     string `json:"address" form:"address" gorm:"type:character varying(72);index:,unique,composite:unique_chain_name_address_hash_n"` //联合索引
+	Hash        string `json:"hash" form:"hash" gorm:"type:character varying(80);index:,unique,composite:unique_chain_name_address_hash_n"`
+	N           int    `json:"n" form:"n" gorm:"type:int ;index:,unique,composite:unique_chain_name_address_hash_n"`
+	Script      string `json:"script" form:"script" gorm:"type:character varying(300)"`
+	Unspent     int32  `json:"unspent" form:"unspent" gorm:"type:bigint"` //1 未花费 2 已花费 联合索引 3 所有 4 pending 5 取消花费
+	Amount      string `json:"amount" form:"amount" sql:"type:text"`
+	TxTime      int64  `json:"txTime" form:"txTime"`
+	SpentTxHash string `json:"spentTxHash" form:"spentTxHash"`
+	CreatedAt   int64  `json:"createdAt" form:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt" form:"updatedAt"`
 }
 
 type UserUtxo struct {
@@ -59,9 +61,11 @@ type UtxoUnspentRecordRepo interface {
 	SaveOrUpdate(context.Context, *UtxoUnspentRecord) (int64, error)
 	BatchSaveOrUpdate(context.Context, []*UtxoUnspentRecord) (int64, error)
 	PageBatchSaveOrUpdate(context.Context, []*UtxoUnspentRecord, int) (int64, error)
-	UpdateUnspent(context.Context, string, string, string, int, string) (int64, error)
+	UpdateUnspentToPending(context.Context, string, string, int, string, string) (int64, error)
 	FindByCondition(context.Context, *pb.UnspentReq) ([]*UtxoUnspentRecord, error)
-	DeleteByUid(context.Context, string, string, string) (int64, error)
+	FindBySpentTxHash(ctx context.Context, hash string) ([]*UtxoUnspentRecord, error)
+	DeleteByAddressWithNotPending(context.Context, string, string) (int64, error)
+	DeleteByAddress(ctx context.Context, chainName string, address string) error
 	Delete(context.Context, *UserUtxo) (int64, error)
 	FindAddressGroup(ctx context.Context) ([]string, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
@@ -100,7 +104,7 @@ func (r *UtxoUnspentRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, utxoU
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "hash"}, {Name: "n"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"unspent", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"unspent", "spent_tx_hash", "updated_at"}),
 	}).Create(&utxoUnspentRecords)
 	err := ret.Error
 	if err != nil {
@@ -171,8 +175,20 @@ func (r *UtxoUnspentRecordRepoImpl) FindByCondition(ctx context.Context, req *pb
 	return utxos, nil
 }
 
-func (r *UtxoUnspentRecordRepoImpl) DeleteByUid(ctx context.Context, uid string, chainName string, address string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Where("uid = ? and chain_name = ? and address = ? and unspent != ?", uid, chainName, address, UtxoStatusPending).Delete(&UtxoUnspentRecord{})
+func (r *UtxoUnspentRecordRepoImpl) FindBySpentTxHash(ctx context.Context, hash string) ([]*UtxoUnspentRecord, error) {
+	var utxos []*UtxoUnspentRecord
+
+	ret := r.gormDB.Where("spent_tx_hash = ?", hash).Find(&utxos)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query utxoTransactionRecord by spent tx hash failed", err)
+		return nil, err
+	}
+	return utxos, nil
+}
+
+func (r *UtxoUnspentRecordRepoImpl) DeleteByAddressWithNotPending(ctx context.Context, chainName string, address string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).Where("chain_name = ? and address = ? and unspent != ?", chainName, address, UtxoStatusPending).Delete(&UtxoUnspentRecord{})
 	err := ret.Error
 	if err != nil {
 		log.Errore("delete "+address+" failed", err)
@@ -180,6 +196,15 @@ func (r *UtxoUnspentRecordRepoImpl) DeleteByUid(ctx context.Context, uid string,
 	}
 	affected := ret.RowsAffected
 	return affected, nil
+}
+
+func (r *UtxoUnspentRecordRepoImpl) DeleteByAddress(ctx context.Context, chainName string, address string) error {
+	ret := r.gormDB.WithContext(ctx).Where("chain_name = ? and address = ?", chainName, address).Delete(&UtxoUnspentRecord{})
+	if ret.Error != nil {
+		log.Errore("delete "+address+" failed", ret.Error)
+		return ret.Error
+	}
+	return nil
 }
 
 func (r *UtxoUnspentRecordRepoImpl) Delete(ctx context.Context, req *UserUtxo) (int64, error) {
@@ -223,13 +248,19 @@ func (r *UtxoUnspentRecordRepoImpl) Delete(ctx context.Context, req *UserUtxo) (
 	return affected, nil
 }
 
-func (r *UtxoUnspentRecordRepoImpl) UpdateUnspent(ctx context.Context, uid string, chainName string, address string, n int, txHash string) (int64, error) {
-	ret := r.gormDB.WithContext(ctx).Table("utxo_unspent_record").Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txHash).Update("unspent", UtxoStatusPending)
+func (r *UtxoUnspentRecordRepoImpl) UpdateUnspentToPending(ctx context.Context, chainName string, address string, n int, txHash string, spentTxHash string) (int64, error) {
+	ret := r.gormDB.WithContext(ctx).
+		Table("utxo_unspent_record").
+		Where(" chain_name = ? and address = ? and n = ? and hash = ?", chainName, address, n, txHash).
+		Update("unspent", UtxoStatusPending).
+		Update("spent_tx_hash", spentTxHash).
+		Update("updated_at", time.Now().Unix())
 	err := ret.Error
 	if err != nil {
 		log.Errore("update "+address+" failed", err)
 		return 0, err
 	}
+
 	affected := ret.RowsAffected
 	return affected, nil
 }

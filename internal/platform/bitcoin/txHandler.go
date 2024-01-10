@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -158,6 +159,9 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 			record.Status = status
 			record.UpdatedAt = h.now
 			h.txRecords = append(h.txRecords, record)
+
+			//交易失败后重置 input 状态
+			go h.ResetDroppedTxInputs(tx.Hash, record.FromAddress)
 		}
 		return nil
 	}
@@ -249,6 +253,41 @@ func (h *txHandler) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		record.Status = status
 		record.UpdatedAt = h.now
 		h.txRecords = append(h.txRecords, record)
+
+		//交易失败后重置 input 状态
+		go h.ResetDroppedTxInputs(tx.Hash, record.FromAddress)
 	}
+	return nil
+}
+
+func (h *txHandler) ResetDroppedTxInputs(txHash, address string) error {
+	if txHash == "" {
+		return nil
+	}
+
+	ctx := context.Background()
+	utxos, err := data.UtxoUnspentRecordRepoClient.FindBySpentTxHash(ctx, txHash)
+	if err != nil {
+		return err
+	}
+
+	if len(utxos) != 0 {
+		//更新状态为未花费，置空 spent tx hash
+		for _, utxo := range utxos {
+			utxo.Unspent = data.UtxoStatusUnSpend
+			utxo.SpentTxHash = ""
+		}
+
+		_, err = data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(ctx, utxos)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := RefreshUserUTXO(h.chainName, address, true)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
