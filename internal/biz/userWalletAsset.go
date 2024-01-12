@@ -763,7 +763,7 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 		platInfo, _ := GetChainPlatInfo(asset.ChainName)
 
 		//填充价格等字段
-		fillValue(asset, tokenPriceMap, cnyRate)
+		fillValue(asset, tokenPriceMap, cnyRate, req.ShowTest)
 
 		var key string
 		if asset.TokenAddress == "" {
@@ -799,6 +799,12 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 			aAmount, _ := decimal.NewFromString(a.CurrencyAmount.Usd)
 			bAmount, _ := decimal.NewFromString(b.CurrencyAmount.Usd)
 
+			if aAmount.Equal(bAmount) {
+				aBalance, _ := decimal.NewFromString(a.Amount)
+				bBalance, _ := decimal.NewFromString(b.Amount)
+				return aBalance.LessThan(bBalance)
+			}
+
 			return aAmount.LessThan(bAmount)
 		} else {
 			if a.CurrencyAmount == nil {
@@ -811,6 +817,12 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 
 			aAmount, _ := decimal.NewFromString(a.CurrencyAmount.Usd)
 			bAmount, _ := decimal.NewFromString(b.CurrencyAmount.Usd)
+
+			if aAmount.Equal(bAmount) {
+				aBalance, _ := decimal.NewFromString(a.Amount)
+				bBalance, _ := decimal.NewFromString(b.Amount)
+				return aBalance.GreaterThan(bBalance)
+			}
 
 			return aAmount.GreaterThan(bAmount)
 		}
@@ -851,7 +863,7 @@ func (uc UserWalletAssetUsecase) UserAssetList(ctx context.Context, req *pb.User
 	return result, nil
 }
 
-func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]MarketPrice, cnyRate *v1.DescribeRateReply) {
+func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]MarketPrice, cnyRate *v1.DescribeRateReply, showTest bool) {
 	var key string
 	if asset.TokenAddress == "" {
 		platInfo, _ := GetChainPlatInfo(asset.ChainName)
@@ -860,7 +872,7 @@ func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]M
 		}
 
 		//过滤测试网
-		if platInfo.NetType != MAIN_NET_TYPE {
+		if platInfo.NetType != MAIN_NET_TYPE && !showTest {
 			return
 		}
 		key = platInfo.GetPriceKey
