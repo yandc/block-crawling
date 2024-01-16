@@ -234,13 +234,13 @@ func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress 
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetTokenInfo(ctx, chainName, tokenAddress)
 	}
-	if err != nil {
-		// nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
-		alarmOpts := WithMsgLevel("FATAL")
-		alarmOpts = WithAlarmChannel("node-proxy")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-	}
+	//if err != nil {
+	//	// nodeProxy出错 接入lark报警
+	//	alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币信息失败，tokenAddress:%s", chainName, tokenAddress)
+	//	alarmOpts := WithMsgLevel("FATAL")
+	//	alarmOpts = WithAlarmChannel("node-proxy")
+	//	LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	//}
 	return tokenInfo, err
 }
 
@@ -485,13 +485,13 @@ func GetRawNftInfoDirectlyRetryAlert(ctx context.Context, chainName string, toke
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	}
-	if err != nil {
-		// nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT全量信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
-		alarmOpts := WithMsgLevel("FATAL")
-		alarmOpts = WithAlarmChannel("node-proxy")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-	}
+	//if err != nil {
+	//	// nodeProxy出错 接入lark报警
+	//	alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中NFT全量信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
+	//	alarmOpts := WithMsgLevel("FATAL")
+	//	alarmOpts = WithAlarmChannel("node-proxy")
+	//	LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	//}
 	return tokenInfo, nil
 }
 
@@ -613,12 +613,12 @@ func GetTokenNftInfoRetryAlert(ctx context.Context, chainName string, tokenAddre
 		time.Sleep(time.Duration(i*1) * time.Second)
 		tokenInfo, err = GetTokenNftInfo(ctx, chainName, tokenAddress, tokenId)
 	}
-	if err != nil {
-		// nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币或NFT信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-	}
+	//if err != nil {
+	//	// nodeProxy出错 接入lark报警
+	//	alarmMsg := fmt.Sprintf("请注意：%s链查询nodeProxy中代币或NFT信息失败，tokenAddress:%s，tokenId:%s", chainName, tokenAddress, tokenId)
+	//	alarmOpts := WithMsgLevel("FATAL")
+	//	LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	//}
 	return tokenInfo, err
 }
 
