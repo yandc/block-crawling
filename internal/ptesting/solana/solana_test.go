@@ -56,6 +56,28 @@ func TestIndexBlock(t *testing.T) {
 	})
 }
 
+func TestIndexBlockTransferNFT(t *testing.T) {
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:    CHAIN_NAME,
+		Configs:      CONFIG_PATH,
+		Prefetch:     true,
+		RawBlockType: reflect.TypeOf(1),
+		RawTxType:    reflect.TypeOf(new(solana.TransactionInfo)),
+		Users: map[string]string{
+			"7uLYvqB9j6ihVwfPdtwNjv5uqiWYyius2k6gBdKfugLA": "1",
+		},
+		IndexBlockNumbers: []uint64{
+			242089085,
+		},
+		Assert: func() {
+			record, err := data.SolTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(CHAIN_NAME), "5cH2BfBmM5Lk5gin7pdjBMREefcdmL7asj6KiCvjdW3AfQ8Xg66Gid7yxzVDyxhU8RxFJHXkmQFnMVytd8ByxZeB")
+			assert.NoError(t, err)
+			assert.NotNil(t, record)
+			assert.Equal(t, record.TransactionType, biz.TRANSFERNFT)
+		},
+	})
+}
+
 func TestIndexBlockFloatAmount(t *testing.T) {
 	ptesting.RunTest(ptesting.Preparation{
 		ChainName:    CHAIN_NAME,

@@ -663,9 +663,9 @@ platform:
       - https://solana-mainnet.g.alchemy.com/v2/wyuFXpGqrGkBFAuyWH8vlUUk_eUhXAFI
       - https://solana-mainnet.g.alchemy.com/v2/DLTabdbSnGUoSoFBu-xjjfpplQFdqsP7
     httpURL:
-      - https://api.solscan.io
       - https://api.mainnet-beta.solana.com
       - https://node.onekey.so/sol
+      - https://api.solscan.io
       - https://docs-demo.solana-mainnet.quiknode.pro
       - https://try-rpc.mainnet.solana.blockdaemon.tech
       - https://docs-demo.solana-mainnet.quiknode.pro
