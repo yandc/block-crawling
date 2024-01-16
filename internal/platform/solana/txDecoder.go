@@ -169,8 +169,9 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	// 合并交易
 	//https://solscan.io/tx/51hTc8xEUAB53kCDh4uPbvbc7wCdherg5kpMNFKZ8vyroEPBiDEPTqrXJt4gUwSoZVLe7oLM9w736U6kmpDwKrSB
-	instructionList, transferTotal, accountTotal = mergeInstructions(instructions, tokenAccountTokenBalanceMap)
-	innerInstructionList, innerTransferTotal, innerAccountTotal = mergeInstructions(innerInstructionList, tokenAccountTokenBalanceMap)
+	tokenTransferAccounts := getTokenTransferDests(instructions)
+	instructionList, transferTotal, accountTotal = mergeInstructions(instructions, tokenAccountTokenBalanceMap, tokenTransferAccounts)
+	innerInstructionList, innerTransferTotal, innerAccountTotal = mergeInstructions(innerInstructionList, tokenAccountTokenBalanceMap, tokenTransferAccounts)
 
 	payload, _ = utils.JsonEncode(map[string]interface{}{"accountKey": accountKeyMap, "tokenBalance": ownerMintTokenBalanceMap})
 	isContract := false
@@ -444,12 +445,13 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			h.txRecords = append(h.txRecords, solTransactionRecord)
 		}
 	} else {
+		txType := biz.CONTRACT
+
 		instructionList = append(instructionList, innerInstructionList...)
 		//如果集合中同时包含createAccount和closeAccount，需要将这两笔抵消掉
 		instructionList = reduceInstructions(instructionList)
 		var eventLogs []*types.EventLogUid
 
-		txType := biz.CONTRACT
 		var tokenInfo types.TokenInfo
 		var amount, contractAddress string
 		var fromAddress, toAddress, fromUid, toUid string
@@ -1192,12 +1194,34 @@ func plugTokenBalance(instructions []*Instruction, accountKeyMap map[string]*Tra
 	}
 }
 
-func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap map[string]*TransferTokenBalance) ([]*Instruction, int, int) {
+func getTokenTransferDests(instructions []*Instruction) map[string]bool {
+	// Create a map for erasing ATA creation that for transfering tokens
+	tokenTransfers := make(map[string]bool)
+	for _, instruction := range instructions {
+		parsed, ok := instruction.Parsed.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		instructionType := parsed["type"]
+		instructionInfo := parsed["info"].(map[string]interface{})
+		if instructionType == "transferChecked" {
+			tokenTransfers[instructionInfo["destination"].(string)] = true
+		}
+	}
+	return tokenTransfers
+}
+
+func mergeInstructions(
+	instructions []*Instruction,
+	tokenAccountTokenBalanceMap map[string]*TransferTokenBalance,
+	tokenTransferAccounts map[string]bool,
+) ([]*Instruction, int, int) {
 	var instructionList []*Instruction
 	var instructionMap = make(map[string]*Instruction)
 	var createInstructionMap = make(map[string]*Instruction)
 	var closeInstructionMap = make(map[string]*Instruction)
 	var transferTotal, accountTotal int
+
 	for _, instruction := range instructions {
 		var amount, newAmount, contractAddress string
 		var fromAddress, toAddress string
@@ -1434,6 +1458,13 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				}
 			}
 		} else if instructionType == "createAccount" {
+			// Ignore ATA creatation for transfering token.
+			if newAccount, ok := instructionInfo["newAccount"]; ok {
+				if _, ok := tokenTransferAccounts[newAccount.(string)]; ok {
+					continue
+				}
+			}
+
 			accountTotal++
 			fromAddress = instructionInfo["source"].(string)
 			toAddress = instructionInfo["newAccount"].(string)
@@ -1454,6 +1485,15 @@ func mergeInstructions(instructions []*Instruction, tokenAccountTokenBalanceMap 
 				closeInstructionMap[key] = instruction
 			}
 		} else {
+			if instructionType == "create" {
+				// Ignore ATA creatation for transfering token.
+				if account, ok := instructionInfo["account"]; ok {
+					if _, ok := tokenTransferAccounts[account.(string)]; ok && instruction.Program == "spl-associated-token-account" {
+						continue
+					}
+				}
+			}
+
 			instructionList = append(instructionList, instruction)
 		}
 	}

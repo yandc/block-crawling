@@ -34,6 +34,9 @@ type KVPair struct {
 
 const SOL_CODE = "11111111111111111111111111111111"
 
+// https://solscan.io/account/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+const SOL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+
 func Init(handler string, c *conf.PlatInfo, nodeURL []string) *Platform {
 	log.Info(c.Chain+"链初始化", zap.Any("nodeURLs", nodeURL))
 	chainType := c.Handler

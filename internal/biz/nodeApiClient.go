@@ -10,12 +10,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 
 	types2 "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -26,7 +27,7 @@ import (
 var pageSize = 50
 var timeout = 10_000 * time.Millisecond
 
-func GetTxByAddress(chainName string, address string, urls []string) (err error) {
+func GetTxByAddress(chainName string, address string, urls []string, absentNfts []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -47,7 +48,7 @@ func GetTxByAddress(chainName string, address string, urls []string) (err error)
 	case "Cosmos", "Osmosis", "Sei", "SeiTEST", "CelestiaMochaTEST":
 		err = CosmosGetTxByAddress(chainName, address, urls)
 	case "Solana":
-		err = SolanaGetTxByAddress(chainName, address, urls)
+		err = SolanaGetTxByAddress(chainName, address, urls, absentNfts)
 	case "Arbitrum", "Avalanche", "BSC", "Cronos", "ETH", "Fantom", "HECO", "Optimism", "ETC", "Polygon", "Conflux", "Linea", "Scroll":
 		err = EvmNormalAndInternalGetTxByAddress(chainName, address, urls)
 	case "zkSync":
@@ -1203,7 +1204,7 @@ type SolanaInfo struct {
 	Slot               int         `json:"slot"`
 }
 
-func SolanaGetTxByAddress(chainName string, address string, urls []string) (err error) {
+func SolanaGetTxByAddress(chainName string, address string, urls []string, absentNfts []string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
@@ -1219,7 +1220,13 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 			return
 		}
 	}()
-	log.Info("QUERY TXNS OF ADDRESS", zap.String("chainName", chainName), zap.String("address", address), zap.Strings("urls", urls))
+	log.Info(
+		"QUERY TXNS OF ADDRESS",
+		zap.String("chainName", chainName),
+		zap.String("address", address),
+		zap.Strings("urls", urls),
+		zap.Strings("absentNfts", absentNfts),
+	)
 	req := &data.TransactionRequest{
 		Nonce:       -1,
 		FromAddress: address,
@@ -1263,7 +1270,7 @@ func SolanaGetTxByAddress(chainName string, address string, urls []string) (err 
 				log.Error("QUERY TXNS OF ADDRESS SOLSCAN ERROR", zap.String("chainName", chainName), zap.String("address", address), zap.String("stage", "token"), zap.Error(err))
 			}
 		} else {
-			solTransactionRecordList, err = getRecordByRpcNode(chainName, url, address, dbLastRecordSlotNumber, dbLastRecordHash)
+			solTransactionRecordList, err = getRecordByRpcNode(chainName, url, address, absentNfts, dbLastRecordSlotNumber, dbLastRecordHash)
 		}
 
 		if err == nil {
@@ -1543,7 +1550,7 @@ chainFlag:
 	return solTransactionRecordList, nil
 }
 
-func getRecordByRpcNode(chainName, url, address string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
+func getRecordByRpcNode(chainName, url, address string, absentNfts []string, dbLastRecordSlotNumber int, dbLastRecordHash string) ([]*data.SolTransactionRecord, error) {
 	var beforeTxHash string
 	method := "getSignaturesForAddress"
 
@@ -1588,6 +1595,20 @@ chainFlag:
 		}
 		beforeTxHash = out[dataLen-1].Signature
 	}
+	for _, tokenAddress := range absentNfts {
+		if v, err := getSolanaTokenLatestTxn(chainName, url, tokenAddress); err == nil {
+			log.Info(
+				"QUERY TXNS OF ADDRESS VIA ABSENT NFTs",
+				zap.String("chainName", chainName),
+				zap.String("address", address),
+				zap.String("url", url),
+				zap.String("tokenAddress", tokenAddress),
+				zap.String("txHash", v.Signature),
+			)
+
+			chainRecords = append(chainRecords, v)
+		}
+	}
 
 	var solTransactionRecordList []*data.SolTransactionRecord
 	transactionRecordMap := make(map[string]string)
@@ -1608,6 +1629,28 @@ chainFlag:
 		solTransactionRecordList = append(solTransactionRecordList, solRecord)
 	}
 	return solTransactionRecordList, nil
+}
+
+// The latest txn of the token must belong to the address which owned this token.
+func getSolanaTokenLatestTxn(chainName, url, tokenAddress string) (*SolanaInfo, error) {
+	method := "getSignaturesForAddress"
+
+	var out []*SolanaInfo
+	params := []interface{}{tokenAddress, map[string]interface{}{"limit": 1}}
+	_, err := httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, &timeout)
+	for i := 0; i < 1 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		_, err = httpclient.JsonrpcCall(url, ID, JSONRPC, method, &out, params, &timeout)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	dataLen := len(out)
+	if dataLen == 0 {
+		return nil, nil
+	}
+	return out[0], nil
 }
 
 type TokenRequest struct {

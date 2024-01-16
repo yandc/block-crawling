@@ -4920,6 +4920,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	}
 
 	diffBet := false
+	absentNfts := make([]string, 0, 2)
 	for _, newItem := range uniqAssets {
 		tokenAddress := newItem.TokenAddress
 		if req.Address == "0x0000000000000000000000000000000000000000" || req.Address == tokenAddress {
@@ -4935,23 +4936,28 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			if newItem.Balance == "0" {
 				continue
 			}
+			if newItem.Balance == "1" && newItem.Decimals == 0 {
+				absentNfts = append(absentNfts, newItem.TokenAddress)
+			}
 			diffBet = true
-			break
+			continue
 		}
 
 		newBalance := newItem.Balance
 
 		// update
 		if oldItem.Balance != newBalance {
+			if newItem.Balance == "1" && newItem.Decimals == 0 {
+				absentNfts = append(absentNfts, newItem.TokenAddress)
+			}
 			diffBet = true
-			break
 		}
 	}
 	if diffBet {
 		platInfo, ok := GetChainPlatInfo(req.ChainName)
 		if platInfo != nil {
-			log.Warn("STARTING QUERY TXNS OF ADDRESS", zap.String("chainName", req.ChainName), zap.String("address", req.Address), zap.Strings("urls", platInfo.HttpURL))
-			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL)
+			log.Info("STARTING QUERY TXNS OF ADDRESS", zap.String("chainName", req.ChainName), zap.String("address", req.Address), zap.Strings("urls", platInfo.HttpURL), zap.Strings("absentNfts", absentNfts))
+			go GetTxByAddress(req.ChainName, req.Address, platInfo.HttpURL, absentNfts)
 		} else {
 			log.Warn("QUERY TXNS OF ADDRESS MISSED PLATFORM", zap.String("chainName", req.ChainName), zap.Bool("exists", ok))
 		}
