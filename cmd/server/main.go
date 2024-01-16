@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/platform"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -80,6 +81,10 @@ func main() {
 		panic(err)
 	}
 	defer cleanup()
+
+	//设置默认时区
+	var DefaultLocation, _ = time.LoadLocation("Asia/Shanghai")
+	time.Local = DefaultLocation
 
 	// start and wait for stop signal
 	if err := app.Run(); err != nil {

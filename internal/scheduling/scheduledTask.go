@@ -3,6 +3,7 @@ package scheduling
 import (
 	"github.com/google/wire"
 	"github.com/robfig/cron/v3"
+	"time"
 )
 
 // ProviderSet is scheduling providers.
@@ -15,7 +16,9 @@ type ScheduledTask struct {
 var Task *ScheduledTask
 
 func NewScheduledTask() *ScheduledTask {
-	c := cron.New()
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	option := cron.WithLocation(location)
+	c := cron.New(option)
 	Task = &ScheduledTask{
 		c: c,
 	}
