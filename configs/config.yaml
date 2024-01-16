@@ -150,6 +150,8 @@ lark:
     collect:
       host: https://open.larksuite.com/open-apis/bot/v2/hook/c0381778-67ba-4060-b4d0-6f80c75ff920
       secret: y9dycC1hJ6IeXHiOStYw7d
+      atUids:
+        - qingliang
     bfstation:
       host: https://open.larksuite.com/open-apis/bot/v2/hook/c78baed1-e814-4df4-b949-e93330749237
       secret: NFl9SLcTGZ2Uh5QgIlyD6
