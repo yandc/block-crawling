@@ -57,8 +57,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 	}
 
 	index, _ := h.txHashIndexMap[transactionHash]
-
-	for _, out := range tx.Out {
+	var tempTx *types.TX //oklink 服务专用，避免 oklink 从区块中获取交易 amount 错误
+	for i, out := range tx.Out {
 		toAddress = out.Addr
 		if fromAddress == toAddress {
 			continue
@@ -74,6 +74,18 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 			continue
 		}
 
+		//oklink 服务专用，通过 hash 获取交易记录，避免 oklink 区块中的交易 amount 不对
+		if strings.Contains(c.URL(), biz.OKLINK) && tempTx == nil {
+			i, err := ExecuteRetry(h.chainName, func(client Client) (interface{}, error) {
+				return client.GetTxByHash(transactionHash)
+			})
+			if err != nil {
+				continue
+			}
+			ii := i.(*chain.Transaction).Raw.(types.TX)
+			tempTx = &ii
+		}
+
 		index++
 		h.txHashIndexMap[transactionHash] = index
 		var txHash string
@@ -82,7 +94,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 		} else {
 			txHash = transactionHash + "#result-" + fmt.Sprintf("%v", index)
 		}
-		amount = decimal.NewFromInt(int64(out.Value))
+
+		if strings.Contains(c.URL(), biz.OKLINK) {
+			amount = decimal.NewFromBigInt(&tempTx.Outputs[i].Value, 0)
+		} else {
+			amount = decimal.NewFromInt(int64(out.Value))
+		}
 		btcTransactionRecord := &data.BtcTransactionRecord{
 			BlockHash:       h.block.Hash,
 			BlockNumber:     curHeight,

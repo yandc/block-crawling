@@ -373,7 +373,7 @@ func (c OklinkBtcClient) GetTransactionsByHeight(height uint64) (txs []*chain.Tr
 		}
 
 		page += 1
-		totalPage, _ := strconv.Atoi(data[0].Page)
+		totalPage, _ := strconv.Atoi(data[0].TotalPage)
 		if page > totalPage {
 			break
 		}

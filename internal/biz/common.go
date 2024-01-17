@@ -68,6 +68,8 @@ const (
 	SOURCE_REMOTE             = "remote"
 
 	BLOCK_HASH_CUSTOM_EXPIRATION_KEY = 15 * time.Minute
+
+	OKLINK = "oklink"
 )
 
 const (
