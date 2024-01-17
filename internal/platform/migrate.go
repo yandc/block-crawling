@@ -8246,3 +8246,60 @@ func InitUserAssetCostPrice() {
 
 	}
 }
+
+func CountCompanyWallet() {
+	var msgSign, txns uint64
+	var cursor int64
+	for {
+		records, err := data.UserSendRawHistoryRepoInst.CursorListAll(context.Background(), &cursor, 1000)
+		if err != nil {
+			panic(err)
+		}
+		if len(records) == 0 {
+			break
+		}
+		for _, r := range records {
+			if r.Uid == "" {
+				continue
+			}
+			company, err := isCompanyWallet(r.Uid)
+			if err != nil {
+				if err == gorm.ErrRecordNotFound {
+					continue
+				}
+				panic(fmt.Errorf("[user %s] %w", r.Uid, err))
+			}
+			if !company {
+				continue
+			}
+			switch r.SignType {
+			case "1":
+				txns++
+			case "2":
+				msgSign++
+			}
+		}
+		println("Current Message Signature: ", msgSign)
+		println("Current Transactions: ", txns)
+		println("Still counting...")
+	}
+	println("Done:")
+	println("\tTotal Message Signature: ", msgSign)
+	println("\tTotal Transactions: ", txns)
+}
+
+var companyWalletCache = make(map[string]bool)
+
+func isCompanyWallet(uuid string) (bool, error) {
+	if v, ok := companyWalletCache[uuid]; ok {
+		return v, nil
+	}
+
+	v, err := data.UserRecordRepoInst.FindOne(context.Background(), uuid)
+	if err != nil {
+		return false, err
+	}
+	r := v.Category == "COMPANY"
+	companyWalletCache[uuid] = r
+	return r, nil
+}

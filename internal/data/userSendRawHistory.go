@@ -72,10 +72,28 @@ type UserSendRawHistoryRepo interface {
 	SelectSignStatus(ctx context.Context, signStatus []string) ([]*UserSendRawHistory, error)
 	SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error)
 	SelectByTxHash(ctx context.Context, txHash string) (*UserSendRawHistory, error)
+	CursorListAll(ctx context.Context, cursor *int64, pageSize int) ([]*UserSendRawHistory, error)
 }
 
 type userSendRawHistoryRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// CursorListAll implements UserSendRawHistoryRepo
+func (r *userSendRawHistoryRepoImpl) CursorListAll(ctx context.Context, cursor *int64, pageSize int) ([]*UserSendRawHistory, error) {
+	var results []*UserSendRawHistory
+	db := r.gormDB.WithContext(ctx)
+	if cursor != nil {
+		db = db.Where("id > ?", *cursor)
+	}
+	ret := db.Order("id ASC").Limit(pageSize).Find(&results)
+	if ret.Error != nil {
+		return nil, ret.Error
+	}
+	if len(results) > 0 {
+		*cursor = results[len(results)-1].Id
+	}
+	return results, nil
 }
 
 func NewUserSendRawHistoryRepo(gormDB *gorm.DB) UserSendRawHistoryRepo {

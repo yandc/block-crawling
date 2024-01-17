@@ -7,7 +7,6 @@ import (
 	"block-crawling/internal/platform"
 	"flag"
 	"os"
-	"reflect"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -66,14 +65,14 @@ func main() {
 		panic(err)
 	}
 	defer cleanup()
-	funcMap := map[string]interface{}{
+	funcMap := map[string]func(){
 		"UpdateUserUtxo":         platform.UpdateUserUtxo,
 		"CleanupBenfenTESTAsset": platform.CleanupBefenAsset,
 		"InitUserAssetCostPrice": platform.InitUserAssetCostPrice,
+		"CountCompanyWallet":     platform.CountCompanyWallet,
 	}
 
-	f := reflect.ValueOf(funcMap[method])
-	f.Call(nil)
+	funcMap[method]()
 	//platform.MigrateRecord()
 	//platform.DappReset()
 	//platform.BtcReset()
