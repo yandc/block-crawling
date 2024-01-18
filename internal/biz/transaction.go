@@ -605,10 +605,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 		}
 	case BTC:
-		// TODO(wanghui): 临时修复 BTC 系手续费放在了 feeData 里，后面重构时需移除。
-		if v, ok := feeDataMap["gas_price"]; ok {
-			fa, _ = decimal.NewFromString(v)
-		}
 		btcTransactionRecord := &data.BtcTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
