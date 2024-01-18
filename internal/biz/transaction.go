@@ -43,6 +43,7 @@ var sendLock sync.RWMutex
 
 func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
 	data.NewOklinkRepo("https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
+	data.NewKaspaRepoClient("https://api.kaspa.org")
 	return &TransactionUsecase{
 		gormDB:          grom,
 		lark:            lark,
@@ -3496,31 +3497,40 @@ func (s *TransactionUsecase) GetUnspentTx(ctx context.Context, req *pb.UnspentRe
 
 		//如果库中查出来没有，从链上再获取
 		if len(dbUnspentRecord) == 0 && req.IsUnspent == strconv.Itoa(data.UtxoStatusUnSpend) {
-			utxos, err := data.OklinkRepoClient.GetUtxo(req.ChainName, req.Address)
-			if err != nil {
-				return nil, err
+			var utxos []*data.UtxoUnspentRecord
+			if req.ChainName == "Kaspa" {
+				kaspaUTXOS, _ := data.KaspaRepoClient.GetUtxo(req.ChainName, req.Address)
+				utxos = convertKaspaUTXO(req.ChainName, kaspaUTXOS)
+			} else {
+				oklinkUTXOS, _ := data.OklinkRepoClient.GetUtxo(req.ChainName, req.Address)
+				utxos = convertOklinkUTXO(req.ChainName, oklinkUTXOS)
 			}
 
-			for _, utxo := range utxos {
-				txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
-				n, _ := strconv.Atoi(utxo.Index)
-				var r *pb.UnspentList
-				db := &data.UtxoUnspentRecord{
-					Uid:       req.Uid,
-					Hash:      utxo.Txid,
-					N:         n,
-					ChainName: req.ChainName,
-					Address:   req.Address,
-					Script:    "",
-					Unspent:   data.UtxoStatusUnSpend,
-					Amount:    utxo.UnspentAmount,
-					TxTime:    txTime,
-				}
-				r.Index = fmt.Sprint(db.N)
-				utils.CopyProperties(r, &db)
-				unspentList = append(unspentList, r)
-				data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, db)
+			if len(utxos) == 0 {
+				result.Ok = true
+				return result, nil
 			}
+
+			data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(nil, utxos)
+
+			for _, utxo := range utxos {
+				r := &pb.UnspentList{
+					Uid:       utxo.Uid,
+					Hash:      utxo.Hash,
+					Index:     fmt.Sprint(utxo.N),
+					ChainName: utxo.ChainName,
+					Address:   utxo.Address,
+					Script:    utxo.Script,
+					Unspent:   utxo.Unspent,
+					Amount:    utxo.Amount,
+					TxTime:    utxo.TxTime,
+					CreatedAt: utxo.CreatedAt,
+					UpdatedAt: utxo.UpdatedAt,
+				}
+
+				unspentList = append(unspentList, r)
+			}
+
 			result.Ok = true
 			result.UtxoList = unspentList
 			return result, nil

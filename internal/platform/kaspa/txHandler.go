@@ -54,9 +54,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 
 	var index int
-	for _, out := range tx.Outputs {
+	for i, out := range tx.Outputs {
 		toAddress = out.ScriptPublicKeyAddress
-		if fromAddress == toAddress {
+		//有一个以上的 out，并且最后一个 out 的地址是 fromAddress 时，认为最后一个 out 为找零
+		if len(tx.Outputs) != 1 && i == len(tx.Outputs)-1 && fromAddress == toAddress {
 			continue
 		}
 		if toAddress != "" {

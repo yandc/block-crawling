@@ -60,7 +60,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 	var tempTx *types.TX //oklink 服务专用，避免 oklink 从区块中获取交易 amount 错误
 	for i, out := range tx.Out {
 		toAddress = out.Addr
-		if fromAddress == toAddress {
+		//有一个以上的 out，并且最后一个 out 的地址是 fromAddress 时，认为最后一个 out 为找零
+		if len(tx.Out) != 1 && i == len(tx.Out)-1 && fromAddress == toAddress {
 			continue
 		}
 		if toAddress != "" {
@@ -113,8 +114,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, chainTx *chain
 			Status:          status,
 			TxTime:          int64(tx.Time),
 			ConfirmCount:    int32(height - curHeight),
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       h.now,
 			UpdatedAt:       h.now,
 		}
@@ -161,7 +160,6 @@ func (h *txHandler) Save(c chain.Clienter) error {
 func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (err error) {
 	tx := txByHash.Raw.(types.TX)
 	record := txByHash.Record.(*data.BtcTransactionRecord)
-
 	if strings.HasSuffix(tx.Error, " No such mempool or blockchain transaction") {
 		nowTime := time.Now().Unix()
 		if record.CreatedAt+300 > nowTime {
@@ -210,9 +208,10 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 	}
 
 	index := 0
-	for _, out := range tx.Outputs {
+	for i, out := range tx.Outputs {
 		toAddress = out.Addresses[0]
-		if fromAddress == toAddress {
+		//有一个以上的 out，并且最后一个 out 的地址是 fromAddress 时，认为最后一个 out 为找零
+		if len(tx.Outputs) != 1 && i == len(tx.Outputs)-1 && fromAddress == toAddress {
 			continue
 		}
 		if toAddress != "" {
@@ -247,10 +246,8 @@ func (h *txHandler) OnSealedTx(c chain.Clienter, txByHash *chain.Transaction) (e
 			Status:          status,
 			TxTime:          tx.Confirmed.Unix(),
 			//ConfirmCount:    int32(height - curHeight),
-			DappData:   "",
-			ClientData: "",
-			CreatedAt:  h.now,
-			UpdatedAt:  h.now,
+			CreatedAt: h.now,
+			UpdatedAt: h.now,
 		}
 		h.txRecords = append(h.txRecords, btcTransactionRecord)
 	}
