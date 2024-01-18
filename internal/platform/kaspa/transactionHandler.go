@@ -315,21 +315,23 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 			}
 		}
 
-		toUtxoRecords, err := doHandleUserUtxo(chainName, client, record.ToUid, record.ToAddress, record.TxTime, now)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			toUtxoRecords, err = doHandleUserUtxo(chainName, client, record.ToUid, record.ToAddress, record.TxTime, now)
-		}
-		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，请求节点查询用户UTXO失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("chainName", chainName), zap.Any("toAddress", record.ToAddress), zap.Any("error", err))
-			return
-		}
-		if toUtxoRecords != nil {
-			utxoRecords = append(utxoRecords, toUtxoRecords...)
+		if record.FromAddress != record.ToAddress { //from == to时，from 在前面更新过，这里直接跳过
+			toUtxoRecords, err := doHandleUserUtxo(chainName, client, record.ToUid, record.ToAddress, record.TxTime, now)
+			for i := 0; i < 10 && err != nil; i++ {
+				time.Sleep(time.Duration(i*5) * time.Second)
+				toUtxoRecords, err = doHandleUserUtxo(chainName, client, record.ToUid, record.ToAddress, record.TxTime, now)
+			}
+			if err != nil {
+				// 更新用户资产出错 接入lark报警
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户UTXO，请求节点查询用户UTXO失败", chainName)
+				alarmOpts := biz.WithMsgLevel("FATAL")
+				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error("更新用户UTXO，请求节点查询用户UTXO失败", zap.Any("chainName", chainName), zap.Any("toAddress", record.ToAddress), zap.Any("error", err))
+				return
+			}
+			if toUtxoRecords != nil {
+				utxoRecords = append(utxoRecords, toUtxoRecords...)
+			}
 		}
 
 		toUserAssetKey := chainName + record.ToAddress
@@ -351,7 +353,7 @@ func HandleUserUtxo(chainName string, client Client, txRecords []*data.KasTransa
 	deleteUserUtxos := &data.UserUtxo{
 		ChainName:       chainName,
 		AddressList:     deleteAddressList,
-		UnspentNotEqual: 4,
+		UnspentNotEqual: data.UtxoStatusPending,
 	}
 	_, err := data.UtxoUnspentRecordRepoClient.Delete(nil, deleteUserUtxos)
 	for i := 0; i < 3 && err != nil; i++ {

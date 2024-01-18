@@ -82,6 +82,7 @@ func GetTxByAddress(chainName string, address string, urls []string, absentNfts 
 		err = SuiGetTxByAddress(chainName, address, urls)
 	case "Kaspa":
 		err = KaspaGetTxByAddress(chainName, address, urls)
+		err = UpdateUtxoByAddress(chainName, address)
 	}
 
 	return
@@ -2877,16 +2878,15 @@ func UpdateUtxoByAddress(chainName string, address string) (err error) {
 }
 
 func RefreshUserUTXO(chainName, address string) (err error) {
-	userAsset, err := data.UserAssetRepoClient.GetByChainNameAndAddress(nil, chainName, address, "")
-	if err != nil {
-		return err
+	//获取 utxo
+	var utxos []*data.UtxoUnspentRecord
+	if chainName == "Kaspa" {
+		kaspaUtxos, _ := data.KaspaRepoClient.GetUtxo(chainName, address)
+		utxos = convertKaspaUTXO(chainName, kaspaUtxos)
+	} else {
+		oklinkUtxos, _ := data.OklinkRepoClient.GetUtxo(chainName, address)
+		utxos = convertOklinkUTXO(chainName, oklinkUtxos)
 	}
-
-	platInfo, _ := GetChainPlatInfo(chainName)
-	decimals := int(platInfo.Decimal)
-
-	//从 oklink 获取 utxo
-	utxos, err := data.OklinkRepoClient.GetUtxo(chainName, address)
 
 	//如果查出来没有，则不更新
 	if len(utxos) == 0 {
@@ -2895,33 +2895,16 @@ func RefreshUserUTXO(chainName, address string) (err error) {
 
 	_, _ = data.UtxoUnspentRecordRepoClient.DeleteByAddressWithNotPending(nil, chainName, address)
 
-	for _, utxo := range utxos {
-		index, _ := strconv.Atoi(utxo.Index)
-		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
-		amount := Pow10(amountDecimal, decimals).BigInt().String()
-		txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
-		var utxoUnspentRecord = &data.UtxoUnspentRecord{
-			Uid:       userAsset.Uid,
-			Hash:      utxo.Txid,
-			N:         index,
-			ChainName: chainName,
-			Address:   address,
-			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
-			Amount:    amount,
-			TxTime:    txTime,
-			UpdatedAt: time.Now().Unix(),
-		}
-		//插入所有未花费的UTXO
-		r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxoUnspentRecord)
-		if err != nil {
-			log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
-		}
+	//插入所有未花费的UTXO
+	r, err := data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(nil, utxos)
+	if err != nil {
+		log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
 	}
 
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
 	userUTXOs := make([]string, len(utxos))
 	for i, utxo := range utxos {
-		userUTXOs[i] = fmt.Sprintf("%s#%s", utxo.Txid, utxo.Index)
+		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
 	}
 
 	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
@@ -2933,6 +2916,54 @@ func RefreshUserUTXO(chainName, address string) (err error) {
 		}
 	}
 	return nil
+}
+
+func convertOklinkUTXO(chainName string, oklinkUTXOS []types.OklinkUTXO) []*data.UtxoUnspentRecord {
+	platInfo, _ := GetChainPlatInfo(chainName)
+	decimals := int(platInfo.Decimal)
+
+	var utxos []*data.UtxoUnspentRecord
+	for _, utxo := range oklinkUTXOS {
+		_, uid, _ := UserAddressSwitchRetryAlert(chainName, utxo.Address)
+		index, _ := strconv.Atoi(utxo.Index)
+		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
+		amount := Pow10(amountDecimal, decimals).BigInt().String()
+		txTime, _ := strconv.ParseInt(utxo.BlockTime, 10, 64)
+		var utxoUnspentRecord = &data.UtxoUnspentRecord{
+			Uid:       uid,
+			Hash:      utxo.Txid,
+			N:         index,
+			ChainName: chainName,
+			Address:   utxo.Address,
+			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+			Amount:    amount,
+			TxTime:    txTime,
+			UpdatedAt: time.Now().Unix(),
+		}
+		utxos = append(utxos, utxoUnspentRecord)
+	}
+	return utxos
+}
+
+func convertKaspaUTXO(chainName string, kaspaUTXOS []types.KaspaUtxoResp) []*data.UtxoUnspentRecord {
+	var utxos []*data.UtxoUnspentRecord
+	for _, utxo := range kaspaUTXOS {
+		_, uid, _ := UserAddressSwitchRetryAlert(chainName, utxo.Address)
+		index := utxo.Outpoint.Index
+		amount := utxo.UtxoEntry.Amount
+		var utxoUnspentRecord = &data.UtxoUnspentRecord{
+			Uid:       uid,
+			Hash:      utxo.Outpoint.TransactionId,
+			N:         index,
+			ChainName: chainName,
+			Address:   utxo.Address,
+			Unspent:   data.UtxoStatusUnSpend, //1 未花费 2 已花费 联合索引
+			Amount:    amount,
+			UpdatedAt: time.Now().Unix(),
+		}
+		utxos = append(utxos, utxoUnspentRecord)
+	}
+	return utxos
 }
 
 func TrxGetTxByAddress(chainName string, address string, urls []string) (err error) {

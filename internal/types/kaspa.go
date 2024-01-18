@@ -37,3 +37,18 @@ type KaspaTransactionInfo struct {
 	} `json:"outputs"`
 	KaspaBadResp
 }
+
+type KaspaUtxoResp struct {
+	Address  string `json:"address"`
+	Outpoint struct {
+		TransactionId string `json:"transactionId"`
+		Index         int    `json:"index"`
+	} `json:"outpoint"`
+	UtxoEntry struct {
+		Amount          string `json:"amount"`
+		ScriptPublicKey struct {
+			ScriptPublicKey string `json:"scriptPublicKey"`
+		} `json:"scriptPublicKey"`
+		BlockDaaScore string `json:"blockDaaScore"`
+	} `json:"utxoEntry"`
+}
