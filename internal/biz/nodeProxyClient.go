@@ -683,7 +683,7 @@ func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, er
 	return client.GetChainNodeInUsedList(ctx, &emptypb.Empty{})
 }
 
-func GetPriceFromMarket(tokenAddress []*v1.Tokens, coinIds []string) (*v1.DescribePriceByCoinAddressReply, error) {
+func GetPriceFromMarket(tokenAddresses []*v1.Tokens, coinIds []string) (*v1.DescribePriceByCoinAddressReply, error) {
 	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -693,18 +693,51 @@ func GetPriceFromMarket(tokenAddress []*v1.Tokens, coinIds []string) (*v1.Descri
 	client := v1.NewMarketClient(conn)
 	context, cancel := context.WithTimeout(context.Background(), 10_000*time.Millisecond)
 	defer cancel()
-	result, err := client.DescribePriceByCoinAddress(context, &v1.DescribePriceByCoinAddressRequest{
-		EventId: "100010001000",
-		CoinIDs: coinIds,
-		Tokens:  tokenAddress,
-	})
-	if err != nil {
-		// nodeProxy出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
-		alarmOpts := WithMsgLevel("FATAL")
-		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+
+	var coinResp []*v1.DescribePriceByCoinAddressReply_CoinCurrency
+	var tokenResp []*v1.DescribePriceByCoinAddressReply_Tokens
+
+	pageSize := 1000
+	pageNo := 1
+
+	for {
+		start := (pageNo - 1) * pageSize
+		if start >= len(tokenAddresses) {
+			start = len(tokenAddresses)
+		}
+
+		end := pageNo * pageSize
+		if end >= len(tokenAddresses) {
+			end = len(tokenAddresses)
+		}
+
+		if start == end {
+			break
+		}
+
+		if pageNo > 1 { //主币不超过 1000，第二页以后不再查询
+			coinIds = nil
+		}
+
+		result, err := client.DescribePriceByCoinAddress(context, &v1.DescribePriceByCoinAddressRequest{
+			EventId: "100010001000",
+			CoinIDs: coinIds,
+			Tokens:  tokenAddresses[start:end],
+		})
+		if err != nil {
+			// nodeProxy出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：币价信息查询失败, error：%s", fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return nil, err
+		}
+
+		coinResp = append(coinResp, result.Coins...)
+		tokenResp = append(tokenResp, result.Tokens...)
+		pageNo++
 	}
-	return result, err
+
+	return &v1.DescribePriceByCoinAddressReply{Coins: coinResp, Tokens: tokenResp}, err
 
 }
 
