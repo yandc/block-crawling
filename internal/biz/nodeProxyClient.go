@@ -697,7 +697,7 @@ func GetPriceFromMarket(tokenAddresses []*v1.Tokens, coinIds []string) (*v1.Desc
 	var coinResp []*v1.DescribePriceByCoinAddressReply_CoinCurrency
 	var tokenResp []*v1.DescribePriceByCoinAddressReply_Tokens
 
-	pageSize := 1000
+	pageSize := 500
 	pageNo := 1
 
 	for {
@@ -715,7 +715,7 @@ func GetPriceFromMarket(tokenAddresses []*v1.Tokens, coinIds []string) (*v1.Desc
 			break
 		}
 
-		if pageNo > 1 { //主币不超过 1000，第二页以后不再查询
+		if pageNo > 1 { //主币不超过 pageSize，第二页以后不再查询
 			coinIds = nil
 		}
 
