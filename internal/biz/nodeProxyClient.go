@@ -684,6 +684,10 @@ func GetCustomChainList(ctx context.Context) (*v1.GetChainNodeInUsedListResp, er
 }
 
 func GetPriceFromMarket(tokenAddresses []*v1.Tokens, coinIds []string) (*v1.DescribePriceByCoinAddressReply, error) {
+	if len(tokenAddresses) == 0 && len(coinIds) == 0 {
+		return &v1.DescribePriceByCoinAddressReply{Coins: nil, Tokens: nil}, nil
+	}
+
 	conn, err := grpc.Dial(AppConfig.MarketRpc, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -711,7 +715,7 @@ func GetPriceFromMarket(tokenAddresses []*v1.Tokens, coinIds []string) (*v1.Desc
 			end = len(tokenAddresses)
 		}
 
-		if start == end {
+		if start == end && coinIds == nil {
 			break
 		}
 
