@@ -70,6 +70,7 @@ func main() {
 		"CleanupBenfenTESTAsset": platform.CleanupBefenAsset,
 		"InitUserAssetCostPrice": platform.InitUserAssetCostPrice,
 		"CountCompanyWallet":     platform.CountCompanyWallet,
+		"ReportFailedTxns":       platform.ReportFailedTxns,
 	}
 
 	funcMap[method]()

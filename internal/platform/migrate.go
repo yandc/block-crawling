@@ -14,6 +14,7 @@ import (
 	"block-crawling/internal/platform/sui"
 	"block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/platform/tron"
+	"block-crawling/internal/scheduling"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -8302,4 +8303,9 @@ func isCompanyWallet(uuid string) (bool, error) {
 	r := v.Category == "COMPANY"
 	companyWalletCache[uuid] = r
 	return r, nil
+}
+
+func ReportFailedTxns() {
+	task := &scheduling.ReportFailureTxnsTask{}
+	task.Run()
 }

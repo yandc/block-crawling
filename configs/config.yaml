@@ -157,6 +157,13 @@ lark:
       secret: NFl9SLcTGZ2Uh5QgIlyD6
       atUids:
         - wanghui
+    reportFailure:
+      host: https://open.larksuite.com/open-apis/bot/v2/hook/ea550b4b-7d7a-449a-90c6-81a6cb37ce02
+      secret: 6qSBeAq8fm45oZf14F1GOf
+      atUids:
+        - wanghui
+        - dechen
+        - qingliang
 
 logger:
   DEBUG: true

@@ -390,6 +390,12 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 		log.Error("add WalletAssetHistoryTask error", zap.Any("", err))
 		return err
 	}
+
+	_, err = scheduling.Task.AddTask("58 8 * * *", &scheduling.ReportFailureTxnsTask{})
+	if err != nil {
+		log.Error("add report failure txns tasks error", zap.Error(err))
+		return err
+	}
 	//启动定时任务
 	scheduling.Task.Start()
 

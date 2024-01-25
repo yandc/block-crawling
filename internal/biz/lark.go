@@ -29,6 +29,7 @@ type Lark struct {
 type Larker interface {
 	MonitorLark(msg string, opts ...AlarmOption)
 	NotifyLark(msg string, usableRPC, disabledRPC []string, opts ...AlarmOption)
+	SendRichText(larkBot, title string, content [][]Content)
 }
 
 var LarkClient Larker
@@ -338,6 +339,51 @@ func (lark *Lark) handleBotAtList(atUids []string) []Content {
 		}
 	}
 	return c
+}
+
+func (lark *Lark) SendRichText(larkBot, title string, content [][]Content) {
+	larkConf := lark.conf.LarkBots[larkBot]
+	content = append(content, lark.handleBotAtList(larkConf.AtUids))
+
+	t := time.Now().Unix()
+	sign, _ := GenSign(larkConf.Secret, t)
+	b, _ := json.Marshal(content)
+	data := `{
+    "msg_type": "post",
+	"timestamp":"` + fmt.Sprintf("%v", t) + `",
+	"sign": "` + sign + `",
+    "content": {
+        "post": {
+            "zh_cn": {
+                "title": "` + title + `",
+                "content":
+                    ` + string(b) + `
+            	}
+        	}
+    	}
+	}`
+
+	req, err := http.NewRequest(http.MethodPost, larkConf.Host, strings.NewReader(data))
+	if err != nil {
+		log.Error("lark http.NewRequest error:", zap.Error(err))
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	var client = http.DefaultClient
+	response, err := client.Do(req)
+	if err != nil {
+		log.Error("lark request error: ", zap.Error(err))
+		return
+	}
+
+	defer response.Body.Close()
+	body, _ := ioutil.ReadAll(response.Body)
+	var resp LarkResponse
+	json.Unmarshal(body, &resp)
+	if resp.Code > 0 {
+		log.Error("send lark error:", zap.Error(errors.New(resp.Msg)))
+	}
 }
 
 func GenSign(secret string, timestamp int64) (string, error) {

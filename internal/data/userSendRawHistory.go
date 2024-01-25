@@ -73,10 +73,28 @@ type UserSendRawHistoryRepo interface {
 	SelectBySessionIds(ctx context.Context, sessionIDs []string) ([]*UserSendRawHistory, error)
 	SelectByTxHash(ctx context.Context, txHash string) (*UserSendRawHistory, error)
 	CursorListAll(ctx context.Context, cursor *int64, pageSize int) ([]*UserSendRawHistory, error)
+	CursorListAllDesc(ctx context.Context, cursor *int64, pageSize int) ([]*UserSendRawHistory, error)
 }
 
 type userSendRawHistoryRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// CursorListAllDesc implements UserSendRawHistoryRepo
+func (r *userSendRawHistoryRepoImpl) CursorListAllDesc(ctx context.Context, cursor *int64, pageSize int) ([]*UserSendRawHistory, error) {
+	var results []*UserSendRawHistory
+	db := r.gormDB.WithContext(ctx)
+	if cursor != nil && *cursor > 0 {
+		db = db.Where("id < ?", *cursor)
+	}
+	ret := db.Order("id DESC").Limit(pageSize).Find(&results)
+	if ret.Error != nil {
+		return nil, ret.Error
+	}
+	if len(results) > 0 {
+		*cursor = results[len(results)-1].Id
+	}
+	return results, nil
 }
 
 // CursorListAll implements UserSendRawHistoryRepo
@@ -90,7 +108,7 @@ func (r *userSendRawHistoryRepoImpl) CursorListAll(ctx context.Context, cursor *
 	if ret.Error != nil {
 		return nil, ret.Error
 	}
-	if len(results) > 0 {
+	if len(results) > 0 && cursor != nil {
 		*cursor = results[len(results)-1].Id
 	}
 	return results, nil
