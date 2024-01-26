@@ -7,8 +7,9 @@ import (
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"time"
+
+	"gitlab.bixin.com/mili/node-driver/chain"
 
 	"go.uber.org/zap"
 )
@@ -126,7 +127,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.TrxTrans
 
 		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT &&
 			record.TransactionType != biz.APPROVE {
-			tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.ParseData)
+			tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
 				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，解析tokenInfo失败", chainName)
