@@ -104,6 +104,7 @@ func (h *txHandler) onTx(
 			"cell":  rawTx.outputCells[i],
 			"token": tokenInfo,
 		})
+		tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 
 		h.txRecords = append(h.txRecords, &data.CkbTransactionRecord{
 			BlockHash:       blockHash,
@@ -122,8 +123,7 @@ func (h *txHandler) onTx(
 			ConfirmCount:    int32(h.chainHeight) - int32(h.curHeight),
 			EventLog:        "",
 			TransactionType: txType,
-			DappData:        "",
-			ClientData:      "",
+			TokenInfo:       tokenInfoStr,
 			CreatedAt:       h.now,
 			UpdatedAt:       h.now,
 		})

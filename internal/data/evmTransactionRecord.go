@@ -46,18 +46,23 @@ type EvmTransactionRecord struct {
 	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(32)"`
 	Data                 string          `json:"data" form:"data"`
 	EventLog             string          `json:"eventLog" form:"eventLog"`
-	LogAddress           datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
+	LogAddress           datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	OperateType          string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
 	DappData             string          `json:"dappData" form:"dappData"`
 	ClientData           string          `json:"clientData" form:"clientData"`
 	FeeTokenInfo         string          `json:"feeTokenInfo" form:"feeTokenInfo"`
+	TokenGasless         string          `json:"tokenGasless" form:"tokenGasless"`
+	TokenInfo            string          `json:"tokenInfo" form:"tokenInfo"`
+	SendTime             int64           `json:"sendTime" form:"sendTime"`
+	SessionId            string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost            string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
 }
 
-func (*EvmTransactionRecord) Version() string {
-	return "20230927"
+func (r *EvmTransactionRecord) Version() string {
+	return "20240104"
 }
 
 type EvmTransactionRecordWrapper struct {
@@ -155,8 +160,13 @@ func (r *EvmTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 			"original_hash":  gorm.Expr("excluded.original_hash"),
 			"operate_type":   gorm.Expr("excluded.operate_type"),
 			"dapp_data":      gorm.Expr("excluded.dapp_data"),
+			"nonce":          gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
 			"client_data":    gorm.Expr("excluded.client_data"),
 			"fee_token_info": gorm.Expr("case when " + tableName + ".status in('success', 'fail') then " + tableName + ".fee_token_info else excluded.fee_token_info end"),
+			"token_gasless":  gorm.Expr("case when excluded.token_gasless != '' then excluded.token_gasless else " + tableName + ".token_gasless end"),
+			"send_time":      gorm.Expr("excluded.send_time"),
+			"session_id":     gorm.Expr("excluded.session_id"),
+			"short_host":     gorm.Expr("excluded.short_host"),
 			"updated_at":     gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecord)
@@ -202,11 +212,11 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdate(ctx context.Context, ta
 	return affected, err
 }
 
-func (r *EvmTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, atomTransactionRecords []*EvmTransactionRecord) (int64, error) {
+func (r *EvmTransactionRecordRepoImpl) BatchSaveOrIgnore(ctx context.Context, tableName string, evmTransactionRecords []*EvmTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		DoNothing: true,
-	}).Create(&atomTransactionRecords)
+	}).Create(&evmTransactionRecords)
 	err := ret.Error
 	if err != nil {
 		log.Errore("batch insert or ignore "+tableName+" failed", err)
@@ -224,7 +234,7 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"block_hash":               clause.Column{Table: "excluded", Name: "block_hash"},
 			"block_number":             clause.Column{Table: "excluded", Name: "block_number"},
-			"nonce":                    clause.Column{Table: "excluded", Name: "nonce"},
+			"nonce":                    gorm.Expr("case when excluded.nonce != 0 then excluded.nonce else " + tableName + ".nonce end"),
 			"transaction_hash":         clause.Column{Table: "excluded", Name: "transaction_hash"},
 			"original_hash":            gorm.Expr("case when excluded.original_hash != '' then excluded.original_hash else " + tableName + ".original_hash end"),
 			"from_address":             clause.Column{Table: "excluded", Name: "from_address"},
@@ -252,6 +262,11 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"fee_token_info":           clause.Column{Table: "excluded", Name: "fee_token_info"},
+			"token_gasless":            gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
+			"token_info":               gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":                gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":               gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":               gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecords)
@@ -304,6 +319,11 @@ func (r *EvmTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"dapp_data":                gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":              gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"fee_token_info":           gorm.Expr("case when excluded.fee_token_info != '' then excluded.fee_token_info else " + tableName + ".fee_token_info end"),
+			"token_gasless":            gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
+			"token_info":               gorm.Expr("case when excluded.token_info != '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":                gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":               gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":               gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":               gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&evmTransactionRecords)
@@ -424,8 +444,9 @@ func (r *EvmTransactionRecordRepoImpl) FindByNonceAndAddress(ctx context.Context
 		return nil, err
 	}
 }
+
 func (r *EvmTransactionRecordRepoImpl) UpdateByNonceAndAddressAndStatus(ctx context.Context, tableName string, fromAddress string, nonce int64, status string) (int64, error) {
-	ret := r.gormDB.Table(tableName).Where(" status in  ('pending','no_status') and nonce >=0 and nonce <= ? and from_address = ? and client_data is not null and client_data != ''", nonce, fromAddress).Update("status", status)
+	ret := r.gormDB.Table(tableName).Where(" status in  ('pending','no_status') and nonce >=0 and nonce <= ? and from_address = ? and send_time is not null and send_time > 0", nonce, fromAddress).Update("status", status)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" failed", err)
@@ -433,6 +454,7 @@ func (r *EvmTransactionRecordRepoImpl) UpdateByNonceAndAddressAndStatus(ctx cont
 	}
 	return ret.RowsAffected, nil
 }
+
 func (r *EvmTransactionRecordRepoImpl) FindNonceAndAddressAndStatus(ctx context.Context, tableName string, fromAddress string, nonce int64) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecordList []*EvmTransactionRecord
 	ret := r.gormDB.Table(tableName).Where(" status = 'dropped_replaced' and nonce >=0 and nonce <= ? and from_address = ? and client_data is not null and client_data != ''", nonce, fromAddress).Find(&evmTransactionRecordList)
@@ -556,7 +578,7 @@ func (r *EvmTransactionRecordRepoImpl) PageListRecord(ctx context.Context, table
 	if req.StopTime > 0 {
 		sqlStr += " and created_at < " + strconv.Itoa(int(req.StopTime))
 	}
-	if req.TokenAddress != "" && req.TokenAddress != MAIN_ADDRESS_PARAM{
+	if req.TokenAddress != "" && req.TokenAddress != MAIN_ADDRESS_PARAM {
 		tokenAddressLike := "'%\"address\":\"" + req.TokenAddress + "\"%'"
 		sqlStr += " and ((transaction_type not in('contract', 'swap', 'mint', 'addLiquidity') and (contract_address = '" + req.TokenAddress + "' or parse_data like " + tokenAddressLike + ")) or (transaction_type in('contract', 'swap', 'mint', 'addLiquidity') and event_log like " + tokenAddressLike + "))"
 	}
@@ -1283,9 +1305,9 @@ func (r *EvmTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context,
 	return evmTransactionRecord, nil
 }
 
-func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txHash string, token string) (*EvmTransactionRecord, error) {
+func (r *EvmTransactionRecordRepoImpl) FindParseDataByTxHashAndToken(ctx context.Context, tableName string, txhash string, token string) (*EvmTransactionRecord, error) {
 	var evmTransactionRecord *EvmTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txHash+"%", token).Find(&evmTransactionRecord)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ? and contract_address = ?", txhash+"%", token).Find(&evmTransactionRecord)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" by txHash failed", err)
@@ -1365,16 +1387,16 @@ func (r *EvmTransactionRecordRepoImpl) PendingByFromAddress(ctx context.Context,
 func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
 
-	sqlStr := "select transaction_type, transaction_hash, amount, parse_data, event_log from " + tableName +
+	sqlStr := "select transaction_type, transaction_hash, amount, token_info, event_log from " + tableName +
 		" where 1=1 " +
 		"and (" +
 		"(" +
 		"(" +
-		"(parse_data not like '%\"collection_name\":\"%' and parse_data not like '%\"item_name\":%') " +
-		"or (parse_data like '%\"collection_name\":\"\"%' and parse_data like '%\"item_name\":\"\"%')" +
+		"(token_info not like '%\"collection_name\":\"%' and token_info not like '%\"item_name\":%') " +
+		"or (token_info like '%\"collection_name\":\"\"%' and token_info like '%\"item_name\":\"\"%')" +
 		") and (" +
-		"parse_data like '%\"token_type\":\"ERC721\"%' " +
-		"or parse_data like '%\"token_type\":\"ERC1155\"%'" +
+		"token_info like '%\"token_type\":\"ERC721\"%' " +
+		"or token_info like '%\"token_type\":\"ERC1155\"%'" +
 		")" +
 		") or (" +
 		"(" +
@@ -1437,6 +1459,7 @@ func (r *EvmTransactionRecordRepoImpl) FindLastNonce(ctx context.Context, tableN
 		}
 	}
 }
+
 func (r *EvmTransactionRecordRepoImpl) FindTransactionTypeByAddress(ctx context.Context, tableName string, address string, startTime int, endTime int) ([]EvmTransactionCount, error) {
 	var evmTransactionCount []EvmTransactionCount
 	ret := r.gormDB.Select("transaction_type, count(transaction_type)").WithContext(ctx).Table(tableName).Where("(from_address = ? or to_address = ?) and transaction_type not in ('eventLog','')  and created_at >= ? and created_at <= ? ", address, address, startTime, endTime).Group("transaction_type").Find(&evmTransactionCount)
@@ -1452,6 +1475,7 @@ func (r *EvmTransactionRecordRepoImpl) FindTransactionTypeByAddress(ctx context.
 		}
 	}
 }
+
 func (r *EvmTransactionRecordRepoImpl) ListDappDataByTimeRanges(ctx context.Context, tableName string, address string, startTime int, endTime int) ([]EvmDappCount, error) {
 	var dappDatas []EvmDappCount
 	ret := r.gormDB.Select("dapp_data, count(dapp_data)").WithContext(ctx).Table(tableName).Where("from_address = ? and  created_at >= ? and created_at <= ? and dapp_data != '' ", address, startTime, endTime).Group("dapp_data").Order("count(dapp_data) desc").Limit(10).Find(&dappDatas)
@@ -1484,6 +1508,7 @@ func (r *EvmTransactionRecordRepoImpl) FindByAddressCount(ctx context.Context, t
 	}
 	return evmTransferCounts, nil
 }
+
 func (r *EvmTransactionRecordRepoImpl) UpdateTransactionTypeByTxHash(ctx context.Context, tableName string, txHash string, transactionType string) (int64, error) {
 	ret := r.gormDB.Table(tableName).Where("transaction_hash = ?", txHash).Update("transaction_type", transactionType)
 	err := ret.Error

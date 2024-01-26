@@ -64,7 +64,8 @@ func wireApp(logger *conf.Logger, confData *conf.Data, lark *conf.Lark, app *con
 	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
 	server := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider, migrationRepo)
 	innerPlatformContainer := platform.NewInnerNodeList(bootstrap, bundle)
-	kratosApp := newApp(bundle, server, innerPlatformContainer)
+	transactionRecordRepo := biz.NewTransactionRecordRepo(db)
+	kratosApp := newApp(bundle, server, innerPlatformContainer, transactionRecordRepo)
 	return kratosApp, func() {
 		cleanup2()
 		cleanup()

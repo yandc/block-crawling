@@ -234,6 +234,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					"token": tokenInfo,
 				}
 				parseData, _ := utils.JsonEncode(atomosMap)
+				tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 				amountValue, _ := decimal.NewFromString(amount)
 
 				atomTransactionRecord := &data.AtomTransactionRecord{
@@ -257,8 +258,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					Data:            payload,
 					EventLog:        "",
 					TransactionType: txType,
-					DappData:        "",
-					ClientData:      "",
+					TokenInfo:       tokenInfoStr,
 					CreatedAt:       h.now,
 					UpdatedAt:       h.now,
 				}
@@ -344,6 +344,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						"token": tokenInfo,
 					}
 					parseData, _ := utils.JsonEncode(atomosMap)
+					tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 					amountValue, _ := decimal.NewFromString(amount)
 
 					atomTransactionRecord := &data.AtomTransactionRecord{
@@ -367,8 +368,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						Data:            payload,
 						EventLog:        "",
 						TransactionType: txType,
-						DappData:        "",
-						ClientData:      "",
+						TokenInfo:       tokenInfoStr,
 						CreatedAt:       h.now,
 						UpdatedAt:       h.now,
 					}
@@ -445,6 +445,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					"token": tokenInfo,
 				}
 				parseData, _ := utils.JsonEncode(atomosMap)
+				tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 				amountValue, _ := decimal.NewFromString(amount)
 
 				atomTransactionRecord := &data.AtomTransactionRecord{
@@ -468,8 +469,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					Data:            payload,
 					EventLog:        "",
 					TransactionType: txType,
-					DappData:        "",
-					ClientData:      "",
+					TokenInfo:       tokenInfoStr,
 					CreatedAt:       h.now,
 					UpdatedAt:       h.now,
 				}
@@ -601,6 +601,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			"token": tokenInfo,
 		}
 		parseData, _ := utils.JsonEncode(atomosMap)
+		tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 		amountValue, _ := decimal.NewFromString(amount)
 
 		atomContractRecord = &data.AtomTransactionRecord{
@@ -624,8 +625,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			Data:            payload,
 			EventLog:        "",
 			TransactionType: txType,
-			DappData:        "",
-			ClientData:      "",
+			TokenInfo:       tokenInfoStr,
 			CreatedAt:       h.now,
 			UpdatedAt:       h.now,
 		}
@@ -949,6 +949,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
+			eventTokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
@@ -975,8 +976,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				Data:            payload,
 				EventLog:        "",
 				TransactionType: txType,
-				DappData:        "",
-				ClientData:      "",
+				TokenInfo:       eventTokenInfoStr,
 				CreatedAt:       h.now,
 				UpdatedAt:       h.now,
 			}

@@ -272,6 +272,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		"token": tokenInfo,
 	}
 	parseData, _ := utils.JsonEncode(tronMap)
+	tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 	exTime := rawTx.RawData.Timestamp / 1000
 	if rawTx.RawData.Timestamp == 0 {
 		exTime = block.Time / 1000
@@ -312,8 +313,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
 		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
 		TransactionType: string(tx.TxType),
-		DappData:        "",
-		ClientData:      "",
+		TokenInfo:       tokenInfoStr,
 		CreatedAt:       h.now,
 		UpdatedAt:       h.now,
 	}
@@ -328,6 +328,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
+			eventTokenInfoStr, _ := utils.JsonEncode(eventLog.Token)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
@@ -351,8 +352,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
 				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
 				TransactionType: txType,
-				DappData:        "",
-				ClientData:      "",
+				TokenInfo:       eventTokenInfoStr,
 				CreatedAt:       h.now,
 				UpdatedAt:       h.now,
 			}

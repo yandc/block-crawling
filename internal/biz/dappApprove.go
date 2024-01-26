@@ -3,6 +3,7 @@ package biz
 import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"encoding/json"
 	"errors"
@@ -43,16 +44,13 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 				ErcType:    APPROVENFT,
 			}
 
-			paseJson := make(map[string]interface{})
-			if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
-				tokenMap := paseJson["token"]
-				if tokenMap != nil {
-					ret := tokenMap.(map[string]interface{})
-					if ret != nil {
-						am := ret["amount"].(string)
-						sy := ret["symbol"].(string)
-						decimals, _ := utils.GetInt(ret["decimals"])
-						dar.Decimals = int64(decimals)
+			if record.TokenInfo != "" {
+				var tokenInfo *types.TokenInfo
+				if jsonErr := json.Unmarshal([]byte(record.TokenInfo), &tokenInfo); jsonErr == nil {
+					if tokenInfo != nil {
+						am := tokenInfo.Amount
+						sy := tokenInfo.Symbol
+						dar.Decimals = tokenInfo.Decimals
 						//全部授权
 						if am == "1" {
 							//nft 全部授权 无敞口，敞口金额长度大于40位
@@ -63,6 +61,30 @@ func NftApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord) 
 
 						dar.Original = am
 						dar.Symbol = sy
+					}
+				}
+			} else {
+				paseJson := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
+					tokenMap := paseJson["token"]
+					if tokenMap != nil {
+						ret := tokenMap.(map[string]interface{})
+						if ret != nil {
+							am := ret["amount"].(string)
+							sy := ret["symbol"].(string)
+							decimals, _ := utils.GetInt(ret["decimals"])
+							dar.Decimals = int64(decimals)
+							//全部授权
+							if am == "1" {
+								//nft 全部授权 无敞口，敞口金额长度大于40位
+								dar.Amount = "90000000009000000000900000000090000000009000000000"
+							} else {
+								dar.Amount = am
+							}
+
+							dar.Original = am
+							dar.Symbol = sy
+						}
 					}
 				}
 			}
@@ -107,20 +129,34 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 				ErcType:    APPROVE,
 			}
 
-			paseJson := make(map[string]interface{})
-			if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
-				tokenMap := paseJson["token"]
-				if tokenMap != nil {
-					ret := tokenMap.(map[string]interface{})
-					if ret != nil {
-						am := ret["amount"].(string)
-						sy := ret["symbol"].(string)
-						decimals, _ := utils.GetInt(ret["decimals"])
-						dar.Decimals = int64(decimals)
+			if record.TokenInfo != "" {
+				var tokenInfo *types.TokenInfo
+				if jsonErr := json.Unmarshal([]byte(record.TokenInfo), &tokenInfo); jsonErr == nil {
+					if tokenInfo != nil {
+						am := tokenInfo.Amount
+						sy := tokenInfo.Symbol
+						dar.Decimals = tokenInfo.Decimals
 						dar.Amount = am
 						dar.Original = am
 						dar.Symbol = sy
-						dar.Original = am
+					}
+				}
+			} else {
+				paseJson := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
+					tokenMap := paseJson["token"]
+					if tokenMap != nil {
+						ret := tokenMap.(map[string]interface{})
+						if ret != nil {
+							am := ret["amount"].(string)
+							sy := ret["symbol"].(string)
+							decimals, _ := utils.GetInt(ret["decimals"])
+							dar.Decimals = int64(decimals)
+							dar.Amount = am
+							dar.Original = am
+							dar.Symbol = sy
+							dar.Original = am
+						}
 					}
 				}
 			}
@@ -128,7 +164,7 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			continue
 		}
 
-		if record.TransactionType == CONTRACT || record.TransactionType == SWAP || record.TransactionType == MINT{
+		if record.TransactionType == CONTRACT || record.TransactionType == SWAP || record.TransactionType == MINT {
 			txhashMap[record.TransactionHash] = record
 			continue
 		}
@@ -153,11 +189,21 @@ func DappApproveFilter(chainName string, txRecords []*data.EvmTransactionRecord)
 			dar.LastTxhash = v.TransactionHash
 			dar.TxTime = v.TxTime
 			dar.ErcType = APPROVE
-			paseJson := make(map[string]interface{})
-			if jsonErr := json.Unmarshal([]byte(log_.ParseData), &paseJson); jsonErr == nil {
-				tokenMap := paseJson["token"]
-				ret := tokenMap.(map[string]interface{})
-				dar.Amount = ret["amount"].(string)
+
+			if log_.TokenInfo != "" {
+				var tokenInfo *types.TokenInfo
+				if jsonErr := json.Unmarshal([]byte(log_.TokenInfo), &tokenInfo); jsonErr == nil {
+					if tokenInfo != nil {
+						dar.Amount = tokenInfo.Amount
+					}
+				}
+			} else {
+				paseJson := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(log_.ParseData), &paseJson); jsonErr == nil {
+					tokenMap := paseJson["token"]
+					ret := tokenMap.(map[string]interface{})
+					dar.Amount = ret["amount"].(string)
+				}
 			}
 			dars = append(dars, dar)
 		}
@@ -201,20 +247,35 @@ func TronDappApproveFilter(chainName string, txRecords []*data.TrxTransactionRec
 				ErcType:    APPROVE,
 			}
 
-			paseJson := make(map[string]interface{})
-			if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
-				tokenMap := paseJson["token"]
-				if tokenMap != nil {
-					ret := tokenMap.(map[string]interface{})
-					if ret != nil {
-						am := ret["amount"].(string)
-						sy := ret["symbol"].(string)
-						decimals, _ := utils.GetInt(ret["decimals"])
-						dar.Decimals = int64(decimals)
+			if record.TokenInfo != "" {
+				var tokenInfo *types.TokenInfo
+				if jsonErr := json.Unmarshal([]byte(record.TokenInfo), &tokenInfo); jsonErr == nil {
+					if tokenInfo != nil {
+						am := tokenInfo.Amount
+						sy := tokenInfo.Symbol
+						decimals := tokenInfo.Decimals
+						dar.Decimals = decimals
 						dar.Amount = am
-						dar.Original = am
 						dar.Symbol = sy
 						dar.Original = am
+					}
+				}
+			} else {
+				paseJson := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(record.ParseData), &paseJson); jsonErr == nil {
+					tokenMap := paseJson["token"]
+					if tokenMap != nil {
+						ret := tokenMap.(map[string]interface{})
+						if ret != nil {
+							am := ret["amount"].(string)
+							sy := ret["symbol"].(string)
+							decimals, _ := utils.GetInt(ret["decimals"])
+							dar.Decimals = int64(decimals)
+							dar.Amount = am
+							dar.Original = am
+							dar.Symbol = sy
+							dar.Original = am
+						}
 					}
 				}
 			}
@@ -247,11 +308,21 @@ func TronDappApproveFilter(chainName string, txRecords []*data.TrxTransactionRec
 			dar.LastTxhash = v.TransactionHash
 			dar.TxTime = v.TxTime
 			dar.ErcType = APPROVE
-			paseJson := make(map[string]interface{})
-			if jsonErr := json.Unmarshal([]byte(log_.ParseData), &paseJson); jsonErr == nil {
-				tokenMap := paseJson["token"]
-				ret := tokenMap.(map[string]interface{})
-				dar.Amount = ret["amount"].(string)
+
+			if log_.TokenInfo != "" {
+				var tokenInfo *types.TokenInfo
+				if jsonErr := json.Unmarshal([]byte(log_.TokenInfo), &tokenInfo); jsonErr == nil {
+					if tokenInfo != nil {
+						dar.Amount = tokenInfo.Amount
+					}
+				}
+			} else {
+				paseJson := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(log_.ParseData), &paseJson); jsonErr == nil {
+					tokenMap := paseJson["token"]
+					ret := tokenMap.(map[string]interface{})
+					dar.Amount = ret["amount"].(string)
+				}
 			}
 			dars = append(dars, dar)
 		}

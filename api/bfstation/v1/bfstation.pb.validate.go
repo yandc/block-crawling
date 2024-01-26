@@ -122,6 +122,12 @@ func (m *PageListTxnsRequest) validate(all bool) error {
 
 	// no validation rules for FromOBWallet
 
+	// no validation rules for Source
+
+	// no validation rules for CoinTypeIn
+
+	// no validation rules for CoinTypeOut
+
 	if len(errors) > 0 {
 		return PageListTxnsRequestMultiError(errors)
 	}
@@ -375,6 +381,8 @@ func (m *BFStationTxRecord) validate(all bool) error {
 	// no validation rules for WalletAddress
 
 	// no validation rules for Type
+
+	// no validation rules for PoolId
 
 	// no validation rules for Vault
 

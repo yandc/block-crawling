@@ -73,8 +73,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		Status:          status,
 		TxTime:          txTime,
 		TransactionType: biz.NATIVE,
-		DappData:        "",
-		ClientData:      "",
 		CreatedAt:       h.now.Unix(),
 		UpdatedAt:       h.now.Unix(),
 	}

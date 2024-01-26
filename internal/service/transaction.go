@@ -46,6 +46,11 @@ func (s *TransactionService) GetTransactionByHash(ctx context.Context, req *pb.G
 		return nil, errors.New("transaction not found , hash : " + req.Hash)
 	}
 
+	switch chainType {
+	case biz.CASPER, biz.BTC, biz.NERVOS, biz.TVM, biz.SUI, biz.SOLANA, biz.KASPA:
+		record.Nonce = -1 // make it to -1 and convert to empty string in user center
+	}
+
 	convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
 
 	return record, err
@@ -112,6 +117,11 @@ func (s *TransactionService) PageLists(ctx context.Context, req *pb.PageListRequ
 		for _, record := range result.List {
 			if record == nil {
 				continue
+			}
+
+			switch chainType {
+			case biz.CASPER, biz.BTC, biz.NERVOS, biz.TVM, biz.SUI, biz.SOLANA, biz.KASPA:
+				record.Nonce = -1 // make it to -1 and convert to empty string in user center
 			}
 			convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
 		}
@@ -180,7 +190,10 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 			if record == nil {
 				continue
 			}
-
+			switch chainType {
+			case biz.CASPER, biz.BTC, biz.NERVOS, biz.TVM, biz.SUI, biz.SOLANA, biz.KASPA:
+				record.Nonce = -1 // make it to -1 and convert to empty string in user center
+			}
 			convertRecord(req.Platform, req.ChainName, chainType, req.OsVersion, record)
 		}
 	}

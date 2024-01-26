@@ -40,17 +40,22 @@ type TrxTransactionRecord struct {
 	EnergyUsage     string          `json:"energyUsage" form:"energyUsage" gorm:"type:character varying(20)"`
 	Data            string          `json:"data" form:"data"`
 	EventLog        string          `json:"eventLog" form:"eventLog"`
-	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
+	LogAddress      datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
+	TokenInfo       string          `json:"tokenInfo" form:"tokenInfo"`
+	SendTime        int64           `json:"sendTime" form:"sendTime"`
+	SessionId       string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	FeeTokenInfo    string          `json:"feeTokenInfo" form:"feeTokenInfo"`
+	TokenGasless    string          `json:"tokenGasless" form:"tokenGasless"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 func (*TrxTransactionRecord) Version() string {
-	return "20231208"
+	return "20240104"
 }
 
 // TrxTransactionRecordRepo is a Greater repo.
@@ -115,14 +120,20 @@ func (r *TrxTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *TrxTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, trxTransactionRecord *TrxTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":   gorm.Expr("excluded.dapp_data"),
-			"client_data": gorm.Expr("excluded.client_data"),
-			"updated_at":  gorm.Expr("excluded.updated_at"),
+			"dapp_data":      gorm.Expr("excluded.dapp_data"),
+			"client_data":    gorm.Expr("excluded.client_data"),
+			"fee_token_info": gorm.Expr("case when " + tableName + ".status in('success', 'fail') then " + tableName + ".fee_token_info else excluded.fee_token_info end"),
+			"token_gasless":  gorm.Expr("excluded.token_gasless"),
+			"send_time":      gorm.Expr("excluded.send_time"),
+			"session_id":     gorm.Expr("excluded.session_id"),
+			"short_host":     gorm.Expr("excluded.short_host"),
+			"updated_at":     gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&trxTransactionRecord)
 	err := ret.Error
@@ -210,6 +221,12 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"transaction_type": gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"fee_token_info":   gorm.Expr("case when " + tableName + ".status in('success', 'fail') then " + tableName + ".fee_token_info else excluded.fee_token_info end"),
+			"token_gasless":    gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
+			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&trxTransactionRecords)
@@ -254,6 +271,12 @@ func (r *TrxTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"fee_token_info":   gorm.Expr("case when " + tableName + ".status in('success', 'fail') then " + tableName + ".fee_token_info else excluded.fee_token_info end"),
+			"token_gasless":    gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
+			"token_info":       gorm.Expr("case when excluded.token_info != '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&trxTransactionRecords)

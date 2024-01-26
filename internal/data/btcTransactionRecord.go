@@ -35,8 +35,15 @@ type BtcTransactionRecord struct {
 	ConfirmCount    int32           `json:"confirmCount" form:"confirmCount"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
+	SendTime        int64           `json:"sendTime" form:"sendTime"`
+	SessionId       string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (r *BtcTransactionRecord) Version() string {
+	return "20240104"
 }
 
 // BtcTransactionRecordRepo is a Greater repo.
@@ -99,6 +106,7 @@ func (r *BtcTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *BtcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, btcTransactionRecord *BtcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -106,6 +114,9 @@ func (r *BtcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"dapp_data":   gorm.Expr("excluded.dapp_data"),
 			"client_data": gorm.Expr("excluded.client_data"),
+			"send_time":   gorm.Expr("excluded.send_time"),
+			"session_id":  gorm.Expr("excluded.session_id"),
+			"short_host":  gorm.Expr("excluded.short_host"),
 			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&btcTransactionRecord)
@@ -117,6 +128,7 @@ func (r *BtcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *BtcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, btcTransactionRecords []*BtcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(btcTransactionRecords, len(btcTransactionRecords))
 	err := ret.Error
@@ -184,6 +196,9 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"confirm_count":    clause.Column{Table: "excluded", Name: "confirm_count"},
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&btcTransactionRecords)
@@ -220,6 +235,9 @@ func (r *BtcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"confirm_count":    gorm.Expr("case when excluded.confirm_count != 0 then excluded.confirm_count else " + tableName + ".confirm_count end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&btcTransactionRecords)

@@ -270,27 +270,33 @@ message TransactionReq {
   string contractAddress = 10;//   -- 非必输
   int64 txTime = 11 ;// -- 非必输
   int64 nonce = 12;//  -- 非必输
-  string gasLimit = 13 ;//  -- 非必输
-  string gasUsed = 14;// -- 非必输
-  string gasPrice = 15;//  -- 非必输
-  string baseFee = 16;// -- 非必输
+  string gasLimit = 13 ;//  -- 非必输 Deprecated by feeData
+  string gasUsed = 14;// -- 非必输 Deprecated by feeData
+  string gasPrice = 15;//  -- 非必输 Deprecated by feeData
+  string baseFee = 16;// -- 非必输 Deprecated by feeData
   string data = 17;//  -- 非必输
   string dappData = 18;//  -- 非必输
   string eventLog = 19;//  -- 非必输
-  string parseData = 20;//  -- 非必输
-  string netUsage = 21;//  -- 非必输
-  string feeLimit = 22;//  -- 非必输
-  string energyUsage = 23;//  -- 非必输
+  string parseData = 20;//  -- 非必输 Deprecated
+  string netUsage = 21;//  -- 非必输 Deprecated by feeData
+  string feeLimit = 22;//  -- 非必输 Deprecated by feeData
+  string energyUsage = 23;//  -- 非必输 Deprecated by feeData
   string blockHash = 24 ;//-- 非必输
   int64 blockNumber = 25 ;//  -- 非必输
   int64 createdAt = 26 ;// -- 非必输
   int64 updatedAt = 27 ;// -- 非必输
-  string clientData = 28 ;
+  string clientData = 28 ; // Deprecated
   string maxFeePerGas = 29;
   string maxPriorityFeePerGas = 30;
   string feeData = 31;
   string operateType = 32;
   string originalHash = 33;
+  string tokenGasless = 34;
+  string tokenInfo = 35;
+  int64 sendTime = 36;
+  string sessionId = 37;
+	string shortHost = 38;
+	string memo = 39;
 }
 
 message GetTransactionByHashRequest{
@@ -373,7 +379,13 @@ message TransactionRecord {
   string operateType = 35;
   string originalHash = 36;
   repeated TransactionRecord operateRecordList = 37;
-  string gasFeeInfo = 38;
+  string tokenGasless = 38;
+  string tokenInfo = 39;
+  int64 sendTime = 40;
+  string sessionId = 41;
+  string statusDetail = 42;
+	string shortHost = 43;
+	string memo = 44;
 }
 
 message AmountRequest {

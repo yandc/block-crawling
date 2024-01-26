@@ -15,47 +15,48 @@ import (
 
 // TransactionRecord is a TransactionRecord model.
 type TransactionRecord struct {
-	Id                           int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	SlotNumber                   int             `json:"slotNumber" form:"slotNumber"`
-	BlockHash                    string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
-	BlockNumber                  int             `json:"blockNumber" form:"blockNumber"`
-	Nonce                        int64           `json:"nonce" form:"nonce"`
-	TransactionHash              string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
-	OriginalHash                 string          `json:"originalHash" form:"originalHash" gorm:"type:character varying(80);default:null;index"`
-	FromAddress                  string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
-	ToAddress                    string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
-	FromUid                      string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid                        string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
-	FeeAmount                    decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
-	Amount                       decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
-	Status                       string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
-	TxTime                       int64           `json:"txTime" form:"txTime"`
-	ContractAddress              string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
-	ParseData                    string          `json:"parseData" form:"parseData"`
-	Type                         string          `json:"type" form:"type" gorm:"type:character varying(2)"`
-	GasLimit                     string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(32)"`
-	GasUsed                      string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(32)"`
-	GasPrice                     string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(32)"`
-	BaseFee                      string          `json:"baseFee" form:"baseFee" gorm:"type:character varying(32)"`
-	MaxFeePerGas                 string          `json:"maxFeePerGas" form:"maxFeePerGas" gorm:"type:character varying(32)"`
-	MaxPriorityFeePerGas         string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(32)"`
-	FeeLimit                     string          `json:"feeLimit" form:"feeLimit" gorm:"type:character varying(30)"`
-	NetUsage                     string          `json:"netUsage" form:"netUsage" gorm:"type:character varying(30)"`
-	EnergyUsage                  string          `json:"energyUsage" form:"energyUsage" gorm:"type:character varying(20)"`
-	Data                         string          `json:"data" form:"data"`
-	EventLog                     string          `json:"eventLog" form:"eventLog"`
-	LogAddress                   datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"`
-	TransactionType              string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
-	OperateType                  string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
-	DappData                     string          `json:"dappData" form:"dappData"`
-	ClientData                   string          `json:"clientData" form:"clientData"`
-	TokenInfo                    string          `json:"tokenInfo" form:"tokenInfo"`
-	SendTime                     int64           `json:"sendTime" form:"sendTime"`
-	SessionId                    string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
-	CompanyWalletApproveRecordId string          `json:"companyWalletApproveRecordId" form:"CompanyWalletApproveRecordId" gorm:"type:character varying(64)"`
-	Memo                         string          `json:"memo" form:"memo"`
-	CreatedAt                    int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
-	UpdatedAt                    int64           `json:"updatedAt" form:"updatedAt"`
+	Id                   int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	SlotNumber           int             `json:"slotNumber" form:"slotNumber"`
+	BlockHash            string          `json:"blockHash" form:"blockHash"  gorm:"type:character varying(66)"`
+	BlockNumber          int             `json:"blockNumber" form:"blockNumber"`
+	Nonce                int64           `json:"nonce" form:"nonce"`
+	TransactionHash      string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
+	OriginalHash         string          `json:"originalHash" form:"originalHash" gorm:"type:character varying(80);default:null;index"`
+	FromAddress          string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
+	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
+	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
+	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
+	Amount               decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
+	Status               string          `json:"status" form:"status" gorm:"type:character varying(20);index"`
+	TxTime               int64           `json:"txTime" form:"txTime"`
+	ContractAddress      string          `json:"contractAddress" form:"contractAddress" gorm:"type:character varying(42);index"`
+	ParseData            string          `json:"parseData" form:"parseData"`
+	Type                 string          `json:"type" form:"type" gorm:"type:character varying(2)"`
+	GasLimit             string          `json:"gasLimit" form:"gasLimit" gorm:"type:character varying(32)"`
+	GasUsed              string          `json:"gasUsed" form:"gasUsed" gorm:"type:character varying(32)"`
+	GasPrice             string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(32)"`
+	BaseFee              string          `json:"baseFee" form:"baseFee" gorm:"type:character varying(32)"`
+	MaxFeePerGas         string          `json:"maxFeePerGas" form:"maxFeePerGas" gorm:"type:character varying(32)"`
+	MaxPriorityFeePerGas string          `json:"maxPriorityFeePerGas" form:"maxPriorityFeePerGas" gorm:"type:character varying(32)"`
+	FeeLimit             string          `json:"feeLimit" form:"feeLimit" gorm:"type:character varying(30)"`
+	NetUsage             string          `json:"netUsage" form:"netUsage" gorm:"type:character varying(30)"`
+	EnergyUsage          string          `json:"energyUsage" form:"energyUsage" gorm:"type:character varying(20)"`
+	Data                 string          `json:"data" form:"data"`
+	EventLog             string          `json:"eventLog" form:"eventLog"`
+	LogAddress           datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"`
+	TransactionType      string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
+	OperateType          string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
+	DappData             string          `json:"dappData" form:"dappData"`
+	ClientData           string          `json:"clientData" form:"clientData"`
+	TokenInfo            string          `json:"tokenInfo" form:"tokenInfo"`
+	SendTime             int64           `json:"sendTime" form:"sendTime"`
+	SessionId            string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost            string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
+	TokenGasless         string          `json:"tokenGasless" form:"tokenGasless"`
+	Memo                 string          `json:"memo" form:"memo"`
+	CreatedAt            int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
+	UpdatedAt            int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 type TransactionRecordWrapper struct {

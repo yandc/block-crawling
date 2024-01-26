@@ -272,8 +272,6 @@ func (p *Platform) SendMempoolTXIds(txIds []string) (queryCount int) {
 				Status:          biz.PENDING,
 				TxTime:          now,
 				ConfirmCount:    0,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			}

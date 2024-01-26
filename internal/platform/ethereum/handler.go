@@ -125,7 +125,7 @@ func (h *handler) WrapsError(client chain.Clienter, err error) error {
 }
 
 func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight bool) {
-	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL {
+	if err == nil || fmt.Sprintf("%s", err) == BLOCK_NO_TRANSCATION || fmt.Sprintf("%s", err) == BLOCK_NONAL_TRANSCATION || err == ethereum.NotFound || err == pcommon.NotFound || err == pcommon.BlockNotFound || err == pcommon.TransactionNotFound || fmt.Sprintf("%s", err) == FILE_BLOCK_NULL || err == pcommon.TransactionStillPending {
 		if fmt.Sprintf("%s", err) != BLOCK_NO_TRANSCATION && fmt.Sprintf("%s", err) != BLOCK_NONAL_TRANSCATION {
 			pcommon.LogBlockWarn(h.chainName, err, optHeights...)
 		}

@@ -38,7 +38,6 @@ type customConfigProviderImpl struct {
 
 // Start implements CustomConfigProvider
 func (p *customConfigProviderImpl) Start(context.Context) error {
-	p.fetchAndProvide()
 	go func() {
 		customChainPlan := time.NewTicker(time.Duration(10) * time.Second)
 		for true {
@@ -146,5 +145,6 @@ func NewCustomConfigProvider(db *gorm.DB, mr data.MigrationRepo) CustomConfigPro
 		db:          db,
 		mr:          mr,
 	}
+	p.fetchAndProvide()
 	return p
 }
