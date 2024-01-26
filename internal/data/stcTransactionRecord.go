@@ -41,13 +41,21 @@ type StcTransactionRecord struct {
 	GasPrice        string          `json:"gasPrice" form:"gasPrice" gorm:"type:character varying(20)"`
 	Data            string          `json:"data" form:"data"`
 	EventLog        string          `json:"eventLog" form:"eventLog"`
-	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"`
+	LogAddress      datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	OperateType     string          `json:"operateType" form:"operateType" gorm:"type:character varying(8)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
+	TokenInfo       string          `json:"tokenInfo" form:"tokenInfo"`
+	SendTime        int64           `json:"sendTime" form:"sendTime"`
+	SessionId       string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (r *StcTransactionRecord) Version() string {
+	return "20240104"
 }
 
 type StcTransactionRecordWrapper struct {
@@ -118,6 +126,7 @@ func (r *StcTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *StcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, stcTransactionRecord *StcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -127,6 +136,9 @@ func (r *StcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 			"operate_type":  gorm.Expr("excluded.operate_type"),
 			"dapp_data":     gorm.Expr("excluded.dapp_data"),
 			"client_data":   gorm.Expr("excluded.client_data"),
+			"send_time":     gorm.Expr("excluded.send_time"),
+			"session_id":    gorm.Expr("excluded.session_id"),
+			"short_host":    gorm.Expr("excluded.short_host"),
 			"updated_at":    gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&stcTransactionRecord)
@@ -138,6 +150,7 @@ func (r *StcTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *StcTransactionRecordRepoImpl) BatchSave(ctx context.Context, tableName string, stcTransactionRecords []*StcTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).CreateInBatches(stcTransactionRecords, len(stcTransactionRecords))
 	err := ret.Error
@@ -215,6 +228,10 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"operate_type":     gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&stcTransactionRecords)
@@ -262,6 +279,10 @@ func (r *StcTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"operate_type":     gorm.Expr("case when excluded.operate_type != '' then excluded.operate_type when " + tableName + ".transaction_type in('cancel', 'speed_up') then " + tableName + ".transaction_type else " + tableName + ".operate_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"token_info":       gorm.Expr("case when excluded.token_info != '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&stcTransactionRecords)

@@ -3057,6 +3057,18 @@ func (m *TransactionReq) validate(all bool) error {
 
 	// no validation rules for OriginalHash
 
+	// no validation rules for TokenGasless
+
+	// no validation rules for TokenInfo
+
+	// no validation rules for SendTime
+
+	// no validation rules for SessionId
+
+	// no validation rules for ShortHost
+
+	// no validation rules for Memo
+
 	if len(errors) > 0 {
 		return TransactionReqMultiError(errors)
 	}
@@ -3719,7 +3731,19 @@ func (m *TransactionRecord) validate(all bool) error {
 
 	}
 
-	// no validation rules for GasFeeInfo
+	// no validation rules for TokenGasless
+
+	// no validation rules for TokenInfo
+
+	// no validation rules for SendTime
+
+	// no validation rules for SessionId
+
+	// no validation rules for StatusDetail
+
+	// no validation rules for ShortHost
+
+	// no validation rules for Memo
 
 	if len(errors) > 0 {
 		return TransactionRecordMultiError(errors)

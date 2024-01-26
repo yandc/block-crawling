@@ -7221,10 +7221,10 @@ func SyncCoinMarket(chainName string) int {
 				//计算主币的余额，因为有手续费的花费
 				if fromUid != "" {
 					HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, decimal.Zero)
-					HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+					HandlerTokenPriceHistory(chainName, fromAddress, record.TokenInfo, fromUid, dt, true)
 				}
 				if toUid != "" {
-					HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+					HandlerTokenPriceHistory(chainName, toAddress, record.TokenInfo, toUid, dt, false)
 				}
 
 			case biz.APPROVE, biz.APPROVENFT, biz.CREATECONTRACT, biz.CREATEACCOUNT, biz.TRANSFERNFT, biz.CONTRACT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH, biz.SETAPPROVALFORALL, biz.SAFETRANSFERFROM, biz.SAFEBATCHTRANSFERFROM:
@@ -7235,10 +7235,10 @@ func SyncCoinMarket(chainName string) int {
 			case biz.EVENTLOG:
 				//  解析parse_data 拿出 代币
 				if fromUid != "" {
-					HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+					HandlerTokenPriceHistory(chainName, fromAddress, record.TokenInfo, fromUid, dt, true)
 				}
 				if toUid != "" {
-					HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+					HandlerTokenPriceHistory(chainName, toAddress, record.TokenInfo, toUid, dt, false)
 				}
 			case biz.NATIVE:
 				// 主币 + 手续费
@@ -7257,9 +7257,10 @@ func SyncCoinMarket(chainName string) int {
 
 	return total
 }
-func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int64, fromFlag bool) {
+func HandlerTokenPriceHistory(chainName, address, tokenInfoStr, uid string, dt int64, fromFlag bool) {
 	now := time.Now().Unix()
-	tokenInfo, _ := biz.ParseTokenInfo(parseData)
+	var tokenInfo *types.TokenInfo
+	json.Unmarshal([]byte(tokenInfoStr), &tokenInfo)
 	tokenSymbolMap := make(map[string]int)
 
 	tokenSymbolMap[tokenInfo.Address] = int(tokenInfo.Decimals)
@@ -7791,6 +7792,108 @@ func UpdateSignAddress() {
 	}
 
 	log.Info("将签名记录中钱包地址转换为标准格式，处理用户资产表结束")
+}
+
+func HandleRecordDataMigration() {
+	var startTime, stopTime int64
+	startTime = 0
+	stopTime = time.Now().Unix()
+
+	log.Info("处理交易记录数据迁移，处理交易记录表开始", zap.Any("startTime", startTime), zap.Any("stopTime", stopTime))
+	for chainName, _ := range biz.GetChainNameTypeMap() {
+		log.Info("处理交易记录数据迁移，开始处理", zap.Any("chainName", chainName))
+		chainType, _ := biz.GetChainNameType(chainName)
+		var request = &data.TransactionRequest{
+			//SelectColumn: "id, client_data, parse_data",
+			Nonce: -1,
+			//TransactionTypeNotInList: []string{biz.CONTRACT},
+			StartTime: startTime,
+			StopTime:  stopTime,
+			OrderBy:   "id asc",
+			PageSize:  biz.PAGE_SIZE,
+		}
+		if chainType == biz.BTC || chainType == biz.KASPA {
+			request.SelectColumn = "id, client_data"
+		} else if chainType == biz.COSMOS {
+			request.SelectColumn = "id, client_data, parse_data, data"
+		} else {
+			request.SelectColumn = "id, client_data, parse_data"
+		}
+		txRecords, err := biz.TransactionRecordRepoClient.PageListAll(nil, chainName, request)
+		if err != nil {
+			log.Error("处理交易记录数据迁移，从数据库中查询交易记录失败", zap.Any("chainName", chainName), zap.Any("error", err))
+			return
+		}
+		if len(txRecords) == 0 {
+			log.Info("处理交易记录数据迁移，从数据库中查询交易记录为空", zap.Any("chainName", chainName))
+			continue
+		}
+
+		for _, record := range txRecords {
+			var sendTime int64
+			var sessionId, memo, tokenInfo, tokenGasless string
+			var shortHost string
+			clientData := record.ClientData
+			clientDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(clientData), &clientDataMap); jsonErr == nil {
+				if sendTimei, ok := clientDataMap["sendTime"]; ok {
+					sendTimeInt, _ := utils.GetInt(sendTimei)
+					sendTime = int64(sendTimeInt)
+				}
+				sessionId, _ = clientDataMap["sessionId"].(string)
+				if dappTxinfo, ok := clientDataMap["dappTxinfo"].(map[string]interface{}); ok {
+					if tokenGaslessObj, ok := dappTxinfo["tokenGasless"]; ok {
+						tokenGaslessByts, _ := json.Marshal(tokenGaslessObj)
+						tokenGasless = string(tokenGaslessByts)
+					}
+				}
+
+				if s, ok := clientDataMap["shortHost"]; ok {
+					shortHost, _ = s.(string)
+				}
+			}
+			if chainType != biz.BTC && chainType != biz.KASPA {
+				parseData := record.ParseData
+				parseDataMap := make(map[string]interface{})
+				if jsonErr := json.Unmarshal([]byte(parseData), &parseDataMap); jsonErr == nil {
+					if tokenInfoi, ok := parseDataMap["token"]; ok {
+						tokenInfo, _ = utils.JsonEncode(tokenInfoi)
+					} else {
+						tokenInfo = "{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}"
+					}
+				}
+
+				if chainType == biz.COSMOS {
+					data := record.Data
+					dataMap := make(map[string]interface{})
+					if jsonErr := json.Unmarshal([]byte(data), &dataMap); jsonErr == nil {
+						memo, _ = dataMap["memo"].(string)
+					}
+				}
+			}
+			record.SendTime = sendTime
+			if len(sessionId) > 32 {
+				sessionId = sessionId[:32]
+			}
+			record.SessionId = sessionId
+			record.Memo = memo
+			record.TokenInfo = tokenInfo
+			record.TokenGasless = tokenGasless
+			record.ShortHost = shortHost
+		}
+
+		count, err := biz.TransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, chainName, txRecords, biz.PAGE_SIZE)
+		for i := 0; i < 3 && err != nil; i++ {
+			time.Sleep(time.Duration(i*1) * time.Second)
+			count, err = biz.TransactionRecordRepoClient.PageBatchSaveOrUpdateSelectiveById(nil, chainName, txRecords, biz.PAGE_SIZE)
+		}
+		if err != nil {
+			log.Error("处理交易记录数据迁移，更新交易记录，将数据插入到数据库中失败", zap.Any("size", len(txRecords)), zap.Any("count", count), zap.Any("error", err))
+		}
+		log.Info("处理交易记录数据迁移，处理结束", zap.Any("chainName", chainName), zap.Any("query size", len(txRecords)), zap.Any("affected count", count))
+	}
+
+	log.Info("处理交易记录数据迁移，处理交易记录表结束", zap.Any("startTime", startTime), zap.Any("stopTime", stopTime))
 }
 
 func UpdateBTCAmount() {

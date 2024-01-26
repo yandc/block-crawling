@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -58,8 +59,9 @@ func FixNftInfo() {
 		}
 		txHashMap := make(map[string]string)
 		for _, incompleteNft := range incompleteNfts {
-			parseData := incompleteNft.ParseData
-			tokenInfo, _ := biz.ParseTokenInfo(parseData)
+			tokenInfoJson := incompleteNft.TokenInfo
+			var tokenInfo *types.TokenInfo
+			json.Unmarshal([]byte(tokenInfoJson), &tokenInfo)
 			tokenAddress := tokenInfo.Address
 			tokenId := tokenInfo.TokenId
 

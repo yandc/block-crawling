@@ -196,14 +196,14 @@ func handleUserStatistic(chainName string, client Client, txRecords []*data.CkbT
 			continue
 		}
 
-		decimals, _, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		decimals, _, err := biz.GetDecimalsSymbolFromTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 统计交易记录出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("统计交易金额，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("统计交易金额，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 
@@ -288,14 +288,14 @@ func handleTokenPush(chainName string, client Client, txRecords []*data.CkbTrans
 			continue
 		}
 
-		decimals, symbol, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		decimals, symbol, err := biz.GetDecimalsSymbolFromTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("推送token信息，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("推送token信息，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 

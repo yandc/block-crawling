@@ -230,6 +230,7 @@ func (h *txDecoder) handleEachTransaction(
 	var tokenInfo types.TokenInfo
 	var eventLogs []*types.EventLogUid
 	feeTokenInfo := ""
+	tokenGasless := ""
 	var feeLog *types.EventLogUid
 	var realContractAddress string
 	var contractAddress, tokenId string
@@ -446,6 +447,9 @@ func (h *txDecoder) handleEachTransaction(
 	//手续费代付
 	if feeLog != nil {
 		feeTokenInfo, _ = utils.JsonEncode(feeLog.Token)
+		tokenGasless, _ = utils.JsonEncode(map[string]interface{}{
+			"fee_token_info": feeLog.Token,
+		})
 
 		if len(eventLogs) == 0 {
 			eventLogs = append(eventLogs, feeLog)
@@ -458,6 +462,7 @@ func (h *txDecoder) handleEachTransaction(
 				"token": feeLog.Token,
 			}
 			feeEventParseData, _ := utils.JsonEncode(feeEventMap)
+			feeEventTokenInfoStr, _ := utils.JsonEncode(feeLog.Token)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", -1)
 			feeTxRecords := []*data.EvmTransactionRecord{{
 				BlockNumber:     int(blockNumber),
@@ -470,6 +475,7 @@ func (h *txDecoder) handleEachTransaction(
 				ContractAddress: feeLog.Token.Address,
 				ParseData:       feeEventParseData,
 				TransactionType: biz.EVENTLOG,
+				TokenInfo:       feeEventTokenInfoStr,
 			}}
 			go HandleUserAsset(h.chainName, *(client), feeTxRecords)
 		}
@@ -504,6 +510,7 @@ func (h *txDecoder) handleEachTransaction(
 		"token": tokenInfo,
 	}
 	parseData, _ := utils.JsonEncode(evmMap)
+	tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 	gasUsedInt, _ := utils.HexStringToBigInt(receipt.GasUsed)
 	gasUsed := gasUsedInt.String()
 	gasPriceInt := transaction.GasPrice()
@@ -566,6 +573,7 @@ func (h *txDecoder) handleEachTransaction(
 		GasPrice:             gasPrice,
 		BaseFee:              block.BaseFee,
 		FeeTokenInfo:         feeTokenInfo,
+		TokenGasless:         tokenGasless,
 		MaxFeePerGas:         maxFeePerGas,
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		Data:                 hexData,
@@ -573,8 +581,7 @@ func (h *txDecoder) handleEachTransaction(
 		LogAddress:           logAddress,
 		TransactionType:      meta.TransactionType,
 		OperateType:          "",
-		DappData:             "",
-		ClientData:           "",
+		TokenInfo:            tokenInfoStr,
 		CreatedAt:            h.now,
 		UpdatedAt:            h.now,
 	}
@@ -596,6 +603,7 @@ func (h *txDecoder) handleEachTransaction(
 			"token": eventLog.Token,
 		}
 		eventParseData, _ := utils.JsonEncode(eventMap)
+		eventTokenInfoStr, _ := utils.JsonEncode(eventLog.Token)
 		txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 		txType := biz.EVENTLOG
 		contractAddress := eventLog.Token.Address
@@ -622,13 +630,13 @@ func (h *txDecoder) handleEachTransaction(
 			GasPrice:             gasPrice,
 			BaseFee:              block.BaseFee,
 			FeeTokenInfo:         feeTokenInfo,
+			TokenGasless:         tokenGasless,
 			MaxFeePerGas:         maxFeePerGas,
 			MaxPriorityFeePerGas: maxPriorityFeePerGas,
 			Data:                 hexData,
 			TransactionType:      txType,
 			OperateType:          "",
-			DappData:             "",
-			ClientData:           "",
+			TokenInfo:            eventTokenInfoStr,
 			CreatedAt:            h.now,
 			UpdatedAt:            h.now,
 		}
@@ -1921,6 +1929,12 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 	//新成功后的 speed_up
 
 	//兜底时，成功后 执行 a 一样的步骤
+	elapsed := time.Now().Unix() - record.TxTime
+
+	// Polygon 链 Pending 时会出现从链上获取不到的情况，尝试设置少于 10 分钟不设置为失败。
+	if h.chainName == "Polygon" && elapsed < 600 {
+		return nil
+	}
 
 	log.Info(
 		"pending tx could not found on the chain",
@@ -1933,6 +1947,7 @@ func (h *txDecoder) OnDroppedTx(c chain.Clienter, tx *chain.Transaction) error {
 		zap.String("fromAddress", record.FromAddress),
 		zap.String("toAddress", record.ToAddress),
 		zap.Int64("recordNonce", record.Nonce),
+		zap.Int64("pendingElapsed", elapsed),
 	)
 
 	recordNonce := record.Nonce

@@ -105,19 +105,19 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 		}
 
 		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT {
-			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
+			tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，解析parseData失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，解析tokenInfo失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error("更新用户资产，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-					zap.Any("parseData", record.ParseData), zap.Any("error", err))
+				log.Error("更新用户资产，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+					zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 				continue
 			}
 			tokenType := tokenInfo.TokenType
 
-			if tokenType != biz.SUINFT {
+			if tokenType != biz.SUINFT && tokenType != biz.BENFENNFT {
 				fromUserAssetKey := chainName + record.FromAddress + tokenAddress
 				if fromUserAsset, ok := userAssetMap[fromUserAssetKey]; !ok {
 					fromUserAsset, err = doHandleUserAsset(chainName, client, record.TransactionType, record.FromUid, record.FromAddress, tokenAddress, tokenInfo, now)
@@ -282,14 +282,14 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.SuiT
 			tokenAddress = ""
 		}
 
-		decimals, _, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		decimals, _, err := biz.GetDecimalsSymbolFromTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 统计交易记录出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("统计交易金额，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("统计交易金额，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 
@@ -382,18 +382,18 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.SuiTrans
 			continue
 		}
 
-		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("推送token信息，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("推送token信息，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenType := tokenInfo.TokenType
-		if tokenType == biz.SUINFT {
+		if tokenType == biz.SUINFT || tokenType == biz.BENFENNFT {
 			continue
 		}
 		decimals := tokenInfo.Decimals
@@ -446,14 +446,14 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			continue
 		}
 
-		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户NFT资产，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("更新用户NFT资产，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenType := tokenInfo.TokenType
@@ -688,14 +688,14 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.SuiTrans
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链添加NFT流转记录，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链添加NFT流转记录，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("添加NFT流转记录，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("添加NFT流转记录，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenAddress := tokenInfo.Address

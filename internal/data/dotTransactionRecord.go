@@ -38,12 +38,20 @@ type DotTransactionRecord struct {
 	Type            string          `json:"type" form:"type" gorm:"type:character varying(2)"`
 	Data            string          `json:"data" form:"data"`
 	EventLog        string          `json:"eventLog" form:"eventLog"`
-	LogAddress      datatypes.JSON  `json:"logAddress" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
+	LogAddress      datatypes.JSON  `json:"logAddress,omitempty" form:"logAddress" gorm:"type:jsonb"` //gorm:"type:jsonb;index:,type:gin"`
 	TransactionType string          `json:"transactionType" form:"transactionType" gorm:"type:character varying(42)"`
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
+	TokenInfo       string          `json:"tokenInfo" form:"tokenInfo"`
+	SendTime        int64           `json:"sendTime" form:"sendTime"`
+	SessionId       string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
+	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+}
+
+func (r *DotTransactionRecord) Version() string {
+	return "20240104"
 }
 
 type DotTransactionRecordRepo interface {
@@ -107,6 +115,7 @@ func (r *DotTransactionRecordRepoImpl) Save(ctx context.Context, tableName strin
 	affected := ret.RowsAffected
 	return affected, err
 }
+
 func (r *DotTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, tableName string, dotTransactionRecord *DotTransactionRecord) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Table(tableName).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
@@ -114,6 +123,9 @@ func (r *DotTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"dapp_data":   gorm.Expr("excluded.dapp_data"),
 			"client_data": gorm.Expr("excluded.client_data"),
+			"send_time":   gorm.Expr("excluded.send_time"),
+			"session_id":  gorm.Expr("excluded.session_id"),
+			"short_host":  gorm.Expr("excluded.short_host"),
 			"updated_at":  gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecord)
@@ -200,6 +212,10 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"transaction_type": clause.Column{Table: "excluded", Name: "transaction_type"},
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecord)
@@ -243,6 +259,10 @@ func (r *DotTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"transaction_type": gorm.Expr("case when excluded.transaction_type != '' then excluded.transaction_type else " + tableName + ".transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
+			"token_info":       gorm.Expr("case when excluded.token_info != '' then excluded.token_info else " + tableName + ".token_info end"),
+			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
+			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
+			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&dotTransactionRecords)

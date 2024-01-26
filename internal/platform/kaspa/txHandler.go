@@ -102,8 +102,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			Status:          status,
 			TxTime:          tx.BlockTime / 1000,
 			ConfirmCount:    int32(height - curHeight),
-			DappData:        "",
-			ClientData:      "",
 			CreatedAt:       h.now,
 			UpdatedAt:       h.now,
 		}

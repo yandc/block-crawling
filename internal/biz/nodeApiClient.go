@@ -217,6 +217,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 			return
 		}
 		parseData := ""
+		tokenInfoStr := ""
 		transactionType := NATIVE
 		if intxRecord.ContractAddress != "" {
 			transactionType = TRANSFER
@@ -228,6 +229,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 					"token": tokenInfo,
 				}
 				parseData, _ = utils.JsonEncode(evmMap)
+				tokenInfoStr, _ = utils.JsonEncode(tokenInfo)
 			}
 		}
 
@@ -246,6 +248,7 @@ func EvmNormalAndInternalGetTxByAddress(chainName string, address string, urls [
 			TransactionType: transactionType,
 			Amount:          am,
 			ParseData:       parseData,
+			TokenInfo:       tokenInfoStr,
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}

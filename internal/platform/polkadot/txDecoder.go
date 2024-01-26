@@ -63,8 +63,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		TxTime:          txTime,
 		ContractAddress: "",
 		TransactionType: biz.NATIVE,
-		DappData:        "",
-		ClientData:      "",
 		CreatedAt:       h.now.Unix(),
 		UpdatedAt:       h.now.Unix(),
 	}
@@ -160,8 +158,6 @@ func (h *txDecoder) OnSealedTx(c chain.Clienter, tx *chain.Transaction) error {
 				TxTime:          int64(transaction.Ts),
 				ContractAddress: "",
 				TransactionType: biz.NATIVE,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       h.now.Unix(),
 				UpdatedAt:       h.now.Unix(),
 			}

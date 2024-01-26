@@ -696,7 +696,14 @@ func (c *Client) GetTxByHash(txHash string) (tx *chain.Transaction, err error) {
 	receipt, err := c.GetTransactionReceipt(context.Background(), common.HexToHash(txHash))
 	if err != nil {
 		if err == ethereum.NotFound {
-			return nil, pcommon.TransactionNotFound
+			_, pending, txByHashErr := c.GetTransactionByHash(context.Background(), common.HexToHash(txHash))
+			if txByHashErr == ethereum.NotFound {
+				return nil, pcommon.TransactionNotFound
+			}
+			if pending {
+				return nil, pcommon.TransactionStillPending
+			}
+			err = txByHashErr
 		}
 		log.Error("get transaction receipt by hash error", zap.String("chainName", c.ChainName), zap.String("txHash", txHash), zap.String("nodeUrl", c.URL()), zap.Any("error", err))
 		return nil, err

@@ -60,7 +60,15 @@ func DynamicCreateTable(mr data.MigrationRepo, gormDb *gorm.DB, table string, ch
 			zap.String("version", version),
 			zap.Error(err),
 		)
-		gormDb.Table(table).AutoMigrate(record)
+		if err := gormDb.Table(table).AutoMigrate(record); err != nil {
+			log.Error(
+				"MIGRATION FAILED",
+				zap.String("table", table),
+				zap.String("version", version),
+				zap.Error(err),
+			)
+			return
+		}
 		mr.Create(context.Background(), &data.Migration{
 			Table:     table,
 			Version:   version,

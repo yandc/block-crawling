@@ -370,6 +370,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				"token": tokenInfo,
 			}
 			parseData, _ := utils.JsonEncode(solMap)
+			tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 			amountValue, _ := decimal.NewFromString(amount)
 
 			solTransactionRecord := &data.SolTransactionRecord{
@@ -390,8 +391,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				Data:            payload,
 				EventLog:        "",
 				TransactionType: txType,
-				DappData:        "",
-				ClientData:      "",
+				TokenInfo:       tokenInfoStr,
 				CreatedAt:       h.now.Unix(),
 				UpdatedAt:       h.now.Unix(),
 			}
@@ -437,8 +437,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				Data:            payload,
 				EventLog:        "",
 				TransactionType: biz.CONTRACT,
-				DappData:        "",
-				ClientData:      "",
 				CreatedAt:       h.now.Unix(),
 				UpdatedAt:       h.now.Unix(),
 			}
@@ -482,6 +480,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			"token": tokenInfo,
 		}
 		parseData, _ := utils.JsonEncode(solMap)
+		tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 		amountValue, _ := decimal.NewFromString(amount)
 
 		solContractRecord := &data.SolTransactionRecord{
@@ -502,8 +501,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 			Data:            payload,
 			EventLog:        "",
 			TransactionType: txType,
-			DappData:        "",
-			ClientData:      "",
+			TokenInfo:       tokenInfoStr,
 			CreatedAt:       h.now.Unix(),
 			UpdatedAt:       h.now.Unix(),
 		}
@@ -934,6 +932,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
+			eventTokenInfoStr, _ := utils.JsonEncode(eventLog.Token)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address
@@ -957,8 +956,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				Data:            payload,
 				EventLog:        "",
 				TransactionType: txType,
-				DappData:        "",
-				ClientData:      "",
+				TokenInfo:       eventTokenInfoStr,
 				CreatedAt:       h.now.Unix(),
 				UpdatedAt:       h.now.Unix(),
 			}

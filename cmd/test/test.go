@@ -382,7 +382,7 @@ func testGetBalance() {
 	req1.Amount = "500000000000000000"
 	req1.GasLimit = "21000"
 	req1.GasPrice = "100000000000"
-	req1.ParseData = "{\"evm\":{\"nonce\":\"0\",\"type\":0}}"
+	//req1.ParseData = "{\"evm\":{\"nonce\":\"0\",\"type\":0}}"
 	req1.ClientData = "{\"sendTime\":1657869735643}"
 
 	resp, err := p.CreateRecordFromWallet(context.Background(), req1)

@@ -17,6 +17,7 @@ import (
 // NotFound is returned by API methods if the requested item does not exist.
 var NotFound = errors.New("not found")
 var TransactionNotFound = errors.New("transaction not found")
+var TransactionStillPending = errors.New("transaction is still pending")
 var BlockNotFound = errors.New("block not found")
 
 var forkedDelNotifiedAt = &sync.Map{}

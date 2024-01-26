@@ -1,6 +1,7 @@
 package main
 
 import (
+	"block-crawling/internal/biz"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
 	bizLog "block-crawling/internal/log"
@@ -32,7 +33,7 @@ func init() {
 	flag.StringVar(&method, "method", "", "method name, eg: UpdateUserUtxo")
 }
 
-func newApp(*data.Bundle, platform.Server, platform.InnerPlatformContainer) *kratos.App {
+func newApp(*data.Bundle, platform.Server, platform.InnerPlatformContainer, biz.TransactionRecordRepo) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
@@ -69,6 +70,7 @@ func main() {
 		"UpdateUserUtxo":         platform.UpdateUserUtxo,
 		"CleanupBenfenTESTAsset": platform.CleanupBefenAsset,
 		"InitUserAssetCostPrice": platform.InitUserAssetCostPrice,
+		"MigrateRecordData":      platform.HandleRecordDataMigration,
 		"CountCompanyWallet":     platform.CountCompanyWallet,
 		"ReportFailedTxns":       platform.ReportFailedTxns,
 	}

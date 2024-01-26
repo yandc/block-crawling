@@ -1055,6 +1055,25 @@ func GetTableName(chainName string) string {
 	return data.GetTableName(chainName)
 }
 
+func GetDecimalsSymbolFromTokenInfo(chainName, tokenInfoJson string) (int32, string, error) {
+	var tokenInfo *types.TokenInfo
+	if jsonErr := json.Unmarshal([]byte(tokenInfoJson), &tokenInfo); jsonErr != nil {
+		return 0, "", jsonErr
+	}
+	decimals := int32(tokenInfo.Decimals)
+	symbol := tokenInfo.Symbol
+	address := tokenInfo.Address
+	if address == "" {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
+			decimals = platInfo.Decimal
+			symbol = platInfo.NativeCurrency
+		} else {
+			return 0, "", errors.New("chain " + chainName + " is not support")
+		}
+	}
+	return decimals, symbol, nil
+}
+
 func GetDecimalsSymbol(chainName, parseData string) (int32, string, error) {
 	parseDataJson := make(map[string]interface{})
 	err := json.Unmarshal([]byte(parseData), &parseDataJson)
@@ -1168,11 +1187,23 @@ func ParseTokenInfo(parseData string) (*types.TokenInfo, error) {
 			} else if di, ok := tokenInfoMapString["decimals"].(int); ok {
 				tokenInfo.Decimals = int64(di)
 			}
-
 		}
-
 	}
 	return tokenInfo, nil
+}
+
+func ConvertGetTokenInfo(chainName, tokenInfoStr string) (*types.TokenInfo, error) {
+	var tokenInfo *types.TokenInfo
+	err := json.Unmarshal([]byte(tokenInfoStr), &tokenInfo)
+	if err == nil && tokenInfo.Address == "" {
+		if platInfo, ok := GetChainPlatInfo(chainName); ok {
+			tokenInfo.Decimals = int64(platInfo.Decimal)
+			tokenInfo.Symbol = platInfo.NativeCurrency
+		} else {
+			return nil, errors.New("chain " + chainName + " is not support")
+		}
+	}
+	return tokenInfo, err
 }
 
 func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {

@@ -33,6 +33,7 @@ type TransactionRequest struct {
 	StopTime                 int64
 	TokenAddress             string
 	AssetType                string
+	SelectColumn             string
 	OrderBy                  string
 	DataDirection            int32
 	StartIndex               int64

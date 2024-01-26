@@ -455,6 +455,8 @@ func (m *SyncSwapEventRequest) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for ChainName
+
 	// no validation rules for PoolID
 
 	// no validation rules for A2B
@@ -474,6 +476,8 @@ func (m *SyncSwapEventRequest) validate(all bool) error {
 	// no validation rules for BeforeSqrtPrice
 
 	// no validation rules for AfterSqrtPrice
+
+	// no validation rules for CreatedAt
 
 	if len(errors) > 0 {
 		return SyncSwapEventRequestMultiError(errors)
@@ -577,6 +581,8 @@ func (m *SyncLiquidityEventRequest) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for ChainName
+
 	// no validation rules for PoolID
 
 	// no validation rules for PositionID
@@ -602,6 +608,8 @@ func (m *SyncLiquidityEventRequest) validate(all bool) error {
 	// no validation rules for AmountB
 
 	// no validation rules for Action
+
+	// no validation rules for CreatedAt
 
 	if len(errors) > 0 {
 		return SyncLiquidityEventRequestMultiError(errors)

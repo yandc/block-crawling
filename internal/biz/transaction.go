@@ -167,6 +167,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 		//查询
 		dappInfo := ""
 		parseData := ""
+		tokenInfoStr := ""
 		transcationType := ""
 		chainType, _ := GetChainNameType(da.ChainName)
 		switch chainType {
@@ -175,6 +176,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && evm != nil {
 				dappInfo = evm.DappData
 				parseData = evm.ParseData
+				tokenInfoStr = evm.TokenInfo
 				transcationType = evm.TransactionType
 			}
 		case STC:
@@ -182,6 +184,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && stc != nil {
 				dappInfo = stc.DappData
 				parseData = stc.ParseData
+				tokenInfoStr = stc.TokenInfo
 				transcationType = stc.TransactionType
 			}
 		case TVM:
@@ -189,6 +192,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && tvm != nil {
 				dappInfo = tvm.DappData
 				parseData = tvm.ParseData
+				tokenInfoStr = tvm.TokenInfo
 				transcationType = tvm.TransactionType
 			}
 		case APTOS:
@@ -196,6 +200,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && apt != nil {
 				dappInfo = apt.DappData
 				parseData = apt.ParseData
+				tokenInfoStr = apt.TokenInfo
 				transcationType = apt.TransactionType
 			}
 		case SUI:
@@ -203,6 +208,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && sui != nil {
 				dappInfo = sui.DappData
 				parseData = sui.ParseData
+				tokenInfoStr = sui.TokenInfo
 				transcationType = sui.TransactionType
 			}
 		case SOLANA:
@@ -210,6 +216,7 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			if err == nil && sol != nil {
 				dappInfo = sol.DappData
 				parseData = sol.ParseData
+				tokenInfoStr = sol.TokenInfo
 				transcationType = sol.TransactionType
 			}
 		}
@@ -244,8 +251,15 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 			DappInfo:        dappInfo,
 			TxTime:          da.TxTime,
 		}
-		if parseData != "" {
-			tokenInfo, _ := ParseTokenInfo(parseData)
+		var tokenInfo *types.TokenInfo
+		if tokenInfoStr != "" {
+			if jsonErr := json.Unmarshal([]byte(tokenInfoStr), &tokenInfo); jsonErr == nil {
+				dif.DappType = tokenInfo.TokenType
+				dif.CollectionName = tokenInfo.CollectionName
+				dif.Logo = tokenInfo.TokenUri
+			}
+		} else if parseData != "" {
+			tokenInfo, _ = ParseTokenInfo(parseData)
 			dif.DappType = tokenInfo.TokenType
 			dif.CollectionName = tokenInfo.CollectionName
 			dif.Logo = tokenInfo.TokenUri
@@ -325,23 +339,39 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		}
 	}
 
+	var tokenInfoStr string
+	sendTime := pbb.SendTime
+	sessionId := pbb.SessionId
+	shortHost := pbb.ShortHost
+	tokenGasless := pbb.TokenGasless
+	if pbb.TokenInfo != "" {
+		tokenInfoStr = addTokenUri(pbb.TokenInfo, pbb.ChainName, pbb.TransactionHash)
+	}
+	feeTokenInfo := feeDataMap["fee_token_info"]
+	if pbb.ClientData != "" {
+		sendTime, sessionId, shortHost, tokenGasless = parseClientData(pbb.ClientData)
+	}
+
 	switch chainType {
 	case CASPER:
-		parseDataMap := make(map[string]interface{})
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -364,32 +394,38 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.CsprTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), casperRecord)
 	case STC:
-		parseDataMap := make(map[string]interface{})
-		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			evmMap := parseDataMap["stc"]
-			ret := evmMap.(map[string]interface{})
-			nonceInt, _ := utils.GetInt(ret["sequence_number"])
-			nonce = int64(nonceInt)
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				evmMap := parseDataMap["stc"]
+				ret := evmMap.(map[string]interface{})
+				nonceInt, _ := utils.GetInt(ret["sequence_number"])
+				pbb.Nonce = int64(nonceInt)
 
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -449,7 +485,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			BlockNumber:     int(pbb.BlockNumber),
 			TransactionHash: pbb.TransactionHash,
 			OriginalHash:    pbb.OriginalHash,
-			Nonce:           nonce,
+			Nonce:           pbb.Nonce,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
 			FromUid:         pbb.Uid,
@@ -469,36 +505,42 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			OperateType:     pbb.OperateType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.StcTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), stcRecord)
 		if result == 1 {
-			key := pendingNonceKey + strconv.Itoa(int(nonce))
+			key := pendingNonceKey + strconv.Itoa(int(pbb.Nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case POLKADOT:
-		parseDataMap := make(map[string]interface{})
-		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			evmMap := parseDataMap["polkadot"]
-			ret := evmMap.(map[string]interface{})
-			nonceInt, _ := utils.GetInt(ret["nonce"])
-			nonce = int64(nonceInt)
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				polkadotMap := parseDataMap["polkadot"]
+				ret := polkadotMap.(map[string]interface{})
+				nonceInt, _ := utils.GetInt(ret["nonce"])
+				pbb.Nonce = int64(nonceInt)
 
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -508,7 +550,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		dotTransactionRecord := &data.DotTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           nonce,
+			Nonce:           pbb.Nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -525,32 +567,38 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.DotTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), dotTransactionRecord)
 	case EVM:
-		parseDataMap := make(map[string]interface{})
-		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			evmMap := parseDataMap["evm"]
-			ret := evmMap.(map[string]interface{})
-			nonceInt, _ := utils.GetInt(ret["nonce"])
-			nonce = int64(nonceInt)
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				evmMap := parseDataMap["evm"]
+				ret := evmMap.(map[string]interface{})
+				nonceInt, _ := utils.GetInt(ret["nonce"])
+				pbb.Nonce = int64(nonceInt)
 
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" || tokenType == "ERC20" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" || tokenType == "ERC20" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -560,7 +608,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		evmTransactionRecord := &data.EvmTransactionRecord{
 			BlockHash:            pbb.BlockHash,
 			BlockNumber:          int(pbb.BlockNumber),
-			Nonce:                nonce,
+			Nonce:                pbb.Nonce,
 			TransactionHash:      pbb.TransactionHash,
 			OriginalHash:         pbb.OriginalHash,
 			FromAddress:          pbb.FromAddress,
@@ -578,7 +626,6 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			BaseFee:              feeDataMap["base_fee"],
 			MaxFeePerGas:         feeDataMap["max_fee_per_gas"],
 			MaxPriorityFeePerGas: feeDataMap["max_priority_fee_per_gas"],
-			FeeTokenInfo:         feeDataMap["fee_token_info"],
 			Data:                 pbb.Data,
 			EventLog:             pbb.EventLog,
 			LogAddress:           logAddress,
@@ -586,17 +633,21 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			OperateType:          pbb.OperateType,
 			DappData:             pbb.DappData,
 			ClientData:           pbb.ClientData,
+			FeeTokenInfo:         feeTokenInfo,
+			TokenInfo:            tokenInfoStr,
+			TokenGasless:         tokenGasless,
+			SendTime:             sendTime,
+			SessionId:            sessionId,
+			ShortHost:            shortHost,
 			CreatedAt:            pbb.CreatedAt,
 			UpdatedAt:            pbb.UpdatedAt,
 		}
 
 		result, err = data.EvmTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), evmTransactionRecord)
 		if result == 1 {
-
-			isGasless, _ := isGasLess(pbb.ClientData)
-
-			if !isGasless {
-				key := pendingNonceKey + strconv.Itoa(int(nonce))
+			isGasless, _ := isGasLess(tokenGasless)
+			if !isGasless && pbb.Nonce >= 0 {
+				key := pendingNonceKey + strconv.Itoa(int(pbb.Nonce))
 				data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 			}
 
@@ -619,6 +670,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ConfirmCount:    0,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
@@ -627,21 +681,24 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			go UpdateUtxo(pbb)
 		}
 	case TVM:
-		parseDataMap := make(map[string]interface{})
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -667,9 +724,15 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			FeeTokenInfo:    feeDataMap["fee_token_info"],
 			Data:            pbb.Data,
 			EventLog:        pbb.EventLog,
+			LogAddress:      logAddress,
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
+			TokenGasless:    tokenGasless,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
@@ -682,27 +745,29 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			go UpdateTransactionType(pbb)
 		}
 	case APTOS:
-		parseDataMap := make(map[string]interface{})
-		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			evmMap := parseDataMap["aptos"]
-			ret := evmMap.(map[string]interface{})
-			nonceInt, _ := utils.GetInt(ret["sequence_number"])
-			nonce = int64(nonceInt)
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				evmMap := parseDataMap["aptos"]
+				ret := evmMap.(map[string]interface{})
+				nonceInt, _ := utils.GetInt(ret["sequence_number"])
+				pbb.Nonce = int64(nonceInt)
 
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -755,7 +820,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 		aptRecord := &data.AptTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           nonce,
+			Nonce:           pbb.Nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -775,31 +840,38 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: transactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
 		result, err = data.AptTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), aptRecord)
 		if result == 1 {
-			key := pendingNonceKey + strconv.Itoa(int(nonce))
+			key := pendingNonceKey + strconv.Itoa(int(pbb.Nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case SUI:
-		parseDataMap := make(map[string]interface{})
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -825,26 +897,33 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.SuiTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), suiRecord)
 	case SOLANA:
-		parseDataMap := make(map[string]interface{})
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -870,27 +949,34 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 
 		result, err = data.SolTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), solRecord)
 	case NERVOS:
-		parseDataMap := make(map[string]interface{})
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
@@ -913,6 +999,10 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
@@ -944,37 +1034,46 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			}
 		}
 	case COSMOS:
-		parseDataMap := make(map[string]interface{})
-		var nonce int64
-		if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
-			evmMap := parseDataMap["cosmos"]
-			ret := evmMap.(map[string]interface{})
-			nonceInt, _ := utils.GetInt(ret["sequence_number"])
-			nonce = int64(nonceInt)
+		if pbb.ParseData != "" {
+			parseDataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.ParseData), &parseDataMap); jsonErr == nil {
+				evmMap := parseDataMap["cosmos"]
+				ret := evmMap.(map[string]interface{})
+				nonceInt, _ := utils.GetInt(ret["sequence_number"])
+				pbb.Nonce = int64(nonceInt)
 
-			tokenMap, ok := parseDataMap["token"].(map[string]interface{})
-			if ok {
-				tokenAddress, _ := tokenMap["address"].(string)
-				if tokenAddress != "" {
-					tokenType, _ := tokenMap["token_type"].(string)
-					if tokenType == "" {
-						tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
-						if err != nil {
-							log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
-						} else {
-							tokenMap["token_uri"] = tokenInfo.TokenUri
-							parseData, _ := utils.JsonEncode(parseDataMap)
-							pbb.ParseData = parseData
+				tokenMap, ok := parseDataMap["token"].(map[string]interface{})
+				if ok {
+					tokenAddress, _ := tokenMap["address"].(string)
+					if tokenAddress != "" {
+						tokenType, _ := tokenMap["token_type"].(string)
+						if tokenType == "" {
+							tokenInfo, err := GetTokenInfoRetryAlert(context.Background(), pbb.ChainName, tokenAddress)
+							if err != nil {
+								log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", pbb.ChainName), zap.Any("txHash", pbb.TransactionHash), zap.Any("tokenAddress", tokenAddress), zap.Any("error", err))
+							} else {
+								tokenMap["token_uri"] = tokenInfo.TokenUri
+								parseData, _ := utils.JsonEncode(parseDataMap)
+								pbb.ParseData = parseData
+								tokenInfoStr, _ = utils.JsonEncode(tokenMap)
+							}
 						}
 					}
 				}
+			}
+		}
+		memo := pbb.Memo
+		if pbb.Data != "" {
+			dataMap := make(map[string]interface{})
+			if jsonErr := json.Unmarshal([]byte(pbb.Data), &dataMap); jsonErr == nil {
+				memo, _ = dataMap["memo"].(string)
 			}
 		}
 
 		atomRecord := &data.AtomTransactionRecord{
 			BlockHash:       pbb.BlockHash,
 			BlockNumber:     int(pbb.BlockNumber),
-			Nonce:           nonce,
+			Nonce:           pbb.Nonce,
 			TransactionHash: pbb.TransactionHash,
 			FromAddress:     pbb.FromAddress,
 			ToAddress:       pbb.ToAddress,
@@ -994,12 +1093,17 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			TransactionType: pbb.TransactionType,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
+			Memo:            memo,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
 		result, err = data.AtomTransactionRecordRepoClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), atomRecord)
 		if result == 1 {
-			key := pendingNonceKey + strconv.Itoa(int(nonce))
+			key := pendingNonceKey + strconv.Itoa(int(pbb.Nonce))
 			data.RedisClient.Set(key, pbb.Uid, 6*time.Hour)
 		}
 	case KASPA:
@@ -1017,6 +1121,9 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			ConfirmCount:    0,
 			DappData:        pbb.DappData,
 			ClientData:      pbb.ClientData,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}
@@ -1043,23 +1150,56 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 	}, err
 }
 
-func isGasLess(clientData string) (bool, string) {
-	m := map[string]interface{}{}
-	err := json.Unmarshal([]byte(clientData), &m)
+func addTokenUri(tokenInfoStr, chainName, transactionHash string) string {
+	var tokenInfo *types.TokenInfo
+	if err := json.Unmarshal([]byte(tokenInfoStr), &tokenInfo); err == nil {
+		if tokenInfo != nil && tokenInfo.Address != "" {
+			tokenType := tokenInfo.TokenType
+			if tokenType == "" || tokenType == "ERC20" {
+				ti, err := GetTokenInfoRetryAlert(context.Background(), chainName, tokenInfo.Address)
+				if err != nil {
+					log.Error("插入pending记录，从nodeProxy中获取代币精度失败", zap.Any("chainName", chainName), zap.Any("txHash", transactionHash), zap.Any("tokenAddress", tokenInfo.Address), zap.Any("error", err))
+				} else {
+					tokenInfo.TokenUri = ti.TokenUri
+					tir, _ := utils.JsonEncode(tokenInfo)
+					return tir
+				}
+			}
+		}
+	}
+	return tokenInfoStr
+}
+
+func parseClientData(clientData string) (int64, string, string, string) {
+	var sendTime int64
+	var sessionId, shortHost, tokenGasless string
+	clientDataMap := make(map[string]interface{})
+	if jsonErr := json.Unmarshal([]byte(clientData), &clientDataMap); jsonErr == nil {
+		if sendTimei, ok := clientDataMap["sendTime"]; ok {
+			sendTimeInt, _ := utils.GetInt(sendTimei)
+			sendTime = int64(sendTimeInt)
+		}
+		sessionId, _ = clientDataMap["sessionId"].(string)
+		if s, ok := clientDataMap["shortHost"]; ok {
+			shortHost, _ = s.(string)
+		}
+		if dappTxInfo, ok := clientDataMap["dappTxinfo"]; ok {
+			if gasless, ok := dappTxInfo.(map[string]interface{})["tokenGasless"]; ok {
+				tokenGasless, _ = utils.JsonEncode(gasless)
+			}
+		}
+	}
+	return sendTime, sessionId, shortHost, tokenGasless
+}
+
+func isGasLess(tokenGasless string) (bool, string) {
+	mmm := map[string]interface{}{}
+	err := json.Unmarshal([]byte(tokenGasless), &mmm)
 	if err != nil {
 		return false, ""
 	}
 
-	mm, ok := m["dappTxinfo"].(map[string]interface{})
-	if !ok {
-		return false, ""
-	}
-
-	mmm, ok := mm["tokenGasless"].(map[string]interface{})
-	if !ok {
-		return false, ""
-	}
-
+	// TODO(wanghui): use gasFeeInfo and transactionType instead
 	txType, ok := mmm["tx_type"].(string)
 	if !ok {
 		return false, ""
@@ -1280,12 +1420,17 @@ func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
 		}
+
+		amount := utils.StringDecimals(record.Amount, 8)
+		feeAmount := utils.StringDecimals(record.FeeAmount, 8)
+		record.Amount = amount
+		record.FeeAmount = feeAmount
+		record.TransactionType = NATIVE
 	case EVM:
 		var oldRecord *data.EvmTransactionRecord
 		oldRecord, err = data.EvmTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
-			record.GasFeeInfo = oldRecord.FeeTokenInfo
 			handleNativeTokenEvent(chainName, record)
 		}
 	case STC:
@@ -1299,7 +1444,6 @@ func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName
 		oldRecord, err = data.TrxTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(chainName), hash)
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
-			record.GasFeeInfo = oldRecord.FeeTokenInfo
 		}
 	case APTOS:
 		var oldRecord *data.AptTransactionRecord
@@ -1419,14 +1563,7 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		var recordList []*data.EvmTransactionRecord
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
-			//err = utils.CopyProperties(recordList, &list)
-			//TODO 交易记录重构时再还原成上面的方式
-			for _, rl := range recordList {
-				var ptr *pb.TransactionRecord
-				err = utils.CopyProperties(rl, &ptr)
-				ptr.GasFeeInfo = rl.FeeTokenInfo
-				list = append(list, ptr)
-			}
+			err = utils.CopyProperties(recordList, &list)
 		}
 		if len(list) > 0 {
 			for _, record := range list {
@@ -1446,7 +1583,6 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 		for _, rl := range recordList {
 			var ptr *pb.TransactionRecord
 			err = utils.CopyProperties(rl, &ptr)
-			ptr.GasFeeInfo = rl.FeeTokenInfo
 			list = append(list, ptr)
 		}
 		if len(list) > 0 {
@@ -1598,14 +1734,7 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		var recordList []*data.EvmTransactionRecordWrapper
 		recordList, total, err = data.EvmTransactionRecordRepoClient.PageListRecord(ctx, GetTableName(req.ChainName), request)
 		if err == nil {
-			//err = utils.CopyProperties(recordList, &list)
-			//TODO 交易记录重构时再还原成上面的方式
-			for _, rl := range recordList {
-				var ptr *pb.TransactionRecord
-				err = utils.CopyProperties(rl, &ptr)
-				ptr.GasFeeInfo = rl.FeeTokenInfo
-				list = append(list, ptr)
-			}
+			err = utils.CopyProperties(recordList, &list)
 		}
 
 		if len(list) > 0 {
@@ -1826,7 +1955,6 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 			for _, rl := range recordList {
 				var ptr *pb.TransactionRecord
 				err = utils.CopyProperties(rl, &ptr)
-				ptr.GasFeeInfo = rl.FeeTokenInfo
 				list = append(list, ptr)
 			}
 		}
@@ -2039,9 +2167,9 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 		var trs []*pb.TransactionRecord
 		for _, value := range dapps {
 			tokenAddress := value.Token
-			chainType, _ := GetChainNameType(value.ChainName)
+			dappChainType, _ := GetChainNameType(value.ChainName)
 			feeData := make(map[string]string)
-			switch chainType {
+			switch dappChainType {
 			case BTC:
 				btc, err := data.BtcTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(value.ChainName), value.LastTxhash)
 				if err == nil && btc != nil {
@@ -2060,6 +2188,7 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 
 					if evm.TransactionType == APPROVENFT || evm.TransactionType == APPROVE {
 						r.ParseData = evm.ParseData
+						r.TokenInfo = evm.TokenInfo
 					} else if value.ErcType == APPROVE {
 						tokenInfo, err := GetTokenInfoRetryAlert(ctx, value.ChainName, tokenAddress)
 						if err == nil {
@@ -2072,7 +2201,9 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 								"token": tokenInfo,
 							}
 							feeEventParseData, _ := utils.JsonEncode(feeEventMap)
+							feeEventTokenInfo, _ := utils.JsonEncode(tokenInfo)
 							r.ParseData = feeEventParseData
+							r.TokenInfo = feeEventTokenInfo
 						}
 					}
 
@@ -2122,7 +2253,6 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 					r.Cursor = value.TxTime
 					r.Amount = value.Amount
 					if tvm.TransactionType != APPROVE {
-						//r.ParseData =
 						var tokenInfoMap = make(map[string]types.TokenInfo)
 						tokenInfo := types.TokenInfo{
 							Address:  value.Token,
@@ -2133,6 +2263,8 @@ func (s *TransactionUsecase) GetDappListPageList(ctx context.Context, req *pb.Da
 						tokenInfoMap["token"] = tokenInfo
 						parseDate, _ := utils.JsonEncode(tokenInfoMap)
 						r.ParseData = parseDate
+						tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
+						r.TokenInfo = tokenInfoStr
 					}
 
 					trs = append(trs, r)
@@ -4488,7 +4620,6 @@ func (s *TransactionUsecase) GetTransactionTypeDistributionByAddress(ctx context
 }
 
 func (s *TransactionUsecase) BatchRouteRpc(ctx context.Context, req *BatchRpcParams) (*pb.JsonResponse, error) {
-	//log.Info("==4",zap.Any("4",req))
 	if req != nil && len(req.BatchReq) > 0 {
 		var rr []RpcResponse
 		for _, r := range req.BatchReq {
@@ -4681,7 +4812,12 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 		for _, record := range list {
 			feeAmount, _ := decimal.NewFromString(record.FeeAmount)
 			amount, _ := decimal.NewFromString(record.Amount)
-			tokenInfo, _ := ParseGetTokenInfo(chainName, record.ParseData)
+			var tokenInfo *types.TokenInfo
+			if record.TokenInfo != "" {
+				tokenInfo, _ = ConvertGetTokenInfo(chainName, record.TokenInfo)
+			} else {
+				tokenInfo, _ = ParseGetTokenInfo(chainName, record.ParseData)
+			}
 
 			switch record.TransactionType {
 			case NATIVE, "":
@@ -4865,7 +5001,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if err := json.Unmarshal(req.Extra, &extra); err != nil {
 			log.Error("PARSE USER ASSET EXTRA ERROR WITH ERROR", zap.Error(err), zap.ByteString("extra", req.Extra))
 		} else if extra != nil {
-			onchainAssets = extra.AllTokens
+			onchainAssets = append(onchainAssets, extra.AllTokens...)
 			log.Info("GOT USER ASSET ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
 			if len(extra.RecentTxns) > 0 {
 				batchSaveChaindataTxns(req.ChainName, extra.RecentTxns)
@@ -4972,7 +5108,11 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			log.Warn("QUERY TXNS OF ADDRESS MISSED PLATFORM", zap.String("chainName", req.ChainName), zap.Bool("exists", ok))
 		}
 	}
-	return map[string]interface{}{"hasDiff": diffBet}, nil
+	return map[string]interface{}{
+		"hasDiff":       diffBet,
+		"onchainAssets": uniqAssets,
+		"dbAssets":      assetsGroupByToken,
+	}, nil
 }
 
 func (s *TransactionUsecase) correctZeroDecimals(ctx context.Context, req *UserAssetUpdateRequest, asset *UserAsset) {
@@ -5643,6 +5783,7 @@ func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 
 func convertFeeData(chainName, chainType, reqAddress string, record *pb.TransactionRecord) {
 	record.ChainName = chainName
+	record.StatusDetail = "{}"
 	feeData := make(map[string]string)
 	switch chainType {
 	case BTC, SOLANA, KASPA:
@@ -5661,40 +5802,49 @@ func convertFeeData(chainName, chainType, reqAddress string, record *pb.Transact
 		//pending时间超过5分钟，nonce不连续无法上链，请填补空缺nonce交易 "nonceMsg":"2"
 		if (record.Status == PENDING || record.Status == NO_STATUS) && time.Now().Unix()-record.TxTime > 300 && (reqAddress == "" || reqAddress == record.FromAddress) {
 			evm := make(map[string]interface{})
+			statusDetail := make(map[string]interface{})
 			if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
 				if record.Nonce == 0 {
 					evm["pendingMsg"] = GAS_FEE_LOW
-					parseDataStr, _ := utils.JsonEncode(evm)
-					record.ParseData = parseDataStr
+					statusDetail["pendingMsg"] = GAS_FEE_LOW
 				} else {
 					ret, err := data.EvmTransactionRecordRepoClient.FindByNonceAndAddress(nil, GetTableName(chainName), record.FromAddress, record.Nonce-1)
 					if err == nil {
 						if ret == nil {
 							//请填补空缺nonce交易 "nonceMsg":"2"
 							evm["pendingMsg"] = NONCE_BREAK
+							statusDetail["pendingMsg"] = NONCE_BREAK
 						} else {
 							if ret.Status == SUCCESS || ret.Status == FAIL || ret.Status == DROPPED_REPLACED {
 								// "gasfeeMsg" :"1"
 								evm["pendingMsg"] = GAS_FEE_LOW
+								statusDetail["pendingMsg"] = GAS_FEE_LOW
 							}
 							if ret.Status == PENDING || ret.Status == NO_STATUS {
 								//"nonceMsg":"1"
 								evm["pendingMsg"] = NONCE_QUEUE
+								statusDetail["pendingMsg"] = NONCE_QUEUE
 							}
 							if ret.Status == DROPPED {
 								//请填补空缺nonce交易 "nonceMsg":"2"
 								evm["pendingMsg"] = NONCE_BREAK
+								statusDetail["pendingMsg"] = NONCE_BREAK
 							}
 						}
-						parseDataStr, _ := utils.JsonEncode(evm)
-						record.ParseData = parseDataStr
 					}
 				}
 			}
+
+			parseDataStr, _ := utils.JsonEncode(evm)
+			record.ParseData = parseDataStr
+
+			statusDetailStr, _ := utils.JsonEncode(statusDetail)
+			record.StatusDetail = statusDetailStr
 		}
 
 		if record.Status == FAIL {
 			evm := make(map[string]interface{})
+			statusDetail := make(map[string]interface{})
 			if jsonErr := json.Unmarshal([]byte(record.ParseData), &evm); jsonErr == nil {
 				//| 150878    | 149039
 				gasLimit, _ := strconv.ParseFloat(record.GasLimit, 64)
@@ -5705,6 +5855,11 @@ func convertFeeData(chainName, chainType, reqAddress string, record *pb.Transact
 					evm["failMsg"] = GAS_LIMIT_LOW
 					parseDataStr, _ := utils.JsonEncode(evm)
 					record.ParseData = parseDataStr
+
+					statusDetail["failMsg"] = GAS_LIMIT_LOW
+					statusDetailStr, _ := utils.JsonEncode(statusDetail)
+					record.StatusDetail = statusDetailStr
+
 				}
 			}
 		}

@@ -101,11 +101,10 @@ func HandleUserStatus(chainName string, client Client, txRecords []*data.EvmTran
 	//1. nonce = 0 时 跨链时，交易已经时终结状态不会查出来。
 	//2.用户 根据api 插入的pending交易时，这个nonce 是 -1 不做处理.
 	for _, record := range txRecords {
-
 		if record.Status != biz.SUCCESS && record.Status != biz.FAIL {
 			continue
 		}
-		if record.TransactionType == biz.EVENTLOG || record.TransactionType == biz.TRANSFER {
+		if record.TransactionType == biz.EVENTLOG {
 			continue
 		}
 		if record.FromUid == "" {
@@ -219,14 +218,14 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 		if record.TransactionType != biz.CONTRACT && record.TransactionType != biz.SWAP && record.TransactionType != biz.MINT &&
 			record.TransactionType != biz.APPROVE && record.TransactionType != biz.APPROVENFT {
-			tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
+			tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 			if err != nil {
 				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，解析parseData失败", chainName)
+				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，解析tokenInfo失败", chainName)
 				alarmOpts := biz.WithMsgLevel("FATAL")
 				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error("更新用户资产，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-					zap.Any("parseData", record.ParseData), zap.Any("error", err))
+				log.Error("更新用户资产，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+					zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 				continue
 			}
 			tokenType := tokenInfo.TokenType
@@ -465,14 +464,14 @@ func HandleUserStatistic(chainName string, client Client, txRecords []*data.EvmT
 			tokenAddress = ""
 		}
 
-		decimals, _, err := biz.GetDecimalsSymbol(chainName, record.ParseData)
+		decimals, _, err := biz.GetDecimalsSymbolFromTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 统计交易记录出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链统计交易金额，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("统计交易金额，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("统计交易金额，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 
@@ -566,14 +565,14 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.EvmTrans
 			continue
 		}
 
-		tokenInfo, err := biz.ParseGetTokenInfo(chainName, record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链推送token信息，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("推送token信息，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("推送token信息，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenType := tokenInfo.TokenType
@@ -629,14 +628,14 @@ func HandleNftRecord(chainName string, client Client, txRecords []*data.EvmTrans
 			continue
 		}
 
-		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链添加NFT流转记录，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链添加NFT流转记录，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("添加NFT流转记录，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("添加NFT流转记录，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenType := tokenInfo.TokenType
@@ -689,14 +688,14 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			continue
 		}
 
-		tokenInfo, err := biz.ParseTokenInfo(record.ParseData)
+		tokenInfo, err := biz.ConvertGetTokenInfo(chainName, record.TokenInfo)
 		if err != nil {
 			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，解析parseData失败", chainName)
+			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，解析tokenInfo失败", chainName)
 			alarmOpts := biz.WithMsgLevel("FATAL")
 			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户NFT资产，解析parseData失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
-				zap.Any("parseData", record.ParseData), zap.Any("error", err))
+			log.Error("更新用户NFT资产，解析tokenInfo失败", zap.Any("chainName", chainName), zap.Any("blockNumber", record.BlockNumber), zap.Any("txHash", record.TransactionHash),
+				zap.Any("tokenInfo", record.TokenInfo), zap.Any("error", err))
 			continue
 		}
 		tokenType := tokenInfo.TokenType
@@ -964,10 +963,10 @@ func HandleMarketCoinHistory(chainName string, txRecords []*data.EvmTransactionR
 			//计算主币的余额，因为有手续费的花费
 			if fromUid != "" {
 				HandlerNativePriceHistory(chainName, fromAddress, fromUid, dt, true, record.FeeAmount, decimal.Zero)
-				HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+				HandlerTokenPriceHistory(chainName, fromAddress, record.TokenInfo, fromUid, dt, true)
 			}
 			if toUid != "" {
-				HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+				HandlerTokenPriceHistory(chainName, toAddress, record.TokenInfo, toUid, dt, false)
 			}
 
 		case biz.APPROVE, biz.APPROVENFT, biz.CREATECONTRACT, biz.CREATEACCOUNT, biz.TRANSFERNFT, biz.CONTRACT, biz.CLOSEACCOUNT, biz.REGISTERTOKEN, biz.DIRECTTRANSFERNFTSWITCH, biz.SETAPPROVALFORALL, biz.SAFETRANSFERFROM, biz.SAFEBATCHTRANSFERFROM:
@@ -978,10 +977,10 @@ func HandleMarketCoinHistory(chainName string, txRecords []*data.EvmTransactionR
 		case biz.EVENTLOG:
 			//  解析parse_data 拿出 代币
 			if fromUid != "" {
-				HandlerTokenPriceHistory(chainName, fromAddress, record.ParseData, fromUid, dt, true)
+				HandlerTokenPriceHistory(chainName, fromAddress, record.TokenInfo, fromUid, dt, true)
 			}
 			if toUid != "" {
-				HandlerTokenPriceHistory(chainName, toAddress, record.ParseData, toUid, dt, false)
+				HandlerTokenPriceHistory(chainName, toAddress, record.TokenInfo, toUid, dt, false)
 			}
 		case biz.NATIVE:
 			// 主币 + 手续费
@@ -998,9 +997,9 @@ func HandleMarketCoinHistory(chainName string, txRecords []*data.EvmTransactionR
 	//查询资产时对比 userAssert 里面的资产查询出所有代
 }
 
-func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int64, fromFlag bool) {
+func HandlerTokenPriceHistory(chainName, address, tokenInfoStr, uid string, dt int64, fromFlag bool) {
 	now := time.Now().Unix()
-	tokenInfo, _ := biz.ParseTokenInfo(parseData)
+	tokenInfo, _ := biz.ConvertGetTokenInfo(chainName, tokenInfoStr)
 	tokenSymbolMap := make(map[string]int)
 	tokenSymbolMap[tokenInfo.Address] = int(tokenInfo.Decimals)
 
@@ -1093,10 +1092,10 @@ func HandlerTokenPriceHistory(chainName, address, parseData, uid string, dt int6
 		}
 
 		marketCoinHistory.UpdatedAt = now
-
 		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 	}
 }
+
 func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFlag bool, feeAmount, amount decimal.Decimal) {
 	now := time.Now().Unix()
 	var cnyPrice, usdPrice string
