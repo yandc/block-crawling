@@ -1387,27 +1387,13 @@ func (r *EvmTransactionRecordRepoImpl) PendingByFromAddress(ctx context.Context,
 func (r *EvmTransactionRecordRepoImpl) ListIncompleteNft(ctx context.Context, tableName string, req *TransactionRequest) ([]*EvmTransactionRecord, error) {
 	var evmTransactionRecords []*EvmTransactionRecord
 
-	sqlStr := "select transaction_type, transaction_hash, amount, token_info, event_log from " + tableName +
-		" where 1=1 " +
-		"and (" +
-		"(" +
-		"(" +
-		"(token_info not like '%\"collection_name\":\"%' and token_info not like '%\"item_name\":%') " +
-		"or (token_info like '%\"collection_name\":\"\"%' and token_info like '%\"item_name\":\"\"%')" +
-		") and (" +
-		"token_info like '%\"token_type\":\"ERC721\"%' " +
-		"or token_info like '%\"token_type\":\"ERC1155\"%'" +
-		")" +
-		") or (" +
-		"(" +
-		"(event_log not like '%\"collection_name\":\"%' and event_log not like '%\"item_name\":%') " +
-		"or (event_log like '%\"collection_name\":\"\"%' and event_log like '%\"item_name\":\"\"%')" +
-		") and (" +
-		"event_log like '%\"token_type\":\"ERC721\"%' " +
-		"or event_log like '%\"token_type\":\"ERC1155\"%'" +
-		")" +
-		")" +
-		")"
+	sqlStr := "select transaction_type, transaction_hash, amount, token_info, event_log from " + tableName + `
+    where (token_info like '%"collection_name":""%' and (
+      token_info like '%"token_type":"ERC721"%' or token_info like '%"token_type":"ERC1155"%'
+		)) or (
+		event_log like '%"collection_name":""%' and (
+	  	event_log like '%"token_type":"ERC721"%' or event_log like '%"token_type":"ERC1155"%'
+		))`
 
 	if len(req.StatusNotInList) > 0 {
 		statusNotInList := strings.ReplaceAll(utils.ListToString(req.StatusNotInList), "\"", "'")
