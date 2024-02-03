@@ -477,7 +477,7 @@ var bfStationCollectFeeMoveCall = &stypes.MoveCall{
 }
 
 func (h *bfstationHandler) extractCollectFeeMoveCall(txInfo *stypes.TransactionInfo) *stypes.MoveCall {
-	for _, tx := range txInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range txInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		if err != nil {
 			continue

@@ -32,6 +32,16 @@ type mockBFStationRepo struct {
 	collectFees []data.BFStationCollectFee
 }
 
+// ListAllAccountTokens implements data.BFCStationRepo
+func (*mockBFStationRepo) ListAllAccountTokens(ctx context.Context, chainName string) ([]data.BFStationAccountToken, error) {
+	panic("unimplemented")
+}
+
+// SaveAccountToken implements data.BFCStationRepo
+func (*mockBFStationRepo) SaveAccountToken(ctx context.Context, chainName string, record *data.BFStationAccountToken) error {
+	panic("unimplemented")
+}
+
 // BatchSaveCollectFees implements data.BFCStationRepo
 func (*mockBFStationRepo) BatchSaveCollectFees(ctx context.Context, chainName string, records []data.BFStationCollectFee) error {
 	panic("unimplemented")

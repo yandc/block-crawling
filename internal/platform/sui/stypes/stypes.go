@@ -1,12 +1,14 @@
 package stypes
 
 import (
+	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"encoding/json"
 	"errors"
 	"strconv"
 
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type SuiObjectChanges struct {
@@ -286,9 +288,25 @@ type Transaction struct {
 }
 
 type TransactionData struct {
-	Kind         string             `json:"kind"`
-	Inputs       []TransactionInput `json:"inputs"`
-	Transactions []TransactionEnum  `json:"transactions"`
+	Kind            string             `json:"kind"`
+	Inputs          []TransactionInput `json:"inputs"`
+	RawTransactions []json.RawMessage  `json:"transactions"`
+
+	transactions []TransactionEnum
+}
+
+func (td *TransactionData) Transactions() []TransactionEnum {
+	if len(td.transactions) == 0 && len(td.RawTransactions) > 0 {
+		for _, raw := range td.RawTransactions {
+			var te TransactionEnum
+			if err := json.Unmarshal(raw, &te); err != nil {
+				// String txn in https://suiexplorer.com/txblock/APJatVeEnGGnWWsngoQTFQoXsMbanETrvP1invWSECbq
+				log.Warn("FAILED TO PARSE ENUM OF TX", zap.Error(err), zap.ByteString("raw", raw))
+			}
+			td.transactions = append(td.transactions, te)
+		}
+	}
+	return td.transactions
 }
 
 type TransactionInput struct {
