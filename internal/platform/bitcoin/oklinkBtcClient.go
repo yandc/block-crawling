@@ -7,15 +7,17 @@ import (
 	"block-crawling/internal/types"
 	"errors"
 	"fmt"
-	"github.com/blockcypher/gobcy"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/shopspring/decimal"
-	"gitlab.bixin.com/mili/node-driver/chain"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/blockcypher/gobcy"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/shopspring/decimal"
+	"gitlab.bixin.com/mili/node-driver/chain"
+	"go.uber.org/zap"
 )
 
 type OklinkBtcClient struct {
@@ -242,6 +244,13 @@ func (c OklinkBtcClient) GetBlock(height uint64) (*chain.Block, error) {
 	preBlock, err := c.getBlock(height - 1)
 	if err != nil {
 		return nil, err
+	}
+	if preBlock == nil || curBlock == nil {
+		log.Warn(
+			"OKLINK MISSED BLOCK", zap.Uint64("height", height), zap.Any("block", curBlock),
+			zap.Any("prev", preBlock),
+		)
+		return nil, errors.New("no such block")
 	}
 
 	txs, err := c.GetTransactionsByHeight(height)
