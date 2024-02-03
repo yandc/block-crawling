@@ -3499,7 +3499,7 @@ func KaspaGetTxByAddress(chainName string, address string, urls []string) (err e
 	url := urls[0]
 	url = url + "/addresses/" + address + "/full-transactions?limit=" + strconv.Itoa(pageSize) + "&offset="
 
-	var chainRecords []*types.KaspaTransactionInfo
+	chainRecords := make(map[string]*types.KaspaTransactionInfo)
 chainFlag:
 	for {
 		var out []*types.KaspaTransactionInfo
@@ -3531,7 +3531,7 @@ chainFlag:
 			if txTime < dbTxTime || txHash == dbLastRecordHash {
 				break chainFlag
 			}
-			chainRecords = append(chainRecords, browserInfo)
+			chainRecords[txHash] = browserInfo
 		}
 		if dataLen < pageSize {
 			break
