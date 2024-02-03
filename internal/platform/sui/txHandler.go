@@ -180,7 +180,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	}
 
 	isContract := false
-	transactions := tx.Data.Transaction.Transactions
+	transactions := tx.Data.Transaction.Transactions()
 	for _, transaction := range transactions {
 		if transaction.RawMoveCall != nil {
 			isContract = true

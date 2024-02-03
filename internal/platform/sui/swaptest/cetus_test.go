@@ -34,7 +34,7 @@ func doExtractPairs(t *testing.T, th string, options ...string) []*swap.Pair {
 	assert.NoError(t, err, "load tx failed")
 	transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 	var contract string
-	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		assert.NoError(t, err, "parse move call")
 		if moveCall == nil {

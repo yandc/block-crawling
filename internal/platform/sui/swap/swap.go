@@ -21,7 +21,7 @@ type defaultIn struct {
 // Is implements swap.SwapContract
 func (d *defaultIn) Is(chainName string, tx *chain.Transaction) (bool, error) {
 	transactionInfo := tx.Raw.(*stypes.TransactionInfo)
-	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		if err != nil {
 			return false, err
@@ -95,7 +95,7 @@ func extractEvents(module string, events []stypes.Event, out interface{}, eventT
 
 // ExtractMoveCallEvent Parse Event from special move calls.
 func ExtractMoveCallEvent(expectedMoveCall *stypes.MoveCall, txInfo *stypes.TransactionInfo, out interface{}) error {
-	for _, tx := range txInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range txInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		if err != nil {
 			return fmt.Errorf("[parseMoveCall] %w", err)

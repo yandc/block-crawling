@@ -36,7 +36,7 @@ func doExtractBlockPairs(t *testing.T, height int, options ...string) []*swap.Pa
 	for _, tx := range block.Transactions {
 		transactionInfo := tx.Raw.(*stypes.TransactionInfo)
 		var contract string
-		for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
+		for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions() {
 			moveCall, err := tx.MoveCall()
 			assert.NoError(t, err, "parse move call")
 			if moveCall == nil {

@@ -32,7 +32,7 @@ func (s *bfstationDexSwap) ExtractPairs(tx *chain.Transaction, args ...interface
 		return nil, fmt.Errorf("[extract] %w", err)
 	}
 
-	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		if err != nil {
 			return nil, err
@@ -177,7 +177,7 @@ func (s *bfstationDexLiq) ExtractPairs(tx *chain.Transaction, args ...interface{
 		return nil, fmt.Errorf("[extract] %w", err)
 	}
 
-	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions {
+	for _, tx := range transactionInfo.Transaction.Data.Transaction.Transactions() {
 		moveCall, err := tx.MoveCall()
 		if err != nil {
 			return nil, err
