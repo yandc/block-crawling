@@ -3499,7 +3499,7 @@ func KaspaGetTxByAddress(chainName string, address string, urls []string) (err e
 	url := urls[0]
 	url = url + "/addresses/" + address + "/full-transactions?limit=" + strconv.Itoa(pageSize) + "&offset="
 
-	chainRecords := make(map[string]*types.KaspaTransactionInfo)
+	var chainRecords []*types.KaspaTransactionInfo
 chainFlag:
 	for {
 		var out []*types.KaspaTransactionInfo
@@ -3531,7 +3531,7 @@ chainFlag:
 			if txTime < dbTxTime || txHash == dbLastRecordHash {
 				break chainFlag
 			}
-			chainRecords[txHash] = browserInfo
+			chainRecords = append(chainRecords, browserInfo)
 		}
 		if dataLen < pageSize {
 			break
@@ -3561,7 +3561,7 @@ chainFlag:
 	}
 
 	if len(kasTransactionRecordList) > 0 {
-		_, err = data.KasTransactionRecordRepoClient.BatchSave(nil, GetTableName(chainName), kasTransactionRecordList)
+		_, err = data.KasTransactionRecordRepoClient.BatchSaveOrIgnore(nil, GetTableName(chainName), kasTransactionRecordList)
 		if err != nil {
 			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
 			alarmOpts := WithMsgLevel("FATAL")
