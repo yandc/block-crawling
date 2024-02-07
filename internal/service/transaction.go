@@ -697,5 +697,12 @@ func convertRecord(platform, chainName, chainType string, osVersion int32, recor
 			}
 			record.EventLog = eventLogStr
 		}
+
+		// Filter stable coin (BUSD) pay gas
+		if osVersion <= 2023071201 {
+			if biz.IsBenfenNet(chainName) {
+				record.TokenGasless = ""
+			}
+		}
 	}
 }

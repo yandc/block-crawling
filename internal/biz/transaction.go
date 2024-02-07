@@ -901,6 +901,7 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			SendTime:        sendTime,
 			SessionId:       sessionId,
 			ShortHost:       shortHost,
+			TokenGasless:    tokenGasless,
 			CreatedAt:       pbb.CreatedAt,
 			UpdatedAt:       pbb.UpdatedAt,
 		}

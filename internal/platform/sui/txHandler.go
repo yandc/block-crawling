@@ -10,6 +10,7 @@ import (
 	"block-crawling/internal/platform/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -106,6 +107,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			})
 		}
 	}
+
+	gasObjecType := h.getGasObjectType(transactionInfo)
+
 	for tokenAddress, toAmountChangeList := range toAmountChangeMap {
 		fromAmountChange := fromAmountChangeMap[tokenAddress]
 		toTotalAmount := new(big.Int)
@@ -117,11 +121,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
-			if fromAmountChange.TxType == biz.NATIVE {
-				computationCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.ComputationCost)
-				storageCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageCost)
-				storageRebate, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageRebate)
-				gasUsedInt := computationCost + storageCost - storageRebate
+			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) {
+				gasUsedInt := transactionInfo.GasUsedInt()
 				fromAmount = fromAmount.Sub(fromAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
 			}
 			if fromAmount.Cmp(toTotalAmount) > 0 {
@@ -132,15 +133,13 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 		amountChanges = append(amountChanges, toAmountChangeList...)
 	}
+
 	for _, fromAmountChange := range fromAmountChangeMap {
 		if fromAmountChange != nil {
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
-			if fromAmountChange.TxType == biz.NATIVE {
-				computationCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.ComputationCost)
-				storageCost, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageCost)
-				storageRebate, _ := strconv.Atoi(transactionInfo.Effects.GasUsed.StorageRebate)
-				gasUsedInt := computationCost + storageCost - storageRebate
+			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) {
+				gasUsedInt := transactionInfo.GasUsedInt()
 				fromAmount = fromAmount.Sub(fromAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
 			}
 			if fromAmount.Cmp(new(big.Int)) > 0 {
@@ -187,7 +186,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			break
 		}
 	}
-
 	if len(amountChanges) == 0 && !isContract {
 		//https://suiexplorer.com/txblock/DB85AUiCAavmVwfV8QqR8ubSysRvR4Nu48PMZwSYbnt3
 		var toAddress, value, txType string
@@ -218,10 +216,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	if len(amountChanges) > 1 {
 		isContract = true
 	}
+	gasLimit, gasUsed, feeAmount := getFees(transactionInfo)
+	tokenGasless := h.getTokenGasless(gasObjecType, gasUsed)
+
 	index := 0
 	if !isContract {
-		gasLimit, gasUsed, feeAmount := getFees(transactionInfo)
-
 		for _, amountChange := range amountChanges {
 			txType := biz.NATIVE
 			var tokenInfo types.TokenInfo
@@ -304,6 +303,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				ParseData:       parseData,
 				GasLimit:        gasLimit,
 				GasUsed:         gasUsed,
+				TokenGasless:    tokenGasless,
 				Data:            "",
 				EventLog:        "",
 				TransactionType: txType,
@@ -314,9 +314,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			h.txRecords = append(h.txRecords, suiTransactionRecord)
 		}
 	} else {
-		var gasLimit string
-		var gasUsed string
-		var feeAmount decimal.Decimal
 		var payload string
 		var eventLogs []*types.EventLogUid
 		var suiContractRecord *data.SuiTransactionRecord
@@ -349,8 +346,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			return
 		}
 
-		gasLimit, gasUsed, feeAmount = getFees(transactionInfo)
-
 		if !IsNative(contractAddress) && contractAddress != "" {
 			tokenInfo, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, contractAddress)
 			if err != nil {
@@ -382,6 +377,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			ParseData:       parseData,
 			GasLimit:        gasLimit,
 			GasUsed:         gasUsed,
+			TokenGasless:    tokenGasless,
 			Data:            payload,
 			EventLog:        "",
 			TransactionType: txType,
@@ -565,6 +561,41 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	return nil
 }
 
+func (h *txHandler) getGasObjectType(transactionInfo *stypes.TransactionInfo) string {
+	if !strings.Contains(h.chainName, "Benfen") {
+		return SUI_CODE
+	}
+	objectIDTypes := make(map[string]string)
+	for _, oc := range transactionInfo.ObjectChanges {
+		objectIDTypes[oc.ObjectId] = oc.ObjectType
+	}
+	gasObjectID := transactionInfo.Effects.GasObject.Reference.ObjectId
+	gasObjecType := UnwrapTokenIDFromCoinType(objectIDTypes[gasObjectID])
+	return suiswap.NormalizeBenfenCoinType(h.chainName, gasObjecType)
+}
+
+func (h *txHandler) getTokenGasless(gasObjectType, gasUsed string) string {
+	tokenID := gasObjectType
+	if IsNative(tokenID) {
+		return ""
+	}
+	tokenInfo, err := biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenID)
+	if err != nil {
+		log.Warn(
+			"BENFEN FEE TOKEN INFO",
+			zap.Error(err), zap.String("gasObjectType", gasObjectType),
+			zap.String("chainName", h.chainName),
+		)
+		return ""
+	}
+	tokenInfo.Amount = gasUsed
+	tokenGasless, _ := json.Marshal(map[string]interface{}{
+		"gasToken":          gasObjectType,
+		"chainPayTokenInfo": tokenInfo,
+	})
+	return string(tokenGasless)
+}
+
 func getFees(transactionInfo *stypes.TransactionInfo) (gasLimit, gasUsed string, feeAmount decimal.Decimal) {
 	return transactionInfo.GasLimit(), transactionInfo.GasUsed(), transactionInfo.FeeAmount()
 }
@@ -588,6 +619,16 @@ func getOwnerAddress(owner interface{}) (address string) {
 		}
 	}
 	return
+}
+
+func (h *txHandler) isGasCoinAmountChange(transactionInfo *stypes.TransactionInfo, amountChange *AmountChange, gasObjecType string) bool {
+	if !biz.IsBenfenNet(h.chainName) {
+		return amountChange.TxType == biz.NATIVE
+	}
+	if IsNative(gasObjecType) {
+		gasObjecType = ""
+	}
+	return amountChange.TokenAddress == gasObjecType
 }
 
 func (h *txHandler) OnSealedTx(c chain.Clienter, tx *chain.Transaction) (err error) {

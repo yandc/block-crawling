@@ -13,6 +13,10 @@ var LarkProviderSet = wire.NewSet(NewDummyLark, wire.Bind(new(biz.Larker), new(*
 type dummyLark struct {
 }
 
+// SendRichText implements biz.Larker
+func (*dummyLark) SendRichText(larkBot string, title string, content [][]biz.Content) {
+}
+
 // MonitorLark implements biz.Larker
 func (*dummyLark) MonitorLark(msg string, opts ...biz.AlarmOption) {
 	log.Info("LARK ALARM", zap.String("msg", msg))

@@ -43,6 +43,7 @@ type SuiTransactionRecord struct {
 	DappData        string          `json:"dappData" form:"dappData"`
 	ClientData      string          `json:"clientData" form:"clientData"`
 	TokenInfo       string          `json:"tokenInfo" form:"tokenInfo"`
+	TokenGasless    string          `json:"tokenGasless" form:"tokenGasless"`
 	SendTime        int64           `json:"sendTime" form:"sendTime"`
 	SessionId       string          `json:"sessionId" form:"sessionId" gorm:"type:character varying(36);default:null;index:,unique"`
 	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
@@ -51,7 +52,7 @@ type SuiTransactionRecord struct {
 }
 
 func (*SuiTransactionRecord) Version() string {
-	return "20240104"
+	return "20240202"
 }
 
 // SuiTransactionRecordRepo is a Greater repo.
@@ -122,12 +123,13 @@ func (r *SuiTransactionRecordRepoImpl) SaveOrUpdateClient(ctx context.Context, t
 		Columns:   []clause.Column{{Name: "transaction_hash"}},
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"dapp_data":   gorm.Expr("excluded.dapp_data"),
-			"client_data": gorm.Expr("excluded.client_data"),
-			"send_time":   gorm.Expr("excluded.send_time"),
-			"session_id":  gorm.Expr("excluded.session_id"),
-			"short_host":  gorm.Expr("excluded.short_host"),
-			"updated_at":  gorm.Expr("excluded.updated_at"),
+			"dapp_data":     gorm.Expr("excluded.dapp_data"),
+			"client_data":   gorm.Expr("excluded.client_data"),
+			"send_time":     gorm.Expr("excluded.send_time"),
+			"session_id":    gorm.Expr("excluded.session_id"),
+			"short_host":    gorm.Expr("excluded.short_host"),
+			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"token_gasless": gorm.Expr("case when excluded.token_gasless != '' then excluded.token_gasless else " + tableName + ".token_gasless end"),
 		}),
 	}).Create(&suiTransactionRecord)
 	err := ret.Error
@@ -214,6 +216,7 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"token_gasless":    gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
 			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
 			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
 			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
@@ -261,6 +264,7 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx c
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
 			"token_info":       gorm.Expr("case when excluded.token_info != '' then excluded.token_info else " + tableName + ".token_info end"),
+			"token_gasless":    gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
 			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
 			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
 			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
