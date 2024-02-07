@@ -14,7 +14,7 @@ else
 	API_PROTO_FILES=$(shell find api -name *.proto)
 endif
 
-TEST_CHAIN ?= solana
+TEST_CHAIN ?= benfen
 
 .PHONY: init
 # init env
@@ -103,7 +103,7 @@ docker-setup:
 
 .PHONY: do-test
 do-test:
-	env PTESTING_ENV=docker go test -run TestIndexBlockTransferNFT ./internal/ptesting/$(TEST_CHAIN)/...
+	env PTESTING_ENV=docker go test -run TestWhyContract ./internal/ptesting/$(TEST_CHAIN)/...
 
 # show help
 help:

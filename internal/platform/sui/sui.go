@@ -23,7 +23,7 @@ const (
 	SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
 	BFC_CODE  = "0x2::bfc::BFC"
 	BFC_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
-	BFC_CODE2 = "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::bfc::BFC"
+	BFC_CODE2 = "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
 )
 
 func IsNative(coinType string) bool {
@@ -33,6 +33,15 @@ func IsNative(coinType string) bool {
 	default:
 		return false
 	}
+}
+
+// UnwrapTokenIDFromCoinType unwrap 0x2::sui::SUI from 0x2::coin::Coin<0x2::sui::SUI>
+func UnwrapTokenIDFromCoinType(ty string) string {
+	prefix := "0x2::coin::Coin<"
+	if strings.HasPrefix(ty, prefix) && strings.HasSuffix(ty, ">") {
+		return ty[len(prefix) : len(ty)-1]
+	}
+	return ty
 }
 
 func IsNativeContains(objectType string) bool {

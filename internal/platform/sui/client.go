@@ -189,8 +189,20 @@ func (c *Client) getRpcMethod(m string) string {
 }
 
 func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tokenId string) (string, error) {
+	out, err := c.GetObject(tokenId)
+
+	if err != nil {
+		return "0", err
+	}
+	if out.Data.Owner.AddressOwner != address {
+		return "0", nil
+	}
+	return "1", nil
+}
+
+func (c *Client) GetObject(objectID string) (GetObject, error) {
 	method := c.getRpcMethod("sui_getObject")
-	params := []interface{}{tokenId, map[string]bool{
+	params := []interface{}{objectID, map[string]bool{
 		"showType":                true,
 		"showOwner":               true,
 		"showPreviousTransaction": false,
@@ -203,12 +215,9 @@ func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tok
 	timeoutMS := 3_000 * time.Millisecond
 	_, err := httpclient.JsonrpcCall(c.url, JSONID, JSONRPC, method, &out, params, &timeoutMS)
 	if err != nil {
-		return "0", err
+		return GetObject{}, err
 	}
-	if out.Data.Owner.AddressOwner != address {
-		return "0", nil
-	}
-	return "1", nil
+	return out, nil
 }
 
 func (c *Client) GetBlockNumber() (int, error) {

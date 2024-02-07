@@ -197,7 +197,7 @@ type TransactionInfo struct {
 			ObjectId string `json:"objectId"`
 			Version  int    `json:"version"`
 			Digest   string `json:"digest"`
-		} `json:"deleted"`
+		} `json:"deleted"`*/
 		GasObject struct {
 			Owner struct {
 				AddressOwner string `json:"AddressOwner"`
@@ -207,7 +207,7 @@ type TransactionInfo struct {
 				Version  int    `json:"version"`
 				Digest   string `json:"digest"`
 			} `json:"reference"`
-		} `json:"gasObject"`*/
+		} `json:"gasObject"`
 		EventsDigest string `json:"eventsDigest"`
 		// Dependencies []string `json:"dependencies"`
 	} `json:"effects"`
@@ -236,6 +236,10 @@ func (transactionInfo *TransactionInfo) TxTime() int64 {
 
 func (transactionInfo *TransactionInfo) GasLimit() string {
 	return transactionInfo.Transaction.Data.GasData.Budget
+}
+
+func (transactionInfo *TransactionInfo) GasObjectID() string {
+	return transactionInfo.Effects.GasObject.Reference.ObjectId
 }
 
 func (transactionInfo *TransactionInfo) GasUsedInt() int {
