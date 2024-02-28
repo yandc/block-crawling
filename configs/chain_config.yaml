@@ -863,12 +863,29 @@ platform:
     netType: main
     proxyCacheTime: 0
     rpcURL:
-      - https://lcd-osmosis.blockapsis.com
-#      - https://osmosis-mainnet-rpc.allthatnode.com:1317
-      - https://lcd.osmosis.zone
-      - https://osmosis-lcd.quickapi.com
       - https://node.onekey.so/osmosis
-      - https://lcd-osmosis.keplr.app
+      - https://lcd.osmosis.zone/
+      - https://osmosis-lcd.quickapi.com:443
+      - https://lcd-osmosis.blockapsis.com
+      - https://osmosis-api.lavenderfive.com:443
+      - https://rest-osmosis.ecostake.com
+      - https://api-osmosis-ia.cosmosia.notional.ventures
+      - https://api-osmosis.cosmos-spaces.cloud
+      - https://osmosis-api.polkachu.com
+      - https://osmosis.rest.stakin-nodes.com
+      - https://osmosis-mainnet-lcd.autostake.com:443
+      - https://api-osmosis-01.stakeflow.io
+      - https://osmosis-api.w3coins.io
+      - https://lcd-osmosis.whispernode.com:443
+      - https://osmosis-rest.publicnode.com
+      - https://community.nuxian-node.ch:6797/osmosis/crpc
+      - https://osmosis-api.stake-town.com
+      - https://osmosis-api.reece.sh
+      - https://api.osmosis.validatus.com:443
+      - https://lcd.osmosis.bronbro.io:443
+      - https://osmosis-rest.interstellar-lounge.org
+      - https://public.stakewolle.com/cosmos/osmosis/rest
+      - https://rest.cros-nest.com/osmosis
     httpURL:
       - https://front.api.mintscan.io/v1/osmosis/account/
       - https://proxy.atomscan.com/osmo-lcd/cosmos/tx/v1beta1/txs
@@ -1148,6 +1165,134 @@ platform:
     safelyConcurrentBlockDelta: 20
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
+  Celestia:
+    blockExplorerAddrUrl: https://mintscan.io/celestia/account/
+    blockExplorerTxUrl: https://mintscan.io/celestia/txs/
+    blockExplorerUrl: https://mintscan.io/celestia
+    categoryName: Cosmos
+    chain: Celestia
+    chainId: celestia
+    coinId: 118
+    customNonce: false
+    customToken: true
+    decimal: 6
+    denom: utia
+    fullName: Celestia
+    getPriceKey: celestia
+    handler: celestia
+    hrp: celestia
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Celestia.jpeg
+    nativeCurrency: TIA
+    netType: main
+    nickName: Celestia
+    proxyCacheTime: 0
+    proxyKey: ''
+    rpcURL:
+    - https://public-celestia-lcd.numia.xyz
+    - https://api.celestia.pops.one
+    - https://api.lunaroasis.net
+    - https://api.celestia.nodestake.top
+    httpURL:
+      - https://front.api.mintscan.io/v1/celestia/account/
+    symbol: TIA
+    type: COSMOS
+    useNodeProxy: false
+  Kujira:
+    blockExplorerAddrUrl: https://explorer.kjnodes.com/kujira/account/
+    blockExplorerTxUrl: https://explorer.kjnodes.com/kujira/tx/
+    blockExplorerUrl: https://explorer.kjnodes.com/
+    categoryName: Cosmos
+    chain: Kujira
+    chainId: kaiyo-1
+    coinId: 118
+    customNonce: false
+    customToken: true
+    decimal: 6
+    denom: ukuji
+    fullName: Kujira
+    getPriceKey: kujira
+    handler: kujira
+    hrp: kujira
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Kujira.jpg
+    nativeCurrency: KUJI
+    netType: main
+    nickName: Kujira
+    proxyCacheTime: 0
+    proxyKey: ''
+    rpcURL:
+    - https://kujira-rest.publicnode.com
+    - https://kujira-api.polkachu.com
+    - https://api-kujira-ia.cosmosia.notional.ventures
+    - https://kujira-api.ibs.team
+    - https://kujira-api.theamsolutions.info
+    httpURL:
+      - https://api.kujira.app/api/
+    symbol: KUJI
+    type: COSMOS
+    useNodeProxy: false
+  Neutron:
+    blockExplorerAddrUrl: https://www.mintscan.io/neutron/account/
+    blockExplorerTxUrl: https://www.mintscan.io/neutron/txS/
+    blockExplorerUrl: https://www.mintscan.io/neutron/
+    categoryName: Cosmos
+    chain: Neutron
+    chainId: neutron-1
+    coinId: 118
+    customNonce: false
+    customToken: true
+    decimal: 6
+    denom: untrn
+    fullName: Neutron
+    getPriceKey: neutron-3
+    handler: neutron
+    hrp: neutron
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Neutron.jpg
+    nativeCurrency: NTRN
+    netType: main
+    nickName: Neutron
+    proxyCacheTime: 0
+    proxyKey: ''
+    rpcURL:
+    - https://api.neutron.nodestake.top
+    - https://neutron-rest.publicnode.com
+    - https://api-neutron.cosmos-spaces.cloud
+    httpURL:
+      - https://front.api.mintscan.io/v1/neutron/account/
+    symbol: NTRN
+    type: COSMOS
+    useNodeProxy: false
+  Stride:
+    blockExplorerAddrUrl: https://www.mintscan.io/stride/account/
+    blockExplorerTxUrl: https://www.mintscan.io/stride/txS/
+    blockExplorerUrl: https://www.mintscan.io/stride/
+    categoryName: Cosmos
+    chain: Stride
+    chainId: stride-1
+    coinId: 118
+    customNonce: false
+    customToken: true
+    decimal: 6
+    denom: ustrd
+    fullName: Stride
+    getPriceKey: stride
+    handler: stride
+    hrp: stride
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Stride.png
+    nativeCurrency: STRD
+    netType: main
+    nickName: Stride
+    proxyCacheTime: 0
+    proxyKey: ''
+    rpcURL:
+    - https://stride-rest.publicnode.com
+    - https://stride-api.polkachu.com
+    - https://api-stride.cosmos-spaces.cloud
+    - https://rest-stride.architectnodes.com
+    httpURL:
+      - https://front.api.mintscan.io/v1/stride/account/
+    symbol: STRD
+    type: COSMOS
+    useNodeProxy: false
 
 platformTest:
   AptosTEST:

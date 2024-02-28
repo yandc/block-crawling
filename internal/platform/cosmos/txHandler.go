@@ -223,9 +223,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					}
 					tokenInfo.Amount = amount
 					tokenInfo.Address = contractAddress
-					if tokenInfo.Symbol == "Unknown Token" {
-						tokenInfo.Symbol = contractAddress
-					}
 				}
 				atomosMap := map[string]interface{}{
 					"cosmos": map[string]string{
@@ -333,9 +330,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						}
 						tokenInfo.Amount = amount
 						tokenInfo.Address = contractAddress
-						if tokenInfo.Symbol == "Unknown Token" {
-							tokenInfo.Symbol = contractAddress
-						}
 					}
 					atomosMap := map[string]interface{}{
 						"cosmos": map[string]string{
@@ -590,9 +584,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			tokenInfo.Amount = amount
 			tokenInfo.Address = contractAddress
-			if tokenInfo.Symbol == "Unknown Token" {
-				tokenInfo.Symbol = contractAddress
-			}
 		}*/
 		atomosMap := map[string]interface{}{
 			"cosmos": map[string]string{
@@ -839,9 +830,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 								}
 								tokenInfo.Amount = amount
 								tokenInfo.Address = contractAddress
-								if tokenInfo.Symbol == "Unknown Token" {
-									tokenInfo.Symbol = contractAddress
-								}
 								if tokenType != "" {
 									if tokenInfo.TokenType == "" {
 										tokenInfo.TokenType = tokenType
@@ -949,7 +937,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				"token": eventLog.Token,
 			}
 			eventParseData, _ := utils.JsonEncode(eventMap)
-			eventTokenInfoStr, _ := utils.JsonEncode(tokenInfo)
+			eventTokenInfoStr, _ := utils.JsonEncode(eventLog.Token)
 			txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
 			txType := biz.EVENTLOG
 			contractAddress := eventLog.Token.Address

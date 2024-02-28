@@ -595,6 +595,13 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AtomTran
 		if chainName != realChainName && tokenAddress == "" {
 			tokenAddress = tokenDenom
 		}
+		// ignores native token if the native token is the same when cross assets between chains.
+		if chainName != realChainName && tokenAddress == tokenDenom {
+			continue
+		}
+		if symbol == "Unknown Token" {
+			continue
+		}
 		if (chainName != realChainName || (tokenAddress != tokenDenom && tokenAddress != "")) && address != "" && uid != "" {
 			var userAsset = biz.UserTokenPush{
 				ChainName:    realChainName,
@@ -604,6 +611,18 @@ func HandleTokenPush(chainName string, client Client, txRecords []*data.AtomTran
 				Decimals:     decimals,
 				Symbol:       symbol,
 			}
+
+			log.Info(
+				"COSMOS PUSH TOKEN",
+				zap.String("chainName", chainName),
+				zap.String("addressPrefix", realChainName),
+				zap.String("tokenAddress", tokenAddress),
+				zap.String("tokenDenom", tokenDenom),
+				zap.String("address", address),
+				zap.String("uid", uid),
+				zap.Any("tokenInfo", record.TokenInfo),
+				zap.Any("userAsset", userAsset),
+			)
 			userAssetList = append(userAssetList, userAsset)
 		}
 	}
@@ -874,6 +893,10 @@ func GetChainName(chainName string, address string) string {
 			break
 		}
 	}
+	// stride16sumdc85dwsznkeaxv3unsdtnls4r5n7g7754c
+	// neutron16sumdc85dwsznkeaxv3unsdtnls4r5n702h2mn
+	// kujira16sumdc85dwsznkeaxv3unsdtnls4r5n76ausv7
+	// celestia16sumdc85dwsznkeaxv3unsdtnls4r5n76l0cme
 	chain := address[:chainNameIndex]
 	if chain == "osmo" {
 		realChainName = "Osmosis"
