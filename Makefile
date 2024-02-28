@@ -14,7 +14,7 @@ else
 	API_PROTO_FILES=$(shell find api -name *.proto)
 endif
 
-TEST_CHAIN ?= benfen
+TEST_CHAIN ?= cosmos
 
 .PHONY: init
 # init env
@@ -103,7 +103,7 @@ docker-setup:
 
 .PHONY: do-test
 do-test:
-	env PTESTING_ENV=docker go test -run TestWhyContract ./internal/ptesting/$(TEST_CHAIN)/...
+	env PTESTING_ENV=docker go test -run TestWhyMissed ./internal/ptesting/$(TEST_CHAIN)/...
 
 # show help
 help:

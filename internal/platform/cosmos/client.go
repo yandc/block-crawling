@@ -111,7 +111,7 @@ func (c *Client) GetTxByHash(txHash string) (*chain.Transaction, error) {
 		return nil, err
 	}
 	if rawTx.Message != "" {
-		if strings.Contains(rawTx.Message, "not found") {
+		if strings.Contains(rawTx.Message, "not found") || strings.Contains(rawTx.Message, "transaction indexing is disabled") {
 			return nil, common.TransactionNotFound // retry on next node
 		}
 		return nil, errors.New(rawTx.Message)
@@ -655,7 +655,7 @@ func (c *Client) buildURL(u string, params map[string]string) (target *url.URL, 
 
 // getResponse is a boilerplate for HTTP GET responses.
 func (c *Client) getResponse(target *url.URL, decTarget interface{}) (err error) {
-	timeoutMS := 5_000 * time.Millisecond
+	timeoutMS := 10_000 * time.Millisecond
 	if c.ChainName == "Osmosis" {
 		err = httpclient.GetUseCloudscraper(target.String(), &decTarget, &timeoutMS)
 	} else {
