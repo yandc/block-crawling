@@ -733,6 +733,8 @@ func CosmosGetTxByAddress(chainName string, address string, urls []string) (err 
 			atomTransactionRecordList, err = getSeiRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
 		} else if url == "https://celestia.api.explorers.guru" {
 			atomTransactionRecordList, err = getCelestiaRecordByExplorers(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
+		} else if url == "https://api.kujira.app/api/" {
+			atomTransactionRecordList, err = getKujiraRecord(chainName, url, address, dbLastRecordBlockNumber, dbLastRecordHash)
 		}
 
 		if err == nil {
@@ -1124,6 +1126,98 @@ chainFlag:
 			break
 		}
 		nextCursor = out.NextCursor
+	}
+
+	var atomTransactionRecordList []*data.AtomTransactionRecord
+	transactionRecordMap := make(map[string]string)
+	now := time.Now().Unix()
+	for _, record := range chainRecords {
+		txHash := record.Hash
+		if _, ok := transactionRecordMap[txHash]; !ok {
+			transactionRecordMap[txHash] = ""
+		} else {
+			continue
+		}
+		atomRecord := &data.AtomTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		atomTransactionRecordList = append(atomTransactionRecordList, atomRecord)
+	}
+
+	return atomTransactionRecordList, nil
+}
+
+type KujiraBrowserInfo struct {
+	Total *int              `json:"total"`
+	Txs   []KujiraBrowserTx `json:"tx"`
+}
+
+type KujiraBrowserTx struct {
+	Hash  string `json:"hash"`
+	Block struct {
+		Height    int    `json:"height"`
+		CreatedAt string `json:"created_at"`
+		ChainID   string `json:"chain_id"`
+	} `json:"block"`
+	Events []struct {
+		Type       string `json:"type"`
+		Attributes []struct {
+			Value        string `json:"value"`
+			Key          string `json:"key"`
+			CompositeKey string `json:"composite_key"`
+		} `json:"attributes"`
+	} `json:"events"`
+}
+
+func getKujiraRecord(chainName, url, address string, dbLastRecordBlockNumber int, dbLastRecordHash string) ([]*data.AtomTransactionRecord, error) {
+	var starIndex = 0
+	url = url + "/txs?txs?q=" + address + "&order_by=rowid&order_dir=desc&"
+
+	var chainRecords []KujiraBrowserTx
+chainFlag:
+	for {
+		var out *KujiraBrowserInfo
+		reqUrl := url + "limit=" + strconv.Itoa(pageSize) + "&offset=" + strconv.Itoa(starIndex*pageSize)
+
+		err := httpclient.GetResponsePostman(reqUrl, nil, &out, &timeout)
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponsePostman(reqUrl, nil, &out, &timeout)
+		}
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("error", err))
+			break
+		}
+
+		dataLen := len(out.Txs)
+		if dataLen == 0 {
+			break
+		}
+		for _, browserInfo := range out.Txs {
+			txHash := browserInfo.Hash
+			txHeight := browserInfo.Block.Height
+			if err != nil {
+				alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录异常，address:%s", chainName, address)
+				alarmOpts := WithMsgLevel("FATAL")
+				LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+				log.Error("通过用户资产变更爬取交易记录，查询链上交易记录异常", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqUrl), zap.Any("blockNumber", browserInfo.Block.Height), zap.Any("txHash", txHash), zap.Any("error", err))
+				break chainFlag
+			}
+			if txHeight < dbLastRecordBlockNumber || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, browserInfo)
+		}
+		if dataLen < pageSize {
+			break
+		}
+		starIndex = starIndex + dataLen
 	}
 
 	var atomTransactionRecordList []*data.AtomTransactionRecord

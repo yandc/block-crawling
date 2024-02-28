@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -20,10 +21,13 @@ import (
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
 
+var errNotImplemented = errors.New("Not Implemented")
+
 type Client struct {
 	*common.NodeDefaultIn
 
-	url string
+	url    string
+	legacy int32
 }
 
 func NewClient(chainName, nodeUrl string, enableProxy bool) Client {
@@ -33,6 +37,7 @@ func NewClient(chainName, nodeUrl string, enableProxy bool) Client {
 			ChainName:       chainName,
 			RoundRobinProxy: enableProxy,
 		},
+		legacy: 1,
 	}
 }
 
@@ -228,7 +233,36 @@ type Blockchain struct {
 	CosmosBadResp
 }
 
+type LatestBlock struct {
+	Block struct {
+		Header struct {
+			Height string `json:"height"`
+		} `json:"header"`
+	} `json:"block"`
+	CosmosBadResp
+}
+
+func (c *Client) setNotLegacy() {
+	atomic.CompareAndSwapInt32(&c.legacy, 1, 0)
+}
+
+func (c *Client) isLegacy() bool {
+	return atomic.LoadInt32(&c.legacy) == 1
+}
+
 func (c *Client) GetBlockNumber() (int, error) {
+	if c.isLegacy() {
+		r, err := c.getLegacyBlockNumber()
+		if err != errNotImplemented {
+			return r, err
+		}
+		c.setNotLegacy()
+	}
+
+	return c.getBlockNumber()
+}
+
+func (c *Client) getLegacyBlockNumber() (int, error) {
 	u, err := c.buildURL("/staking/pool", nil)
 	if err != nil {
 		return 0, err
@@ -239,12 +273,39 @@ func (c *Client) GetBlockNumber() (int, error) {
 		return 0, err
 	}
 	if chain.Message != "" {
+		if chain.Message == errNotImplemented.Error() {
+			return 0, errNotImplemented
+		}
 		return 0, errors.New(chain.Message)
 	}
 	if chain.Error != nil {
 		return 0, errors.New(utils.GetString(chain.Error))
 	}
 	height, err := strconv.Atoi(chain.Height)
+	if err != nil {
+		return 0, err
+	}
+	return height, err
+}
+
+func (c *Client) getBlockNumber() (int, error) {
+	u, err := c.buildURL("/cosmos/base/tendermint/v1beta1/blocks/latest", nil)
+	if err != nil {
+		return 0, err
+	}
+
+	var chain LatestBlock
+	err = c.getResponse(u, &chain)
+	if err != nil {
+		return 0, err
+	}
+	if chain.Message != "" {
+		return 0, errors.New(chain.Message)
+	}
+	if chain.Error != nil {
+		return 0, errors.New(utils.GetString(chain.Error))
+	}
+	height, err := strconv.Atoi(chain.Block.Header.Height)
 	if err != nil {
 		return 0, err
 	}
@@ -290,30 +351,59 @@ type BlockerInfo struct {
 		/*Evidence struct {
 			Evidence []interface{} `json:"evidence"`
 		} `json:"evidence"`*/
-		Evidence   interface{} `json:"evidence"`
-		LastCommit struct {
-			Height  string `json:"height"`
-			Round   int    `json:"round"`
-			BlockId struct {
-				Hash  string `json:"hash"`
-				Parts struct {
-					Total int    `json:"total"`
+		// Evidence   interface{} `json:"evidence"`
+		/*
+			LastCommit struct {
+				Height  string `json:"height"`
+				Round   int    `json:"round"`
+				BlockId struct {
 					Hash  string `json:"hash"`
-				} `json:"parts"`
-			} `json:"block_id"`
-			Signatures []struct {
-				BlockIdFlag      int       `json:"block_id_flag"`
-				ValidatorAddress string    `json:"validator_address"`
-				Timestamp        time.Time `json:"timestamp"`
-				Signature        string    `json:"signature"`
-			} `json:"signatures"`
-		} `json:"last_commit"`
+					Parts struct {
+						Total int    `json:"total"`
+						Hash  string `json:"hash"`
+					} `json:"parts"`
+				} `json:"block_id"`
+					Signatures []struct {
+						BlockIdFlag      int       `json:"block_id_flag"`
+						ValidatorAddress string    `json:"validator_address"`
+						Timestamp        time.Time `json:"timestamp"`
+						Signature        string    `json:"signature"`
+					} `json:"signatures"`
+			} `json:"last_commit"`
+		*/
 	} `json:"block"`
 	CosmosBadResp
 }
 
 func (c *Client) GetBlockByNumber(number int) (tx BlockerInfo, err error) {
+	if c.isLegacy() {
+		tx, err := c.getLegacyBlockByNumber(number)
+		if err == nil && tx.Message != "" {
+			if tx.Message == errNotImplemented.Error() {
+				err = errNotImplemented
+			} else {
+				err = errors.New(tx.Message)
+			}
+		}
+		if err != errNotImplemented {
+			return tx, err
+		}
+		c.setNotLegacy()
+	}
+	return c.getBlockByNumber(number)
+}
+
+func (c *Client) getLegacyBlockByNumber(number int) (tx BlockerInfo, err error) {
 	u, err := c.buildURL("/blocks/"+strconv.Itoa(number), nil)
+	if err != nil {
+		return
+	}
+	err = c.getResponse(u, &tx)
+	return tx, err
+}
+
+func (c *Client) getBlockByNumber(number int) (tx BlockerInfo, err error) {
+	u, err := c.buildURL("/cosmos/base/tendermint/v1beta1/blocks/"+strconv.Itoa(number), nil)
 	if err != nil {
 		return
 	}
