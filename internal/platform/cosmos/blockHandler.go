@@ -129,9 +129,15 @@ func (h *handler) OnError(err error, optHeights ...chain.HeightInfo) (incrHeight
 }
 
 func (h *handler) IsDroppedTx(txByHash *chain.Transaction, err error) (isDropped bool) {
-	if txByHash == nil && (err == nil || err == pcommon.NotFound || err == pcommon.TransactionNotFound) {
+	// While we're composing tx from block, the tx isn't a nil pointer.
+	if err == pcommon.NotFound || err == pcommon.TransactionNotFound {
 		return true
 	}
-
+	if txByHash == nil && err == nil {
+		return true
+	}
+	if txByHash != nil && txByHash.Raw == nil && err == nil {
+		return true
+	}
 	return
 }

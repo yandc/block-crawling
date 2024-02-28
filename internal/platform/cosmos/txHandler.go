@@ -35,6 +35,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	//block := chainBlock.Raw.(BlockerInfo)
 	curHeight := chainBlock.Number
 	height := h.chainHeight
+	if chainTx.Raw == nil {
+		// Tx wasn't found on the chain.
+		return nil
+	}
 
 	tx := chainTx.Raw.(TransactionInfo)
 
