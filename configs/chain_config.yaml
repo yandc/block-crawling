@@ -1069,7 +1069,6 @@ platform:
       - https://rpc-mainnet.suiscan.xyz
       - https://sui-mainnet-endpoint.blockvision.org
       - https://sui-mainnet.public.blastapi.io
-      - https://explorer-rpc.mainnet.sui.io
     httpURL:
       - https://explorer-rpc.mainnet.sui.io
     symbol: SUI
