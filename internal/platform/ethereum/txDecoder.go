@@ -31,12 +31,13 @@ import (
 )
 
 type txDecoder struct {
-	chainName string
-	block     *chain.Block
-	txByHash  *chain.Transaction
-	blockHash string
-	now       int64
-	newTxs    bool
+	chainName     string
+	block         *chain.Block
+	txEventLogMap map[string][]*rtypes.Log
+	txByHash      *chain.Transaction
+	blockHash     string
+	now           int64
+	newTxs        bool
 
 	blockHashRetrieved bool
 	blocksStore        map[uint64]*chain.Block
@@ -164,6 +165,13 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				}
 			}
 		}
+
+		if !inWhiteList {
+			if hasUserAddress(h.txEventLogMap[txHash]) {
+				inWhiteList = true
+			}
+		}
+
 		if !inWhiteList {
 			return nil
 		}
@@ -211,6 +219,98 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 
 	err = h.handleEachTransaction(client, block, tx, transaction, meta, receipt)
 	return err
+}
+
+// 交易中是否有平台用户的 address，至少一个时返回 true
+func hasUserAddress(logs []*rtypes.Log) bool {
+	if len(logs) == 0 {
+		return false
+	}
+
+	for _, log := range logs {
+		if len(log.Topics) == 0 {
+			continue
+		}
+
+		if log.Topics[0].String() == TRANSFER_TOPIC {
+			if len(log.Topics) < 3 {
+				continue
+			}
+			fromAddress := common.HexToAddress(log.Topics[1].Hex()).Hex()
+			if isUser(fromAddress) {
+				return true
+			}
+
+			toAddress := common.HexToAddress(log.Topics[2].Hex()).Hex()
+			if isUser(toAddress) {
+				return true
+			}
+		} else if log.Topics[0].String() == APPROVAL_TOPIC {
+			if len(log.Topics) < 3 {
+				continue
+			}
+			fromAddress := common.HexToAddress(log.Topics[1].Hex()).Hex()
+			if isUser(fromAddress) {
+				return true
+			}
+
+			toAddress := common.HexToAddress(log.Topics[2].Hex()).Hex()
+			if isUser(toAddress) {
+				return true
+			}
+
+		} else if log.Topics[0].String() == TRANSFERSINGLE_TOPIC {
+			if len(log.Topics) < 4 {
+				continue
+			}
+			fromAddress := common.HexToAddress(log.Topics[2].Hex()).Hex()
+			if isUser(fromAddress) {
+				return true
+			}
+
+			toAddress := common.HexToAddress(log.Topics[3].Hex()).Hex()
+			if isUser(toAddress) {
+				return true
+			}
+
+		} else if log.Topics[0].String() == TRANSFERBATCH_TOPIC {
+			if len(log.Topics) < 4 {
+				continue
+			}
+			fromAddress := common.HexToAddress(log.Topics[2].Hex()).Hex()
+			if isUser(fromAddress) {
+				return true
+			}
+
+			toAddress := common.HexToAddress(log.Topics[3].Hex()).Hex()
+			if isUser(toAddress) {
+				return true
+			}
+		} else if log.Topics[0].String() == APPROVALFORALL_TOPIC {
+			if len(log.Topics) < 3 {
+				continue
+			}
+			fromAddress := common.HexToAddress(log.Topics[1].Hex()).Hex()
+			if isUser(fromAddress) {
+				return true
+			}
+
+			toAddress := common.HexToAddress(log.Topics[2].Hex()).Hex()
+			if isUser(toAddress) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func isUser(address string) bool {
+	info, err := biz.GetUserInfo(address)
+	if err != nil {
+		return false
+	}
+	return info.Uid != ""
 }
 
 func (h *txDecoder) handleEachTransaction(

@@ -65,8 +65,13 @@ platform:
     proxyCacheTime: 15
     rpcURL:
       - https://arb1.arbitrum.io/rpc
+      - https://arbitrum.llamarpc.com
+      - https://1rpc.io/arb
+      - https://arb-pokt.nodies.app
       - https://rpc.ankr.com/arbitrum
-      - https://arbitrum-one.public.blastapi.io
+      - https://arbitrum.meowrpc.com
+      - https://arbitrum-one.publicnode.com
+      - https://endpoints.omniatech.io/v1/arbitrum/one/public
       - https://arbitrum.blockpi.network/v1/rpc/public
       - https://arbitrum-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     symbol: Arbitrum
@@ -185,7 +190,6 @@ platform:
     rpcURL:
     - https://rpc.ankr.com/bsc
     - https://bsc.mytokenpocket.vip
-    - https://bsc-mainnet.public.blastapi.io
     - https://rpc-bsc.bnb48.club
     - https://bscrpc.com
     - https://binance.ankr.com
@@ -443,7 +447,6 @@ platform:
     netType: main
     rpcURL:
     - https://mainnet.optimism.io
-    - https://optimism-mainnet.public.blastapi.io
     - https://optimism-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161
     - https://opt-mainnet.g.alchemy.com/v2/Jf5Wy7l2wJcNqaNP517J2iAsXiooKGBI
     - https://opt-mainnet.g.alchemy.com/v2/ev1v-c_M3nWCYZTCl5pSpdEGdo14bWsX
@@ -505,7 +508,6 @@ platform:
       - https://rpc.ankr.com/gnosis
       - https://gnosischain-rpc.gateway.pokt.network
       - https://xdai-rpc.gateway.pokt.network
-      - https://gnosis-mainnet.public.blastapi.io
       - https://rpc.gnosischain.com
       - https://rpc.ap-southeast-1.gateway.fm/v1/gnosis/non-archival/mainnet
     symbol: xDai
@@ -538,7 +540,6 @@ platform:
       - https://polygon-rpc.com
       - https://matic.mytokenpocket.vip
       - https://rpc.ankr.com/polygon
-      - https://polygon-mainnet.public.blastapi.io
       - https://polygon.blockpi.network/v1/rpc/public
       - https://polygon.meowrpc.com
       - https://polygon.rpc.blxrbdn.com
@@ -963,6 +964,8 @@ platform:
     netType: main
     rpcURL:
       - https://nova.arbitrum.io/rpc
+      - https://arbitrum-nova.blockpi.network/v1/rpc/public
+      - https://arbitrum-nova.drpc.org
     symbol: ArbitrumNova
     type: EVM
     safelyConcurrentBlockDelta: 100
@@ -1395,7 +1398,6 @@ platformTest:
     nativeCurrency: BNB
     netType: test
     rpcURL:
-    - https://bsc-testnet.public.blastapi.io
     - https://bsctestapi.terminet.io/rpc
     - https://data-seed-prebsc-1-s2.binance.org:8545
     - https://data-seed-prebsc-1-s1.binance.org:8545
@@ -1605,7 +1607,6 @@ platformTest:
     nativeCurrency: MATIC
     netType: test
     rpcURL:
-      - https://polygon-testnet.public.blastapi.io
       - https://polygon-mumbai.g.alchemy.com/v2/demo
       - https://matic-mumbai.chainstacklabs.com
       - https://rpc.ankr.com/polygon_mumbai

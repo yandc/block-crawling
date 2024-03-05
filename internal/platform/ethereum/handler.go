@@ -5,8 +5,12 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
 	pcommon "block-crawling/internal/platform/common"
+	"block-crawling/internal/platform/ethereum/rtypes"
+	"block-crawling/internal/utils"
 	"context"
 	"fmt"
+	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -21,6 +25,7 @@ type handler struct {
 	chainName         string
 	liveBlockInterval time.Duration
 	blocksStore       map[uint64]*chain.Block
+	blockEventLogMap  sync.Map
 }
 
 func newHandler(chainName string, liveBlockInterval time.Duration) chain.BlockHandler {
@@ -28,6 +33,7 @@ func newHandler(chainName string, liveBlockInterval time.Duration) chain.BlockHa
 		chainName:         chainName,
 		liveBlockInterval: liveBlockInterval,
 		blocksStore:       make(map[uint64]*chain.Block),
+		//blockEventLogMap:  make(map[uint64][]*rtypes.Log),
 	}
 }
 
@@ -42,14 +48,71 @@ func (h *handler) BlockMayFork() bool {
 	return true
 }
 
-func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
-	decoder := &txDecoder{
-		chainName: h.chainName,
-		block:     block,
-		newTxs:    true,
-		blockHash: "",
-		now:       time.Now().Unix(),
+func getToBlock(chainName string, chainHeight uint64) *big.Int {
+	switch chainName {
+	case "ArbitrumNova", "Arbitrum":
+		chainHeight += 10
 	}
+	return new(big.Int).SetUint64(chainHeight)
+}
+
+func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
+	//var chainEvnetLogs []*rtypes.Log
+	if _, ok := h.blockEventLogMap.Load(chainHeight); !ok {
+		//获取整个区块的 event logs
+		ethClient, err := getETHClient(client.URL())
+		if err != nil {
+			return nil, err
+		}
+		fromBlock := new(big.Int).SetUint64(chainHeight)
+		toBlock := getToBlock(h.chainName, chainHeight)
+		logs, err := ethClient.FilterLogs(context.Background(), ethereum.FilterQuery{
+			FromBlock: fromBlock,
+			ToBlock:   toBlock,
+		})
+		log.Info("feature_block_eventLog logs length:", zap.Any("logLength", len(logs)))
+		if err != nil {
+			return nil, err
+		}
+		var tempChainEvnetLogs []*rtypes.Log
+		tempBlcokEventLogMap := make(map[uint64][]*rtypes.Log)
+		utils.CopyProperties(logs, &tempChainEvnetLogs)
+		for _, log := range tempChainEvnetLogs {
+			if _, blockOk := tempBlcokEventLogMap[log.BlockNumber]; blockOk {
+				tempBlcokEventLogMap[log.BlockNumber] = append(tempBlcokEventLogMap[log.BlockNumber], log)
+			} else {
+				tempBlcokEventLogMap[log.BlockNumber] = []*rtypes.Log{log}
+			}
+		}
+		for key, value := range tempBlcokEventLogMap {
+			h.blockEventLogMap.Store(key, value)
+		}
+	}
+	var chainEvnetLogs []*rtypes.Log
+	if value, ok := h.blockEventLogMap.Load(chainHeight); ok && value != nil {
+		chainEvnetLogs = value.([]*rtypes.Log)
+	}
+	//按照tx hash 分组
+	txEventLogMap := map[string][]*rtypes.Log{}
+	for _, eventLog := range chainEvnetLogs {
+		txHash := eventLog.TxHash.String()
+		if _, ok := txEventLogMap[txHash]; !ok {
+			txEventLogMap[txHash] = []*rtypes.Log{}
+		}
+		txEventLogMap[txHash] = append(txEventLogMap[txHash], eventLog)
+	}
+
+	decoder := &txDecoder{
+		chainName:     h.chainName,
+		block:         block,
+		txEventLogMap: txEventLogMap,
+		newTxs:        true,
+		blockHash:     "",
+		now:           time.Now().Unix(),
+	}
+	log.Info("feature_block_eventLog txEventLogMap length:", zap.Any("txEventLogMap", len(txEventLogMap)))
+	h.blockEventLogMap.Delete(chainHeight - 1)
+	//delete(h.blockEventLogMap, chainHeight)
 	/*log.Info(
 		"GOT NEW BLOCK",
 		zap.String("chainName", h.chainName),
