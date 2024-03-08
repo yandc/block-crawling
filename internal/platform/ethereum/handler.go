@@ -58,11 +58,22 @@ func getToBlock(chainName string, chainHeight uint64) *big.Int {
 
 func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *chain.Block) (chain.TxHandler, error) {
 	//var chainEvnetLogs []*rtypes.Log
+	decoder := &txDecoder{
+		chainName: h.chainName,
+		block:     block,
+		newTxs:    true,
+		blockHash: "",
+		now:       time.Now().Unix(),
+	}
+	//TODO
+	if true {
+		return decoder, nil
+	}
 	if _, ok := h.blockEventLogMap.Load(chainHeight); !ok {
 		//获取整个区块的 event logs
 		ethClient, err := getETHClient(client.URL())
 		if err != nil {
-			return nil, err
+			return decoder, nil
 		}
 		fromBlock := new(big.Int).SetUint64(chainHeight)
 		toBlock := getToBlock(h.chainName, chainHeight)
@@ -72,7 +83,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		})
 		log.Info("feature_block_eventLog logs length:", zap.Any("logLength", len(logs)))
 		if err != nil {
-			return nil, err
+			return decoder, nil
 		}
 		var tempChainEvnetLogs []*rtypes.Log
 		tempBlcokEventLogMap := make(map[uint64][]*rtypes.Log)
@@ -101,16 +112,8 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		}
 		txEventLogMap[txHash] = append(txEventLogMap[txHash], eventLog)
 	}
-
-	decoder := &txDecoder{
-		chainName:     h.chainName,
-		block:         block,
-		txEventLogMap: txEventLogMap,
-		newTxs:        true,
-		blockHash:     "",
-		now:           time.Now().Unix(),
-	}
 	log.Info("feature_block_eventLog txEventLogMap length:", zap.Any("txEventLogMap", len(txEventLogMap)))
+	decoder.txEventLogMap = txEventLogMap
 	h.blockEventLogMap.Delete(chainHeight - 1)
 	//delete(h.blockEventLogMap, chainHeight)
 	/*log.Info(
