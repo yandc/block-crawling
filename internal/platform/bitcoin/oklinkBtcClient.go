@@ -206,6 +206,9 @@ func (c OklinkBtcClient) GetBlockHeight() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if lastHeight == 0 {
+		return 0, errors.New("node returned zero height")
+	}
 
 	return uint64(lastHeight), nil
 }

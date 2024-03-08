@@ -81,6 +81,9 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 	start := time.Now()
 	if c.ChainName == "BTC" {
 		btcHeigth, err := btc.GetBlockNumber(c.btcClient)
+		if btcHeigth == 0 && err == nil {
+			return 0, errors.New("node returned zero height")
+		}
 		return uint64(btcHeigth), err
 	} else {
 		result, err := c.oklinkClient.GetBlockHeight()
@@ -94,6 +97,9 @@ func (c *Client) GetBlockHeight() (uint64, error) {
 			zap.String("chainName", c.chainName),
 			zap.String("elapsed", time.Now().Sub(start).String()),
 		)
+		if result == 0 && err == nil {
+			return 0, errors.New("node returned zero height")
+		}
 		return result, err
 	}
 }
