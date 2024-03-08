@@ -147,7 +147,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					fromAddress = message["granter"].(string)
 					toAddress = message["grantee"].(string)
 					messageAmount := message["grant"].(map[string]interface{})
-					if len(messageAmount) > 0 {
+					if len(messageAmount) > 0 && messageAmount["expiration"] != nil {
 						expiration := messageAmount["expiration"].(string)
 						local, _ := time.LoadLocation("Asia/Shanghai")
 						showTime, _ := time.ParseInLocation("2006-01-02T15:04:05Z", expiration, local)
