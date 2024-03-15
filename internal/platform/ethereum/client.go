@@ -674,10 +674,10 @@ func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	cli, err := getETHClient(c.url)
-	defer cli.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer cli.Close()
 	return cli.BlockNumber(ctx)
 }
 
@@ -743,10 +743,10 @@ func (c *Client) GetTransactionSender(ctx context.Context, tx *types2.Transactio
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	cli, err := getETHClient(c.url)
-	defer cli.Close()
 	if err != nil {
 		return [20]byte{}, err
 	}
+	defer cli.Close()
 	return cli.TransactionSender(ctx, tx, block, index)
 }
 
