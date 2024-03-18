@@ -35,7 +35,7 @@ func NewOklinkRepo(rpcUrl string) OklinkRepo {
 
 func (c *OklinkRepo) GetUtxo(chainName, address string) ([]types.OklinkUTXO, error) {
 
-	c.lock.TryLock()
+	c.lock.Lock()
 	defer c.lock.Unlock()
 	time.Sleep(time.Second)
 
