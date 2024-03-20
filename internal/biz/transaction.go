@@ -5777,6 +5777,22 @@ func (s *TransactionUsecase) GetBlockHeight(ctx context.Context, req *pb.GetBloc
 			}
 			return &pb.GetBlockHeightResponse{Height: int64(blockNumber)}, nil
 		}
+	} else if strings.HasPrefix(req.ChainName, "cosmos") {
+		chainId := strings.TrimPrefix(req.ChainName, "cosmos")
+		resp, err := s.chainListClient.GetChainNodeList(context.Background(), &v1.GetChainNodeListReq{ChainId: chainId})
+		if err != nil {
+			return nil, err
+		}
+		for _, rpc := range resp.Data {
+			client := &CosmosClient{
+				chainName: req.ChainName, legacy: 1, url: rpc.Url,
+			}
+			blockNumber, err := client.GetBlockNumber()
+			if err != nil {
+				continue
+			}
+			return &pb.GetBlockHeightResponse{Height: int64(blockNumber)}, nil
+		}
 	}
 
 	return nil, errors.New(fmt.Sprintf("can not get the height of the chain:%s", req.ChainName))

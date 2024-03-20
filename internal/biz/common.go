@@ -3,6 +3,7 @@ package biz
 import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
+	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
 	"block-crawling/internal/signhash"
 	"block-crawling/internal/types"
@@ -15,6 +16,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1052,6 +1054,10 @@ func BjNow() string {
 }
 
 func GetTableName(chainName string) string {
+	tableName := data.GetTableName(chainName)
+	if strings.Contains(tableName,"-"){
+		return `"`+tableName+`"`
+	}
 	return data.GetTableName(chainName)
 }
 
@@ -1727,4 +1733,135 @@ func Pow10(x decimal.Decimal, y int) decimal.Decimal {
 
 	}
 	return x
+}
+
+type CosmosBlockchain struct {
+	Height string `json:"height"`
+	Result struct {
+		NotBondedTokens string `json:"not_bonded_tokens"`
+		BondedTokens    string `json:"bonded_tokens"`
+	} `json:"result"`
+	CosmosBadResp
+}
+
+type CosmosBadResp struct {
+	Code    int           `json:"code"`
+	Message string        `json:"message"`
+	Details []interface{} `json:"details"`
+	Error   interface{}   `json:"error"`
+}
+
+type CosmosLatestBlock struct {
+	Block struct {
+		Header struct {
+			Height string `json:"height"`
+		} `json:"header"`
+	} `json:"block"`
+	CosmosBadResp
+}
+
+type CosmosClient struct {
+	url    string
+	legacy int32
+	chainName string
+}
+
+var errNotImplemented = errors.New("Not Implemented")
+
+func (c *CosmosClient) GetBlockNumber() (int, error) {
+	if c.isLegacy() {
+		r, err := c.getLegacyBlockNumber()
+		if err != errNotImplemented {
+			return r, err
+		}
+		c.setNotLegacy()
+	}
+
+	return c.getBlockNumber()
+}
+
+func (c *CosmosClient) isLegacy() bool {
+	return atomic.LoadInt32(&c.legacy) == 1
+}
+
+func (c *CosmosClient) getLegacyBlockNumber() (int, error) {
+	u, err := c.buildURL("/staking/pool", nil)
+	if err != nil {
+		return 0, err
+	}
+	var chain CosmosBlockchain
+	err = c.getResponse(u, &chain)
+	if err != nil {
+		return 0, err
+	}
+	if chain.Message != "" {
+		if chain.Message == errNotImplemented.Error() {
+			return 0, errNotImplemented
+		}
+		return 0, errors.New(chain.Message)
+	}
+	if chain.Error != nil {
+		return 0, errors.New(utils.GetString(chain.Error))
+	}
+	height, err := strconv.Atoi(chain.Height)
+	if err != nil {
+		return 0, err
+	}
+	return height, err
+}
+
+func (c *CosmosClient) setNotLegacy() {
+	atomic.CompareAndSwapInt32(&c.legacy, 1, 0)
+}
+
+
+func (c *CosmosClient) buildURL(u string, params map[string]string) (target *url.URL, err error) {
+	target, err = url.Parse(c.url + u)
+	if err != nil {
+		return
+	}
+	values := target.Query()
+	//Set parameters
+	for k, v := range params {
+		values.Set(k, v)
+	}
+	//add token to url, if present
+
+	target.RawQuery = values.Encode()
+	return
+}
+
+func (c *CosmosClient) getBlockNumber() (int, error) {
+	u, err := c.buildURL("/cosmos/base/tendermint/v1beta1/blocks/latest", nil)
+	if err != nil {
+		return 0, err
+	}
+
+	var chain CosmosLatestBlock
+	err = c.getResponse(u, &chain)
+	if err != nil {
+		return 0, err
+	}
+	if chain.Message != "" {
+		return 0, errors.New(chain.Message)
+	}
+	if chain.Error != nil {
+		return 0, errors.New(utils.GetString(chain.Error))
+	}
+	height, err := strconv.Atoi(chain.Block.Header.Height)
+	if err != nil {
+		return 0, err
+	}
+	return height, err
+}
+
+// getResponse is a boilerplate for HTTP GET responses.
+func (c *CosmosClient) getResponse(target *url.URL, decTarget interface{}) (err error) {
+	timeoutMS := 10_000 * time.Millisecond
+	if c.chainName == "Osmosis" {
+		err = httpclient.GetUseCloudscraper(target.String(), &decTarget, &timeoutMS)
+	} else {
+		_, err = httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS, nil)
+	}
+	return
 }
