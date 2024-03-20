@@ -23,15 +23,15 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChainListClient interface {
-	// 获取所有链列表
-	GetAllChainList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetAllChainListResp, error)
-	// 批量获取链列表
+	//获取所有链列表
+	GetAllChainList(ctx context.Context, in *GetAllChainListReq, opts ...grpc.CallOption) (*GetAllChainListResp, error)
+	//批量获取链列表
 	GetChainList(ctx context.Context, in *GetChainListReq, opts ...grpc.CallOption) (*GetChainListResp, error)
-	// 获取对应链节点列表
+	//获取对应链节点列表
 	GetChainNodeList(ctx context.Context, in *GetChainNodeListReq, opts ...grpc.CallOption) (*GetChainNodeListResp, error)
-	// 获取使用中的节点列表
+	//获取使用中的节点列表
 	GetChainNodeInUsedList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetChainNodeInUsedListResp, error)
-	// 标记节点为使用状态
+	//标记节点为使用状态
 	UseChainNode(ctx context.Context, in *UseChainNodeReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
@@ -43,7 +43,7 @@ func NewChainListClient(cc grpc.ClientConnInterface) ChainListClient {
 	return &chainListClient{cc}
 }
 
-func (c *chainListClient) GetAllChainList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetAllChainListResp, error) {
+func (c *chainListClient) GetAllChainList(ctx context.Context, in *GetAllChainListReq, opts ...grpc.CallOption) (*GetAllChainListResp, error) {
 	out := new(GetAllChainListResp)
 	err := c.cc.Invoke(ctx, "/api.chainlist.v1.ChainList/GetAllChainList", in, out, opts...)
 	if err != nil {
@@ -92,15 +92,15 @@ func (c *chainListClient) UseChainNode(ctx context.Context, in *UseChainNodeReq,
 // All implementations must embed UnimplementedChainListServer
 // for forward compatibility
 type ChainListServer interface {
-	// 获取所有链列表
-	GetAllChainList(context.Context, *emptypb.Empty) (*GetAllChainListResp, error)
-	// 批量获取链列表
+	//获取所有链列表
+	GetAllChainList(context.Context, *GetAllChainListReq) (*GetAllChainListResp, error)
+	//批量获取链列表
 	GetChainList(context.Context, *GetChainListReq) (*GetChainListResp, error)
-	// 获取对应链节点列表
+	//获取对应链节点列表
 	GetChainNodeList(context.Context, *GetChainNodeListReq) (*GetChainNodeListResp, error)
-	// 获取使用中的节点列表
+	//获取使用中的节点列表
 	GetChainNodeInUsedList(context.Context, *emptypb.Empty) (*GetChainNodeInUsedListResp, error)
-	// 标记节点为使用状态
+	//标记节点为使用状态
 	UseChainNode(context.Context, *UseChainNodeReq) (*emptypb.Empty, error)
 	mustEmbedUnimplementedChainListServer()
 }
@@ -109,7 +109,7 @@ type ChainListServer interface {
 type UnimplementedChainListServer struct {
 }
 
-func (UnimplementedChainListServer) GetAllChainList(context.Context, *emptypb.Empty) (*GetAllChainListResp, error) {
+func (UnimplementedChainListServer) GetAllChainList(context.Context, *GetAllChainListReq) (*GetAllChainListResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllChainList not implemented")
 }
 func (UnimplementedChainListServer) GetChainList(context.Context, *GetChainListReq) (*GetChainListResp, error) {
@@ -138,7 +138,7 @@ func RegisterChainListServer(s grpc.ServiceRegistrar, srv ChainListServer) {
 }
 
 func _ChainList_GetAllChainList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(GetAllChainListReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func _ChainList_GetAllChainList_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: "/api.chainlist.v1.ChainList/GetAllChainList",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainListServer).GetAllChainList(ctx, req.(*emptypb.Empty))
+		return srv.(ChainListServer).GetAllChainList(ctx, req.(*GetAllChainListReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
