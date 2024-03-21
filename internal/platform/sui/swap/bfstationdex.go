@@ -12,7 +12,7 @@ import (
 )
 
 // https://tk3en79uf0.larksuite.com/wiki/ReEpwA0ykinzNzkOzveuthZKssg
-const BFStationContract = "BFC58b8d353ae1b1c5e4328b804ecfa94c30bbbc19e258991084919073808334af1641f"
+const BFStationContract = "BFC0f988d525cd9d18e22a96fc55e9dcde77cd34c4a6fe9bff03b0a2593416a5fa7a837"
 
 var bfstationDexContracts = map[string]bool{
 	// "BFC4efe978bd7e02ed9f1cc199cec277c765357b7b3b812f8b63393b01d3000d391a3f8": true,
