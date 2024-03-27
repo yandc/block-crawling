@@ -123,9 +123,9 @@ lark:
     CSPR:
       uids: [ wanghui ]
     EVM:
-      uids: [ runhua ]
+      uids: [ wanghui ]
     POLKADOT:
-      uids: [ runhua ]
+      uids: [ qingliang ]
     SOL:
       uids: [ wanghui ]
     STC:
@@ -133,9 +133,9 @@ lark:
     SUI:
       uids: [ wanghui ]
     TVM:
-      uids: [ runhua ]
+      uids: [ qingliang ]
     BTC:
-      uids: [ runhua ]
+      uids: [ wanghui ]
     node-proxy:
       uids: [ qingliang ]
     txinput:
