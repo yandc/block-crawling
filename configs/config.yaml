@@ -105,12 +105,10 @@ lark:
   larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
 #  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
   larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
-  larkAtList: "98f57egg"
+  larkAtList: "1dd9747c"
   larkUids:
-    runhua: 98f57egg
     dechen: a964d8f6
     wanghui: 1dd9747c
-    dongdong: 9816g34e
     qingliang: bfe7128f
 
   larkSubscriptions:
