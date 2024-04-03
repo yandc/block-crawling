@@ -179,14 +179,14 @@ const TOKEN_INFO_QUEUE_PARTITION = "partition1"
 
 // token类型
 const (
-	ERC20     = "ERC20"
-	ERC721    = "ERC721"
-	ERC1155   = "ERC1155"
-	APTOSNFT  = "AptosNFT"
-	SUINFT    = "SuiNFT"
-	BENFENNFT = "BenfenNFT"
-	SOLANANFT = "SolanaNFT"
-	COSMOSNFT = "CosmosNFT"
+	ERC20     = types.ERC20
+	ERC721    = types.ERC721
+	ERC1155   = types.ERC1155
+	APTOSNFT  = types.APTOSNFT
+	SUINFT    = types.SUINFT
+	BENFENNFT = types.BENFENNFT
+	SOLANANFT = types.SOLANANFT
+	COSMOSNFT = types.COSMOSNFT
 )
 
 const STC_CODE = "0x00000000000000000000000000000001::STC::STC"
@@ -836,6 +836,19 @@ func GetUidTypeCode(address string) (int8, error) {
 	return uidTypeCode, nil
 }
 
+func UidCodeToUidType(uidType int8) string {
+	switch uidType {
+	case 1:
+		return PERSON
+	case 2:
+		return COMPANY
+	case 3:
+		return COADMIN
+	default:
+		return ""
+	}
+}
+
 var chainGasPriceMap = &sync.Map{}
 var chainMaxFeePerGasMap = &sync.Map{}
 var chainMaxPriority = &sync.Map{}
@@ -1055,8 +1068,8 @@ func BjNow() string {
 
 func GetTableName(chainName string) string {
 	tableName := data.GetTableName(chainName)
-	if strings.Contains(tableName,"-"){
-		return `"`+tableName+`"`
+	if strings.Contains(tableName, "-") {
+		return `"` + tableName + `"`
 	}
 	return data.GetTableName(chainName)
 }
@@ -1651,6 +1664,26 @@ func GetAssetsPrice(assets []*data.UserAsset) (map[string]MarketPrice, error) {
 	return tokenPriceMap, err
 }
 
+func GetAssetPriceKey(chainName, tokenAddress string) string {
+	platInfo, _ := GetChainPlatInfo(chainName)
+	if platInfo == nil {
+		return ""
+	}
+
+	//过滤测试网
+	if platInfo.NetType != MAIN_NET_TYPE {
+		return ""
+	}
+
+	var key string
+	if tokenAddress == "" {
+		key = platInfo.GetPriceKey
+	} else {
+		key = fmt.Sprintf("%s_%s", chainName, strings.ToLower(tokenAddress))
+	}
+	return key
+}
+
 // UpdateAssetCostPrice 查出数据库中原始 balance 和 costPrice，与即将入库的资产运算出新的 costPrice
 // （最近一次转入前的成本*数量+最近一次转入时的价格*数量）/最近一次转入后的持仓量」
 func UpdateAssetCostPrice(ctx context.Context, assets []*data.UserAsset) error {
@@ -1761,8 +1794,8 @@ type CosmosLatestBlock struct {
 }
 
 type CosmosClient struct {
-	url    string
-	legacy int32
+	url       string
+	legacy    int32
 	chainName string
 }
 
@@ -1814,7 +1847,6 @@ func (c *CosmosClient) setNotLegacy() {
 	atomic.CompareAndSwapInt32(&c.legacy, 1, 0)
 }
 
-
 func (c *CosmosClient) buildURL(u string, params map[string]string) (target *url.URL, err error) {
 	target, err = url.Parse(c.url + u)
 	if err != nil {
@@ -1864,4 +1896,8 @@ func (c *CosmosClient) getResponse(target *url.URL, decTarget interface{}) (err 
 		_, err = httpclient.GetStatusCode(target.String(), nil, &decTarget, &timeoutMS, nil)
 	}
 	return
+}
+
+func IsDeFiTxType(txType string) bool {
+	return txType == ADDLIQUIDITY || txType == CONTRACT || txType == SWAP || txType == MINT
 }

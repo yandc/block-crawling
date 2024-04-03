@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/platform"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -73,7 +74,12 @@ func main() {
 		"MigrateRecordData":      platform.HandleRecordDataMigration,
 		"CountCompanyWallet":     platform.CountCompanyWallet,
 		"ReportFailedTxns":       platform.ReportFailedTxns,
+		"EVMDeFiAsset":           platform.ScanEVMRecordsForDeFiAsset,
 	}
+
+	//设置默认时区
+	var DefaultLocation, _ = time.LoadLocation("Asia/Shanghai")
+	time.Local = DefaultLocation
 
 	funcMap[method]()
 	//platform.MigrateRecord()

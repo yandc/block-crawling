@@ -62,6 +62,7 @@ const SOLDLISTING_TOPIC = "0xa803ea994bad68b4565b18fffd9978cdc51c754097460d94eb3
 const FILL_TOPIC = "0x35d3c32d322e234e99b7f37b3ff4cb69c8a4027a04bee33d3a716da66ee1e6a1"
 const SEND_TOPIC = "0x2f824f69f211e444df15d741157e83cdf23c50f39399b9523853a84b91379ca6"
 const BASE_TOPIC = "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31"
+const BORROW_TOPIC = "0x2dd79f4fccfd18c360ce7f9132f3621bf05eee18f995224badb32d17f172df73"
 
 // openBlock跨链Swap
 const OPENBLOCK_SWAP_TOPIC = "0x5faac1ba95d8a22d60a2290d300369a4a7b8334e60291f5f6c83ee09f03cab38"
@@ -125,9 +126,12 @@ var BridgeWhiteMethodIdList = map[string][]string{
 // method白名单列表 chainName + contractAddress + method
 var WhiteListMethodMap = map[string][]string{
 	//支持特定链特定合约
-	"ETH_Contract_Method":     {"0x10fC9e6Ed49E648bde6b6214f07d8e63E12349E8_11290d59"},
-	"BSC_Contract_Method":     {"0xa2d57fa083aD42Fe7d042FE0794cFeF13bd2603c_11290d59"},
+	"ETH_Contract_Method": {"0x10fC9e6Ed49E648bde6b6214f07d8e63E12349E8_11290d59"},
+	"BSC_Contract_Method": {
+		"0xa2d57fa083aD42Fe7d042FE0794cFeF13bd2603c_11290d59",
+	},
 	"Polygon_Contract_Method": {"0xD0Db2F29056E0226168c6b32363A339Fe8fD46b5_11290d59"},
+
 	//支持所有链特定合约
 	//"Contract_Method": {"0xB7FDda5330DaEA72514Db2b84211afEBD19277Ca_4630a0d8"},
 	//支持所有链所有合约
@@ -185,9 +189,16 @@ var BridgeWhiteTopicList = map[string][]string{
 var WhiteListTopicMap = map[string][]string{
 	//支持特定链特定合约
 	"ETH_Contract_Method_Topic": {"0x10fc9e6ed49e648bde6b6214f07d8e63e12349e8_11290d59_" + OPENBLOCK_SWAP_TOPIC},
-	"BSC_Contract_Method_Topic": {"0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c_11290d59_" + OPENBLOCK_SWAP_TOPIC},
-	"Polygon_Contract_Method_Topic": {"0x0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC,
-		"0xd0db2f29056e0226168c6b32363a339fe8fd46b5_11290d59_" + OPENBLOCK_SWAP_TOPIC},
+	"BSC_Contract_Method_Topic": {
+		"0xa2d57fa083ad42fe7d042fe0794cfef13bd2603c_11290d59_" + OPENBLOCK_SWAP_TOPIC,
+		"0x33a32f0ad4aa704e28c93ed8ffa61d50d51622a7_c5ebeaec_" + BORROW_TOPIC, // borrow
+
+	},
+	"Polygon_Contract_Method_Topic": {
+		"0X0000000000000000000000000000000000000000__" + TRANSFER_FROM_L1_COMPLETED_TOPIC,
+		"0xd0db2f29056e0226168c6b32363a339fe8fd46b5_11290d59_" + OPENBLOCK_SWAP_TOPIC,
+		"0xc1b02e52e9512519edf99671931772e452fb4399_c5ebeaec_" + BORROW_TOPIC, // borrow
+	},
 	"Scroll_Contract_Method_Topic": {"0x781e90f1c8fc4611c9b7497c3b47f99ef6969cbc_8ef1332e_" + FINALIZEDEPOSITETH_TOPIC},
 	//支持所有链特定合约
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,

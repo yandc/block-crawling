@@ -42,6 +42,26 @@ type TokenInfo struct {
 	Tokens         []TokenInfo `json:"tokens,omitempty"`
 }
 
+// token类型
+const (
+	ERC20     = "ERC20"
+	ERC721    = "ERC721"
+	ERC1155   = "ERC1155"
+	APTOSNFT  = "AptosNFT"
+	SUINFT    = "SuiNFT"
+	BENFENNFT = "BenfenNFT"
+	SOLANANFT = "SolanaNFT"
+	COSMOSNFT = "CosmosNFT"
+)
+
+func (t *TokenInfo) IsNFT() bool {
+	switch t.TokenType {
+	case ERC721, ERC1155, APTOSNFT, SUINFT, BENFENNFT, SOLANANFT, COSMOSNFT:
+		return true
+	}
+	return false
+}
+
 const (
 	nRecordRPCURLInfoBuckets = 30 // 30 buckets for 30 minutes
 	nEachBucketSeconds       = 60 // each bucket for 1 minute.

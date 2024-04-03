@@ -48,6 +48,14 @@ type UserWalletAssetClient interface {
 	UserWalletDistribution(ctx context.Context, in *UserWalletDistributionReq, opts ...grpc.CallOption) (*UserWalletDistributionResp, error)
 	// 用户单链资产分析
 	UserChainAssetFilter(ctx context.Context, in *UserChainAssetFilterReq, opts ...grpc.CallOption) (*UserChainAssetFilterResp, error)
+	// 获取 DeFi 平台接口
+	UserWalletDeFiPlatforms(ctx context.Context, in *UserWalletDeFiPlatformRequest, opts ...grpc.CallOption) (*UserWalletDeFiPlatformResp, error)
+	// 获取 DeFi 资产列表接口
+	UserWalletDeFiAssets(ctx context.Context, in *UserWalletDeFiAssetRequest, opts ...grpc.CallOption) (*UserWalletDeFiAssetResp, error)
+	// 获取 DeFi 平台分布
+	UserWalletDeFiDistribution(ctx context.Context, in *UserWalletRequest, opts ...grpc.CallOption) (*UserWalletDeFiDistributionResp, error)
+	// 获取资产类型分布
+	UserWalletAssetTypeDistribution(ctx context.Context, in *UserWalletRequest, opts ...grpc.CallOption) (*UserWalletAssetTypeDistributionResp, error)
 }
 
 type userWalletAssetClient struct {
@@ -175,6 +183,42 @@ func (c *userWalletAssetClient) UserChainAssetFilter(ctx context.Context, in *Us
 	return out, nil
 }
 
+func (c *userWalletAssetClient) UserWalletDeFiPlatforms(ctx context.Context, in *UserWalletDeFiPlatformRequest, opts ...grpc.CallOption) (*UserWalletDeFiPlatformResp, error) {
+	out := new(UserWalletDeFiPlatformResp)
+	err := c.cc.Invoke(ctx, "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiPlatforms", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userWalletAssetClient) UserWalletDeFiAssets(ctx context.Context, in *UserWalletDeFiAssetRequest, opts ...grpc.CallOption) (*UserWalletDeFiAssetResp, error) {
+	out := new(UserWalletDeFiAssetResp)
+	err := c.cc.Invoke(ctx, "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiAssets", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userWalletAssetClient) UserWalletDeFiDistribution(ctx context.Context, in *UserWalletRequest, opts ...grpc.CallOption) (*UserWalletDeFiDistributionResp, error) {
+	out := new(UserWalletDeFiDistributionResp)
+	err := c.cc.Invoke(ctx, "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiDistribution", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userWalletAssetClient) UserWalletAssetTypeDistribution(ctx context.Context, in *UserWalletRequest, opts ...grpc.CallOption) (*UserWalletAssetTypeDistributionResp, error) {
+	out := new(UserWalletAssetTypeDistributionResp)
+	err := c.cc.Invoke(ctx, "/api.userWalletAsset.v1.UserWalletAsset/UserWalletAssetTypeDistribution", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserWalletAssetServer is the server API for UserWalletAsset service.
 // All implementations must embed UnimplementedUserWalletAssetServer
 // for forward compatibility
@@ -205,6 +249,14 @@ type UserWalletAssetServer interface {
 	UserWalletDistribution(context.Context, *UserWalletDistributionReq) (*UserWalletDistributionResp, error)
 	// 用户单链资产分析
 	UserChainAssetFilter(context.Context, *UserChainAssetFilterReq) (*UserChainAssetFilterResp, error)
+	// 获取 DeFi 平台接口
+	UserWalletDeFiPlatforms(context.Context, *UserWalletDeFiPlatformRequest) (*UserWalletDeFiPlatformResp, error)
+	// 获取 DeFi 资产列表接口
+	UserWalletDeFiAssets(context.Context, *UserWalletDeFiAssetRequest) (*UserWalletDeFiAssetResp, error)
+	// 获取 DeFi 平台分布
+	UserWalletDeFiDistribution(context.Context, *UserWalletRequest) (*UserWalletDeFiDistributionResp, error)
+	// 获取资产类型分布
+	UserWalletAssetTypeDistribution(context.Context, *UserWalletRequest) (*UserWalletAssetTypeDistributionResp, error)
 	mustEmbedUnimplementedUserWalletAssetServer()
 }
 
@@ -250,6 +302,18 @@ func (UnimplementedUserWalletAssetServer) UserWalletDistribution(context.Context
 }
 func (UnimplementedUserWalletAssetServer) UserChainAssetFilter(context.Context, *UserChainAssetFilterReq) (*UserChainAssetFilterResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserChainAssetFilter not implemented")
+}
+func (UnimplementedUserWalletAssetServer) UserWalletDeFiPlatforms(context.Context, *UserWalletDeFiPlatformRequest) (*UserWalletDeFiPlatformResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserWalletDeFiPlatforms not implemented")
+}
+func (UnimplementedUserWalletAssetServer) UserWalletDeFiAssets(context.Context, *UserWalletDeFiAssetRequest) (*UserWalletDeFiAssetResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserWalletDeFiAssets not implemented")
+}
+func (UnimplementedUserWalletAssetServer) UserWalletDeFiDistribution(context.Context, *UserWalletRequest) (*UserWalletDeFiDistributionResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserWalletDeFiDistribution not implemented")
+}
+func (UnimplementedUserWalletAssetServer) UserWalletAssetTypeDistribution(context.Context, *UserWalletRequest) (*UserWalletAssetTypeDistributionResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserWalletAssetTypeDistribution not implemented")
 }
 func (UnimplementedUserWalletAssetServer) mustEmbedUnimplementedUserWalletAssetServer() {}
 
@@ -498,6 +562,78 @@ func _UserWalletAsset_UserChainAssetFilter_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserWalletAsset_UserWalletDeFiPlatforms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserWalletDeFiPlatformRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserWalletAssetServer).UserWalletDeFiPlatforms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiPlatforms",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserWalletAssetServer).UserWalletDeFiPlatforms(ctx, req.(*UserWalletDeFiPlatformRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserWalletAsset_UserWalletDeFiAssets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserWalletDeFiAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserWalletAssetServer).UserWalletDeFiAssets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiAssets",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserWalletAssetServer).UserWalletDeFiAssets(ctx, req.(*UserWalletDeFiAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserWalletAsset_UserWalletDeFiDistribution_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserWalletAssetServer).UserWalletDeFiDistribution(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.userWalletAsset.v1.UserWalletAsset/UserWalletDeFiDistribution",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserWalletAssetServer).UserWalletDeFiDistribution(ctx, req.(*UserWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserWalletAsset_UserWalletAssetTypeDistribution_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserWalletAssetServer).UserWalletAssetTypeDistribution(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.userWalletAsset.v1.UserWalletAsset/UserWalletAssetTypeDistribution",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserWalletAssetServer).UserWalletAssetTypeDistribution(ctx, req.(*UserWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserWalletAsset_ServiceDesc is the grpc.ServiceDesc for UserWalletAsset service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -556,6 +692,22 @@ var UserWalletAsset_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UserChainAssetFilter",
 			Handler:    _UserWalletAsset_UserChainAssetFilter_Handler,
+		},
+		{
+			MethodName: "UserWalletDeFiPlatforms",
+			Handler:    _UserWalletAsset_UserWalletDeFiPlatforms_Handler,
+		},
+		{
+			MethodName: "UserWalletDeFiAssets",
+			Handler:    _UserWalletAsset_UserWalletDeFiAssets_Handler,
+		},
+		{
+			MethodName: "UserWalletDeFiDistribution",
+			Handler:    _UserWalletAsset_UserWalletDeFiDistribution_Handler,
+		},
+		{
+			MethodName: "UserWalletAssetTypeDistribution",
+			Handler:    _UserWalletAsset_UserWalletAssetTypeDistribution_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -119,10 +119,18 @@ type EvmTransactionRecordRepo interface {
 	FindByAddressCount(context.Context, string, string, string, int, int, string) ([]EvmTransferCount, error)
 	UpdateTransactionTypeByTxHash(context.Context, string, string, string) (int64, error)
 	FindUsdt(context.Context, string) ([]*EvmTransactionRecord, error)
+	LoadSeries(ctx context.Context, tableName string, transactionHash string) ([]*EvmTransactionRecord, error)
 }
 
 type EvmTransactionRecordRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// LoadSeries implements EvmTransactionRecordRepo
+func (r *EvmTransactionRecordRepoImpl) LoadSeries(ctx context.Context, tableName string, transactionHash string) ([]*EvmTransactionRecord, error) {
+	var results []*EvmTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where(`transaction_hash LIKE '` + transactionHash + `%'`).Find(&results)
+	return results, ret.Error
 }
 
 var EvmTransactionRecordRepoClient EvmTransactionRecordRepo
