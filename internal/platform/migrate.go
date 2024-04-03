@@ -8412,3 +8412,46 @@ func ReportFailedTxns() {
 	task := &scheduling.ReportFailureTxnsTask{}
 	task.Run()
 }
+
+func ScanEVMRecordsForDeFiAsset() {
+	for _, plat := range biz.GetChainPlatInfoMap() {
+		if plat.Type != biz.EVM {
+			continue
+		}
+		if biz.IsTestNet(plat.Chain) || !biz.ShouldChainAlarm((plat.Chain)) {
+			continue
+		}
+
+		log.Info("SCAN EVM RECOREDS FOR DeFi ASSET", zap.String("chainName", plat.Chain))
+		tableName := biz.GetTableName(plat.Chain)
+		var cursor int64
+		pageLimit := 100
+		for {
+			records, err := data.EvmTransactionRecordRepoClient.CursorListAll(context.Background(), tableName, &cursor, pageLimit)
+			if err != nil {
+				if strings.Contains(err.Error(), "SQLSTATE 42P01") {
+					goto _END_LOOP
+				}
+				panic(err)
+			}
+			if len(records) == 0 {
+				goto _END_LOOP
+			}
+			for _, tx := range records {
+				if strings.Contains(tx.TransactionHash, "#result-") {
+					continue
+				}
+				if !biz.IsDeFiTxType(tx.TransactionType) {
+					continue
+				}
+				if tx.DappData == "" {
+					continue
+				}
+				if err := ethereum.ProcessDeFiAsset(plat.Chain, []*data.EvmTransactionRecord{tx}, nil); err != nil {
+					panic(err)
+				}
+			}
+		}
+	_END_LOOP:
+	}
+}

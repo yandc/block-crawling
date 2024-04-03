@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/log"
 	"context"
+
 	"go.uber.org/zap"
 )
 
@@ -119,4 +120,28 @@ func (s *UserWalletAssetService) UserChainAssetFilter(ctx context.Context, req *
 	//subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	//defer cancel()
 	return s.uc.UserChainAssetFilter(ctx, req)
+}
+
+// 获取 DeFi 平台接口
+func (s *UserWalletAssetService) UserWalletDeFiPlatforms(ctx context.Context, req *pb.UserWalletDeFiPlatformRequest) (*pb.UserWalletDeFiPlatformResp, error) {
+	log.Info("request", zap.Any("request", req))
+	return s.uc.UserWalletDeFiPlatforms(ctx, req)
+}
+
+// 获取 DeFi 资产列表接口
+func (s *UserWalletAssetService) UserWalletDeFiAssets(ctx context.Context, req *pb.UserWalletDeFiAssetRequest) (*pb.UserWalletDeFiAssetResp, error) {
+	log.Info("request", zap.Any("request", req))
+	return s.uc.UserWalletDeFiAssets(ctx, req)
+}
+
+// 获取 DeFi 平台分布
+func (s *UserWalletAssetService) UserWalletDeFiDistribution(ctx context.Context, req *pb.UserWalletRequest) (*pb.UserWalletDeFiDistributionResp, error) {
+	log.Info("request", zap.Any("request", req))
+	return s.uc.UserWalletDeFiDistribution(ctx, req)
+}
+
+// 获取资产类型分布
+func (s *UserWalletAssetService) UserWalletAssetTypeDistribution(ctx context.Context, req *pb.UserWalletRequest) (*pb.UserWalletAssetTypeDistributionResp, error) {
+	log.Info("request", zap.Any("request", req))
+	return s.uc.UserWalletAssetTypeDistribution(ctx, req)
 }

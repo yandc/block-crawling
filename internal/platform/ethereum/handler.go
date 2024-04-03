@@ -64,6 +64,7 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		newTxs:    true,
 		blockHash: "",
 		now:       time.Now().Unix(),
+		receipts:  &sync.Map{},
 	}
 	//TODO
 	if true {
@@ -159,6 +160,7 @@ func (h *handler) CreateTxHandler(client chain.Clienter, tx *chain.Transaction) 
 		newTxs:      false,
 		now:         time.Now().Unix(),
 		blocksStore: h.blocksStore,
+		receipts:    &sync.Map{},
 	}
 	return decoder, nil
 }

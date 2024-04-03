@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/metachris/eth-go-bindings/erc1155"
 	"github.com/metachris/eth-go-bindings/erc165"
@@ -880,6 +881,60 @@ func (c *Client) NewBatchTokenBalance(address string, tokenMap map[string]int) (
 	}
 
 	return result, nil
+}
+
+func (c *Client) GetDexPairTokens(contract string) (string, string, error) {
+	token0, err := c.GetDexPairToken(contract, "token0")
+	if err != nil {
+		return "", "", err
+	}
+	token1, err := c.GetDexPairToken(contract, "token1")
+	if err != nil {
+		return "", "", err
+	}
+	return token0, token1, nil
+}
+
+func (c *Client) GetDexDodoPairTokens(contract string) (string, string, error) {
+	token0, err := c.GetDexPairToken(contract, "_BASE_TOKEN_")
+	if err != nil {
+		return "", "", err
+	}
+	token1, err := c.GetDexPairToken(contract, "_QUOTE_TOKEN_")
+	if err != nil {
+		return "", "", err
+	}
+	return token0, token1, nil
+}
+
+func (c *Client) GetDexPairToken(contract string, method string) (string, error) {
+	stringTy, _ := abi.NewType("address", "", nil)
+	addressRt := abi.Arguments{
+		abi.Argument{
+			Name: "",
+			Type: stringTy,
+		},
+	}
+	viewMethod := abi.NewMethod(method, method, abi.Function, "view", true, false, nil, addressRt)
+	callMsg := map[string]interface{}{
+		"from": common.HexToAddress(contract),
+		"to":   common.HexToAddress(contract),
+		"data": hexutil.Bytes(viewMethod.ID),
+	}
+	rpcClient, err := rpc.DialHTTP(c.url)
+	if err != nil {
+		return "", err
+	}
+	var address string
+	err = rpcClient.CallContext(context.Background(), &address, "eth_call", callMsg, "latest")
+	if err != nil {
+		return "", err
+	}
+	addr := common.HexToAddress(address).Hex()
+	if addr == "0x0000000000000000000000000000000000000000" {
+		return "", errors.New("empty result")
+	}
+	return addr, nil
 }
 
 func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId string) (string, error) {

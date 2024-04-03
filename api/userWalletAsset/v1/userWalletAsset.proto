@@ -46,6 +46,17 @@ service UserWalletAsset {
   // 用户单链资产分析
   rpc UserChainAssetFilter (UserChainAssetFilterReq) returns (UserChainAssetFilterResp) {}
 
+  // 获取 DeFi 平台接口
+  rpc UserWalletDeFiPlatforms(UserWalletDeFiPlatformRequest) returns (UserWalletDeFiPlatformResp) {}
+
+  // 获取 DeFi 资产列表接口
+  rpc UserWalletDeFiAssets(UserWalletDeFiAssetRequest) returns (UserWalletDeFiAssetResp) {}
+
+  // 获取 DeFi 平台分布
+  rpc UserWalletDeFiDistribution(UserWalletRequest) returns (UserWalletDeFiDistributionResp) {}
+
+  // 获取资产类型分布
+  rpc UserWalletAssetTypeDistribution(UserWalletRequest) returns (UserWalletAssetTypeDistributionResp) {}
 }
 
 message Currency{
@@ -62,6 +73,9 @@ message Currency{
 message UserWalletAssetTotalReq{
   //钱包id
   repeated string uids = 1;
+
+  //平台 web android ios
+  string platform = 2;
 }
 
 message UserWalletAssetTotalResp{
@@ -91,6 +105,8 @@ message UserWalletAssetHistoryReq{
   string range = 2;
   //平台 web android ios
   string platform = 3;
+	// 是否为 DeFi 资产
+	bool isDefi = 4; // false: 非 DeFi 资产，true： DeFi 资产
 }
 
 message UserWalletAssetHistoryResp{
@@ -114,7 +130,16 @@ message UserWalletAssetHistoryResp{
     string usdtAmount = 4;
     //BTC金额
     string btcAmount = 5;
+
+		// 筛选范围内，从第一天到现在的变化金额
+		Currency changeAmount = 6;
+		// 筛选范围内，从第一天到现在的变化率
+		string changePercentage = 7;
   }
+	// 筛选范围内，第一天到最后一天的变化金额
+  Currency changeAmount = 5;
+	// 筛选范围内，第一天到最后一天的变化率
+	string changePercentage = 6;
 }
 
 message UserWalletIncomeHistoryReq{
@@ -124,6 +149,9 @@ message UserWalletIncomeHistoryReq{
   string range = 2;
   //平台 web android ios
   string platform = 3;
+
+	// 是否为 DeFi 资产
+	bool isDefi = 4; // false: 非 DeFi 资产，true： DeFi 资产
 }
 
 message UserWalletIncomeHistoryResp{
@@ -143,6 +171,8 @@ message UserWalletIncomeHistoryResp{
     string usdtAmount = 4;
     string btcAmount = 5;
   }
+  Currency changeAmount = 4;
+  string changePercentage = 5;
 }
 
 message UserWalletReq{
@@ -390,4 +420,176 @@ message UserChainAssetFilterResp{
     string address = 2;
   }
 
+}
+
+
+message UserWalletRequest {
+  repeated string uids = 1;
+}
+
+message UserWalletDeFiPlatformRequest {
+  repeated string uids = 1;
+  string type = 2;  // staked,debt,lp,deposit
+
+}
+
+message UserWalletDeFiPlatformResp {
+  repeated DeFiPlatform list = 1;
+}
+
+message DeFiPlatform {
+  string id = 1;
+  string origin = 2;
+  string icon = 3;
+  string dappName = 4;
+  string type = 5;  // staked,debt,lp,deposit
+}
+
+
+message UserWalletDeFiAssetRequest {
+  repeated string uids = 1;
+  repeated string platformIds = 2; // empty for all
+	repeated string chainNames = 3;
+  string type = 4;  // staked,debt,lp,deposit
+  int32 pageNum = 5;
+  int32 pageSize = 6;
+
+	string orderBy = 7; // Current value: "value", Profit: "profit"
+	string order = 8; // "asc" or "desc"
+}
+
+message UserWalletDeFiAssetResp {
+  int64 total = 1;
+  repeated UserWalletDeFiAsset list = 2;
+
+  //总资产
+  Currency totalAmount = 3;
+
+  message UserWalletDeFiAsset {
+    oneof value {
+      UserWalletDeFiAssetStaked staked = 1;
+      UserWalletDeFiAssetDebt debt = 2;
+      UserWalletDeFiAssetLP lp = 3;
+      UserWalletDeFiDeposit deposit = 4;
+    }
+
+    message UserWalletDeFiAssetStaked {
+      // 资产名称
+      UserWalletAssetToken token = 1;
+      // 抵押数量
+      string stakedAmount = 2;
+      // 抵押平台
+      DeFiPlatform platform = 3;
+      // 抵押时间
+      int32 stakedAt = 4;
+      // 预计收益
+      Currency profit = 5;
+			// 当前价值
+			Currency value = 6;
+			// 钱包 ID
+			string uid = 7;
+			string profitRate = 8;
+			string chainName = 9;
+    }
+    message UserWalletDeFiAssetDebt {
+      // 借入资产
+      UserWalletAssetToken token = 1;
+      // 借入数量
+      string borrowAmount = 2;
+      // 借入平台
+      DeFiPlatform platform = 3;
+      // 借入时间
+      int32 borrowedAt = 4;
+      // 需还款额度
+      string repayAmount = 5;
+			// 当前价值
+			Currency value = 6;
+			// 钱包 ID
+			string uid = 7;
+			string chainName = 8;
+    }
+    message UserWalletDeFiAssetLP {
+      // 流动性代币 a
+      UserWalletAssetToken tokenA = 1;
+      // 流动性代币 b
+      UserWalletAssetToken tokenB = 2;
+
+      // 流动性池
+      UserWalletAssetToken lpToken = 3;
+
+      // 平台
+      DeFiPlatform platform = 4;
+      // 添加时间
+      int32 createdAt = 5;
+      // 收益
+      Currency profit = 6;
+			// 当前价值
+			Currency value = 7;
+			// 钱包 ID
+			string uid = 8;
+
+			string amountA = 9;
+			string amountB = 10;
+			string profitRate = 11;
+			string chainName = 12;
+    }
+    message UserWalletDeFiDeposit {
+      // 存入资产
+      UserWalletAssetToken token = 1;
+      // 存入数量
+      string depositAmount = 2;
+      // 存入平台
+      DeFiPlatform platform = 3;
+      // 存入时间
+      int32 depositedAt = 4;
+      // 收益
+      Currency profit = 5;
+			// 当前价值
+			Currency value = 6;
+			// 钱包 ID
+			string uid = 7;
+			string profitRate = 8;
+			string chainName = 9;
+    }
+  }
+}
+
+message UserWalletAssetToken {
+  //代币地址
+  string tokenAddress = 1;
+  //代币symbol
+  string tokenSymbol = 3;
+  //代币 logo
+  string tokenLogo = 4;
+}
+
+
+message UserWalletDeFiDistributionResp {
+  repeated UserWalletDeFiDistribution list = 1;
+
+  message UserWalletDeFiDistribution {
+    // 占比
+    string percentage = 1;
+
+    // 金额
+    Currency amount = 2;
+
+    // 平台
+    DeFiPlatform platform = 3;
+  }
+}
+
+message UserWalletAssetTypeDistributionResp {
+  repeated UserWalletAssetTypeDistribution list = 1;
+
+  message UserWalletAssetTypeDistribution {
+    // 占比
+    string percentage = 1;
+
+    // 金额
+    Currency amount = 2;
+
+    // 资产类型
+    string assetType = 3; // staked,debt,lp,deposit
+  }
 }

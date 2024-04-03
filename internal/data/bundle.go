@@ -32,6 +32,7 @@ type Bundle struct {
 	History                UserSendRawHistoryRepo
 	Market                 MarketCoinHistoryRepo
 	Swap                   SwapContractRepo
+	DeFi                   DeFiAssetRepo
 }
 
 // NewDataBundle Bundle repositories to let them initialize.
@@ -66,6 +67,7 @@ func NewBundle(
 	swap SwapContractRepo,
 	bfs BFCStationRepo,
 	userWalletAssetHistoryRepo UserWalletAssetHistoryRepo,
+	defi DeFiAssetRepo,
 ) *Bundle {
 	return &Bundle{
 		ATM:                    atm,
@@ -97,5 +99,6 @@ func NewBundle(
 		Market:                 market,
 		Swap:                   swap,
 		UserWalletAssetHistory: userWalletAssetHistoryRepo,
+		DeFi:                   defi,
 	}
 }

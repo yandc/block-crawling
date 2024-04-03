@@ -13,7 +13,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.4.0
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/google/wire v0.5.0
+	github.com/google/wire v0.6.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/metachris/eth-go-bindings v0.5.0
 	github.com/nervosnetwork/ckb-sdk-go v1.0.4
@@ -27,7 +27,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	gitlab.bixin.com/mili/node-driver v0.0.0-20231204071837-264813662bb0
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.1.0
+	golang.org/x/crypto v0.18.0
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	google.golang.org/genproto v0.0.0-20220719170305-83ca9fad585f
 	google.golang.org/grpc v1.48.0
@@ -61,7 +61,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/subcommands v1.0.1 // indirect
+	github.com/google/subcommands v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -90,12 +90,12 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/tools v0.2.0 // indirect
+	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/tools v0.17.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.3.2 // indirect

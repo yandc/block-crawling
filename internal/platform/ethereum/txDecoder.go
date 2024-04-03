@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/datatypes"
@@ -46,6 +47,8 @@ type txDecoder struct {
 	txNonceRecords []*data.EvmTransactionRecord
 
 	matchedUser bool
+
+	receipts *sync.Map
 }
 
 func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Transaction) error {
@@ -120,51 +123,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		if transaction.To() != nil {
 			contractAddress = transaction.To().String()
 		}
-		inWhiteList := false
-		// dapp 白名单 判断 ，非白名单 直接 扔掉交易
-		if whiteMethods, ok := BridgeWhiteMethodIdList[h.chainName+"_MethodId"]; ok {
-			methodKey := h.chainName + "_" + contractAddress + "_" + methodId
-			for _, whiteMethod := range whiteMethods {
-				if methodKey == whiteMethod {
-					inWhiteList = true
-					break
-				}
-			}
-		}
-
-		if !inWhiteList {
-			if whiteMethods, ok := WhiteListMethodMap[h.chainName+"_Contract_Method"]; ok {
-				methodKey := contractAddress + "_" + methodId
-				for _, whiteMethod := range whiteMethods {
-					if methodKey == whiteMethod {
-						inWhiteList = true
-						break
-					}
-				}
-			}
-		}
-		if !inWhiteList {
-			if whiteMethods, ok := WhiteListMethodMap["Contract_Method"]; ok {
-				methodKey := contractAddress + "_" + methodId
-				for _, whiteMethod := range whiteMethods {
-					if methodKey == whiteMethod {
-						inWhiteList = true
-						break
-					}
-				}
-			}
-		}
-		if !inWhiteList {
-			if whiteMethods, ok := WhiteListMethodMap["Method"]; ok {
-				methodKey := methodId
-				for _, whiteMethod := range whiteMethods {
-					if methodKey == whiteMethod {
-						inWhiteList = true
-						break
-					}
-				}
-			}
-		}
+		inWhiteList := isMethodInWhiteList(h.chainName, contractAddress, methodId)
 
 		if !inWhiteList {
 			if hasUserAddress(h.txEventLogMap[txHash]) {
@@ -216,6 +175,7 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		)
 		return err
 	}
+	h.receipts.Store(tx.Hash, receipt)
 
 	err = h.handleEachTransaction(client, block, tx, transaction, meta, receipt)
 	return err
@@ -950,51 +910,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		topic0 := log_.Topics[0].String()
 		if topic0 != APPROVAL_TOPIC && topic0 != APPROVALFORALL_TOPIC && topic0 != TRANSFER_TOPIC && topic0 != TRANSFERSINGLE_TOPIC &&
 			topic0 != TRANSFERBATCH_TOPIC && topic0 != WITHDRAWAL_TOPIC && topic0 != DEPOSIT_TOPIC {
-			inWhiteList := false
-			if whiteTopics, ok := BridgeWhiteTopicList[h.chainName+"_Topic"]; ok {
-				topicKey := h.chainName + "_" + contractAddress + "_" + topic0
-				for _, whiteTopic := range whiteTopics {
-					if topicKey == whiteTopic {
-						inWhiteList = true
-						break
-					}
-				}
-			}
-
-			if !inWhiteList {
-				if whiteTopics, ok := WhiteListTopicMap[h.chainName+"_Contract_Method_Topic"]; ok {
-					topicKey := contractAddress + "_" + methodId + "_" + topic0
-					for _, whiteTopic := range whiteTopics {
-						if topicKey == whiteTopic {
-							inWhiteList = true
-							break
-						}
-					}
-				}
-			}
-			if !inWhiteList {
-				if whiteTopics, ok := WhiteListTopicMap["Contract_Method_Topic"]; ok {
-					topicKey := contractAddress + "_" + methodId + "_" + topic0
-					for _, whiteTopic := range whiteTopics {
-						if topicKey == whiteTopic {
-							inWhiteList = true
-							break
-						}
-					}
-				}
-			}
-			if !inWhiteList {
-				if whiteTopics, ok := WhiteListTopicMap["Method_Topic"]; ok {
-					topicKey := methodId + "_" + topic0
-					for _, whiteTopic := range whiteTopics {
-						if topicKey == whiteTopic {
-							inWhiteList = true
-							break
-						}
-					}
-				}
-			}
-			if !inWhiteList {
+			if !isTopic0InWhiteList(h.chainName, contractAddress, methodId, topic0) {
 				continue
 			}
 		}
@@ -1745,6 +1661,11 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			toAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[:32])
 			tokenAddress = ""
+		} else if topic0 == BORROW_TOPIC {
+			fromAddress = tokenAddress
+			toAddress = common.BytesToAddress(log_.Data[:32]).String()
+			amount = new(big.Int).SetBytes(log_.Data[32:64])
+			tokenAddress = ""
 		}
 
 		if xDaiDapp {
@@ -2203,6 +2124,12 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 			go HandleUserNonce(h.chainName, *(client.(*Client)), txNonceRecords)
 			go HandlePendingRecord(h.chainName, *(client.(*Client)), txRecords)
 		}
+		receipts := make(map[string]*rtypes.Receipt)
+		h.receipts.Range(func(key, value interface{}) bool {
+			receipts[key.(string)] = value.(*rtypes.Receipt)
+			return true
+		})
+		go HandleDeFiAsset(h.chainName, txRecords, receipts)
 
 		if h.newTxs {
 			records := make([]interface{}, 0, len(txRecords))
@@ -2215,4 +2142,106 @@ func (h *txDecoder) Save(client chain.Clienter) error {
 		}
 	}
 	return nil
+}
+
+func isBridgeMethod(chainName, contractAddress, methodId string) bool {
+	// dapp 白名单 判断 ，非白名单 直接 扔掉交易
+	if whiteMethods, ok := BridgeWhiteMethodIdList[chainName+"_MethodId"]; ok {
+		methodKey := chainName + "_" + contractAddress + "_" + methodId
+		for _, whiteMethod := range whiteMethods {
+			if methodKey == whiteMethod {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isMethodInWhiteList(chainName, contractAddress, methodId string) bool {
+	inWhiteList := isBridgeMethod(chainName, contractAddress, methodId)
+
+	if !inWhiteList {
+		if whiteMethods, ok := WhiteListMethodMap[chainName+"_Contract_Method"]; ok {
+			methodKey := contractAddress + "_" + methodId
+			for _, whiteMethod := range whiteMethods {
+				if methodKey == whiteMethod {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	if !inWhiteList {
+		if whiteMethods, ok := WhiteListMethodMap["Contract_Method"]; ok {
+			methodKey := contractAddress + "_" + methodId
+			for _, whiteMethod := range whiteMethods {
+				if methodKey == whiteMethod {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	if !inWhiteList {
+		if whiteMethods, ok := WhiteListMethodMap["Method"]; ok {
+			methodKey := methodId
+			for _, whiteMethod := range whiteMethods {
+				if methodKey == whiteMethod {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	return inWhiteList
+}
+
+func isTopic0Bridge(chainName, contractAddress, methodId, topic0 string) bool {
+	if whiteTopics, ok := BridgeWhiteTopicList[chainName+"_Topic"]; ok {
+		topicKey := chainName + "_" + contractAddress + "_" + topic0
+		for _, whiteTopic := range whiteTopics {
+			if topicKey == whiteTopic {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isTopic0InWhiteList(chainName, contractAddress, methodId, topic0 string) bool {
+	inWhiteList := isTopic0Bridge(chainName, contractAddress, methodId, topic0)
+	if !inWhiteList {
+		if whiteTopics, ok := WhiteListTopicMap[chainName+"_Contract_Method_Topic"]; ok {
+			topicKey := contractAddress + "_" + methodId + "_" + topic0
+			for _, whiteTopic := range whiteTopics {
+				if topicKey == whiteTopic {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	if !inWhiteList {
+		if whiteTopics, ok := WhiteListTopicMap["Contract_Method_Topic"]; ok {
+			topicKey := contractAddress + "_" + methodId + "_" + topic0
+			for _, whiteTopic := range whiteTopics {
+				if topicKey == whiteTopic {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	if !inWhiteList {
+		if whiteTopics, ok := WhiteListTopicMap["Method_Topic"]; ok {
+			topicKey := methodId + "_" + topic0
+			for _, whiteTopic := range whiteTopics {
+				if topicKey == whiteTopic {
+					inWhiteList = true
+					break
+				}
+			}
+		}
+	}
+	return inWhiteList
 }

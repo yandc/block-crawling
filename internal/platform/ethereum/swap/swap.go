@@ -43,6 +43,10 @@ func eventTopicToAddress(v common.Hash) string {
 	return common.HexToAddress(v.String()).String()
 }
 
+func EventTopicToAddress(v common.Hash) string {
+	return eventTopicToAddress(v)
+}
+
 func bytes2Amounts(byts []byte) ([]*big.Int, error) {
 	if len(byts)%32 != 0 {
 		return nil, errors.New("invalid amounts")
@@ -56,6 +60,10 @@ func bytes2Amounts(byts []byte) ([]*big.Int, error) {
 		amounts = append(amounts, v)
 	}
 	return amounts, nil
+}
+
+func Bytes2Amount(byts []byte) (*big.Int, error) {
+	return bytes2Amount(byts)
 }
 
 func bytes2Amount(byts []byte) (*big.Int, error) {

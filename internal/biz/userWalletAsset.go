@@ -6,11 +6,13 @@ import (
 	"block-crawling/internal/data"
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/shopspring/decimal"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 )
 
 type UserWalletAssetUsecase struct {
@@ -57,6 +59,22 @@ func (uc UserWalletAssetUsecase) UserWalletAssetTotal(ctx context.Context, req *
 		return nil, err
 	}
 
+	if req.Platform == "web" || req.Platform == "" {
+		assets, err := data.DeFiAssetRepoInst.FindByUids(ctx, req.Uids)
+		if err != nil {
+			return nil, err
+		}
+		for _, asset := range assets {
+			userAssets = append(userAssets, &data.UserAsset{
+				ChainName:    asset.ChainName,
+				Uid:          asset.Uid,
+				Address:      asset.Address,
+				Balance:      asset.ValueUsd.String(),
+				TokenAddress: "DEFI",
+			})
+		}
+	}
+
 	//资产求和
 	var assetTotal decimal.Decimal
 	for _, asset := range userAssets {
@@ -75,15 +93,19 @@ func (uc UserWalletAssetUsecase) UserWalletAssetTotal(ctx context.Context, req *
 		}
 
 		balanceDecimal, _ := decimal.NewFromString(asset.Balance)
-
-		var key string
-		if asset.TokenAddress == "" {
-			key = platInfo.GetPriceKey
+		amount := decimal.Zero
+		if asset.TokenAddress == "DEFI" {
+			amount = balanceDecimal
 		} else {
-			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
+			var key string
+			if asset.TokenAddress == "" {
+				key = platInfo.GetPriceKey
+			} else {
+				key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
+			}
+			price := decimal.NewFromFloat(tokenPriceMap[key].Price)
+			amount = balanceDecimal.Mul(price).Round(2)
 		}
-		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
-		amount := balanceDecimal.Mul(price).Round(2)
 		if amount.IsZero() { //过滤保留两位小数四舍五入之后的资产
 			continue
 		}
@@ -103,6 +125,10 @@ func (uc UserWalletAssetUsecase) UserWalletAssetTotal(ctx context.Context, req *
 	todayTimestamp := date.Unix()                     //今日 0 时时间戳
 	yesterdayTimestamp := todayTimestamp - DAY_SECOND //昨日 0 时时间戳
 	histories, err := data.UserWalletAssetHistoryRepoClient.FindByUidsAndDts(ctx, req.Uids, []int64{todayTimestamp, yesterdayTimestamp})
+	if req.Platform == "web" || req.Platform == "" {
+		defiHistories, _ := data.DeFiAssetRepoInst.FindByUidsAndDts(ctx, req.Uids, []int64{todayTimestamp, yesterdayTimestamp})
+		histories = append(histories, defiHistories...)
+	}
 	for _, history := range histories {
 		if history.Dt == todayTimestamp { //昨日净划入统计在今日快照中
 			changeTotal = changeTotal.Add(history.UsdChange)
@@ -206,7 +232,13 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 	case "180d":
 		start = end - DAY_SECOND*180
 	}
-	histories, err := data.UserWalletAssetHistoryRepoClient.FindByUidsAndDTRange(ctx, req.Uids, start, end)
+	var findByUidsAndDTRange func(context.Context, []string, int64, int64) ([]*data.UserWalletAssetHistory, error)
+	if req.IsDefi {
+		findByUidsAndDTRange = data.DeFiAssetRepoInst.FindByUidsAndDTRange
+	} else {
+		findByUidsAndDTRange = data.UserWalletAssetHistoryRepoClient.FindByUidsAndDTRange
+	}
+	histories, err := findByUidsAndDTRange(ctx, req.Uids, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +289,6 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 		}
 		dt += DAY_SECOND
 	}
-
 	var historiesList []*pb.UserWalletAssetHistoryResp_UserWalletAssetHistory
 	for dt, amount := range historyMap {
 		historiesList = append(historiesList, &pb.UserWalletAssetHistoryResp_UserWalletAssetHistory{
@@ -273,6 +304,22 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 		return a.Time < b.Time
 	})
 
+	var firstDayUsdAmount *decimal.Decimal
+	var lastDayUsdAmount *decimal.Decimal
+
+	for _, h := range historiesList {
+		camt, _ := decimal.NewFromString(h.UsdAmount)
+		if firstDayUsdAmount == nil {
+			firstDayUsdAmount = &camt
+		}
+		lastDayUsdAmount = &camt
+		changeAmount := camt.Sub(*firstDayUsdAmount)
+
+		h.ChangeAmount = uc.usdToCurrency(changeAmount, cnyRate, btcPrice, usdtPrice)
+		h.ChangePercentage = changeAmount.Div(*firstDayUsdAmount).Round(4).String()
+	}
+
+	changeAmount := lastDayUsdAmount.Sub(*firstDayUsdAmount)
 	result := &pb.UserWalletAssetHistoryResp{
 		Amount: &pb.Currency{
 			Cny:  historiesList[len(historiesList)-1].CnyAmount,
@@ -280,7 +327,9 @@ func (uc UserWalletAssetUsecase) UserWalletAssetHistory(ctx context.Context, req
 			Usdt: historiesList[len(historiesList)-1].UsdtAmount,
 			Btc:  historiesList[len(historiesList)-1].BtcAmount,
 		},
-		Histories: historiesList,
+		Histories:        historiesList,
+		ChangeAmount:     uc.usdToCurrency(changeAmount, cnyRate, btcPrice, usdtPrice),
+		ChangePercentage: changeAmount.Div(*firstDayUsdAmount).Round(4).String(),
 	}
 	return result, nil
 }
@@ -300,7 +349,14 @@ func (uc UserWalletAssetUsecase) UserWalletIncomeHistory(ctx context.Context, re
 	case "180d":
 		start = end - DAY_SECOND*180
 	}
-	histories, err := data.UserWalletAssetHistoryRepoClient.FindByUidsAndDTRange(ctx, req.Uids, start, end)
+
+	var findByUidsAndDTRange func(context.Context, []string, int64, int64) ([]*data.UserWalletAssetHistory, error)
+	if req.IsDefi {
+		findByUidsAndDTRange = data.DeFiAssetRepoInst.FindByUidsAndDTRange
+	} else {
+		findByUidsAndDTRange = data.UserWalletAssetHistoryRepoClient.FindByUidsAndDTRange
+	}
+	histories, err := findByUidsAndDTRange(ctx, req.Uids, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1078,9 +1134,7 @@ func (uc UserWalletAssetUsecase) UserAssetDistribution(ctx context.Context, req 
 
 	var userAssetList []*pb.UserAssetDistributionResp_UserAsset
 	for symbol, usdAmount := range symbolAmountMap {
-
 		percentage := usdAmount.Div(totalAmount)
-
 		currency := &pb.Currency{
 			Cny:  usdAmount.Mul(decimal.NewFromFloat(cnyRate.Rate)).Round(2).String(),
 			Usd:  usdAmount.Round(2).String(),
@@ -1226,7 +1280,7 @@ func (uc UserWalletAssetUsecase) UserChainAssetDistribution(ctx context.Context,
 					Usdt: aggAmount.Div(decimal.NewFromFloat(tokenPriceMap[fmt.Sprintf("%s_%s", "ETH", strings.ToLower(ETH_USDT_ADDRESS))].Price)).Round(2).String(),
 					Btc:  aggAmount.Div(decimal.NewFromFloat(tokenPriceMap[PriceKeyBTC].Price)).String(),
 				},
-				Percentage: aggPercentage.Round(2).String(),
+				Percentage: aggPercentage.Round(4).String(),
 			}}
 	}
 
@@ -1550,4 +1604,465 @@ func (uc UserWalletAssetUsecase) getBTCAndUsdtPrice() (float64, float64, error) 
 	usdtPrice := tokenPrices.Tokens[0].Price
 
 	return btcPrice.Usd, usdtPrice.Usd, err
+}
+
+func (uc UserWalletAssetUsecase) UserWalletDeFiPlatforms(ctx context.Context, req *pb.UserWalletDeFiPlatformRequest) (*pb.UserWalletDeFiPlatformResp, error) {
+	results, err := data.DeFiAssetRepoInst.ListUserPlatforms(ctx, req.Uids, req.Type)
+	if err != nil {
+		return nil, err
+	}
+	resp := &pb.UserWalletDeFiPlatformResp{
+		List: []*pb.DeFiPlatform{},
+	}
+	for _, item := range results {
+		resp.List = append(resp.List, &pb.DeFiPlatform{
+			Id:       fmt.Sprint(item.Id),
+			Origin:   item.URL,
+			Icon:     item.Icon,
+			DappName: item.Name,
+			Type:     req.Type,
+		})
+	}
+	return resp, nil
+}
+
+func (uc UserWalletAssetUsecase) UserWalletDeFiAssets(ctx context.Context, req *pb.UserWalletDeFiAssetRequest) (*pb.UserWalletDeFiAssetResp, error) {
+	total, totalAmount, results, err := data.DeFiAssetRepoInst.ListUserDeFiAssets(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	historiesUniq := make(map[string][]*data.UserDeFiAssetTxnHistory)
+	for _, item := range results {
+		req := &data.DeFiOpenPostionReq{
+			ChainName:    item.ChainName,
+			PlatformID:   item.PlatformID,
+			Address:      item.Address,
+			AssetAddress: item.AssetAddress,
+			TxTime:       item.OpenedAt,
+		}
+		histories, err := data.DeFiAssetRepoInst.LoadAssetHistories(ctx, req, item.Type)
+		if err != nil {
+			return nil, err
+		}
+		historiesUniq[item.TransactionHash] = histories
+	}
+	platformsById, err := data.DeFiAssetRepoInst.LoadPlatformsMap(ctx, results)
+	if err != nil {
+		return nil, err
+	}
+
+	btcPrice, usdtPrice, err := uc.getBTCAndUsdtPrice()
+	if err != nil {
+		return nil, err
+	}
+
+	//获取 美元/人民币 换算价格
+	cnyRate, err := GetCnyRate()
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &pb.UserWalletDeFiAssetResp{
+		Total:       total,
+		List:        []*pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset{},
+		TotalAmount: uc.usdToCurrency(totalAmount, cnyRate, btcPrice, usdtPrice),
+	}
+
+	for _, item := range results {
+		rawPlat := platformsById[item.PlatformID]
+		plat := &pb.DeFiPlatform{
+			Id:       fmt.Sprintf("%d", rawPlat.Id),
+			Origin:   rawPlat.URL,
+			Icon:     rawPlat.Icon,
+			DappName: rawPlat.Name,
+			Type:     req.Type,
+		}
+		switch req.Type {
+		case data.DeFiAssetTypeDebt:
+			token, amount := getDeFiDebt(historiesUniq[item.TransactionHash])
+			resp.List = append(resp.List, &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset{
+				Value: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_Debt{
+					Debt: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_UserWalletDeFiAssetDebt{
+						Token:        uc.fullfillNativeToken(item.ChainName, token),
+						BorrowAmount: amount,
+						Platform:     plat,
+						BorrowedAt:   int32(item.OpenedAt),
+						RepayAmount:  amount,
+						Value:        uc.usdToCurrency(item.ValueUsd, cnyRate, btcPrice, usdtPrice),
+						Uid:          item.Uid,
+						ChainName:    item.ChainName,
+					},
+				},
+			})
+		case data.DeFiAssetTypeDeposits:
+			token, amount := getDeFiDeposit(historiesUniq[item.TransactionHash])
+			resp.List = append(resp.List, &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset{
+				Value: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_Deposit{
+					Deposit: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_UserWalletDeFiDeposit{
+						Token:         uc.fullfillNativeToken(item.ChainName, token),
+						DepositAmount: amount,
+						Platform:      plat,
+						DepositedAt:   int32(item.OpenedAt),
+						Profit:        uc.usdToCurrency(item.ProfitUsd, cnyRate, btcPrice, usdtPrice),
+						Value:         uc.usdToCurrency(item.ValueUsd, cnyRate, btcPrice, usdtPrice),
+						Uid:           item.Uid,
+						ProfitRate:    uc.percentage(item.ProfitUsd, item.ValueUsd),
+						ChainName:     item.ChainName,
+					},
+				},
+			})
+		case data.DeFiAssetTypeStake:
+			token, amount := getDeFiStake(historiesUniq[item.TransactionHash])
+			resp.List = append(resp.List, &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset{
+				Value: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_Staked{
+					Staked: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_UserWalletDeFiAssetStaked{
+						Token:        uc.fullfillNativeToken(item.ChainName, token),
+						StakedAmount: amount,
+						Platform:     plat,
+						StakedAt:     int32(item.OpenedAt),
+						Profit:       uc.usdToCurrency(item.ProfitUsd, cnyRate, btcPrice, usdtPrice),
+						Value:        uc.usdToCurrency(item.ValueUsd, cnyRate, btcPrice, usdtPrice),
+						Uid:          item.Uid,
+						ProfitRate:   uc.percentage(item.ProfitUsd, item.ValueUsd),
+						ChainName:    item.ChainName,
+					},
+				},
+			})
+		case data.DeFiAssetTypeLP:
+			lp, token0, token1, amount0, amount1 := getDeFiLP(historiesUniq[item.TransactionHash])
+			resp.List = append(resp.List, &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset{
+				Value: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_Lp{
+					Lp: &pb.UserWalletDeFiAssetResp_UserWalletDeFiAsset_UserWalletDeFiAssetLP{
+						TokenA:     uc.fullfillNativeToken(item.ChainName, token0),
+						TokenB:     uc.fullfillNativeToken(item.ChainName, token1),
+						LpToken:    lp,
+						Platform:   plat,
+						CreatedAt:  int32(item.OpenedAt),
+						Profit:     uc.usdToCurrency(item.ProfitUsd, cnyRate, btcPrice, usdtPrice),
+						Value:      uc.usdToCurrency(item.ValueUsd, cnyRate, btcPrice, usdtPrice),
+						Uid:        item.Uid,
+						AmountA:    amount0,
+						AmountB:    amount1,
+						ProfitRate: uc.percentage(item.ProfitUsd, item.ValueUsd),
+						ChainName:  item.ChainName,
+					},
+				},
+			})
+		}
+	}
+	return resp, nil
+}
+
+func getDeFiDebt(b []*data.UserDeFiAssetTxnHistory) (*pb.UserWalletAssetToken, string) {
+	totalBorrowed := decimal.Zero
+	totalRepayed := decimal.Zero
+	var token *pb.UserWalletAssetToken
+	for _, h := range b {
+		amount, _ := decimal.NewFromString(h.Amount)
+		switch h.Action {
+		case data.DeFiActionDebtBorrow:
+			if h.AssetDirection == data.DeFiAssetTypeDirRecv {
+				totalBorrowed = totalBorrowed.Add(amount)
+				token = &pb.UserWalletAssetToken{
+					TokenAddress: h.TokenAddress,
+					TokenSymbol:  h.Symbol,
+					TokenLogo:    h.TokenUri,
+				}
+			}
+		case data.DeFiActionDebtRepay:
+			if h.AssetDirection == data.DeFiAssetTypeDirSend {
+				totalRepayed = totalRepayed.Add(amount)
+			}
+		}
+	}
+	return token, totalBorrowed.Sub(totalRepayed).String()
+}
+
+func getDeFiDeposit(b []*data.UserDeFiAssetTxnHistory) (*pb.UserWalletAssetToken, string) {
+	totalSupplied := decimal.Zero
+	totalWithdrawn := decimal.Zero
+	var token *pb.UserWalletAssetToken
+	for _, h := range b {
+		amount, _ := decimal.NewFromString(h.Amount)
+		switch h.Action {
+		case data.DeFiActionDepositSupply:
+			if h.AssetDirection == data.DeFiAssetTypeDirSend {
+				totalSupplied = totalSupplied.Add(amount)
+				token = &pb.UserWalletAssetToken{
+					TokenAddress: h.TokenAddress,
+					TokenSymbol:  h.Symbol,
+					TokenLogo:    h.TokenUri,
+				}
+			}
+		case data.DeFiActionDepositWithdraw:
+			if h.AssetDirection == data.DeFiAssetTypeDirRecv {
+				totalWithdrawn = totalWithdrawn.Add(amount)
+			}
+		}
+	}
+	return token, totalSupplied.Sub(totalWithdrawn).String()
+}
+
+func getDeFiStake(b []*data.UserDeFiAssetTxnHistory) (*pb.UserWalletAssetToken, string) {
+	totalStaked := decimal.Zero
+	totalUnstaked := decimal.Zero
+	var token *pb.UserWalletAssetToken
+	for _, h := range b {
+		amount, _ := decimal.NewFromString(h.Amount)
+		switch h.Action {
+		case data.DeFiActionStakedStake:
+			if h.AssetDirection == data.DeFiAssetTypeDirSend {
+				totalStaked = totalStaked.Add(amount)
+				token = &pb.UserWalletAssetToken{
+					TokenAddress: h.TokenAddress,
+					TokenSymbol:  h.Symbol,
+					TokenLogo:    h.TokenUri,
+				}
+			}
+		case data.DeFiActionStakedUnstake:
+			if h.AssetDirection == data.DeFiAssetTypeDirRecv {
+				totalUnstaked = totalUnstaked.Add(amount)
+			}
+		}
+	}
+	return token, totalStaked.Sub(totalUnstaked).String()
+}
+
+func getDeFiLP(b []*data.UserDeFiAssetTxnHistory) (*pb.UserWalletAssetToken, *pb.UserWalletAssetToken, *pb.UserWalletAssetToken, string, string) {
+	token0TotalAdded := decimal.Zero
+	token1TotalAdded := decimal.Zero
+	var lp *pb.UserWalletAssetToken
+	var token0 *pb.UserWalletAssetToken
+	var token1 *pb.UserWalletAssetToken
+	for _, h := range b {
+		amount, _ := decimal.NewFromString(h.Amount)
+		switch h.Action {
+		case data.DeFiActionLPAdd:
+			if h.AssetDirection == data.DeFiAssetTypeDirSend {
+				if token0 == nil || h.TokenAddress == token0.TokenAddress {
+					token0TotalAdded = token0TotalAdded.Add(amount)
+					token0 = &pb.UserWalletAssetToken{
+						TokenAddress: h.TokenAddress,
+						TokenSymbol:  h.Symbol,
+						TokenLogo:    h.TokenUri,
+					}
+				} else if token1 == nil || h.TokenAddress == token1.TokenAddress {
+					token1TotalAdded = token1TotalAdded.Add(amount)
+					token1 = &pb.UserWalletAssetToken{
+						TokenAddress: h.TokenAddress,
+						TokenSymbol:  h.Symbol,
+						TokenLogo:    h.TokenUri,
+					}
+				}
+			} else {
+				lp = &pb.UserWalletAssetToken{
+					TokenAddress: h.TokenAddress,
+					TokenSymbol:  h.Symbol,
+					TokenLogo:    h.TokenUri,
+				}
+			}
+		case data.DeFiActionLPRemove:
+			// TODO
+		}
+	}
+	return lp, token0, token1, token0TotalAdded.String(), token1TotalAdded.String()
+}
+
+func (uc UserWalletAssetUsecase) percentage(v1 decimal.Decimal, v2 decimal.Decimal) string {
+	if v2.IsZero() {
+		return decimal.Zero.Round(4).String()
+	}
+	return v1.Div(v2).Round(4).String()
+}
+
+func (uc UserWalletAssetUsecase) fullfillNativeToken(chainName string, token *pb.UserWalletAssetToken) *pb.UserWalletAssetToken {
+	platInfo, _ := GetChainPlatInfo(chainName)
+	if platInfo == nil {
+		return token
+	}
+	if token.TokenAddress == "" {
+		if platInfo.NativeCurrencyIcon != "" {
+			token.TokenLogo = platInfo.NativeCurrencyIcon
+		} else {
+			token.TokenLogo = platInfo.Icon
+		}
+		token.TokenSymbol = platInfo.NativeCurrency
+	}
+	return token
+}
+
+func (uc UserWalletAssetUsecase) UserWalletDeFiDistribution(ctx context.Context, req *pb.UserWalletRequest) (*pb.UserWalletDeFiDistributionResp, error) {
+	assets, err := data.DeFiAssetRepoInst.FindByUids(ctx, req.Uids)
+	if err != nil {
+		return nil, err
+	}
+	resp := &pb.UserWalletDeFiDistributionResp{
+		List: []*pb.UserWalletDeFiDistributionResp_UserWalletDeFiDistribution{},
+	}
+	assetsByPlatforms := make(map[int64][]*data.UserDeFiAsset)
+	totalAmountUSD := decimal.Zero
+	for _, item := range assets {
+		arr := assetsByPlatforms[item.PlatformID]
+		arr = append(arr, item)
+		assetsByPlatforms[item.PlatformID] = arr
+		totalAmountUSD = totalAmountUSD.Add(item.ValueUsd)
+	}
+
+	platformsById, err := data.DeFiAssetRepoInst.LoadPlatformsMap(ctx, assets)
+	if err != nil {
+		return nil, err
+	}
+	btcPrice, usdtPrice, err := uc.getBTCAndUsdtPrice()
+	if err != nil {
+		return nil, err
+	}
+
+	//获取 美元/人民币 换算价格
+	cnyRate, err := GetCnyRate()
+	if err != nil {
+		return nil, err
+	}
+
+	for platformID, assets := range assetsByPlatforms {
+		usdAmount := decimal.Zero
+		for _, item := range assets {
+			usdAmount = usdAmount.Add(item.ValueUsd)
+		}
+		if usdAmount.IsZero() {
+			continue
+		}
+		percentage := usdAmount.Div(totalAmountUSD).Round(4)
+		value := &pb.UserWalletDeFiDistributionResp_UserWalletDeFiDistribution{
+			Percentage: percentage.String(),
+			Amount:     uc.usdToCurrency(usdAmount, cnyRate, btcPrice, usdtPrice),
+			Platform: &pb.DeFiPlatform{
+				Id:       fmt.Sprintf("%d", platformID),
+				Origin:   platformsById[platformID].URL,
+				Icon:     platformsById[platformID].Icon,
+				DappName: platformsById[platformID].Name,
+				Type:     assets[0].Type,
+			},
+		}
+		resp.List = append(resp.List, value)
+	}
+
+	sort.Slice(resp.List, func(i, j int) bool {
+		a, _ := decimal.NewFromString(resp.List[i].Amount.Usd)
+		b, _ := decimal.NewFromString(resp.List[j].Amount.Usd)
+		return a.GreaterThan(b)
+	})
+	return resp, nil
+}
+
+func (uc UserWalletAssetUsecase) usdToCurrency(usdAmount decimal.Decimal, cnyRate *v1.DescribeRateReply, btcPrice, usdtPrice float64) *pb.Currency {
+	return &pb.Currency{
+		Cny:  usdAmount.Mul(decimal.NewFromFloat(cnyRate.Rate)).Round(2).String(),
+		Usd:  usdAmount.Round(2).String(),
+		Usdt: usdAmount.Div(decimal.NewFromFloat(usdtPrice)).Round(2).String(),
+		Btc:  usdAmount.Div(decimal.NewFromFloat(btcPrice)).String(),
+	}
+}
+
+func (uc UserWalletAssetUsecase) UserWalletAssetTypeDistribution(ctx context.Context, req *pb.UserWalletRequest) (*pb.UserWalletAssetTypeDistributionResp, error) {
+	assets, err := data.DeFiAssetRepoInst.FindByUids(ctx, req.Uids)
+	if err != nil {
+		return nil, err
+	}
+
+	//获取用户所有资产
+	userAssets, err := data.UserAssetRepoClient.FindByUids(ctx, req.Uids)
+	if err != nil {
+		return nil, err
+	}
+	for _, ty := range []string{PERSON, COMPANY, "staked", "debt", "lp", "deposit"} {
+		assets = append(assets, &data.UserDeFiAsset{
+			Type:     ty,
+			ValueUsd: decimal.Zero,
+		})
+	}
+	//获取所有币价
+	tokenPriceMap, err := GetAssetsPrice(userAssets)
+	if err != nil {
+		return nil, err
+	}
+	for _, asset := range userAssets {
+		if asset.Balance == "" || asset.Balance == "0" {
+			continue
+		}
+
+		platInfo, _ := GetChainPlatInfo(asset.ChainName)
+		if platInfo == nil {
+			continue
+		}
+
+		//过滤测试网
+		if platInfo.NetType != MAIN_NET_TYPE {
+			continue
+		}
+
+		balanceDecimal, _ := decimal.NewFromString(asset.Balance)
+
+		var key string
+		if asset.TokenAddress == "" {
+			key = platInfo.GetPriceKey
+		} else {
+			key = fmt.Sprintf("%s_%s", asset.ChainName, strings.ToLower(asset.TokenAddress))
+		}
+		price := decimal.NewFromFloat(tokenPriceMap[key].Price)
+		amount := balanceDecimal.Mul(price).Round(2)
+		uidType := UidCodeToUidType(asset.UidType)
+		if uidType == "" {
+			continue
+		}
+		assets = append(assets, &data.UserDeFiAsset{
+			Type:     uidType,
+			ValueUsd: amount,
+		})
+	}
+
+	resp := &pb.UserWalletAssetTypeDistributionResp{
+		List: []*pb.UserWalletAssetTypeDistributionResp_UserWalletAssetTypeDistribution{},
+	}
+	assetsByType := make(map[string][]*data.UserDeFiAsset)
+	totalAmountUSD := decimal.Zero
+	for _, item := range assets {
+		arr := assetsByType[item.Type]
+		arr = append(arr, item)
+		assetsByType[item.Type] = arr
+		totalAmountUSD = totalAmountUSD.Add(item.ValueUsd)
+	}
+
+	btcPrice, usdtPrice, err := uc.getBTCAndUsdtPrice()
+	if err != nil {
+		return nil, err
+	}
+
+	//获取 美元/人民币 换算价格
+	cnyRate, err := GetCnyRate()
+	if err != nil {
+		return nil, err
+	}
+
+	for assetType, assets := range assetsByType {
+		usdAmount := decimal.Zero
+		for _, item := range assets {
+			usdAmount = usdAmount.Add(item.ValueUsd)
+		}
+		percentage := decimal.Zero
+		if !totalAmountUSD.IsZero() {
+			percentage = usdAmount.Div(totalAmountUSD).Round(4)
+		}
+		value := &pb.UserWalletAssetTypeDistributionResp_UserWalletAssetTypeDistribution{
+			Percentage: percentage.String(),
+			Amount:     uc.usdToCurrency(usdAmount, cnyRate, btcPrice, usdtPrice),
+			AssetType:  assetType,
+		}
+		resp.List = append(resp.List, value)
+	}
+	sort.Slice(resp.List, func(i, j int) bool {
+		a, _ := decimal.NewFromString(resp.List[i].Amount.Usd)
+		b, _ := decimal.NewFromString(resp.List[j].Amount.Usd)
+		return a.GreaterThan(b)
+	})
+	return resp, nil
 }
