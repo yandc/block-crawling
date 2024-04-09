@@ -62,7 +62,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	userWalletAssetHistoryRepo := data.NewUserWalletAssetHistoryRepo(db)
 	deFiAssetRepo := data.NewDeFiAssetRepo(db)
 	bundle := data.NewBundle(atomTransactionRecordRepo, btcTransactionRecordRepo, dotTransactionRecordRepo, evmTransactionRecordRepo, stcTransactionRecordRepo, trxTransactionRecordRepo, aptTransactionRecordRepo, suiTransactionRecordRepo, solTransactionRecordRepo, ckbTransactionRecordRepo, csprTransactionRecordRepo, kasTransactionRecordRepo, userNftAssetRepo, nftRecordHistoryRepo, transactionStatisticRepo, transactionCountRepo, nervosCellRecordRepo, utxoUnspentRecordRepo, userRecordRepo, userAssetRepo, userAssetHistoryRepo, chainTypeAssetRepo, chainTypeAddressAmountRepo, dappApproveRecordRepo, client, userSendRawHistoryRepo, marketCoinHistoryRepo, swapContractRepo, bfcStationRepo, userWalletAssetHistoryRepo, deFiAssetRepo)
-	appConf := biz.NewConfig(app)
+	appConf := biz.NewConfig(app,bootstrap.EventLogWhiteList)
 	ptestingDummyLark := NewDummyLark()
 	migrationRepo := data.NewMigrationRepo(db)
 	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)

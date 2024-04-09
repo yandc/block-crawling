@@ -227,3 +227,7 @@ innerPublicNodeList:
       - https://cronosrpc-1.xstaking.sg
     symbol: CRO
     type: EVM
+
+eventLogWhiteList:
+  ETH: ETH
+  BSC: BSC

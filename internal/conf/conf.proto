@@ -17,6 +17,7 @@ message Bootstrap {
   map<string, PlatInfo>  innerPublicNodeList = 9;
   map<string, PlatInfo>  platform = 10;
   map<string, PlatInfo>  platformTest = 11;
+  map<string, string> eventLogWhiteList = 12;
 }
 
 message Server {
