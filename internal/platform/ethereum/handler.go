@@ -66,8 +66,8 @@ func (h *handler) OnNewBlock(client chain.Clienter, chainHeight uint64, block *c
 		now:       time.Now().Unix(),
 		receipts:  &sync.Map{},
 	}
-	//TODO
-	if true {
+
+	if !biz.IsEventLogWhiteChain(h.chainName) {
 		return decoder, nil
 	}
 	if _, ok := h.blockEventLogMap.Load(chainHeight); !ok {

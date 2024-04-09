@@ -95,6 +95,11 @@ func IsBenfenNet(chainName string) bool {
 	return strings.HasPrefix(chainName, "Benfen")
 }
 
+func IsEventLogWhiteChain(chainName string) bool {
+	_, ok := eventLogWhiteList[chainName]
+	return ok
+}
+
 var AppConfig *conf.App
 var GetNervosUTXOTransaction func(string) (*types.TransactionWithStatus, error)
 var GetTxByHashFuncMap = make(map[string]func(string) (tx in.TX, err error))
@@ -102,8 +107,11 @@ var GetKaspaUTXOTransaction func(string) (*in.KaspaTransactionInfo, error)
 
 type AppConf *conf.App
 
-func NewConfig(conf *conf.App) AppConf {
+var eventLogWhiteList = make(map[string]string)
+
+func NewConfig(conf *conf.App, eventLogWhiteListConf map[string]string) AppConf {
 	AppConfig = conf
+	eventLogWhiteList = eventLogWhiteListConf
 	for _, rawURL := range conf.HttpProxies {
 		proxy, err := url.Parse(rawURL)
 		if err != nil {

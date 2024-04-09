@@ -62,7 +62,6 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	gpi := transaction.GasPrice()
 	gasPriceNode := gpi.String()
 	//小费 + basefee
-
 	if transaction.GasFeeCap() != nil {
 		maxFeePerGasNode = transaction.GasFeeCap().String()
 	}
@@ -130,12 +129,20 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				inWhiteList = true
 			}
 		}
-
 		if !inWhiteList {
 			return nil
 		}
+		//校验合约地址是否是高风险代币
+		if contractAddress != "" {
+			tokenInfo, err := biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, contractAddress)
+			if err == nil && tokenInfo.Symbol != "" && tokenInfo.Symbol != "Unknown Token" && tokenInfo.Address != "" {
+				isFake, FakeErr := biz.GetTokenIsFakeRetryAlert(context.Background(), h.chainName, contractAddress, tokenInfo.Symbol)
+				if isFake && FakeErr == nil {
+					return nil
+				}
+			}
+		}
 	}
-
 	/*log.Info(
 		"GOT NEW TX THAT MATCHED OUR USER",
 		meta.WrapFields(
@@ -191,7 +198,6 @@ func hasUserAddress(logs []*rtypes.Log) bool {
 		if len(log.Topics) == 0 {
 			continue
 		}
-
 		if log.Topics[0].String() == TRANSFER_TOPIC {
 			if len(log.Topics) < 3 {
 				continue

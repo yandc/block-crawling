@@ -66,7 +66,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, app *conf.App, addres
 	transactionRecordRepo := biz.NewTransactionRecordRepo(db)
 	chainListClient := biz.NewChainListClient(app)
 	transactionUsecase := biz.NewTransactionUsecase(db, bizLark, bundle, transactionRecordRepo, chainListClient)
-	appConf := biz.NewConfig(app)
+	appConf := biz.NewConfig(app,bootstrap.EventLogWhiteList)
 	migrationRepo := data.NewMigrationRepo(db)
 	customConfigProvider := platform.NewCustomConfigProvider(db, migrationRepo)
 	platformServer := platform.NewPlatform(bootstrap, bundle, appConf, db, bizLark, customConfigProvider, migrationRepo)

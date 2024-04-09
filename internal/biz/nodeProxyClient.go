@@ -228,6 +228,15 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 	return tokenInfo, err
 }
 
+func GetTokenIsFakeRetryAlert(ctx context.Context, chainName, address, symbol string) (bool, error) {
+	isFake, err := TokenAddressIsFake(ctx, chainName, symbol, address)
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Duration(i) * time.Second)
+		isFake, err = TokenAddressIsFake(ctx, chainName, symbol, address)
+	}
+	return isFake, err
+}
+
 func GetTokenInfoRetryAlert(ctx context.Context, chainName string, tokenAddress string) (types.TokenInfo, error) {
 	tokenInfo, err := GetTokenInfo(ctx, chainName, tokenAddress)
 	for i := 0; i < 3 && err != nil; i++ {
@@ -977,4 +986,29 @@ func GetContractAbi(ctx context.Context, chainName string, contractAddress strin
 		return nil, err
 	}
 	return resultList, nil
+}
+
+func TokenAddressIsFake(ctx context.Context, chainName, symbol, address string) (bool, error) {
+	data := []*v1.GetTokenInfoReq_Data{{Chain: chainName,Address: address}}
+	getTokenInfoReq := &v1.GetTokenInfoReq{
+		Data: data,
+	}
+	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+	client := v1.NewTokenlistClient(conn)
+
+	if ctx == nil {
+		context, cancel := context.WithTimeout(context.Background(), 15_000*time.Millisecond)
+		ctx = context
+		defer cancel()
+	}
+	resp,err := client.GetDBTokenInfo(ctx,getTokenInfoReq)
+	if err != nil || resp == nil || len(resp.Data) == 0{
+		return true, err
+	}
+
+	return false, nil
 }
