@@ -54,8 +54,10 @@ func (*ReportFailureTxnsTask) Run() {
 	pageSize := 1000
 	var cursor int64
 
-	currentWeekCounters := make(failureCounter)
-	previousWeekCounters := make(failureCounter)
+	curFailWeekCounters := make(failureCounter)
+	prevFailWeekCounters := make(failureCounter)
+
+	var prevTotal, curTotal uint64
 
 	for {
 		records, err := data.UserSendRawHistoryRepoInst.CursorListAllDesc(context.Background(), &cursor, pageSize)
@@ -79,9 +81,11 @@ func (*ReportFailureTxnsTask) Run() {
 			}
 			var counters failureCounter
 			if endTime-record.CreatedAt < aWeekSecs {
-				counters = currentWeekCounters
+				counters = curFailWeekCounters
+				curTotal++
 			} else {
-				counters = previousWeekCounters
+				counters = prevFailWeekCounters
+				prevTotal++
 			}
 			if _, ok := counters[record.ChainName]; !ok {
 				counters[record.ChainName] = make(map[FailureKind]uint64)
@@ -97,37 +101,43 @@ func (*ReportFailureTxnsTask) Run() {
 _GENERATE:
 	chainNames := make(map[string]bool)
 	kinds := make(map[FailureKind]bool)
-	for chainName, counters := range currentWeekCounters {
+	for chainName, counters := range curFailWeekCounters {
 		chainNames[chainName] = true
 		for k := range counters {
 			kinds[k] = true
 		}
 	}
 
-	for chainName, counters := range previousWeekCounters {
+	for chainName, counters := range prevFailWeekCounters {
 		chainNames[chainName] = true
 		for k := range counters {
 			kinds[k] = true
 		}
 	}
-	counters := make(map[FailureKind][2]uint64)
+	countersByFailKind := make(map[FailureKind][2]uint64)
 	for chainName := range chainNames {
-		currentCounters := currentWeekCounters[chainName]
-		prevCounters := previousWeekCounters[chainName]
+		currentCounters := curFailWeekCounters[chainName]
+		prevCounters := prevFailWeekCounters[chainName]
 		for kind := range kinds {
 			current := currentCounters[kind]
 			prev := prevCounters[kind]
-			if _, ok := counters[kind]; !ok {
-				counters[kind] = [2]uint64{0, 0}
+			if _, ok := countersByFailKind[kind]; !ok {
+				countersByFailKind[kind] = [2]uint64{0, 0}
 			}
-			val := counters[kind]
-			counters[kind] = [2]uint64{val[0] + current, val[1] + prev}
+			val := countersByFailKind[kind]
+			countersByFailKind[kind] = [2]uint64{val[0] + current, val[1] + prev}
 		}
 	}
 
 	content := make([][]biz.Content, 0, 16)
+	content = append(content, []biz.Content{
+		{
+			Tag:  "text",
+			Text: fmt.Sprintf("本周总发送交易数：%d，上周总发送交易数：%d", curTotal, prevTotal),
+		},
+	})
 
-	for kind, val := range counters {
+	for kind, val := range countersByFailKind {
 		if kind == FailureKindUnknown {
 			continue
 		}
@@ -137,7 +147,7 @@ _GENERATE:
 			continue
 		}
 
-		ratio := (float64(current) - float64(prev)) / float64(prev) * 100
+		failRatio := (float64(current) - float64(prev)) / float64(prev) * 100
 		content = append(content, []biz.Content{
 			{
 				Tag:  "text",
@@ -146,17 +156,17 @@ _GENERATE:
 		}, []biz.Content{
 			{
 				Tag:  "text",
-				Text: fmt.Sprintf("\t上周：%d", prev),
+				Text: fmt.Sprintf("\t上周：%d（占比：%.2f%%）", prev, float64(prev)/float64(prevTotal)*100),
 			},
 		}, []biz.Content{
 			{
 				Tag:  "text",
-				Text: fmt.Sprintf("\t本周：%d", current),
+				Text: fmt.Sprintf("\t本周：%d（占比：%.2f%%）", current, float64(current)/float64(curTotal)*100),
 			},
 		}, []biz.Content{
 			{
 				Tag:  "text",
-				Text: fmt.Sprintf("\t环比：%.2f%%", ratio),
+				Text: fmt.Sprintf("\t环比：%.2f%%", failRatio),
 			},
 		})
 	}
