@@ -36,6 +36,7 @@ app:
   addr: 127.0.0.1:9001
   marketRpc: 10.10.2.77:9011
   bfstationRpc: 10.10.2.80:9381
+  defiPlatformInteractionThr: 1
   starScan: true
   dogeKey:  # DEPRECATED @2022-09-29: HAVE BEEN MOVED TO THERE URL.
     - "Bearer bd1bd2JBVNTa8XTPQOI7ytO8mK5AZpSpQ14sOwZn2CqD0Cd"
@@ -162,6 +163,11 @@ lark:
         - wanghui
         - dechen
         - qingliang
+    defi:
+      host: https://open.larksuite.com/open-apis/bot/v2/hook/99c572d9-60a3-41e0-934b-7e79b6ae9e7c
+      secret: Q7oNzVtLPVoS9E0IJw3I8
+      atUids:
+        - wanghui
 
 logger:
   DEBUG: true

@@ -19,6 +19,7 @@ import (
 type ContractAssetFlow struct {
 	BlockNumber     int64
 	PlatformID      int64
+	PlatformEnabled bool
 	TxTime          int64
 	Address         string
 	TransactionHash string
@@ -87,6 +88,22 @@ func (flow *ContractAssetFlow) IsAddingLP() bool {
 
 func (flow *ContractAssetFlow) IsRemovingLP() bool {
 	return len(flow.ReceivedAssets) == 2 && len(flow.SentAssets) == 1
+}
+
+func (flow *ContractAssetFlow) Received() map[string]Asset {
+	results := make(map[string]Asset)
+	for _, recv := range flow.ReceivedAssets {
+		results[recv.Token.Address] = recv
+	}
+	return results
+}
+
+func (flow *ContractAssetFlow) Sent() map[string]Asset {
+	results := make(map[string]Asset)
+	for _, sent := range flow.SentAssets {
+		results[sent.Token.Address] = sent
+	}
+	return results
 }
 
 func (flow *ContractAssetFlow) fullfill() {
@@ -161,7 +178,6 @@ const (
 )
 
 func ParseAndSave(chainName string, repo data.DeFiAssetRepo, flow *ContractAssetFlow) error {
-	var action data.DeFiAction
 	log.Info("DEFI: PROCESS", zap.String("chainName", chainName), zap.Int("received", len(flow.ReceivedAssets)), zap.Int("sent", len(flow.SentAssets)))
 	for i := range flow.ReceivedAssets {
 		flow.ReceivedAssets[i].UsdPrice = getUsdPrice(chainName, flow.ReceivedAssets[i].Token.Address)
@@ -172,128 +188,32 @@ func ParseAndSave(chainName string, repo data.DeFiAssetRepo, flow *ContractAsset
 
 	flow.fullfill()
 
-	openReq := &data.DeFiOpenPostionReq{
-		ChainName:    chainName,
-		PlatformID:   flow.PlatformID,
-		Address:      flow.Address,
-		AssetAddress: flow.AssetKey(),
-		TxTime:       flow.TxTime,
-	}
-	if flow.IsBorrowing() {
-		isDepositing, err := repo.IsDepositting(context.Background(), openReq)
-		if err != nil {
-			return err
-		}
-		if isDepositing {
-			action = data.DeFiActionDepositWithdraw
-		} else {
-			action = data.DeFiActionDebtBorrow
-		}
-	} else if flow.IsDeposit() {
-		if flow.SentAssets[0].Token.IsNFT() {
-			log.Info("DEFI: IGNORE SENT NFT", zap.String("chainName", chainName))
-			return nil
-		}
-
-		isBorrowing, err := repo.IsBorrowing(context.Background(), openReq)
-		if err != nil {
-			return err
-		}
-		if isBorrowing {
-			action = data.DeFiActionDebtRepay
-		} else {
-			action = data.DeFiActionDepositSupply
-		}
-	} else if flow.IsStaked() {
-		if flow.SentAssets[0].Token.IsNFT() || flow.ReceivedAssets[0].Token.IsNFT() {
-			log.Info("DEFI: IGNORE BOTH NFT", zap.String("chainName", chainName))
-			return nil
-		}
-		isStaking, err := repo.IsStaking(context.Background(), openReq)
-		if err != nil {
-			return err
-		}
-		if isStaking {
-			action = data.DeFiActionStakedUnstake
-		} else {
-			action = data.DeFiActionStakedStake
-		}
-	} else if flow.IsAddingLP() {
-		action = data.DeFiActionLPAdd
-	} else if flow.IsRemovingLP() {
-		isAdding, err := repo.IsLiquidityAdding(context.Background(), openReq)
-		if err != nil {
-			return err
-		}
-		if !isAdding {
-			log.Info("DEFI: IGNORE REMOVE LP", zap.String("chainName", chainName))
-			return nil
-		}
-		action = data.DeFiActionLPRemove
-	} else {
-		log.Info("DEFI: IGNORE PATTERN", zap.String("chainName", chainName))
-		return nil
-	}
-	_, uid, err := biz.UserAddressSwitchNew(flow.Address)
+	var matched []matchedDeFiAsset
+	earlist, err := data.DeFiAssetRepoInst.GetPlatformEarlistOpenedAt(context.Background(), chainName, flow.Address, flow.PlatformID)
 	if err != nil {
 		return err
 	}
-	tokenAddresses := make(map[string]bool)
-
-	historiesByTx := make(map[string][]*data.UserDeFiAssetTxnHistory)
-	for _, recv := range flow.ReceivedAssets {
-		// Shouldn't exist the same address in the DeFi asset.
-		if _, ok := tokenAddresses[recv.Token.Address]; ok {
-			log.Info("DEFI: IGNORE MULTIPLE SAME TOKENS", zap.String("chainName", chainName))
-			return nil
+	if earlist != nil {
+		platHistories, err := data.DeFiAssetRepoInst.GetPlatformHistories(context.Background(), chainName, flow.Address, flow.PlatformID, earlist.OpenedAt)
+		if err != nil {
+			return err
 		}
-		tokenAddresses[recv.Token.Address] = true
-		historiesByTx[flow.TransactionHash] = append(historiesByTx[flow.TransactionHash], &data.UserDeFiAssetTxnHistory{
-			Uid:             uid,
-			BlockNumber:     flow.BlockNumber,
-			PlatformID:      flow.PlatformID,
-			ChainName:       chainName,
-			TransactionHash: flow.TransactionHash,
-			Address:         flow.Address,
-			TokenAddress:    recv.Token.Address,
-			Action:          action,
-			AssetDirection:  data.DeFiAssetTypeDirRecv,
-			Amount:          toAmount(chainName, recv.Amount, recv.Token),
-			RawAmount:       recv.Amount,
-			TokenUri:        recv.Token.TokenUri,
-			Decimals:        int32(recv.Token.Decimals),
-			UsdPrice:        recv.UsdPrice,
-			Symbol:          recv.Token.Symbol,
-			TxTime:          flow.TxTime,
-			AssetAddress:    flow.AssetKey(),
-		})
+		set := platformHistorySet(platHistories)
+		matched = set.TryMatch(flow.Received(), flow.Sent())
 	}
-	for _, send := range flow.SentAssets {
-		// Shouldn't exist the same address in the DeFi asset.
-		if _, ok := tokenAddresses[send.Token.Address]; ok {
-			log.Info("DEFI: IGNORE MULTIPLE SAME TOKENS", zap.String("chainName", chainName))
-			return nil
+
+	var historiesByTx map[string][]*data.UserDeFiAssetTxnHistory
+	if len(matched) > 0 {
+		historiesByTx = make(map[string][]*data.UserDeFiAssetTxnHistory)
+		for _, item := range matchedToHistories(chainName, flow, matched) {
+			key := fmt.Sprint(item.TransactionHash, item.Type)
+			historiesByTx[key] = append(historiesByTx[key], item)
 		}
-		tokenAddresses[send.Token.Address] = true
-		historiesByTx[flow.TransactionHash] = append(historiesByTx[flow.TransactionHash], &data.UserDeFiAssetTxnHistory{
-			Uid:             uid,
-			ChainName:       chainName,
-			BlockNumber:     flow.BlockNumber,
-			PlatformID:      flow.PlatformID,
-			TransactionHash: flow.TransactionHash,
-			Address:         flow.Address,
-			Action:          action,
-			AssetDirection:  data.DeFiAssetTypeDirSend,
-			TokenAddress:    send.Token.Address,
-			Amount:          toAmount(chainName, send.Amount, send.Token),
-			RawAmount:       send.Amount,
-			TokenUri:        send.Token.TokenUri,
-			Decimals:        int32(send.Token.Decimals),
-			UsdPrice:        send.UsdPrice,
-			Symbol:          send.Token.Symbol,
-			TxTime:          flow.TxTime,
-			AssetAddress:    flow.AssetKey(),
-		})
+	} else {
+		historiesByTx, err = parseFlow(chainName, flow)
+		if err != nil {
+			return err
+		}
 	}
 
 	now := time.Now().Unix()
@@ -322,6 +242,94 @@ func ParseAndSave(chainName string, repo data.DeFiAssetRepo, flow *ContractAsset
 		return repo.MaintainDeFiTxnAsset(context.Background(), assetHistories, valueUsd)
 	}
 	return nil
+}
+
+func parseFlow(chainName string, flow *ContractAssetFlow) (map[string][]*data.UserDeFiAssetTxnHistory, error) {
+	historiesByTx := make(map[string][]*data.UserDeFiAssetTxnHistory)
+	var action data.DeFiAction
+	if flow.IsBorrowing() {
+		action = data.DeFiActionDebtBorrow
+	} else if flow.IsDeposit() {
+		if flow.SentAssets[0].Token.IsNFT() {
+			log.Info("DEFI: IGNORE SENT NFT", zap.String("chainName", chainName))
+			return nil, nil
+		}
+
+		action = data.DeFiActionDepositSupply
+	} else if flow.IsStaked() {
+		if flow.SentAssets[0].Token.IsNFT() || flow.ReceivedAssets[0].Token.IsNFT() {
+			log.Info("DEFI: IGNORE BOTH NFT", zap.String("chainName", chainName))
+			return nil, nil
+		}
+		action = data.DeFiActionStakedStake
+	} else if flow.IsAddingLP() {
+		action = data.DeFiActionLPAdd
+	} else {
+		log.Info("DEFI: IGNORE PATTERN", zap.String("chainName", chainName))
+		return nil, nil
+	}
+	_, uid, err := biz.UserAddressSwitchNew(flow.Address)
+	if err != nil {
+		return nil, err
+	}
+	tokenAddresses := make(map[string]bool)
+
+	for _, recv := range flow.ReceivedAssets {
+		// Shouldn't exist the same address in the DeFi asset.
+		if _, ok := tokenAddresses[recv.Token.Address]; ok {
+			log.Info("DEFI: IGNORE MULTIPLE SAME TOKENS", zap.String("chainName", chainName))
+			return nil, nil
+		}
+		tokenAddresses[recv.Token.Address] = true
+		historiesByTx[flow.TransactionHash] = append(historiesByTx[flow.TransactionHash], &data.UserDeFiAssetTxnHistory{
+			Uid:             uid,
+			BlockNumber:     flow.BlockNumber,
+			PlatformID:      flow.PlatformID,
+			ChainName:       chainName,
+			TransactionHash: flow.TransactionHash,
+			Address:         flow.Address,
+			TokenAddress:    recv.Token.Address,
+			Action:          action,
+			AssetDirection:  data.DeFiAssetTypeDirRecv,
+			Amount:          toAmount(chainName, recv.Amount, recv.Token),
+			RawAmount:       recv.Amount,
+			TokenUri:        recv.Token.TokenUri,
+			Decimals:        int32(recv.Token.Decimals),
+			UsdPrice:        recv.UsdPrice,
+			Symbol:          recv.Token.Symbol,
+			TxTime:          flow.TxTime,
+			AssetAddress:    flow.AssetKey(),
+			Enabled:         flow.PlatformEnabled,
+		})
+	}
+	for _, send := range flow.SentAssets {
+		// Shouldn't exist the same address in the DeFi asset.
+		if _, ok := tokenAddresses[send.Token.Address]; ok {
+			log.Info("DEFI: IGNORE MULTIPLE SAME TOKENS", zap.String("chainName", chainName))
+			return nil, nil
+		}
+		tokenAddresses[send.Token.Address] = true
+		historiesByTx[flow.TransactionHash] = append(historiesByTx[flow.TransactionHash], &data.UserDeFiAssetTxnHistory{
+			Uid:             uid,
+			ChainName:       chainName,
+			BlockNumber:     flow.BlockNumber,
+			PlatformID:      flow.PlatformID,
+			TransactionHash: flow.TransactionHash,
+			Address:         flow.Address,
+			Action:          action,
+			AssetDirection:  data.DeFiAssetTypeDirSend,
+			TokenAddress:    send.Token.Address,
+			Amount:          toAmount(chainName, send.Amount, send.Token),
+			RawAmount:       send.Amount,
+			TokenUri:        send.Token.TokenUri,
+			Decimals:        int32(send.Token.Decimals),
+			UsdPrice:        send.UsdPrice,
+			Symbol:          send.Token.Symbol,
+			TxTime:          flow.TxTime,
+			AssetAddress:    flow.AssetKey(),
+		})
+	}
+	return historiesByTx, nil
 }
 
 func getUsdPrice(chainName string, tokenAddress string) decimal.Decimal {

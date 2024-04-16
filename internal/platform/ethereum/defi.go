@@ -127,8 +127,8 @@ func doProcessDeFiAsset(chainName string, records []*data.EvmTransactionRecord, 
 		}
 		identifiedType, topicAddress := identifyAssetType(receipt.Logs)
 
-		if identifiedType == "" && isSwapOrBridge(chainName, mainRecord.ContractAddress, methodId, receipt) {
-			log.Info("DEFI: TX IS BLOCKED, SWAP OR CROSS BRIDGE", zap.String("tx", txHash), zap.String("chainName", chainName))
+		if identifiedType == "" && isSwapOrBridgeOrAirdrop(chainName, mainRecord.ContractAddress, methodId, receipt) {
+			log.Info("DEFI: TX IS BLOCKED, SWAP OR CROSS BRIDGE OR AIRDROP", zap.String("tx", txHash), zap.String("chainName", chainName))
 			continue
 		}
 		if record.Amount.LessThanOrEqual(decimal.Zero) {
@@ -148,12 +148,13 @@ func doProcessDeFiAsset(chainName string, records []*data.EvmTransactionRecord, 
 				CreatedAt: time.Now().Unix(),
 				UpdatedAt: time.Now().Unix(),
 			}
-			if err := data.DeFiAssetRepoInst.SavePlatform(context.Background(), plat); err != nil {
+			if err := data.DeFiAssetRepoInst.LoadOrSavePlatform(context.Background(), plat); err != nil {
 				return fmt.Errorf("[savePlat] %w", err)
 			}
 			flow = &defi.ContractAssetFlow{
 				BlockNumber:            int64(record.BlockNumber),
 				PlatformID:             plat.Id,
+				PlatformEnabled:        plat.Enabled(biz.AppConfig.DefiPlatformInteractionThr),
 				TxTime:                 record.TxTime,
 				Address:                walletAddress,
 				TransactionHash:        txHash,
@@ -334,6 +335,9 @@ var blockedMethodIds = map[string]bool{
 	"1aa3a008": true, // register
 	"c6878519": true, // 跨链提取 completeTransfer
 	"a44bbb15": true, // 跨链发送 outboundTransferTo
+	// https://etherscan.io/tx/0x3f84614e132d20fb299f4626276404751be71c200cfb8f06f974c05274ff869a
+	"eb672419": true, // zkSync 跨链发送 requestL2Transaction
+	"a6cbf417": true, // Swap
 }
 
 func isBlockedMethodForDeFiAsset(data string) bool {
@@ -352,6 +356,7 @@ var swapTopics = map[string]bool{
 	"0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67": true, // swap
 	"0xe7779a36a28ae0e49bcbd9fcf57286fb607699c0c339c202e92495640505613e": true, // swap
 	"0xcd3829a3813dc3cdd188fd3d01dcf3268c16be2fdd2dd21d0665418816e46062": true, // swap
+	"0xffebebfb273923089a3ed6bac0fd4686ac740307859becadeb82f998e30db614": true, // swap
 }
 
 var bridgeTopics = map[string]bool{
@@ -360,13 +365,20 @@ var bridgeTopics = map[string]bool{
 	"0x05251647965762819e1d0f33e4a75125c449e74510aac2398650547d63799d0b": true, // GasStaion
 	"0x02a469fab03dc47fa1dd71af4955b95209f0be432298c96518f2712d8f3dd7ea": true, // CrossChain BSC
 	"0x5faac1ba95d8a22d60a2290d300369a4a7b8334e60291f5f6c83ee09f03cab38": true, // CrossChain Polygon
+	// https://etherscan.io/tx/0x3c4aa9f67c2238c0a701c677123f9820f12fa5bf20f7a8b607ee8b881d914cfb#eventlog
+	"0x6670de856ec8bf5cb2b7e957c5dc24759716056f79d97ea5e7c939ca0ba5a675": true, // CrossChain Scroll
+	// https://bscscan.com/tx/0x53f1f0080eeb8fa5a43e6a5222d2cb0208637b4db4c184fedbc864e6dac763e4#eventlog
+	"0x617b1a2bf0533cea0c5dd46104e1d48f8b290fc7d7360dba0182dbf07a00e46a": true,
 }
 
 var defiTopics = map[string]bool{
 	"0xde6857219544bb5b7746f48ed30be6386fefc61b2f864cacf559893bf50fd951": true, // Deposit
+
+	// https://bscscan.com/tx/0x9419fd6f5bfa69a6aefb61f3698b610f620e92101aade5a40ab20e60e3294c91#eventlog
+	"0x4ec90e965519d92681267467f775ada5bd214aa92c0dc93d90a5e880ce9ed026": true, // Claimed
 }
 
-func isSwapOrBridge(chainName, contractAddress, methodId string, receipt *rtypes.Receipt) bool {
+func isSwapOrBridgeOrAirdrop(chainName, contractAddress, methodId string, receipt *rtypes.Receipt) bool {
 	var swaped, operatedDeFi bool
 	for _, log := range receipt.Logs {
 		var topic0 = strings.ToLower(log.Topics[0].Hex())

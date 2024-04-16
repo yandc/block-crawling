@@ -19,7 +19,7 @@ func (*coinBasedProfitCalc) ComputeProfit(asset *data.UserDeFiAsset, histories [
 	if asset.CostUsd.IsZero() {
 		return &decimal.Zero, nil
 	}
-	profit := asset.ValueUsd.Sub(asset.CostUsd).Div(asset.CostUsd)
+	profit := asset.ValueUsd.Sub(asset.CostUsd)
 	return &profit, nil
 }
 

@@ -75,6 +75,7 @@ func main() {
 		"CountCompanyWallet":     platform.CountCompanyWallet,
 		"ReportFailedTxns":       platform.ReportFailedTxns,
 		"EVMDeFiAsset":           platform.ScanEVMRecordsForDeFiAsset,
+		"CountPlatform":          platform.CountPlatformInteraction,
 	}
 
 	//设置默认时区

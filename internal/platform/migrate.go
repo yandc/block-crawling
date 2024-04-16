@@ -8455,3 +8455,10 @@ func ScanEVMRecordsForDeFiAsset() {
 	_END_LOOP:
 	}
 }
+
+func CountPlatformInteraction() {
+	task := scheduling.NewUserDeFiAssetHistoryTask()
+	now := time.Now()
+	date := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	task.CollectPlatform(now, date)
+}

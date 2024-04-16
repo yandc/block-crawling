@@ -72,6 +72,8 @@ message App {
 	map<string, string>    featuredCustomChain = 10;
 	CMQ cmq = 11;
   string bfstationRpc = 12;
+	// 展示 DeFi 平台资产交互次数阈值，当 DeFi 平台交互次数大于此值才展示其资产。
+	int64 defiPlatformInteractionThr = 13;
 }
 
 message CMQ {
