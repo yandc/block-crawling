@@ -345,11 +345,6 @@ type Options struct {
 }
 
 func (c *Client) GetEventTransfer(tokenId string) (tar stypes.SuiObjectChanges, err error) {
-	url := "https://explorer-rpc.testnet.sui.io/"
-	if biz.IsTestNet(c.ChainName) {
-		url = "https://explorer-rpc.testnet.sui.io/"
-	}
-
 	filter := Filter{
 		ChangedObject: tokenId,
 	}
@@ -374,7 +369,7 @@ func (c *Client) GetEventTransfer(tokenId string) (tar stypes.SuiObjectChanges, 
 		Id:      "1",
 	}
 	timeout := 10_000 * time.Millisecond
-	err = httpclient.HttpPostJson(url, tokenRequest, &tar, &timeout)
+	err = httpclient.HttpPostJson(c.url, tokenRequest, &tar, &timeout)
 	return
 }
 
