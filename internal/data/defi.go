@@ -52,10 +52,23 @@ type DeFiPlatform struct {
 	Name      string `json:"name" form:"name" gorm:"type:character varying(256)"`
 	CreatedAt int64  `json:"createdAt" form:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt" form:"updatedAt"`
+
+	InteractionTotal  int64 `json:"interactionTotal" form:"interactionTotal"`
+	InteractionInWeek int64 `json:"interactionInWeek" form:"interactionInWeek"`
+	InteractionInDay  int64 `json:"interactionInDay" form:"interactionInDay"`
+	// nil: auto, 0: false, 1: true
+	Disabled *bool `json:"disabled" form:"disabled"`
 }
 
 func (DeFiPlatform) TableName() string {
 	return "defi_platform"
+}
+
+func (p *DeFiPlatform) Enabled(thr int64) bool {
+	if p.Disabled == nil {
+		return p.InteractionTotal > thr
+	}
+	return !*p.Disabled
 }
 
 type UserDeFiAsset struct {
@@ -74,6 +87,7 @@ type UserDeFiAsset struct {
 	ClosedAt        int64           `json:"closedAt" form:"closedAt" gorm:"type:BIGINT;index;default:0"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+	Enabled         bool            `json:"enabled" form:"enabled"`
 }
 
 func (UserDeFiAsset) TableName() string {
@@ -110,6 +124,7 @@ type UserDeFiAssetTxnHistory struct {
 	AssetAddress    string          `json:"assetTokenAddress" form:"assetTypeAddress" gorm:"type:character varying(1024);index"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+	Enabled         bool            `json:"enabled" form:"enabled"`
 }
 
 func (UserDeFiAssetTxnHistory) TableName() string {
@@ -169,8 +184,10 @@ type DeFiAssetRepo interface {
 	// SaveTxnHistory to save history.
 	SaveTxnHistory(ctx context.Context, histories []*UserDeFiAssetTxnHistory) error
 
-	// SavePlatform
-	SavePlatform(ctx context.Context, plat *DeFiPlatform) error
+	// LoadOrSavePlatform
+	LoadOrSavePlatform(ctx context.Context, plat *DeFiPlatform) error
+	SaveFullPlatform(ctx context.Context, plat *DeFiPlatform) error
+	EnablePlatformAssets(ctx context.Context, platformID int64) error
 
 	// MaintainUserDeFiAsset maintain the
 	MaintainDeFiTxnAsset(ctx context.Context, assetHistories []*UserDeFiAssetTxnHistory, valueUsd decimal.Decimal) error
@@ -182,10 +199,10 @@ type DeFiAssetRepo interface {
 	LoadAssetHistories(ctx context.Context, req *DeFiOpenPostionReq, typ string) ([]*UserDeFiAssetTxnHistory, error)
 
 	CursorListUids(ctx context.Context, cursor *int, limit int) ([]string, error)
-
 	FindByUid(ctx context.Context, uid string) ([]*UserDeFiAsset, error)
 	FindByUids(ctx context.Context, uids []string) ([]*UserDeFiAsset, error)
 	GetValueUsd(histories []*UserDeFiAssetTxnHistory) decimal.Decimal
+
 	SaveBatch(ctx context.Context, assets []*UserWalletDeFiAssetHistory) error
 
 	// ListUserPlatforms
@@ -195,15 +212,46 @@ type DeFiAssetRepo interface {
 
 	LoadPlatforms(ctx context.Context, platformIDs []int64) ([]*DeFiPlatform, error)
 	LoadPlatformsMap(ctx context.Context, items []*UserDeFiAsset) (map[int64]*DeFiPlatform, error)
+	LoadAllPlatformsMap(ctx context.Context) (map[int64]*DeFiPlatform, error)
 	FindByUidsAndDTRange(ctx context.Context, uids []string, start, end int64) ([]*UserWalletAssetHistory, error)
 	FindByUidsAndDts(ctx context.Context, uids []string, dts []int64) ([]*UserWalletAssetHistory, error)
 	CursorListTxnHistories(ctx context.Context, cursor *int64, limit int64) ([]*UserDeFiAssetTxnHistory, error)
 	CursorListDeFiAssets(ctx context.Context, cursor *int64, limit int64) ([]*UserDeFiAsset, error)
 	DeleteDuplicatedDeFiAsset(ctx context.Context, asset *UserDeFiAsset) error
+
+	GetPlatformEarlistOpenedAt(ctx context.Context, chainName, address string, platformID int64) (*UserDeFiAsset, error)
+	GetPlatformHistories(ctx context.Context, chainName, address string, platformID int64, earlistOpenAt int64) ([]*UserDeFiAssetTxnHistory, error)
 }
 
 type deFiAssetRepoImpl struct {
 	db *gorm.DB
+}
+
+// GetPlatformEarlistOpenedAt implements DeFiAssetRepo
+func (de *deFiAssetRepoImpl) GetPlatformEarlistOpenedAt(ctx context.Context, chainName, address string, platformID int64) (*UserDeFiAsset, error) {
+	var result *UserDeFiAsset
+	err := de.db.WithContext(ctx).Where(
+		"chain_name=? AND platform_id=? AND closed_at=0", chainName, platformID,
+	).Order("opened_at ASC").First(&result).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetPlatformRecvTokenHistories implements DeFiAssetRepo
+func (de *deFiAssetRepoImpl) GetPlatformHistories(ctx context.Context, chainName, address string, platformID int64, earlistOpenAt int64) ([]*UserDeFiAssetTxnHistory, error) {
+	var results []*UserDeFiAssetTxnHistory
+	err := de.db.WithContext(ctx).Where(
+		"chain_name = ? AND platform_id=? AND tx_time >= ?", chainName, platformID, earlistOpenAt,
+	).Order("tx_time ASC").Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // CursorListDeFiAssets implements DeFiAssetRepo
@@ -280,6 +328,19 @@ func (de *deFiAssetRepoImpl) FindByUidsAndDTRange(ctx context.Context, uids []st
 
 }
 
+func (de *deFiAssetRepoImpl) LoadAllPlatformsMap(ctx context.Context) (map[int64]*DeFiPlatform, error) {
+	var results []*DeFiPlatform
+	err := de.db.WithContext(ctx).Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	platforms := make(map[int64]*DeFiPlatform)
+	for _, p := range results {
+		platforms[p.Id] = p
+	}
+	return platforms, nil
+}
+
 // LoadPlatformsMap implements DeFiAssetRepo
 func (de *deFiAssetRepoImpl) LoadPlatformsMap(ctx context.Context, items []*UserDeFiAsset) (map[int64]*DeFiPlatform, error) {
 	platformIDs := make([]int64, 0, len(items))
@@ -342,7 +403,7 @@ func (de *deFiAssetRepoImpl) ListUserDeFiAssets(ctx context.Context, req *pb.Use
 func (de *deFiAssetRepoImpl) createListDB(ctx context.Context, req *pb.UserWalletDeFiAssetRequest) *gorm.DB {
 	a := &UserDeFiAsset{}
 
-	db := de.db.WithContext(ctx).Where("type = ? AND closed_at = 0", req.Type).Table(a.TableName())
+	db := de.db.WithContext(ctx).Where("type = ? AND closed_at = 0 AND enabled=true", req.Type).Table(a.TableName())
 	if len(req.Uids) > 0 {
 		db = db.Where("uid in ?", req.Uids)
 	}
@@ -361,7 +422,7 @@ func (de *deFiAssetRepoImpl) ListUserPlatforms(ctx context.Context, uids []strin
 	asset := &UserDeFiAsset{}
 	err := de.db.WithContext(ctx).Table(asset.TableName()).
 		Distinct("platform_id").
-		Where("uid in ? AND type = ?", uids, typ).Find(&platformIDs).Error
+		Where("uid in ? AND type = ? AND enabled=true", uids, typ).Find(&platformIDs).Error
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +442,7 @@ func (de *deFiAssetRepoImpl) FindByUid(ctx context.Context, uid string) ([]*User
 // FindByUid implements DeFiAssetRepo
 func (de *deFiAssetRepoImpl) FindByUids(ctx context.Context, uids []string) ([]*UserDeFiAsset, error) {
 	var assets []*UserDeFiAsset
-	ret := de.db.Where("uid IN ? AND closed_at = 0", uids).Find(&assets)
+	ret := de.db.Where("uid IN ? AND closed_at = 0 AND enabled=true", uids).Find(&assets)
 	return assets, ret.Error
 }
 
@@ -499,6 +560,7 @@ func (de *deFiAssetRepoImpl) SaveDeFiAsset(ctx context.Context, assets []*UserDe
 			"cost_usd":         gorm.Expr("case when " + tableName + ".cost_usd::DECIMAL != 0 then " + tableName + ".cost_usd else excluded.cost_usd end"),
 			"profit_usd":       clause.Column{Table: "excluded", Name: "profit_usd"},
 			"updated_at":       clause.Column{Table: "excluded", Name: "updated_at"},
+			"enabled":          clause.Column{Table: "excluded", Name: "enabled"},
 		})}).Create(&assets).Error
 }
 
@@ -519,10 +581,11 @@ func (de *deFiAssetRepoImpl) GetValueUsd(histories []*UserDeFiAssetTxnHistory) d
 // MaintainDeFiTxnAsset implements DeFiAssetRepo
 func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHistories []*UserDeFiAssetTxnHistory, valueUsd decimal.Decimal) error {
 	shouldRemoveTxns := make([]string, 0, 4)
+	isZero := valueUsd.LessThanOrEqual(decimal.Zero)
 	for _, h := range assetHistories {
 		switch h.Action {
 		case DeFiActionStakedStake:
-			if h.AssetDirection != DeFiAssetTypeDirSend {
+			if h.AssetDirection != DeFiAssetTypeDirSend || isZero {
 				continue
 			}
 			if err := de.SaveDeFiAsset(ctx, []*UserDeFiAsset{{
@@ -538,6 +601,7 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 				OpenedAt:        h.TxTime,
 				CreatedAt:       time.Now().Unix(),
 				UpdatedAt:       time.Now().Unix(),
+				Enabled:         h.Enabled,
 			}}); err != nil {
 				return err
 			}
@@ -555,7 +619,7 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 			}
 			shouldRemoveTxns = append(shouldRemoveTxns, h.TransactionHash)
 		case DeFiActionDebtBorrow:
-			if h.AssetDirection != DeFiAssetTypeDirRecv {
+			if h.AssetDirection != DeFiAssetTypeDirRecv || isZero {
 				continue
 			}
 			if err := de.SaveDeFiAsset(ctx, []*UserDeFiAsset{{
@@ -572,6 +636,7 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 				ClosedAt:        0,
 				CreatedAt:       time.Now().Unix(),
 				UpdatedAt:       time.Now().Unix(),
+				Enabled:         h.Enabled,
 			}}); err != nil {
 				return err
 			}
@@ -590,7 +655,7 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 				return err
 			}
 		case DeFiActionDepositSupply:
-			if h.AssetDirection != DeFiAssetTypeDirSend {
+			if h.AssetDirection != DeFiAssetTypeDirSend || isZero {
 				continue
 			}
 			if err := de.SaveDeFiAsset(ctx, []*UserDeFiAsset{{
@@ -602,10 +667,12 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 				Type:            DeFiAssetTypeDeposits,
 				AssetAddress:    h.AssetAddress,
 				ValueUsd:        valueUsd,
+				CostUsd:         valueUsd,
 				OpenedAt:        h.TxTime,
 				ClosedAt:        0,
 				CreatedAt:       time.Now().Unix(),
 				UpdatedAt:       time.Now().Unix(),
+				Enabled:         h.Enabled,
 			}}); err != nil {
 				return err
 			}
@@ -623,7 +690,7 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 			}
 			shouldRemoveTxns = append(shouldRemoveTxns, h.TransactionHash)
 		case DeFiActionLPAdd:
-			if h.AssetDirection != DeFiAssetTypeDirRecv {
+			if h.AssetDirection != DeFiAssetTypeDirRecv || isZero {
 				continue
 			}
 			if err := de.SaveDeFiAsset(ctx, []*UserDeFiAsset{{
@@ -635,10 +702,12 @@ func (de *deFiAssetRepoImpl) MaintainDeFiTxnAsset(ctx context.Context, assetHist
 				Type:            DeFiAssetTypeLP,
 				AssetAddress:    h.AssetAddress,
 				ValueUsd:        valueUsd,
+				CostUsd:         valueUsd,
 				OpenedAt:        h.TxTime,
 				ClosedAt:        0,
 				CreatedAt:       time.Now().Unix(),
 				UpdatedAt:       time.Now().Unix(),
+				Enabled:         h.Enabled,
 			}}); err != nil {
 				return err
 			}
@@ -675,8 +744,8 @@ func (de *deFiAssetRepoImpl) makeClosePosition(ctx context.Context, typ string, 
 	}
 	opened.Id = 0
 	opened.UpdatedAt = time.Now().Unix()
-	if valueUsd.LessThanOrEqual(decimal.Zero) ||
-		typ == DeFiAssetTypeLP /* 流动性不判断价值，直接关闭 */ {
+	opened.Enabled = history.Enabled
+	if valueUsd.LessThanOrEqual(decimal.Zero) {
 		opened.ClosedAt = history.TxTime
 	}
 	return opened, err
@@ -693,15 +762,42 @@ func (de *deFiAssetRepoImpl) findOpenPosition(ctx context.Context, typ string, h
 	return
 }
 
-// SavePlatform implements DeFiAssetRepo
-func (de *deFiAssetRepoImpl) SavePlatform(ctx context.Context, plat *DeFiPlatform) error {
+// LoadOrSavePlatform implements DeFiAssetRepo
+func (de *deFiAssetRepoImpl) LoadOrSavePlatform(ctx context.Context, plat *DeFiPlatform) error {
+	de.db.WithContext(ctx).Where("url = ?", plat.URL).First(&plat)
+	if plat.Id != 0 {
+		return nil
+	}
 	ret := de.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{
 			{Name: "url"},
 		},
-		UpdateAll: true,
+		UpdateAll: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"icon":       clause.Column{Table: "excluded", Name: "icon"},
+			"name":       clause.Column{Table: "excluded", Name: "name"},
+			"updated_at": clause.Column{Table: "excluded", Name: "updated_at"},
+		}),
 	}).Create(plat)
 	return ret.Error
+}
+
+// SaveFullPlatform implements DeFiAssetRepo
+func (de *deFiAssetRepoImpl) SaveFullPlatform(ctx context.Context, plat *DeFiPlatform) error {
+	ret := de.db.WithContext(ctx).Save(plat)
+	return ret.Error
+}
+
+func (de *deFiAssetRepoImpl) EnablePlatformAssets(ctx context.Context, platformID int64) error {
+	err := de.db.WithContext(ctx).Model(&UserDeFiAsset{}).Where(
+		"platform_id=? AND (enabled=false OR enabled is NULL)", platformID,
+	).Update("enabled", true).Error
+	if err != nil {
+		return err
+	}
+	return de.db.WithContext(ctx).Model(&UserDeFiAssetTxnHistory{}).Where(
+		"platform_id=? AND (enabled=false OR enabled is NULL)", platformID,
+	).Update("enabled", true).Error
 }
 
 // IsBorrowing implements DeFiAssetRepo
@@ -780,6 +876,7 @@ func (de *deFiAssetRepoImpl) SaveTxnHistory(ctx context.Context, histories []*Us
 			"tx_time":         clause.Column{Table: "excluded", Name: "tx_time"},
 			"asset_address":   clause.Column{Table: "excluded", Name: "asset_address"},
 			"updated_at":      clause.Column{Table: "excluded", Name: "updated_at"},
+			"enabled":         clause.Column{Table: "excluded", Name: "enabled"},
 		})}).Create(&histories).Error
 }
 

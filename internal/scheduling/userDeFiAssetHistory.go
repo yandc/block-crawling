@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -39,8 +40,14 @@ func (task *UserDeFiAssetHistoryTask) Run() {
 			return
 		}
 	}()
+
 	now := time.Now()
 	date := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	task.CollectPlatform(now, date)
+	task.collectHistory(now, date)
+}
+
+func (task *UserDeFiAssetHistoryTask) collectHistory(now, date time.Time) {
 	log.Info("UserDeFiAssetHistoryTask start")
 
 	//分页查询所有uid
@@ -119,6 +126,7 @@ func (task *UserDeFiAssetHistoryTask) Run() {
 				//获取所有币价
 				tokenPrices, err := biz.GetAssetsPrice(userAssets)
 				if err != nil {
+					log.Error("DEFI: LOAD ASSETS PRICE FAILED", zap.Any("assets", userAssets), zap.Error(err))
 					continue
 				}
 				for k, v := range tokenPrices {
@@ -133,6 +141,7 @@ func (task *UserDeFiAssetHistoryTask) Run() {
 				userDeFiAsset.ValueUsd = valueUsd
 				userDeFiAsset.ProfitUsd = defi.ComputeProfit(userDeFiAsset, histories)
 				userDeFiAsset.CostUsd = valueUsd // 更新零值
+				userDeFiAsset.UpdatedAt = now.Unix()
 				updatedDeFiAssets = append(updatedDeFiAssets, userDeFiAsset)
 				if valueUsd.Round(2).IsZero() {
 					continue
@@ -183,5 +192,85 @@ func (task *UserDeFiAssetHistoryTask) Run() {
 				}
 			}
 		}
+	}
+}
+
+func (task *UserDeFiAssetHistoryTask) CollectPlatform(now, date time.Time) {
+	yesterdayTs := date.Unix() - 3600*24
+	weekAgoTs := date.Unix() - 3600*24*7
+
+	platforms, err := data.DeFiAssetRepoInst.LoadAllPlatformsMap(context.Background())
+	if err != nil {
+		log.Error(err.Error())
+	}
+	enabledPlatforms := make(map[int64]bool)
+	for _, p := range platforms {
+		if p.Enabled(biz.AppConfig.DefiPlatformInteractionThr) {
+			enabledPlatforms[p.Id] = true
+		}
+		p.InteractionTotal = 0
+		p.InteractionInDay = 0
+		p.InteractionInWeek = 0
+	}
+	txs := make(map[string]bool)
+	var curosr int64
+	for {
+		hs, err := data.DeFiAssetRepoInst.CursorListTxnHistories(context.Background(), &curosr, 1000)
+		if err != nil {
+			log.Error(err.Error())
+			break
+		}
+		if len(hs) == 0 {
+			break
+		}
+		for _, item := range hs {
+			if _, ok := txs[item.TransactionHash]; ok {
+				continue
+			}
+			txs[item.TransactionHash] = true
+			if platforms[item.PlatformID] == nil {
+				continue
+			}
+			platforms[item.PlatformID].InteractionTotal++
+			if item.TxTime > yesterdayTs {
+				platforms[item.PlatformID].InteractionInDay++
+			}
+			if item.TxTime > weekAgoTs {
+				platforms[item.PlatformID].InteractionInWeek++
+			}
+		}
+	}
+	newEnabledPlatform := make([]*data.DeFiPlatform, 0, 4)
+	sort.Slice(newEnabledPlatform, func(i, j int) bool {
+		return newEnabledPlatform[i].InteractionTotal < newEnabledPlatform[j].InteractionTotal
+	})
+	for _, p := range platforms {
+		enabledBefore := enabledPlatforms[p.Id]
+		if p.Enabled(biz.AppConfig.DefiPlatformInteractionThr) && !enabledBefore {
+			newEnabledPlatform = append(newEnabledPlatform, p)
+			if err := data.DeFiAssetRepoInst.EnablePlatformAssets(context.Background(), p.Id); err != nil {
+				log.Error(err.Error())
+			}
+		}
+		if err := data.DeFiAssetRepoInst.SaveFullPlatform(context.Background(), p); err != nil {
+			log.Error(err.Error())
+		}
+	}
+	if len(newEnabledPlatform) > 0 {
+		content := make([][]biz.Content, 0, 16)
+		for _, item := range newEnabledPlatform {
+			content = append(content, []biz.Content{
+				{
+					Tag:  "text",
+					Text: fmt.Sprintf("ID: %d, URL：%s，总交互数：%d，上周交互数：%d，昨天交互数：%d", item.Id, item.URL, item.InteractionTotal, item.InteractionInWeek, item.InteractionInDay),
+				},
+			})
+		}
+
+		biz.LarkClient.SendRichText(
+			"defi",
+			"DeFi 平台启用资产",
+			content,
+		)
 	}
 }
