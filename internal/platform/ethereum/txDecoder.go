@@ -660,7 +660,16 @@ func (h *txDecoder) handleEachTransaction(
 	}
 
 	var isMint bool
-	for index, eventLog := range eventLogs {
+	// Avoid duplicated event logs
+	handledLogs := make(map[string]bool)
+	index := 0
+	for _, eventLog := range eventLogs {
+		uniqKey := fmt.Sprint(eventLog.Amount.String(), eventLog.FromUid, eventLog.ToUid, eventLog.Token.Address)
+		if _, ok := handledLogs[uniqKey]; ok {
+			continue
+		}
+		handledLogs[uniqKey] = true
+
 		eventMap := map[string]interface{}{
 			"evm": map[string]string{
 				"nonce": fmt.Sprintf("%v", transaction.Nonce()),
@@ -671,6 +680,7 @@ func (h *txDecoder) handleEachTransaction(
 		eventParseData, _ := utils.JsonEncode(eventMap)
 		eventTokenInfoStr, _ := utils.JsonEncode(eventLog.Token)
 		txHash := transactionHash + "#result-" + fmt.Sprintf("%v", index+1)
+		index++
 		txType := biz.EVENTLOG
 		contractAddress := eventLog.Token.Address
 		amountValue := decimal.NewFromBigInt(eventLog.Amount, 0)
