@@ -24,6 +24,7 @@ const FEE_TOPIC = "659c4fc92b5147ed868a977e38bf2d34ea6f5fb08daa778299a0531cbacf9
 
 var TronBridgeWhiteAddressList = []string{
 	"TEorZTZ5MHx8SrvsYs1R3Ds5WvY1pVoMSA",
+	"TDAoRHMjFRSCqEJDhaWYxMYt6Cf8XSHkuT", // token gasless
 }
 
 type Platform struct {
