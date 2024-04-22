@@ -974,7 +974,7 @@ func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]M
 		Cny:  cnyAmount.Round(2).String(),
 		Usd:  usdAmount.String(),
 		Usdt: usdtAmount.Round(2).String(),
-		Btc:  btcAmount.Mul(btcPrice).String(),
+		Btc:  btcAmount.String(),
 	}
 
 	//收益
