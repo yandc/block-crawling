@@ -31,7 +31,7 @@ data:
 app:
   # Possible values: "debug", "release"
 #  mode: ""
-  mode: "ETHGoerliTEST,BSCTEST,SUITEST,NervosTEST,CosmosTEST,zkSyncTEST,ScrollL2TEST,SeiTEST,PolygonTEST,CelestiaMochaTEST,BenfenTEST"
+  mode: "BSCTEST,SUITEST,NervosTEST,CosmosTEST,ScrollL2TEST,SeiTEST,PolygonTEST,CelestiaMochaTEST,BenfenTEST"
   scanAll: false
   addr: 127.0.0.1:9001
   marketRpc: 10.10.2.77:9011
