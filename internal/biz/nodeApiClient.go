@@ -2992,19 +2992,26 @@ func RefreshUserUTXO(chainName, address string) (err error) {
 
 	_, _ = data.UtxoUnspentRecordRepoClient.DeleteByAddressWithNotPending(nil, chainName, address)
 
-	//插入所有未花费的UTXO
-	r, err := data.UtxoUnspentRecordRepoClient.BatchSaveOrUpdate(nil, utxos)
-	if err != nil {
-		log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
+	pendingUTXOsMap := make(map[string]struct{})
+	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
+	for _,utxo := range pendingUTXOs {
+		pendingUTXOsMap[utxo.Hash] = struct{}{}
 	}
-
+	//插入所有未花费且不是pending的UTXO
+	for _,utxo := range utxos {
+		if _,ok := pendingUTXOsMap[utxo.Hash]; !ok {
+			r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
+			if err != nil {
+				log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
+			}
+		}
+	}
 	//查询pending的UTXO，与已有的UTXO取差值，差值为已花费的UTXO
 	userUTXOs := make([]string, len(utxos))
 	for i, utxo := range utxos {
 		userUTXOs[i] = fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
 	}
 
-	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
 	for _, utxo := range pendingUTXOs {
 		u := fmt.Sprintf("%s#%d", utxo.Hash, utxo.N)
 		if !slices.Contains(userUTXOs, u) {
