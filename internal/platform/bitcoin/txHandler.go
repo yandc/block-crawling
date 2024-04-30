@@ -297,7 +297,7 @@ func (h *txHandler) ResetDroppedTxInputs(txHash, address string) error {
 			return err
 		}
 	} else {
-		err := RefreshUserUTXO(h.chainName, address, true)
+		err := RefreshUserUTXO(h.chainName, address, txHash,true)
 		if err != nil {
 			return err
 		}

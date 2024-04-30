@@ -141,13 +141,13 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string) e
 
 	//如果数据库中 UTXO 总和与 balance 不相等，则更新 UTXO
 	if ub != balance {
-		err = RefreshUserUTXO(chainName, address, false)
+		err = RefreshUserUTXO(chainName, address, transactionHash, false)
 	}
 
 	return err
 }
 
-func RefreshUserUTXO(chainName, address string, refreshAll bool) (err error) {
+func RefreshUserUTXO(chainName, address, txHash string, refreshAll bool) (err error) {
 	userInfo, err := biz.GetUserInfo(address)
 	if err != nil {
 		return err
@@ -172,14 +172,22 @@ func RefreshUserUTXO(chainName, address string, refreshAll bool) (err error) {
 	if len(utxos) == 0 {
 		return nil
 	}
-
+	spentTxhashUtxosMap := make(map[string]struct{})
 	if refreshAll {
 		_ = data.UtxoUnspentRecordRepoClient.DeleteByAddress(nil, chainName, address)
 	} else {
 		_, _ = data.UtxoUnspentRecordRepoClient.DeleteByAddressWithNotPending(nil, chainName, address)
+		spentTxhashUtxos, _ := data.UtxoUnspentRecordRepoClient.FindNotPendingByTxHash(nil, chainName, address, txHash)
+		for _, utxo := range spentTxhashUtxos {
+			spentTxhashUtxosMap[utxo.Hash] = struct{}{}
+		}
+
 	}
 
 	for _, utxo := range utxos {
+		if _, ok := spentTxhashUtxosMap[utxo.Txid]; ok && !refreshAll {
+			continue
+		}
 		index, _ := strconv.Atoi(utxo.Index)
 		amountDecimal, _ := decimal.NewFromString(utxo.UnspentAmount)
 		amount := biz.Pow10(amountDecimal, decimals).BigInt().String()

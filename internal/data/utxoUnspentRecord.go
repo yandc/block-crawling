@@ -69,6 +69,7 @@ type UtxoUnspentRecordRepo interface {
 	Delete(context.Context, *UserUtxo) (int64, error)
 	FindAddressGroup(ctx context.Context) ([]string, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
+	FindNotPendingByTxHash(ctx context.Context, chainName,address,spendTxHash string) ([]*UtxoUnspentRecord, error)
 }
 
 type UtxoUnspentRecordRepoImpl struct {
@@ -182,6 +183,17 @@ func (r *UtxoUnspentRecordRepoImpl) FindBySpentTxHash(ctx context.Context, hash 
 	err := ret.Error
 	if err != nil {
 		log.Errore("query utxoTransactionRecord by spent tx hash failed", err)
+		return nil, err
+	}
+	return utxos, nil
+}
+
+func (r *UtxoUnspentRecordRepoImpl) FindNotPendingByTxHash(ctx context.Context, chainName,address,spendTxHash string ) ([]*UtxoUnspentRecord, error) {
+	var utxos []*UtxoUnspentRecord
+	ret := r.gormDB.Where("chain_name = ? and address = ? and spent_tx_hash != ? and unspent = ?",chainName,address, spendTxHash, UtxoStatusPending).Find(&utxos)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query FindNotPendingByTxHash by spent tx hash failed", err)
 		return nil, err
 	}
 	return utxos, nil
