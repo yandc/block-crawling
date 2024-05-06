@@ -91,6 +91,13 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 		biz.SetChainPlatform(value.Chain, platform)
 		biz.SetChainPlatInfo(value.Chain, value)
 	}
+
+	// Some of the testnets aren't enable.
+	for _, value := range testConfig {
+		biz.SetChainNameType(value.Chain, value.Type)
+		biz.SetChainPlatInfo(value.Chain, value)
+	}
+
 	return bs
 }
 
