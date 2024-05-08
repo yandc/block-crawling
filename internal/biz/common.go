@@ -71,7 +71,8 @@ const (
 
 	BLOCK_HASH_CUSTOM_EXPIRATION_KEY = 15 * time.Minute
 
-	OKLINK = "oklink"
+	OKLINK              = "oklink"
+	GAS_COEFFICIENT_KEY = "gasCoefficient:"
 )
 
 const (
@@ -507,6 +508,14 @@ type CreateUtxoPending struct {
 	Address   string `json:"address"`
 	N         int    `json:"n"`
 	Hash      string `json:"hash"`
+}
+
+type GasCoefficientReq struct {
+	ChainName string `json:"chainName,omitempty"`
+}
+
+type GasCoefficientResp struct {
+	GasCoefficient float32 `json:"gas_coefficient"`
 }
 
 func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
@@ -1273,6 +1282,10 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 			deviceId,
 		)
 		alarmOpts = WithAlarmChannel("txinput")
+		//处理gas price too low
+		if strings.Contains(errMsg, "gas price too low") {
+			HandlerGasCoefficient(ctx.ChainName)
+		}
 	} else {
 		//txHash:校验txHash,urlCheck，txParams：获取交易参数
 		alarmOpts = WithCollectBot()
@@ -1312,6 +1325,32 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 		//alarmOpts = WithAlarmChannel("node-proxy")
 	}
 	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
+}
+
+func HandlerGasCoefficient(chainName string) {
+	//从redis获取该链的系数
+	redisKey := GAS_COEFFICIENT_KEY + chainName
+	gasCoefficient := GetGasCoefficient(chainName)
+	gasCoefficient = gasCoefficient + gasCoefficient*0.5
+	if gasCoefficient > 3 {
+		gasCoefficient = 3
+	}
+	//存到redis
+	data.RedisClient.Set(redisKey, gasCoefficient, 1*time.Hour)
+}
+
+func GetGasCoefficient(chainName string) float32{
+	redisKey := GAS_COEFFICIENT_KEY + chainName
+	gasCoefficient, err := data.RedisClient.Get(redisKey).Float32()
+	if gasCoefficient == 0 || err == redis.Nil {
+		//redis中没有数据，从配置文件中获取
+		if value, ok := AppConfig.ChainData.GasCoefficient[chainName]; ok {
+			gasCoefficient = value
+		} else {
+			gasCoefficient = AppConfig.ChainData.GasCoefficient["default"]
+		}
+	}
+	return gasCoefficient
 }
 
 func ExecuteRetry(chainName string, fc func(client chain.Clienter) (interface{}, error)) (interface{}, error) {

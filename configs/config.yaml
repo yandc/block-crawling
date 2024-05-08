@@ -100,6 +100,10 @@ app:
     # - http://mpcuser01:4fa0cbd14703bb@10.229.11.67:13228      # <---------------------------+ | |
     # - http://mpcuser01:4fa0cbd14703bb@10.229.4.166:13228      # <-----------------------------+ |
     # - http://mpcuser01:4fa0cbd14703bb@10.229.6.184:13228      # <-------------------------------+
+  chainData:
+    gasCoefficient:
+      default: 1
+      evm4200: 1.2
 
 lark:
   larkAlarmTitle: "BlockCrawling 测试环境"
