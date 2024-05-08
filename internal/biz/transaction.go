@@ -5905,3 +5905,10 @@ func handleNativeTokenEvent(chainName string, record *pb.TransactionRecord) {
 		record.EventLog = eventLogStr
 	}
 }
+
+func (s *TransactionUsecase) GetGasCoefficientByChainName(ctx context.Context, req *GasCoefficientReq) (*GasCoefficientResp, error) {
+	gasCoefficient := GetGasCoefficient(req.ChainName)
+	return &GasCoefficientResp{
+		GasCoefficient: gasCoefficient,
+	}, nil
+}
