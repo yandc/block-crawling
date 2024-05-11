@@ -386,7 +386,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 						continue
 					} else {
 						toAddress = approve["spender"].(string)
-						tokenId = approve["token_id"].(string)
+						switch v := approve["token_id"].(type) {
+						case string:
+							tokenId = v
+						case float64:
+							tokenId = fmt.Sprintf("%d", int(v))
+						}
 					}
 				}
 
