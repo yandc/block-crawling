@@ -1694,7 +1694,7 @@ chainFlag:
 		beforeTxHash = out[dataLen-1].Signature
 	}
 	for _, tokenAddress := range absentNfts {
-		if v, err := getSolanaTokenLatestTxn(chainName, url, tokenAddress); err == nil {
+		if v, err := getSolanaTokenLatestTxn(chainName, url, tokenAddress); err == nil && v != nil {
 			log.Info(
 				"QUERY TXNS OF ADDRESS VIA ABSENT NFTs",
 				zap.String("chainName", chainName),
