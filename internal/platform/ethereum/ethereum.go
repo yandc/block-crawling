@@ -112,13 +112,37 @@ var BridgeWhiteMethodIdList = map[string][]string{
 		"BSC_0x86C80a8aa58e0A4fa09A69624c31Ab2a6CAD56b8_41706c4e"},
 	"OEC_MethodId":     {"OEC_0x37809F06F0Daf8f1614e8a31076C9bbEF4992Ff9_d9caed12"},
 	"Conflux_MethodId": {"Conflux_0x0dCb0CB0120d355CdE1ce56040be57Add0185BAa_0175b1c4"},
-	"xDai_MethodId": {"xDai_0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8_3d12a85a", "xDai_0xFD5a186A7e8453Eb867A360526c5d987A00ACaC2_3d12a85a", "xDai_0x0460352b91D7CF42B0E1C1c30f06B602D9ef2238_3d12a85a",
-		"xDai_0x75Df5AF045d91108662D8080fD1FEFAd6aA0bb59_e7a2c01f"},
+	"xDai_MethodId": {
+		"xDai_0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8_3d12a85a",
+		"xDai_0xFD5a186A7e8453Eb867A360526c5d987A00ACaC2_3d12a85a",
+		"xDai_0x0460352b91D7CF42B0E1C1c30f06B602D9ef2238_3d12a85a",
+		"xDai_0x75Df5AF045d91108662D8080fD1FEFAd6aA0bb59_e7a2c01f",
+		"xDai_0xD8926c12C0B2E5Cd40cFdA49eCaFf40252Af491B_3d12a85a",
+	},
 	"Avalanche_MethodId":     {"Avalanche_0xef3c714c9425a8F3697A9C969Dc1af30ba82e5d4_cdd1b25d", "Avalanche_0xef3c714c9425a8F3697A9C969Dc1af30ba82e5d4_cdd1b25d"},
 	"PolygonTEST_MethodId":   {"PolygonTEST_0x69015912AA33720b842dCD6aC059Ed623F28d9f7_41706c4e"},
 	"BSCTEST_MethodId":       {"BSCTEST_0x61456BF1715C1415730076BB79ae118E806E74d2_41706c4e"},
 	"ETHGoerliTEST_MethodId": {"ETHGoerliTEST_0xE041608922d06a4F26C0d4c27d8bCD01daf1f792_41706c4e"},
 	"Ronin_MethodId":         {"Ronin_0xffF9Ce5f71ca6178D3BEEcEDB61e7Eff1602950E_95a4ec00"},
+
+	// Base bridge
+	"evm8453_MethodId": {
+		"evm8453_0x4200000000000000000000000000000000000007_d764ad0b",
+		"evm8453_0x7d43aabc515c356145049227cee54b608342c0ad_cdd1b25d",
+		"evm8453_0x3666f603Cc164936C1b87e207F36BEBa4AC5f18a_3d12a85a",
+	},
+}
+
+// 0x3d12a85a 无法通过 Log 获取
+var bondWithdrawalAndDistributeContracts = map[string]bool{
+	// https://basescan.org/tx/0xcbd0c3f471e561271193d6b0acce9c497affe7a196f19135914fa2567656c6ac
+	"0x3666f603cc164936c1b87e207f36beba4ac5f18a": true, // Base
+	// https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过log获取
+	"0x0460352b91d7cf42b0e1c1c30f06b602d9ef2238": true, // xDai
+	// https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
+	"0x83f6244bd87662118d96d9a6d44f09dfff14b30e": true,
+	// https://arbiscan.io/tx/0xe870f3fdbbd1c7a3dab22ced3c135cce2bc43471b1cda1c02134f97f1da135e9
+	"0x3749c4f034022c39ecaffaba182555d4508caccc": true,
 }
 
 //TODO, 后面弃用上面的方式，改用下面的方式
@@ -199,6 +223,13 @@ var WhiteListTopicMap = map[string][]string{
 		"0xd0db2f29056e0226168c6b32363a339fe8fd46b5_11290d59_" + OPENBLOCK_SWAP_TOPIC,
 		"0xc1b02e52e9512519edf99671931772e452fb4399_c5ebeaec_" + BORROW_TOPIC, // borrow
 	},
+
+	// Base 链跨链
+	"evm8453_Contract_Method_Topic": {
+		"0x4200000000000000000000000000000000000007_d764ad0b_" + TRANSFER_FROM_L1_COMPLETED_TOPIC,
+		"0x7d43aabc515c356145049227cee54b608342c0ad_cdd1b25d_" + ARBITRUM_TRANSFERNATIVE,
+	},
+
 	"Scroll_Contract_Method_Topic": {"0x781e90f1c8fc4611c9b7497c3b47f99ef6969cbc_8ef1332e_" + FINALIZEDEPOSITETH_TOPIC},
 	//支持所有链特定合约
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,

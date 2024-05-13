@@ -1661,6 +1661,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			continue
 		} else if topic0 == TRANSFER_FROM_L1_COMPLETED_TOPIC {
 			//https://polygonscan.com/tx/0xc23acd6f333d9e5b832d24268662f2d4c524a7b1b807beef664933d5088d3adb
+			// https://basescan.org/tx/0x00b3b0b74ec38ca188195a9b14efd9597a79476db0307d10ef19ae011a31cacc
 			toAddress = common.HexToAddress(log_.Topics[1].String()).String()
 			fromAddress = common.HexToAddress(log_.Topics[2].String()).String()
 			amount = new(big.Int).SetBytes(log_.Data[:32])
@@ -1687,35 +1688,16 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 		if xDaiDapp {
 			break
 		}
-		//https://blockscout.com/xdai/mainnet/tx/0xb8a9f18ec9cfa01eb1822724983629e28d5b09010a32efeb1563de49f935d007 无法通过log获取
-		if contractAddress == "0x0460352b91d7cf42b0e1c1c30f06b602d9ef2238" && methodId == "3d12a85a" {
-			fromAddress = transaction.To().String()
-			toAddress = common.BytesToAddress(txData[4:36]).String()
-			amountTotal := new(big.Int).SetBytes(txData[36:68])
-			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
-			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
-			/*tokenAddress = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"
-			token, err = biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
-			if err != nil {
-				log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", h.block.Number), zap.Any("txHash", transactionHash), zap.Any("error", err))
+		if methodId == "3d12a85a" {
+			if _, ok := bondWithdrawalAndDistributeContracts[contractAddress]; ok {
+				fromAddress = transaction.To().String()
+				toAddress = common.BytesToAddress(txData[4:36]).String()
+				amountTotal := new(big.Int).SetBytes(txData[36:68])
+				bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
+				amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
+				xDaiDapp = true
+				// tokenAddress = ""
 			}
-			token.Amount = amount.String()*/
-			/*if strings.HasPrefix(token.Symbol, "WX") || strings.HasPrefix(token.Symbol, "wx") {
-				token.Symbol = token.Symbol[2:]
-			}*/
-			xDaiDapp = true
-			//tokenAddress = ""
-		}
-
-		//https://optimistic.etherscan.io/tx/0x637856c0d87d452bf68376fdc91ffc53cb44cdad30c61030d2c7a438e58a8587
-		if contractAddress == "0x83f6244bd87662118d96d9a6d44f09dfff14b30e" && methodId == "3d12a85a" {
-			fromAddress = transaction.To().String()
-			toAddress = common.BytesToAddress(txData[4:36]).String()
-			amountTotal := new(big.Int).SetBytes(txData[36:68])
-			bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
-			amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
-			xDaiDapp = true
-			tokenAddress = ""
 		}
 
 		if strings.HasPrefix(h.chainName, "Polygon") {
