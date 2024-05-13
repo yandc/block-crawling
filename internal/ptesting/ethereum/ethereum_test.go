@@ -1177,3 +1177,36 @@ func TestPolygonBridge(t *testing.T) {
 		},
 	})
 }
+
+func TestBaseBridge(t *testing.T) {
+	chainName := "evm8453"
+	toAddr := "0x7DDd3a3B7B9FC2bec54827FE8371859d95491A14"
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:       chainName,
+		Configs:         "configs",
+		Prefetch:        true,
+		SourceFromChain: true,
+		RawTxType:       reflect.TypeOf(new(ethereum.Transaction)),
+		Users: map[string]string{
+			toAddr: "1",
+		},
+		IndexBlockNumbers: []uint64{
+			14272133,
+		},
+		Assert: func() {
+			txHash := "0x00b3b0b74ec38ca188195a9b14efd9597a79476db0307d10ef19ae011a31cacc"
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(chainName), txHash)
+			assert.NoError(t, err)
+			assert.NotNil(t, record)
+			assert.Equal(t, record.TransactionHash, txHash)
+			assert.Equal(t, record.FromUid, "")
+			//assert.Equal(t, record.ToUid, "")
+			assert.Equal(t, record.FeeAmount.String(), "0")
+			assert.Equal(t, record.Amount.String(), "0")
+			assert.Equal(t, record.Status, biz.SUCCESS)
+			assert.Equal(t, record.ContractAddress, "0x4200000000000000000000000000000000000007")
+			assert.Equal(t, record.TransactionType, biz.CONTRACT)
+			assert.Equal(t, record.BlockNumber, 14272133)
+		},
+	})
+}

@@ -74,6 +74,30 @@ platform:
     maxConcurrency: 5
     monitorHeightAlarmThr: 100
 
+  evm8453:
+    blockExplorerAddrUrl: https://etherscan.io/address/
+    blockExplorerTxUrl: https://etherscan.io/tx/
+    blockExplorerUrl: https://etherscan.io/
+    chain: evm8453
+    chainId: "8453"
+    coinId: 60
+    decimal: 18
+    fullName: Base
+    getPriceKey: ethereum
+    handler: ethereum
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Ethereum.png
+    nativeCurrency: ETH
+    netType: main
+    proxyCacheTime: 15
+    proxyKey: gasOracleETH
+    rpcURL:
+      - "https://1rpc.io/base"
+      - "https://base-mainnet.public.blastapi.io"
+      - "https://developer-access-mainnet.base.org"
+      - "https://base.meowrpc.com"
+      - "https://mainnet.base.org"
+    symbol: ETH
+    type: EVM
 
 platformTest:
   AptosTEST:
