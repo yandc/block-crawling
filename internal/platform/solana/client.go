@@ -118,7 +118,7 @@ type SolanaTokenAccount struct {
 			Executable bool   `json:"executable"`
 			Lamports   int    `json:"lamports"`
 			Owner      string `json:"owner"`
-			RentEpoch  int    `json:"rentEpoch"`
+			//RentEpoch  int    `json:"rentEpoch"`
 		} `json:"account"`
 		Pubkey string `json:"pubkey"`
 	} `json:"value"`
