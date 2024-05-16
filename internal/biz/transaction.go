@@ -5900,6 +5900,9 @@ func convertFeeData(chainName, chainType, reqAddress string, record *pb.Transact
 
 // 将发送给合约的主币转成一条eventLog
 func handleNativeTokenEvent(chainName string, record *pb.TransactionRecord) {
+	if record == nil {
+		return
+	}
 	if (record.TransactionType == CONTRACT || record.TransactionType == MINT || record.TransactionType == SWAP) && record.Amount != "" && record.Amount != "0" {
 		eventLogStr := handleEventLog(chainName, record.FromAddress, record.ToAddress, record.Amount, record.EventLog)
 		record.EventLog = eventLogStr
