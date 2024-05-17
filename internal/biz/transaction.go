@@ -3364,12 +3364,18 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 		AmountType:                   req.AmountType,
 		CollectionNameLike:           req.CollectionNameLike,
 		CollectionNameLikeIgnoreCase: req.CollectionNameLikeIgnoreCase,
+		NameLikeIgnoreCase:           req.NameLikeIgnoreCase,
 		OrderBy:                      req.OrderBy,
 		DataDirection:                req.DataDirection,
 		StartIndex:                   req.StartIndex,
 		PageNum:                      req.PageNum,
 		PageSize:                     req.PageSize,
 		Total:                        req.Total,
+	}
+	// No collection name
+	if chainType == SUI {
+		request.CollectionNameLike = ""
+		request.CollectionNameLikeIgnoreCase = ""
 	}
 	var result = &pb.ClientPageListNftAssetResponse{}
 	var total int64
