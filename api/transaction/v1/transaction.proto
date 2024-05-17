@@ -545,6 +545,7 @@ message PageListNftAssetRequest {
   int32 pageSize = 13 [(validate.rules).int32.gte = 0];
   bool total = 14;
   string collectionNameLikeIgnoreCase = 15;
+  string nameLikeIgnoreCase = 16;
 }
 
 message ClientPageListNftAssetGroupResponse {

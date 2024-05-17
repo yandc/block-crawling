@@ -65,6 +65,7 @@ type NftAssetRequest struct {
 	AmountType                              int32
 	CollectionNameLike                      string
 	CollectionNameLikeIgnoreCase            string
+	NameLikeIgnoreCase                      string
 	ChainNameAddressTokenAddressTokenIdList []*NftAssetRequest
 	StartTime                               int64
 	StopTime                                int64
@@ -398,6 +399,9 @@ func (r *UserNftAssetRepoImpl) PageList(ctx context.Context, req *NftAssetReques
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
 	}
+	if req.NameLikeIgnoreCase != "" {
+		db = db.Where("lower(name) like ?", "%"+strings.ToLower(req.NameLikeIgnoreCase)+"%")
+	}
 	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
 		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
 		chainNameAddressTokenAddressTokenId := "("
@@ -491,6 +495,9 @@ func (r *UserNftAssetRepoImpl) List(ctx context.Context, req *NftAssetRequest) (
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
 	}
+	if req.NameLikeIgnoreCase != "" {
+		db = db.Where("lower(name) like ?", "%"+strings.ToLower(req.NameLikeIgnoreCase)+"%")
+	}
 	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
 		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
 		chainNameAddressTokenAddressTokenId := "("
@@ -565,6 +572,9 @@ func (r *UserNftAssetRepoImpl) ListBalanceGroup(ctx context.Context, req *NftAss
 	if req.CollectionNameLikeIgnoreCase != "" {
 		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
 	}
+	if req.NameLikeIgnoreCase != "" {
+		sqlStr += " and lower(name) like '%" + strings.ToLower(req.NameLikeIgnoreCase) + "%'"
+	}
 	if req.GroupBy != "" {
 		sqlStr += " group by " + req.GroupBy
 	}
@@ -622,6 +632,9 @@ func (r *UserNftAssetRepoImpl) PageListGroup(ctx context.Context, req *pb.PageLi
 	}
 	if req.CollectionNameLikeIgnoreCase != "" {
 		sqlStr += " and lower(collection_name) like '%" + strings.ToLower(req.CollectionNameLikeIgnoreCase) + "%'"
+	}
+	if req.NameLikeIgnoreCase != "" {
+		sqlStr += " and lower(name) like '%" + strings.ToLower(req.NameLikeIgnoreCase) + "%'"
 	}
 
 	if strings.HasPrefix(req.ChainName, "Solana") {
@@ -724,6 +737,9 @@ func (r *UserNftAssetRepoImpl) Delete(ctx context.Context, req *NftAssetRequest)
 	}
 	if req.CollectionNameLikeIgnoreCase != "" {
 		db = db.Where("lower(collection_name) like ?", "%"+strings.ToLower(req.CollectionNameLikeIgnoreCase)+"%")
+	}
+	if req.NameLikeIgnoreCase != "" {
+		db = db.Where("lower(name) like ?", "%"+strings.ToLower(req.NameLikeIgnoreCase)+"%")
 	}
 	if len(req.ChainNameAddressTokenAddressTokenIdList) > 0 {
 		chainNameAddressTokenAddressTokenIdList := req.ChainNameAddressTokenAddressTokenIdList
