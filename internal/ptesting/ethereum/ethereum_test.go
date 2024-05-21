@@ -1210,3 +1210,31 @@ func TestBaseBridge(t *testing.T) {
 		},
 	})
 }
+
+func TestOptimismBridge(t *testing.T) {
+	chainName := "Optimism"
+	toAddr := "0x2E58655CB6363Bf6c6209d76A4B7D75271fBaac3"
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:       chainName,
+		Configs:         CONFIG_PATH,
+		Prefetch:        true,
+		SourceFromChain: true,
+		RawTxType:       reflect.TypeOf(new(ethereum.Transaction)),
+		Users: map[string]string{
+			toAddr: "1",
+		},
+		IndexBlockNumbers: []uint64{
+			120341465,
+		},
+		Assert: func() {
+			txHash := "0x9e71bf305f1ba54d8f047c5758def9e64a1bbb0463d7a6d208c17ddf37137c53"
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(chainName), txHash)
+			assert.NoError(t, err)
+			assert.NotNil(t, record)
+			assert.Equal(t, record.TransactionHash, txHash)
+			assert.Equal(t, record.Amount.String(), "0")
+			assert.Equal(t, record.Status, biz.SUCCESS)
+			assert.Equal(t, record.TransactionType, biz.CONTRACT)
+		},
+	})
+}
