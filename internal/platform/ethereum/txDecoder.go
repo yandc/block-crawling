@@ -1696,7 +1696,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 				bonderFeeAmount := new(big.Int).SetBytes(txData[100:132])
 				amount = new(big.Int).Sub(amountTotal, bonderFeeAmount)
 				xDaiDapp = true
-				// tokenAddress = ""
+				tokenAddress = ""
 			}
 		}
 
