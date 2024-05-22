@@ -1238,3 +1238,31 @@ func TestOptimismBridge(t *testing.T) {
 		},
 	})
 }
+
+func TestXDaiBridge(t *testing.T) {
+	chainName := "xDai"
+	toAddr := "0x2E58655CB6363Bf6c6209d76A4B7D75271fBaac3"
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:       chainName,
+		Configs:         CONFIG_PATH,
+		Prefetch:        true,
+		SourceFromChain: true,
+		RawTxType:       reflect.TypeOf(new(ethereum.Transaction)),
+		Users: map[string]string{
+			toAddr: "1",
+		},
+		IndexBlockNumbers: []uint64{
+			34_070_669,
+		},
+		Assert: func() {
+			txHash := "0x42f2811d10ec32122a6cd68b00312cce5a9f98f9507a0f4f0099b3942a39d01a#result-1"
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(chainName), txHash)
+			assert.NoError(t, err)
+			assert.NotNil(t, record)
+			assert.Equal(t, record.TransactionHash, txHash)
+			assert.Equal(t, record.Status, biz.SUCCESS)
+			assert.Equal(t, record.TransactionType, biz.EVENTLOG)
+			assert.Contains(t, record.TokenInfo, `"address":""`)
+		},
+	})
+}
