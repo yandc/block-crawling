@@ -222,8 +222,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if rawTx.contractAddress != "" {
 		feeData["fee_limit"] = rawTx.RawData.FeeLimit
 	}
-	if txInfo.Receipt.EnergyUsage > 0 {
-		feeData["energy_usage"] = txInfo.Receipt.EnergyUsage
+	if txInfo.Receipt.EnergyPenaltyTotal > 0 {
+		feeData["energy_usage"] = txInfo.Receipt.EnergyPenaltyTotal
 	}
 	feeAmount := 0
 	if txInfo.Fee > 0 {
@@ -309,7 +309,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		ParseData:       parseData,
 		NetUsage:        strconv.Itoa(netUsage),
 		FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyPenaltyTotal),
 		TransactionType: string(tx.TxType),
 		TokenInfo:       tokenInfoStr,
 		CreatedAt:       h.now,
@@ -348,7 +348,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				ParseData:       eventParseData,
 				NetUsage:        strconv.Itoa(netUsage),
 				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
+				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
 				TransactionType: txType,
 				TokenInfo:       eventTokenInfoStr,
 				CreatedAt:       h.now,
