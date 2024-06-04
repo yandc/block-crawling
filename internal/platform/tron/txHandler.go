@@ -8,9 +8,10 @@ import (
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/shopspring/decimal"
 	"gitlab.bixin.com/mili/node-driver/chain"
@@ -77,9 +78,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	energyFee := int64(txInfo.Receipt.EnergyUsage)
 	energyTotal := int64(txInfo.Receipt.EnergyUsageTotal)
 	netUsage := txInfo.Receipt.NetUsage
-	if netUsage == 0 {
-		netUsage = txInfo.Receipt.NetFee
-	}
 	if energyFee != 0 && energyTotal != 0 {
 		gasPrice := decimal.NewFromInt(energyFee).Div(decimal.NewFromInt(energyTotal)).String()
 		go biz.ChainFeeSwitchRetryAlert(h.chainName, "", "", gasPrice, uint64(rawBlock.BlockHeader.RawData.Number), transactionHash)
@@ -224,8 +222,8 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if rawTx.contractAddress != "" {
 		feeData["fee_limit"] = rawTx.RawData.FeeLimit
 	}
-	if txInfo.Receipt.EnergyUsageTotal > 0 {
-		feeData["energy_usage"] = txInfo.Receipt.EnergyUsageTotal
+	if txInfo.Receipt.EnergyUsage > 0 {
+		feeData["energy_usage"] = txInfo.Receipt.EnergyUsage
 	}
 	feeAmount := 0
 	if txInfo.Fee > 0 {
@@ -311,7 +309,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		ParseData:       parseData,
 		NetUsage:        strconv.Itoa(netUsage),
 		FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
+		EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
 		TransactionType: string(tx.TxType),
 		TokenInfo:       tokenInfoStr,
 		CreatedAt:       h.now,
@@ -350,7 +348,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 				ParseData:       eventParseData,
 				NetUsage:        strconv.Itoa(netUsage),
 				FeeLimit:        strconv.Itoa(rawTx.RawData.FeeLimit),
-				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsageTotal),
+				EnergyUsage:     strconv.Itoa(txInfo.Receipt.EnergyUsage),
 				TransactionType: txType,
 				TokenInfo:       eventTokenInfoStr,
 				CreatedAt:       h.now,
