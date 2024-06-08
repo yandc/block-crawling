@@ -28,9 +28,10 @@ type SuiObjectChanges struct {
 							Version              string `json:"version,omitempty"`
 							Digest               string `json:"digest,omitempty"`
 							ValueType            string `json:"valueType,omitempty"`
-							Value                string `json:"value,omitempty"`
 							InitialSharedVersion string `json:"initialSharedVersion,omitempty"`
 							Mutable              bool   `json:"mutable,omitempty"`
+
+							Value json.RawMessage `json:"value,omitempty"`
 						} `json:"inputs"`
 						Transactions []struct {
 							TransferObjects []interface{} `json:"TransferObjects,omitempty"`
