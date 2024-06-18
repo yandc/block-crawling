@@ -1295,6 +1295,36 @@ platform:
     symbol: STRD
     type: COSMOS
     useNodeProxy: false
+  Ton:
+    icon: https://pbs.twimg.com/profile_images/1758437914898292736/PFNZIPNB_400x400.jpg
+    chain: Ton
+    nickName: Ton
+    fullName: The Open Network
+    type: TON
+    rpcURL:
+    - https://toncenter.com/api/v3
+    # XXX(wanghui): no message hash in in_msg and out_msgs
+    # - https://tonapi.io/v2
+    chainId: ''
+    netType: main
+    symbol: TON
+    coinId: 607
+    nativeCurrency: TON
+    blockExplorerUrl: https://tonscan.org/
+    blockExplorerTxUrl: https://tonscan.org/tx/
+    blockExplorerAddrUrl: https://tonscan.org/address/
+    handler: ton
+    getPriceKey: the-open-network
+    proxyKey: ''
+    proxyCacheTime: 0
+    decimal: 9
+    customNonce: false
+    useNodeProxy: false
+    customToken: false
+    categoryName: TON
+    safelyConcurrentBlockDelta: 10
+    maxConcurrency: 2
+    monitorHeightAlarmThr: 100
 
 platformTest:
   AptosTEST:

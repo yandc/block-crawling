@@ -965,14 +965,14 @@ func fillValue(asset *pb.UserAssetListResp_UserAsset, tokenPriceMap map[string]M
 
 	//总价值
 	balance, _ := decimal.NewFromString(asset.Amount)
-	usdAmount := balance.Mul(usdPrice).Round(2)
+	usdAmount := balance.Mul(usdPrice) // XXX：这里先不进行 Round(2) 防止后面 CNY 数量偏离过多.
 	cnyAmount := usdAmount.Mul(decimal.NewFromFloat(cnyRate.Rate))
 	usdtAmount := usdAmount.Div(decimal.NewFromFloat(tokenPriceMap[fmt.Sprintf("%s_%s", "ETH", strings.ToLower(ETH_USDT_ADDRESS))].Price))
 	btcAmount := usdAmount.Div(decimal.NewFromFloat(tokenPriceMap[PriceKeyBTC].Price))
 
 	asset.CurrencyAmount = &pb.Currency{
 		Cny:  cnyAmount.Round(2).String(),
-		Usd:  usdAmount.String(),
+		Usd:  usdAmount.Round(2).String(),
 		Usdt: usdtAmount.Round(2).String(),
 		Btc:  btcAmount.String(),
 	}

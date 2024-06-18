@@ -15,6 +15,7 @@ type Bundle struct {
 	CKB                    CkbTransactionRecordRepo
 	CSPR                   CsprTransactionRecordRepo
 	KAS                    KasTransactionRecordRepo
+	TON                    TonTransactionRecordRepo
 	UserNFT                UserNftAssetRepo
 	NFTHistory             NftRecordHistoryRepo
 	Stat                   TransactionStatisticRepo
@@ -49,6 +50,7 @@ func NewBundle(
 	ckb CkbTransactionRecordRepo,
 	cspr CsprTransactionRecordRepo,
 	kas KasTransactionRecordRepo,
+	ton TonTransactionRecordRepo,
 	userNFT UserNftAssetRepo,
 	nftHistory NftRecordHistoryRepo,
 	stat TransactionStatisticRepo,
@@ -70,18 +72,20 @@ func NewBundle(
 	defi DeFiAssetRepo,
 ) *Bundle {
 	return &Bundle{
-		ATM:                    atm,
-		BTC:                    btc,
-		DOT:                    dot,
-		EVM:                    evm,
-		STC:                    stc,
-		TRX:                    trx,
-		APT:                    apt,
-		SUI:                    sui,
-		SOL:                    sol,
-		CKB:                    ckb,
-		CSPR:                   cspr,
-		KAS:                    kas,
+		ATM:  atm,
+		BTC:  btc,
+		DOT:  dot,
+		EVM:  evm,
+		STC:  stc,
+		TRX:  trx,
+		APT:  apt,
+		SUI:  sui,
+		SOL:  sol,
+		CKB:  ckb,
+		CSPR: cspr,
+		KAS:  kas,
+		TON:  ton,
+
 		UserNFT:                userNFT,
 		NFTHistory:             nftHistory,
 		Stat:                   stat,

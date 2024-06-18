@@ -88,6 +88,7 @@ const (
 	COSMOS   = "COSMOS"
 	POLKADOT = "POLKADOT"
 	KASPA    = "KASPA"
+	TON      = "TON"
 )
 
 const (
@@ -185,6 +186,7 @@ const (
 	ERC1155   = types.ERC1155
 	APTOSNFT  = types.APTOSNFT
 	SUINFT    = types.SUINFT
+	TONNFT    = types.TONNFT
 	BENFENNFT = types.BENFENNFT
 	SOLANANFT = types.SOLANANFT
 	COSMOSNFT = types.COSMOSNFT
@@ -564,6 +566,7 @@ type UserAssetUpdateRequest struct {
 type UserAssetExtra struct {
 	AllTokens  []UserAsset `json:"allTokens"`
 	RecentTxns []string    `json:"recentTxns"`
+	TonNFTs    []string    `json:"nft"`
 }
 
 type UserAsset struct {
@@ -1339,7 +1342,7 @@ func HandlerGasCoefficient(chainName string) {
 	data.RedisClient.Set(redisKey, gasCoefficient, 1*time.Hour)
 }
 
-func GetGasCoefficient(chainName string) float32{
+func GetGasCoefficient(chainName string) float32 {
 	redisKey := GAS_COEFFICIENT_KEY + chainName
 	gasCoefficient, err := data.RedisClient.Get(redisKey).Float32()
 	if gasCoefficient == 0 || err == redis.Nil {

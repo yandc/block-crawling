@@ -109,9 +109,9 @@ type AppConf *conf.App
 
 var eventLogWhiteList = make(map[string]string)
 
-func NewConfig(conf *conf.App, eventLogWhiteListConf map[string]string) AppConf {
+func NewConfig(conf *conf.App, bootstrap *conf.Bootstrap) AppConf {
 	AppConfig = conf
-	eventLogWhiteList = eventLogWhiteListConf
+	eventLogWhiteList = bootstrap.EventLogWhiteList
 	for _, rawURL := range conf.HttpProxies {
 		proxy, err := url.Parse(rawURL)
 		if err != nil {
