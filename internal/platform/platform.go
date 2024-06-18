@@ -17,6 +17,7 @@ import (
 	"block-crawling/internal/platform/solana"
 	"block-crawling/internal/platform/starcoin"
 	"block-crawling/internal/platform/sui"
+	"block-crawling/internal/platform/ton"
 	"block-crawling/internal/platform/tron"
 	in "block-crawling/internal/types"
 	"strings"
@@ -130,6 +131,8 @@ func GetPlatform(value *conf.PlatInfo) biz.Platform {
 		return polkadot.Init(coins.Polkadot().Handle, value, nodeURL)
 	case biz.KASPA:
 		return kaspa.Init(coins.Kaspa().Handle, value, nodeURL)
+	case biz.TON:
+		return ton.Init(coins.Ton().Handle, value, nodeURL)
 	}
 	return nil
 }

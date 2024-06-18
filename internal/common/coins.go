@@ -78,6 +78,7 @@ const (
 	NERVOS       = 309
 	CASPER       = 101013
 	KASPA        = 111111
+	TON          = 607
 )
 
 var HandleMap = map[string]uint{
@@ -574,6 +575,14 @@ var Coins = map[uint]Coin{
 		Decimals:     0,
 		LiveInterval: 1000,
 	},
+	TON: {
+		ID:           TON,
+		Handle:       "ton",
+		Symbol:       "TON",
+		Name:         "Ton",
+		Decimals:     9,
+		LiveInterval: 1000,
+	},
 }
 
 func CoinByHandler(handler string) Coin {
@@ -756,4 +765,8 @@ func Aptos() Coin {
 }
 func Sui() Coin {
 	return Coins[SUI]
+}
+
+func Ton() Coin {
+	return Coins[TON]
 }

@@ -5,7 +5,9 @@ import (
 	"block-crawling/internal/data"
 	"block-crawling/internal/httpclient"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/ton/tonutils"
 	"block-crawling/internal/types"
+	"block-crawling/internal/types/tontypes"
 	"block-crawling/internal/utils"
 	"context"
 	"errors"
@@ -83,6 +85,8 @@ func GetTxByAddress(chainName string, address string, urls []string, absentNfts 
 	case "Kaspa":
 		err = KaspaGetTxByAddress(chainName, address, urls)
 		err = UpdateUtxoByAddress(chainName, address)
+	case "Ton":
+		err = TonGetTxByAddress(chainName, address)
 	}
 
 	return
@@ -2994,12 +2998,12 @@ func RefreshUserUTXO(chainName, address string) (err error) {
 
 	pendingUTXOsMap := make(map[string]struct{})
 	pendingUTXOs, err := data.UtxoUnspentRecordRepoClient.FindByCondition(nil, &v1.UnspentReq{IsUnspent: strconv.Itoa(data.UtxoStatusPending), Address: address})
-	for _,utxo := range pendingUTXOs {
+	for _, utxo := range pendingUTXOs {
 		pendingUTXOsMap[utxo.Hash] = struct{}{}
 	}
 	//插入所有未花费且不是pending的UTXO
-	for _,utxo := range utxos {
-		if _,ok := pendingUTXOsMap[utxo.Hash]; !ok {
+	for _, utxo := range utxos {
+		if _, ok := pendingUTXOsMap[utxo.Hash]; !ok {
 			r, err := data.UtxoUnspentRecordRepoClient.SaveOrUpdate(nil, utxo)
 			if err != nil {
 				log.Error("更新用户UTXO，将数据插入到数据库中", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("插入utxo对象结果", r), zap.Any("error", err))
@@ -3673,4 +3677,148 @@ chainFlag:
 	}
 
 	return
+}
+
+func TonGetTxByAddress(chainName string, address string) (err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(error); ok {
+				log.Errore("TonGetTxByAddress error, chainName:"+chainName+", address:"+address, e)
+			} else {
+				log.Errore("TonGetTxByAddress panic, chainName:"+chainName, errors.New(fmt.Sprintf("%s", err)))
+			}
+
+			// 程序出错 接入lark报警
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录失败, error：%s", chainName, fmt.Sprintf("%s", err))
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			return
+		}
+	}()
+
+	req := &data.TransactionRequest{
+		Nonce:       -1,
+		FromAddress: address,
+		OrderBy:     "block_number desc",
+		PageNum:     1,
+		PageSize:    1,
+	}
+	dbLastRecords, _, err := data.TonTransactionRecordClient.PageList(nil, GetTableName(chainName), req)
+	if err != nil {
+		alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询数据库交易记录失败", chainName)
+		alarmOpts := WithMsgLevel("FATAL")
+		LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error("通过用户资产变更爬取交易记录，查询数据库交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
+		return err
+	}
+	var dbTxTime int64
+	var dbLastRecordHash string
+	if len(dbLastRecords) > 0 {
+		dbTxTime = dbLastRecords[0].TxTime
+		dbLastRecordHash = dbLastRecords[0].TransactionHash
+	}
+	offset := 0
+	limit := 128
+	chainRecords := make([]string, 0, 4)
+	timeout := time.Minute
+chainFlag:
+	for {
+		reqURL := "https://toncenter.com/api/v3/transactions"
+		params := map[string]string{
+			"account": address,
+			"sort":    "desc",
+			"offset":  strconv.Itoa(offset),
+			"limit":   strconv.Itoa(limit),
+		}
+		var out *tontypes.TXResult
+		err = httpclient.GetResponse(reqURL, params, &out, &timeout)
+		if err == nil && out != nil {
+			err = out.UnwrapErr()
+		}
+
+		for i := 0; i < 10 && err != nil; i++ {
+			time.Sleep(time.Duration(i*5) * time.Second)
+			err = httpclient.GetResponse(reqURL, params, &out, &timeout)
+		}
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，查询链上交易记录失败，address:%s", chainName, address)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，查询链上交易记录失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("requestUrl", reqURL), zap.Any("error", err))
+			break
+		}
+
+		for _, tx := range out.Txs {
+			txHash := tx.InMsg.Hash
+			if tx.InMsg.Source != nil {
+				var err error
+				txHash, err = tonGetInMsgHash(tx.InMsg.Hash)
+				if err != nil {
+					log.Info("FETCH IN MSG", zap.Error(err), zap.String("address", address), zap.String("inMsgHash", tx.InMsg.Hash))
+					break chainFlag
+				}
+			}
+			if tx.Now < int(dbTxTime) || txHash == dbLastRecordHash {
+				break chainFlag
+			}
+			chainRecords = append(chainRecords, tonutils.Base64ToHex(txHash))
+		}
+		offset += limit
+	}
+
+	var tonTransactionRecordList []*data.TonTransactionRecord
+	now := time.Now().Unix()
+	for _, txHash := range chainRecords {
+		atomRecord := &data.TonTransactionRecord{
+			TransactionHash: txHash,
+			Status:          PENDING,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		tonTransactionRecordList = append(tonTransactionRecordList, atomRecord)
+	}
+
+	if len(tonTransactionRecordList) > 0 {
+		_, err = data.TonTransactionRecordClient.BatchSaveOrIgnore(nil, GetTableName(chainName), tonTransactionRecordList)
+		if err != nil {
+			alarmMsg := fmt.Sprintf("请注意：%s链通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", chainName)
+			alarmOpts := WithMsgLevel("FATAL")
+			LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+			log.Error("通过用户资产变更爬取交易记录，插入链上交易记录数据到数据库中失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
+			return err
+		}
+	}
+
+	return
+}
+
+func tonGetInMsgHash(inMsgHash string) (string, error) {
+	timeout := time.Minute
+	reqURL := "https://toncenter.com/api/v3/transactionsByMessage"
+	params := map[string]string{
+		"direction": "out",
+		"msg_hash":  inMsgHash,
+		"offset":    "0",
+		"limit":     "128",
+	}
+	var out *tontypes.TXResult
+	err := httpclient.GetResponse(reqURL, params, &out, &timeout)
+	if err == nil && out != nil {
+		err = out.UnwrapErr()
+	}
+
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		err = httpclient.GetResponse(reqURL, params, &out, &timeout)
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(out.Txs) == 0 {
+		return "", errors.New("not found")
+	}
+	if out.Txs[0].InMsg.Source != nil {
+		return tonGetInMsgHash(out.Txs[0].InMsg.Hash)
+	}
+	return out.Txs[0].InMsg.Hash, nil
 }

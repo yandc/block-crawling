@@ -37,6 +37,8 @@ func DynamicCreateTable(mr data.MigrationRepo, gormDb *gorm.DB, table string, ch
 		record = &data.DotTransactionRecord{}
 	case KASPA:
 		record = &data.KasTransactionRecord{}
+	case TON:
+		record = &data.TonTransactionRecord{}
 	}
 	if record == nil {
 		// Should we panic here?

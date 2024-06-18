@@ -14,7 +14,7 @@ else
 	API_PROTO_FILES=$(shell find api -name *.proto)
 endif
 
-TEST_CHAIN ?= ethereum
+TEST_CHAIN ?= ton
 
 .PHONY: init
 # init env
@@ -103,7 +103,7 @@ docker-setup:
 
 .PHONY: do-test
 do-test:
-	env PTESTING_ENV=docker go test -run TestXDaiBridge ./internal/ptesting/$(TEST_CHAIN)/...
+	env PTESTING_ENV=docker go test -run TestReceiveTon ./internal/ptesting/$(TEST_CHAIN)/...
 
 # show help
 help:

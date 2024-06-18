@@ -205,6 +205,15 @@ func recordToTxResult(record interface{}) *txResult {
 			failedOnChain: failedOnChain(v.Status),
 			fromUID:       v.FromUid,
 		}
+	case *data.TonTransactionRecord:
+		return &txResult{
+			hash:          v.TransactionHash,
+			matchedFrom:   v.FromUid != "",
+			matchedTo:     v.ToUid != "",
+			txType:        chain.TxType(biz.NATIVE),
+			failedOnChain: failedOnChain(v.Status),
+			fromUID:       v.FromUid,
+		}
 	default:
 		panic("unsupport record")
 	}

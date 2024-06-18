@@ -139,7 +139,7 @@ func (b *Bootstrap) Start() {
 
 func (b *Bootstrap) shouldStartIndexing() bool {
 	if b.ChainName == "Solana" || b.ChainName == "SUITEST" || b.ChainName == "Kaspa" || b.ChainName == "SeiTEST" ||
-		b.ChainName == "CelestiaMochaTEST" || b.ChainName == "STC" || b.ChainName == "Polkadot" || b.ChainName == "Cosmos" {
+		b.ChainName == "CelestiaMochaTEST" || b.ChainName == "STC" || b.ChainName == "Polkadot" || b.ChainName == "Cosmos" || b.ChainName == "Ton" {
 		return false
 	}
 	return true

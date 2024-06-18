@@ -5,6 +5,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/ton/tonutils"
 	"block-crawling/internal/signhash"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
@@ -218,6 +219,14 @@ func (s *TransactionUsecase) GetDappList(ctx context.Context, req *pb.DappListRe
 				parseData = sol.ParseData
 				tokenInfoStr = sol.TokenInfo
 				transcationType = sol.TransactionType
+			}
+		case TON:
+			ton, err := data.TonTransactionRecordClient.FindByTxHash(ctx, GetTableName(da.ChainName), da.LastTxhash)
+			if err == nil && ton != nil {
+				dappInfo = ton.DappData
+				parseData = ton.ParseData
+				tokenInfoStr = ton.TokenInfo
+				transcationType = ton.TransactionType
 			}
 		}
 		if req.DappType == "approveNFT" && transcationType != req.DappType {
@@ -1133,6 +1142,35 @@ func (s *TransactionUsecase) CreateRecordFromWallet(ctx context.Context, pbb *pb
 			//修改 未花费
 			go KaspaUpdateUtxo(pbb)
 		}
+	case TON:
+		tonTransactionRecord := &data.TonTransactionRecord{
+			BlockHash:       pbb.BlockHash,
+			BlockNumber:     int(pbb.BlockNumber),
+			TransactionHash: pbb.TransactionHash,
+			FromAddress:     pbb.FromAddress,
+			ToAddress:       pbb.ToAddress,
+			FromUid:         pbb.Uid,
+			ToUid:           "",
+			FeeAmount:       fa,
+			Amount:          a,
+			Status:          pbb.Status,
+			TxTime:          pbb.TxTime,
+			ContractAddress: pbb.ContractAddress,
+			ParseData:       pbb.ParseData,
+			GasLimit:        pbb.GasLimit,
+			GasUsed:         pbb.GasUsed,
+			GasPrice:        pbb.GasPrice,
+			TransactionType: pbb.TransactionType,
+			DappData:        pbb.DappData,
+			ClientData:      pbb.ClientData,
+			TokenInfo:       tokenInfoStr,
+			SendTime:        sendTime,
+			SessionId:       sessionId,
+			ShortHost:       shortHost,
+			CreatedAt:       pbb.CreatedAt,
+			UpdatedAt:       pbb.UpdatedAt,
+		}
+		result, err = data.TonTransactionRecordClient.SaveOrUpdateClient(ctx, GetTableName(pbb.ChainName), tonTransactionRecord)
 	}
 
 	if err != nil {
@@ -1476,6 +1514,12 @@ func (s *TransactionUsecase) GetTransactionByHash(ctx context.Context, chainName
 		if err == nil {
 			err = utils.CopyProperties(oldRecord, &record)
 		}
+	case TON:
+		var oldRecord *data.TonTransactionRecord
+		oldRecord, err = data.TonTransactionRecordClient.FindByTxHash(ctx, GetTableName(chainName), hash)
+		if err == nil {
+			err = utils.CopyProperties(oldRecord, &record)
+		}
 	}
 
 	if record == nil {
@@ -1626,6 +1670,12 @@ func (s *TransactionUsecase) PageList(ctx context.Context, req *pb.PageListReque
 					record.TransactionType = NATIVE
 				}
 			}
+		}
+	case TON:
+		var recordList []*data.TonTransactionRecord
+		recordList, total, err = data.TonTransactionRecordClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
 		}
 	}
 	if err == nil {
@@ -1999,6 +2049,12 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 					record.TransactionType = NATIVE
 				}
 			}
+		}
+	case TON:
+		var recordList []*data.TonTransactionRecord
+		recordList, total, err = data.TonTransactionRecordClient.PageList(ctx, GetTableName(req.ChainName), request)
+		if err == nil {
+			err = utils.CopyProperties(recordList, &list)
 		}
 	}
 	if err == nil {
@@ -4805,6 +4861,14 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			if err != nil {
 				return nil, err
 			}
+		case TON:
+			recordList, err := data.TonTransactionRecordClient.PendingByAddress(ctx, GetTableName(chainName), add)
+			if err == nil {
+				err = utils.CopyProperties(recordList, &list)
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// 主币 精度
@@ -5003,7 +5067,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	if req.ChainName == "Nervos" || req.ChainName == "Polkadot" {
 		return struct{}{}, nil
 	}
-	isSol := req.ChainName == "Solana"
+	compareNFT := req.ChainName == "Solana" || req.ChainName == "Ton"
 	onchainAssets := req.Assets
 	if len(req.Extra) > 0 {
 		var extra *UserAssetExtra
@@ -5014,6 +5078,12 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			log.Info("GOT USER ASSET ALL TOKENS FROM EXTRA", zap.Any("assets", onchainAssets))
 			if len(extra.RecentTxns) > 0 {
 				batchSaveChaindataTxns(req.ChainName, extra.RecentTxns)
+			}
+			for _, tokenAddress := range extra.TonNFTs {
+				onchainAssets = append(onchainAssets, UserAsset{
+					TokenAddress: tonutils.UnifyAddressToHuman(tokenAddress),
+					Balance:      "1",
+				})
 			}
 		}
 	}
@@ -5040,13 +5110,13 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	if err != nil {
 		return nil, err
 	}
-	if isSol {
+	if compareNFT {
 		nftAssets, err := data.UserNftAssetRepoClient.List(ctx, &data.NftAssetRequest{
 			ChainName: req.ChainName,
 			Address:   req.Address,
 		})
 		if err != nil {
-			log.Error("SOLANA MERGE NFT ASSETS FAILED", zap.Error(err))
+			log.Error("MERGE NFT ASSETS FAILED", zap.Error(err))
 		} else {
 			for _, a := range nftAssets {
 				dbAssets = append(dbAssets, &data.UserAsset{
@@ -5059,7 +5129,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 					Symbol:       a.Symbol,
 				})
 			}
-			log.Info("SOLANA MERGED NFT ASSETS", zap.Int("num", len(nftAssets)))
+			log.Info("MERGED NFT ASSETS", zap.Int("num", len(nftAssets)))
 		}
 	}
 
@@ -5565,6 +5635,12 @@ func (s *TransactionUsecase) GetSignRecord(ctx context.Context, req *SignRecordR
 			case KASPA:
 				var oldRecord *data.KasTransactionRecord
 				oldRecord, err = data.KasTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
+				if err == nil {
+					err = utils.CopyProperties(oldRecord, &record)
+				}
+			case TON:
+				var oldRecord *data.TonTransactionRecord
+				oldRecord, err = data.TonTransactionRecordClient.FindByTxHash(ctx, GetTableName(req.ChainName), v.TransactionHash)
 				if err == nil {
 					err = utils.CopyProperties(oldRecord, &record)
 				}
