@@ -203,12 +203,15 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 		}
 	}
 
-	matchedNum := 0
+	status := biz.SUCCESS
 	for _, act := range event.Actions {
-		status := biz.SUCCESS
 		if act.Status == "failed" {
 			status = biz.FAIL
 		}
+	}
+
+	matchedNum := 0
+	for _, act := range event.Actions {
 		if act.Type == "SmartContractExec" {
 			val := act.SmartContractExec
 			if unifyAddressToHuman(val.Executor.Address) == unifyAddressToHuman(tx.Account) {
@@ -256,10 +259,6 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 	}
 
 	for _, act := range event.Actions {
-		status := biz.SUCCESS
-		if act.Status == "failed" {
-			status = biz.FAIL
-		}
 		var txRecords []*data.TonTransactionRecord
 		var err error
 
@@ -283,42 +282,44 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 				txRecords, err = eventHandlers[act.Type](in)
 			}
 		default:
-			if act.Type == "JettonSwap" {
-				val := act.JettonSwap
-				mainRecord = &data.TonTransactionRecord{
-					BlockNumber:     tx.MCBlockSeqno,
-					TransactionHash: suffixer.WithSuffix(),
-					AccountTxHash:   tx.Hash,
-					FeeAmount:       feeAmount,
-					FromAddress:     val.UserWallet.Address,
-					Status:          status,
-					TxTime:          int64(tx.Now),
-					ToAddress:       unifyAddressToHuman(val.Router.Address),
-					ContractAddress: unifyAddressToHuman(val.Router.Address),
-					GasLimit:        tx.Description.ComputePH.GasLimit,
-					GasUsed:         tx.Description.ComputePH.GasUsed,
-					GasPrice:        tx.Description.ComputePH.GasFees,
-					TransactionType: biz.SWAP,
-					CreatedAt:       time.Now().Unix(),
-					UpdatedAt:       time.Now().Unix(),
-				}
-			} else if act.Type == "NftPurchase" {
-				val := act.NftPurchase
-				mainRecord = &data.TonTransactionRecord{
-					BlockNumber:     tx.MCBlockSeqno,
-					TransactionHash: suffixer.WithSuffix(),
-					AccountTxHash:   tx.Hash,
-					FeeAmount:       feeAmount,
-					FromAddress:     val.Buyer.Address,
-					ToAddress:       val.Seller.Address,
-					Status:          status,
-					TxTime:          int64(tx.Now),
-					GasLimit:        tx.Description.ComputePH.GasLimit,
-					GasUsed:         tx.Description.ComputePH.GasUsed,
-					GasPrice:        tx.Description.ComputePH.GasFees,
-					TransactionType: biz.CONTRACT,
-					CreatedAt:       time.Now().Unix(),
-					UpdatedAt:       time.Now().Unix(),
+			if mainRecord == nil {
+				if act.Type == "JettonSwap" {
+					val := act.JettonSwap
+					mainRecord = &data.TonTransactionRecord{
+						BlockNumber:     tx.MCBlockSeqno,
+						TransactionHash: suffixer.WithSuffix(),
+						AccountTxHash:   tx.Hash,
+						FeeAmount:       feeAmount,
+						FromAddress:     val.UserWallet.Address,
+						Status:          status,
+						TxTime:          int64(tx.Now),
+						ToAddress:       unifyAddressToHuman(val.Router.Address),
+						ContractAddress: unifyAddressToHuman(val.Router.Address),
+						GasLimit:        tx.Description.ComputePH.GasLimit,
+						GasUsed:         tx.Description.ComputePH.GasUsed,
+						GasPrice:        tx.Description.ComputePH.GasFees,
+						TransactionType: biz.SWAP,
+						CreatedAt:       time.Now().Unix(),
+						UpdatedAt:       time.Now().Unix(),
+					}
+				} else if act.Type == "NftPurchase" {
+					val := act.NftPurchase
+					mainRecord = &data.TonTransactionRecord{
+						BlockNumber:     tx.MCBlockSeqno,
+						TransactionHash: suffixer.WithSuffix(),
+						AccountTxHash:   tx.Hash,
+						FeeAmount:       feeAmount,
+						FromAddress:     val.Buyer.Address,
+						ToAddress:       val.Seller.Address,
+						Status:          status,
+						TxTime:          int64(tx.Now),
+						GasLimit:        tx.Description.ComputePH.GasLimit,
+						GasUsed:         tx.Description.ComputePH.GasUsed,
+						GasPrice:        tx.Description.ComputePH.GasFees,
+						TransactionType: biz.CONTRACT,
+						CreatedAt:       time.Now().Unix(),
+						UpdatedAt:       time.Now().Unix(),
+					}
 				}
 			}
 
