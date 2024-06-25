@@ -1266,3 +1266,31 @@ func TestXDaiBridge(t *testing.T) {
 		},
 	})
 }
+
+func TestBSCComment(t *testing.T) {
+	chainName := "BSC"
+	toAddr := "0x203671cD11614074345E9ce1dc839eFF40fc7d48"
+	ptesting.RunTest(ptesting.Preparation{
+		ChainName:       chainName,
+		Configs:         CONFIG_PATH,
+		Prefetch:        true,
+		SourceFromChain: true,
+		RawTxType:       reflect.TypeOf(new(ethereum.Transaction)),
+		Users: map[string]string{
+			toAddr: "1",
+		},
+		IndexBlockNumbers: []uint64{
+			39_800_690,
+		},
+		Assert: func() {
+			txHash := "0x8971f38561f647eabe8d408dc691ca03cb7e34789d2f5d12d4e41b1568627b54"
+			record, err := data.EvmTransactionRecordRepoClient.FindByTxHash(context.Background(), biz.GetTableName(chainName), txHash)
+			assert.NoError(t, err)
+			assert.NotNil(t, record)
+			assert.Equal(t, record.TransactionHash, txHash)
+			assert.Equal(t, record.Status, biz.SUCCESS)
+			assert.Equal(t, record.TransactionType, biz.NATIVE)
+			assert.Contains(t, record.TokenInfo, `"address":""`)
+		},
+	})
+}

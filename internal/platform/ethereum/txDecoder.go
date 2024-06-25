@@ -507,6 +507,9 @@ func (h *txDecoder) handleEachTransaction(
 					tokenInfo.Symbol = ""
 				}
 			}
+		} else if meta.TransactionType == biz.CONTRACT {
+			// 交易 data 有值识别成了 methodId，但是接收地址没有部署合约，应该是带备注的主币转账
+			meta.TransactionType = biz.NATIVE
 		}
 	}
 
