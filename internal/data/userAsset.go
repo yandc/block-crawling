@@ -18,7 +18,7 @@ import (
 type UserAsset struct {
 	Id           int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	ChainName    string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
-	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address      string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address"`
 	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
 	TokenUri     string `json:"tokenUri" form:"tokenUri" gorm:"type:character varying(256)"`
@@ -105,10 +105,18 @@ type UserAssetRepo interface {
 	DeleteByIDs(context.Context, []int64) (int64, error)
 	Delete(context.Context, *AssetRequest) (int64, error)
 	ListByChainNames(context.Context, []string) ([]*UserAsset, error)
+	CountTokenHolders(ctx context.Context, chainName string, tokenAddress string) (int64, error)
 }
 
 type UserAssetRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// CountTokenHolders implements UserAssetRepo
+func (r *UserAssetRepoImpl) CountTokenHolders(ctx context.Context, chainName string, tokenAddress string) (int64, error) {
+	var total int64
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("chain_name = ? AND token_address=? AND balance::decimal > 0", chainName, tokenAddress).Count(&total)
+	return total, ret.Error
 }
 
 var UserAssetRepoClient UserAssetRepo

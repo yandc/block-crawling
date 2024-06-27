@@ -56,6 +56,10 @@ func IsNativePrefixs(objectType string) bool {
 		strings.HasPrefix(objectType, "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::")
 }
 
+func IsNativeStakedBfc(objectType string) bool {
+	return strings.HasPrefix(objectType, "0x3::stable_pool::StakedStable<") && strings.HasSuffix(objectType, ">")
+}
+
 func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {
 	chainType := value.Handler
 	chainName := value.Chain

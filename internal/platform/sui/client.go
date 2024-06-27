@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -177,6 +178,7 @@ type GetObject struct {
 		Owner    struct {
 			AddressOwner string `json:"AddressOwner"`
 		} `json:"owner"`
+		Content json.RawMessage `json:"content"`
 	} `json:"data"`
 }
 
@@ -200,14 +202,18 @@ func (c *Client) Erc721BalanceByTokenId(address string, tokenAddress string, tok
 	return "1", nil
 }
 
-func (c *Client) GetObject(objectID string) (GetObject, error) {
+func (c *Client) GetObject(objectID string, opts ...bool) (GetObject, error) {
 	method := c.getRpcMethod("sui_getObject")
+	var showContent bool
+	if len(opts) > 0 {
+		showContent = opts[0]
+	}
 	params := []interface{}{objectID, map[string]bool{
 		"showType":                true,
 		"showOwner":               true,
 		"showPreviousTransaction": false,
 		"showDisplay":             false,
-		"showContent":             false,
+		"showContent":             showContent,
 		"showBcs":                 false,
 		"showStorageRebate":       false,
 	}}

@@ -1,14 +1,14 @@
 server:
   http:
-    addr: 0.0.0.0:3001
+    addr: 0.0.0.0:3097
     timeout: 1s
   grpc:
-    addr: 0.0.0.0:8999
+    addr: 0.0.0.0:8997
     timeout: 1s
 data:
   database:
     driver: postgres
-    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=benfen port=5432 sslmode=disable TimeZone=Asia/Shanghai
 #    source: host=127.0.0.1 user=postgres password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
     pool:
       connMaxLifetime: 3
@@ -16,7 +16,7 @@ data:
       maxIdleConns: 10
   redis:
     address: 127.0.0.1:6379
-    db: 0
+    db: 7
     password: ""
     read_timeout: 0.2s
     write_timeout: 0.2s
@@ -31,7 +31,7 @@ data:
 app:
   # Possible values: "debug", "release"
 #  mode: ""
-  mode: "BSCTEST,SUITEST,NervosTEST,CosmosTEST,ScrollL2TEST,SeiTEST,PolygonTEST,CelestiaMochaTEST,BenfenTEST,BenfenAlphaTEST"
+  mode: "BenfenStandalone"
   scanAll: false
   addr: 127.0.0.1:9001
   marketRpc: 10.10.2.77:9011
@@ -63,6 +63,9 @@ app:
         id: queue-dEAZdQQ9Sz6Wuv9uLv5s86
         # Production
         # id: queue-eXgpKznr5yWieTrjyR5Hsx
+      benfenPairs:
+        name: benfen_pair_info
+        id: queue-DJtXNyPTJtkQ8WuyauuByp
     endpoint: http://10.10.2.77:6371/api/cmq/send_queue_message
 
   httpProxies:

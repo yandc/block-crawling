@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -9,7 +10,7 @@ import (
 // UserWalletAssetHistory is a UserWalletAssetHistory model.
 type UserWalletAssetHistory struct {
 	Id        int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid       string          `json:"uid" form:"uid" gorm:"type:character varying(36);index:,unique,composite:unique_uid_dt"`
+	Uid       string          `json:"uid" form:"uid" gorm:"type:character varying(88);index:,unique,composite:unique_uid_dt"`
 	UsdAmount decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`
 	UsdChange decimal.Decimal `json:"usdChange" form:"usdChange" gorm:"type:decimal(256,2);"`
 	BtcPrice  decimal.Decimal `json:"btcPrice" form:"btcPrice" gorm:"type:decimal(256,2);"`

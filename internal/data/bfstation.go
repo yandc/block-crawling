@@ -86,7 +86,7 @@ type BFStationPool struct {
 
 type BFStationAccountToken struct {
 	Id                int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid               string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid               string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address           string          `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_address_coin_type"`
 	TokenCoinType     string          `json:"tokenCoinType" form:"tokenCoinType" gorm:"type:character varying(1024);index:,unique,composite:unique_address_coin_type"`
 	Balance           decimal.Decimal `json:"balance" form:"balance" sql:"type:decimal(128,0);index"`
@@ -101,7 +101,7 @@ type BFStationAccountToken struct {
 
 type BFStationAccountPool struct {
 	Id                int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid               string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid               string `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address           string `json:"address" form:"address" gorm:"type:character varying(512);"`
 	Position          string `json:"position" form:"position" gorm:"type:character varying(1024);index:,unique"`
 	PoolObjectID      string `json:"poolObjectId" form:"poolObjectId" gorm:"type:character varying(1024);index:,composite:index_pool_object_id_type"`
@@ -116,7 +116,7 @@ type BFStationCollectFee struct {
 	Id        int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	TxHash    string          `json:"txHash" form:"txHash" gorm:"type:character varying(80);index:,unique"`
 	PoolID    string          `json:"poolId" form:"poolId" gorm:"type:character varying(1024);index"`
-	Uid       string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid       string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address   string          `json:"address" form:"address" gorm:"type:character varying(512);"`
 	CoinTypeA string          `json:"coinTypeA" form:"coinTypeA" gorm:"type:character varying(1024)"`
 	CoinTypeB string          `json:"coinTypeB" form:"coinTypeB" gorm:"type:character varying(1024)"`

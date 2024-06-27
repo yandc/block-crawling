@@ -85,6 +85,7 @@ message CMQ {
 
 message CMQueues {
 	CMQueue swapPairs = 1;
+	CMQueue benfenPairs = 2;
 }
 
 message CMQueue {

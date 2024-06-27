@@ -4,10 +4,8 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/platform/swap"
-	"block-crawling/internal/utils"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -95,11 +93,11 @@ func (s *bfstationStable) extractPairFromMoveCall(txData *stypes.TransactionData
 	switch moveCall.Function {
 	case stableB2SFunction:
 		inputToken = bfcNativeCoinType
-		outputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		outputToken = StationizeBenfenCoinType(moveCall.TypeArguments[0].(string))
 		// mint
 		rawEvent = []byte(`{"atob": false, "__spiderMock": true}`)
 	case stableS2BFunction:
-		inputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		inputToken = StationizeBenfenCoinType(moveCall.TypeArguments[0].(string))
 		outputToken = bfcNativeCoinType
 		// redeem
 		rawEvent = []byte(`{"atob": true, "__spiderMock": true}`)
@@ -122,40 +120,15 @@ func (s *bfstationStable) extractPairFromMoveCall(txData *stypes.TransactionData
 }
 
 func StationizeBenfenCoinType(src string) string {
-	return normalizeBenfenCoinType(src)
-}
-
-func normalizeBenfenCoinType(src string) string {
-	if len(src) == 0 {
-		return src
-	}
-	if strings.HasPrefix(src, "0x") {
-		src = src[2:]
-	}
-	parts := strings.Split(src, "::")
-	addr := parts[0]
-	nPrefixZero := 64 - len(addr)
-	parts[0] = strings.Repeat("0", nPrefixZero) + addr
-	return strings.Join(parts, "::")
+	return biz.StationizeBenfenCoinType(src)
 }
 
 func NormalizeBenfenCoinType(chainName, src string) string {
-	if utils.IsBenfenChain(chainName) && len(src) > 0 {
-		src = normalizeBenfenCoinType(src)
-		parts := strings.Split(src, "::")
-		parts[0] = utils.EVMAddressToBFC(chainName, parts[0])
-		return strings.Join(parts, "::")
-	}
-	return src
+	return biz.NormalizeBenfenCoinType(chainName, src)
 }
 
 func DenormalizeBenfenCoinType(chainName, src string) string {
-	if utils.IsBenfenChain(chainName) && strings.HasPrefix(src, "BFC") {
-		parts := strings.Split(src, "::")
-		parts[0] = "0x" + strings.TrimLeft(parts[0][3:len(parts[0])-4], "0")
-		return strings.Join(parts, "::")
-	}
-	return src
+	return biz.DenormalizeBenfenCoinType(chainName, src)
 }
 
 type BFStationStableEvent struct {

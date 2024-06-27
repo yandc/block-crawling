@@ -13,6 +13,7 @@ service BFStation {
 	rpc CountPoolHolders(PoolHolderRequest) returns (CountResponse);
 	rpc CountTokenHolders(TokenHolderRequest) returns (CountResponse);
 	rpc PageListCollectFees(PageListFeesRequest) returns (PageListFeesResponse);
+	rpc BenfenCountTokenHolders(BenfenTokenHolderRequest) returns (CountResponse);
 }
 
 
@@ -104,4 +105,12 @@ message BFStationCollectFeeRecord {
   string coinTypeA = 9;
   string coinTypeB = 10;
   int64 createdAt = 11;
+}
+
+
+message BenfenTokenHolderRequest {
+	string chainName = 1;
+	// Example:
+	//   BFC06d8349fa995c89f01e137b5e4de5f4e948591758e70f8a44646a02a2ad2bf5a7285::bfc_usdt::BFC_USDT
+	string coinType = 2;
 }

@@ -3015,55 +3015,67 @@ func (s *TransactionUsecase) ClientPageListAsset(ctx context.Context, req *pb.Pa
 
 			//处理排序
 			orderBys := strings.Split(req.OrderBy, " ")
-			orderByColumn := orderBys[0]
-			orderByDirection := orderBys[1]
-			if orderByColumn == "currencyAmount" {
-				sort.SliceStable(list, func(i, j int) bool {
-					if list[i] == nil || list[j] == nil {
-						return true
-					}
-					iCurrencyAmount, _ := decimal.NewFromString(list[i].CurrencyAmount)
-					jCurrencyAmount, _ := decimal.NewFromString(list[j].CurrencyAmount)
-					/*if list[i].Price == "" || list[i].Price == "0" {
-						return false
-					} else if list[j].Price == "" || list[j].Price == "0" {
-						return true
-					} else {*/
-					if strings.EqualFold(orderByDirection, "asc") {
-						if iCurrencyAmount.Equal(jCurrencyAmount) {
-							iBalance, _ := decimal.NewFromString(list[i].Balance)
-							jBalance, _ := decimal.NewFromString(list[j].Balance)
-							return iBalance.LessThan(jBalance)
+			if len(orderBys) == 2 {
+				orderByColumn := orderBys[0]
+				orderByDirection := orderBys[1]
+				if orderByColumn == "currencyAmount" {
+					sort.SliceStable(list, func(i, j int) bool {
+						if list[i] == nil || list[j] == nil {
+							return true
 						}
-						return iCurrencyAmount.LessThan(jCurrencyAmount)
-					} else {
-						if iCurrencyAmount.Equal(jCurrencyAmount) {
-							iBalance, _ := decimal.NewFromString(list[i].Balance)
-							jBalance, _ := decimal.NewFromString(list[j].Balance)
-							return iBalance.GreaterThan(jBalance)
-						}
-						return iCurrencyAmount.GreaterThan(jCurrencyAmount)
-					}
-					//}
-				})
-			} else if orderByColumn == "price" {
-				sort.SliceStable(list, func(i, j int) bool {
-					if list[i] == nil || list[j] == nil {
-						return true
-					}
-					iPrice, _ := decimal.NewFromString(list[i].Price)
-					jPrice, _ := decimal.NewFromString(list[j].Price)
-					if list[i].Price == "" || list[i].Price == "0" {
-						return false
-					} else if list[j].Price == "" || list[j].Price == "0" {
-						return true
-					} else {
+						iCurrencyAmount, _ := decimal.NewFromString(list[i].CurrencyAmount)
+						jCurrencyAmount, _ := decimal.NewFromString(list[j].CurrencyAmount)
+						/*if list[i].Price == "" || list[i].Price == "0" {
+							return false
+						} else if list[j].Price == "" || list[j].Price == "0" {
+							return true
+						} else {*/
 						if strings.EqualFold(orderByDirection, "asc") {
-							return iPrice.LessThan(jPrice)
+							if iCurrencyAmount.Equal(jCurrencyAmount) {
+								iBalance, _ := decimal.NewFromString(list[i].Balance)
+								jBalance, _ := decimal.NewFromString(list[j].Balance)
+								return iBalance.LessThan(jBalance)
+							}
+							return iCurrencyAmount.LessThan(jCurrencyAmount)
 						} else {
-							return iPrice.GreaterThan(jPrice)
+							if iCurrencyAmount.Equal(jCurrencyAmount) {
+								iBalance, _ := decimal.NewFromString(list[i].Balance)
+								jBalance, _ := decimal.NewFromString(list[j].Balance)
+								return iBalance.GreaterThan(jBalance)
+							}
+							return iCurrencyAmount.GreaterThan(jCurrencyAmount)
 						}
-					}
+						//}
+					})
+				} else if orderByColumn == "price" {
+					sort.SliceStable(list, func(i, j int) bool {
+						if list[i] == nil || list[j] == nil {
+							return true
+						}
+						iPrice, _ := decimal.NewFromString(list[i].Price)
+						jPrice, _ := decimal.NewFromString(list[j].Price)
+						if list[i].Price == "" || list[i].Price == "0" {
+							return false
+						} else if list[j].Price == "" || list[j].Price == "0" {
+							return true
+						} else {
+							if strings.EqualFold(orderByDirection, "asc") {
+								return iPrice.LessThan(jPrice)
+							} else {
+								return iPrice.GreaterThan(jPrice)
+							}
+						}
+					})
+				}
+			} else if len(req.TokenAddressList) > 0 {
+				tokenOrders := make(map[string]int)
+				for i, s := range req.TokenAddressList {
+					tokenOrders[s] = i
+				}
+				sort.SliceStable(list, func(i, j int) bool {
+					vi := tokenOrders[list[i].TokenAddress]
+					vj := tokenOrders[list[j].TokenAddress]
+					return vi < vj
 				})
 			}
 

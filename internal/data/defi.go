@@ -73,7 +73,7 @@ func (p *DeFiPlatform) Enabled(thr int64) bool {
 
 type UserDeFiAsset struct {
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid             string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid             string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);index"`
 	ChainName       string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_address_platform_asset_type"`
 	Address         string          `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_address_platform_asset_type"`
@@ -104,7 +104,7 @@ func (u *UserDeFiAsset) GetPlatformID() int64 {
 
 type UserDeFiAssetTxnHistory struct {
 	Id              int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid             string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid             string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	BlockNumber     int64           `json:"blockNumber" form:"blockNumber" gorm:"type:BIGINT;index"`
 	PlatformID      int64           `json:"platformId" form:"platformId" gorm:"type:BIGINT;index"`
 	ChainName       string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_hash_address_aset"`
@@ -141,7 +141,7 @@ func (u *UserDeFiAssetTxnHistory) GetPlatformID() int64 {
 
 type UserWalletDeFiAssetHistory struct {
 	Id         int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid        string          `json:"uid" form:"uid" gorm:"type:character varying(36);index:,unique,composite:unique_uid_plat_type_dt"`
+	Uid        string          `json:"uid" form:"uid" gorm:"type:character varying(88);index:,unique,composite:unique_uid_plat_type_dt"`
 	PlatformID int64           `json:"platformId" form:"platformId" gorm:"type:BIGINT;index:,unique,composite:unique_uid_plat_type_dt"`
 	Type       string          `json:"type" form:"type" gorm:"type: character varying(64);index:,unique,composite:unique_uid_plat_type_dt"`
 	UsdAmount  decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`

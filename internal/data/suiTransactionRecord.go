@@ -26,8 +26,8 @@ type SuiTransactionRecord struct {
 	TransactionHash string          `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null;index:,unique"`
 	FromAddress     string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(88);index"`
 	ToAddress       string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(88);index"`
-	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FromUid         string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(88);index"`
+	ToUid           string          `json:"toUid" form:"toUid" gorm:"type:character varying(88);index"`
 	FeeAmount       decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
 	Amount          decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
 	Status          string          `json:"status" form:"status" gorm:"type:character varying(12);index"`
@@ -52,7 +52,7 @@ type SuiTransactionRecord struct {
 }
 
 func (*SuiTransactionRecord) Version() string {
-	return "20240202"
+	return "20240408"
 }
 
 // SuiTransactionRecordRepo is a Greater repo.
@@ -491,8 +491,19 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 			db = db.Where(orderBys[0]+" "+dataDirection+" ?", req.StartIndex)
 		}
 	}
-
-	db = db.Order(req.OrderBy)
+	orderBy := req.OrderBy
+	if !strings.Contains(orderBy, "id ") {
+		// Use a secondary order by to avoid duplicated row in different pages.
+		// https://stackoverflow.com/a/13580892/22318670
+		secondary := "id"
+		secondaryOrder := "desc"
+		parts := strings.Split(orderBy, " ")
+		if len(parts) == 2 {
+			secondaryOrder = parts[1]
+		}
+		orderBy = fmt.Sprintf("%s, %s %s", orderBy, secondary, secondaryOrder)
+	}
+	db = db.Order(orderBy)
 
 	if req.DataDirection == 0 {
 		if req.PageNum > 0 {

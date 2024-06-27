@@ -36,6 +36,16 @@ func (s *BFStationService) CountTokenHolders(ctx context.Context, req *pb.TokenH
 	}, err
 }
 
+func (s *BFStationService) BenfenCountTokenHolders(ctx context.Context, req *pb.BenfenTokenHolderRequest) (*pb.CountResponse, error) {
+	total, err := s.usecase.BenfenCountTokenHolders(ctx, req.ChainName, req.CoinType)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CountResponse{
+		Total: total,
+	}, err
+}
+
 func (s *BFStationService) PageListCollectFees(ctx context.Context, req *pb.PageListFeesRequest) (*pb.PageListFeesResponse, error) {
 	return s.usecase.PageListCollectFees(ctx, req)
 }

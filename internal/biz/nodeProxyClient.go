@@ -168,6 +168,7 @@ func GetTokensPrice(ctx context.Context, currency string, chainNameTokenAddressM
 	if err != nil {
 		return nil, err
 	}
+	log.Info("TOKENS PRICE", zap.Any("tokenPrices", tokenPrices), zap.Any("tokens", tokens), zap.Any("coinIds", coinIds))
 
 	resultMap := make(map[string]map[string]string)
 	coinMap := map[string]*v1.DescribePriceByCoinAddressReply_CoinCurrency{}
@@ -990,7 +991,7 @@ func GetContractAbi(ctx context.Context, chainName string, contractAddress strin
 }
 
 func TokenAddressIsFake(ctx context.Context, chainName, symbol, address string) (bool, error) {
-	data := []*v1.GetTokenInfoReq_Data{{Chain: chainName,Address: address}}
+	data := []*v1.GetTokenInfoReq_Data{{Chain: chainName, Address: address}}
 	getTokenInfoReq := &v1.GetTokenInfoReq{
 		Data: data,
 	}
@@ -1006,8 +1007,8 @@ func TokenAddressIsFake(ctx context.Context, chainName, symbol, address string) 
 		ctx = context
 		defer cancel()
 	}
-	resp,err := client.GetDBTokenInfo(ctx,getTokenInfoReq)
-	if err != nil || resp == nil || len(resp.Data) == 0{
+	resp, err := client.GetDBTokenInfo(ctx, getTokenInfoReq)
+	if err != nil || resp == nil || len(resp.Data) == 0 {
 		return true, err
 	}
 
