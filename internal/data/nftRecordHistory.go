@@ -4,6 +4,7 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/log"
 	"context"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -14,8 +15,8 @@ type NftRecordHistory struct {
 	BlockNumber     int    `json:"blockNumber" form:"blockNumber"`
 	EventType       string `json:"eventType" form:"eventType" gorm:"type:character varying(128)"`
 	TransactionHash string `json:"transactionHash" form:"transactionHash" gorm:"type:character varying(80);default:null"`
-	FromAddress     string `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(66);index:,unique,composite:unique_chain_name_from_address_to_address_contract_address_token_id"`
-	ToAddress       string `json:"toAddress" form:"toAddress" gorm:"type:character varying(66);index:,unique,composite:unique_chain_name_from_address_to_address_contract_address_token_id"`
+	FromAddress     string `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(88);index:,unique,composite:unique_chain_name_from_address_to_address_contract_address_token_id"`
+	ToAddress       string `json:"toAddress" form:"toAddress" gorm:"type:character varying(88);index:,unique,composite:unique_chain_name_from_address_to_address_contract_address_token_id"`
 	FromUid         string `json:"fromUid" form:"fromUid" gorm:"type:character varying(36)"`
 	ToUid           string `json:"toUid" form:"toUid" gorm:"type:character varying(36)"`
 	TxTime          string `json:"txTime" form:"txTime"`

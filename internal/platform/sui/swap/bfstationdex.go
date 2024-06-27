@@ -17,6 +17,9 @@ const BFStationContract = "BFCe7d93ab2b98057bcb73c4fd42dcfd91931baf73d55eb6e9ec9
 var bfstationDexContracts = map[string]bool{
 	// "BFC4efe978bd7e02ed9f1cc199cec277c765357b7b3b812f8b63393b01d3000d391a3f8": true,
 	BFStationContract: true,
+
+	// rpc1.benfen.org
+	"BFC16b3ef5ab237bcfc1e42c73bd1e46b5e9f61799adaf0971ecc1cc1ccb335763e2b71": true,
 }
 
 type bfstationDexSwap struct {

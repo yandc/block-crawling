@@ -178,11 +178,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 	}
 
+	var moveCallPackageID string
 	isContract := false
 	transactions := tx.Data.Transaction.Transactions()
 	for _, transaction := range transactions {
 		if transaction.RawMoveCall != nil {
 			isContract = true
+			if moveCall, err := transaction.MoveCall(); err == nil {
+				moveCallPackageID = moveCall.Package
+			}
 			break
 		}
 	}
@@ -325,7 +329,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var fromAddressExist, toAddressExist bool
 
 		fromAddress = tx.Data.Sender
-		toAddress = transactionInfo.Effects.EventsDigest
 
 		if fromAddress != "" {
 			fromAddressExist, fromUid, err = biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
@@ -360,6 +363,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		parseData, _ := utils.JsonEncode(suiMap)
 		tokenInfoStr, _ := utils.JsonEncode(tokenInfo)
 		amountValue, _ := decimal.NewFromString(amount)
+		if moveCallPackageID != "" && contractAddress == "" {
+			contractAddress = moveCallPackageID
+			if toAddress == "" {
+				toAddress = contractAddress
+			}
+		}
 
 		suiContractRecord = &data.SuiTransactionRecord{
 			BlockHash:       chainBlock.Hash,
@@ -552,13 +561,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			h.txRecords = append(h.txRecords, suiTransactionRecord)
 		}
 		eventLogLen := len(eventLogs)
-
 		if eventLogLen == 2 && ((suiContractRecord.FromAddress == eventLogs[0].From && suiContractRecord.FromAddress == eventLogs[1].To) ||
-			(suiContractRecord.FromAddress == eventLogs[0].To && suiContractRecord.FromAddress == eventLogs[1].From)) {
+			(suiContractRecord.FromAddress == eventLogs[0].To && suiContractRecord.FromAddress == eventLogs[1].From)) && !isNFTEventLog(eventLogs[0]) && !isNFTEventLog(eventLogs[1]) {
 			suiContractRecord.TransactionType = biz.SWAP
 		}
 	}
 	return nil
+}
+
+func isNFTEventLog(eventLog *types.EventLogUid) bool {
+	return eventLog.Token.TokenType == biz.BENFENNFT || eventLog.Token.TokenType == biz.SUINFT
 }
 
 func (h *txHandler) getGasObjectType(transactionInfo *stypes.TransactionInfo) string {
