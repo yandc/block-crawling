@@ -6005,9 +6005,20 @@ func handleNativeTokenEvent(chainName string, record *pb.TransactionRecord) {
 	}
 }
 
+
 func (s *TransactionUsecase) GetGasCoefficientByChainName(ctx context.Context, req *GasCoefficientReq) (*GasCoefficientResp, error) {
 	gasCoefficient := GetGasCoefficient(req.ChainName)
 	return &GasCoefficientResp{
 		GasCoefficient: gasCoefficient,
 	}, nil
+}
+func (s *TransactionUsecase) WriteRedis(ctx context.Context, req *WriteRedisReq) (bool, error) {
+	log.Info("WriteRedis:",zap.Any("type",req.WriteType))
+	return WriteRedisByType(req)
+}
+
+func (s *TransactionUsecase) CreateRecordFromRecharge(ctx context.Context, req *CreateRecordFromRechargeReq) (*pb.CreateResponse, error) {
+	//处理订单和源交易的映射
+	go HandleRechargeOrderId(req.OrderId, req.TransactionHash, PENDING,req.ChainName,req.TxTime,decimal.NewFromInt(0))
+	return s.CreateRecordFromWallet(ctx, req.TransactionReq)
 }

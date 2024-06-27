@@ -753,7 +753,7 @@ func UserAddressSwitch(address string) (bool, string, error) {
 	return enable, uid, nil
 }
 
-var UserInfoMap = &sync.Map{}
+//var UserInfoMap = &sync.Map{}
 
 type UserInfo struct {
 	Uid     string `json:"uid"`
@@ -781,9 +781,9 @@ func GetUserInfo(address string) (*UserInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if userInfo != nil {
-		UserInfoMap.Store(address, userInfo)
-	}
+	//if userInfo != nil {
+	//	UserInfoMap.Store(address, userInfo)
+	//}
 	return userInfo, nil
 }
 

@@ -134,7 +134,7 @@ func pushTransMq(chainName string, s *TransMq) error {
 	eventId := uuid.NewV1().String()
 	var out *eventOut
 	err := httpclient.HttpPostJson(
-		AppConfig.Cmq.Endpoint,
+		AppConfig.Cmq.Endpoint.QueuesURL,
 		map[string]interface{}{
 			"eventId": eventId,
 			"queueId": AppConfig.Cmq.Queues.SwapPairs.Id,
@@ -173,7 +173,7 @@ func PushBenfenPool(pool *BenfenPool) error {
 	eventId := uuid.NewV1().String()
 	var out *eventOut
 	err := httpclient.HttpPostJson(
-		AppConfig.Cmq.Endpoint,
+		AppConfig.Cmq.Endpoint.QueuesURL,
 		map[string]interface{}{
 			"eventId": eventId,
 			"queueId": AppConfig.Cmq.Queues.BenfenPairs.Id,

@@ -105,11 +105,13 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	if h.chainName == "ETH" || h.chainName == "Polygon" || h.chainName == "ScrollL2TEST" || h.chainName == "BSC" || h.chainName == "Optimism" || h.chainName == "ETHGoerliTEST" || h.chainName == "BSCTEST" || h.chainName == "PolygonTEST" {
 		go biz.ChainFeeSwitchRetryAlert(h.chainName, maxFeePerGasNode, maxPriorityFeePerGasNode, gasPriceNode, block.Number, txHash)
 	}
+	//判断这笔交易是不是benfen链充值
+	rechargeAddressFlag, _ := biz.GetBenfenRechargeByAddress(h.chainName, tx.ToAddress)
 	meta, err := pCommon.AttemptMatchUser(h.chainName, tx)
 	if err != nil {
 		return err
 	}
-	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo
+	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo || rechargeAddressFlag
 
 	// Ignore this transaction.
 	if !h.matchedUser {
@@ -606,6 +608,23 @@ func (h *txDecoder) handleEachTransaction(
 		}
 	}
 	amountValue, _ := decimal.NewFromString(amount)
+	//处理benfen充值地址
+	go func() {
+		rechargeAddressInfo := biz.BenfenRechargeAddress{
+			TxHash:    transactionHash,
+			TxTime:    h.block.Time,
+			ToAddress: meta.ToAddress,
+			Chain:     h.chainName,
+			//TokenInfo: tokenInfoStr,
+			Amount:    amountValue,
+		}
+		if tokenInfo.Address != ""{
+			rechargeAddressInfo.TokenInfo = tokenInfoStr
+		}
+		biz.HandleBenfenRechargeAddress(rechargeAddressInfo)
+	}()
+	//处理benfen链充值订单中的source交易
+	go biz.HandlerRechargeSourceTxHash(transactionHash, status, h.chainName, h.block.Time, feeAmount)
 	var eventLog string
 	if eventLogs != nil {
 		eventLog, _ = utils.JsonEncode(eventLogs)

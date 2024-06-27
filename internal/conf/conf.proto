@@ -79,8 +79,14 @@ message App {
 }
 
 message CMQ {
-	string endpoint = 1;
-	CMQueues queues = 2;
+  EndPoint endpoint = 1;
+  CMQueues queues = 2;
+  CMTopics topic = 3;
+}
+
+message EndPoint {
+  string queuesURL = 1;
+  string benfenTopicURL = 2;
 }
 
 message CMQueues {
@@ -92,6 +98,17 @@ message CMQueue {
 	string name = 1;
 	string id = 2;
 }
+
+message CMTopics {
+  CMTopic benfenCharge = 1;
+}
+
+
+message CMTopic {
+  string name = 1;
+  string id = 2;
+}
+
 
 message AddressServer {
   string serverUrl = 1;
