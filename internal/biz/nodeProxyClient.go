@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"go.uber.org/zap"
 
