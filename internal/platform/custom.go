@@ -38,6 +38,10 @@ type customConfigProviderImpl struct {
 
 // Start implements CustomConfigProvider
 func (p *customConfigProviderImpl) Start(context.Context) error {
+	if biz.IsBenfenStandalone() {
+		return nil
+	}
+
 	go func() {
 		customChainPlan := time.NewTicker(time.Duration(10) * time.Second)
 		for true {

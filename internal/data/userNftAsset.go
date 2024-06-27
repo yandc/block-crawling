@@ -18,7 +18,7 @@ import (
 type UserNftAsset struct {
 	Id               int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
 	ChainName        string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address_token_id"`
-	Uid              string `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid              string `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address          string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address_token_id"`
 	TokenAddress     string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address_token_id"`
 	TokenUri         string `json:"tokenUri" form:"tokenUri" gorm:"type:character varying(256)"`

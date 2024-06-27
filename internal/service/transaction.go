@@ -133,7 +133,7 @@ func (s *TransactionService) PageList(ctx context.Context, req *pb.PageListReque
 	subctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	chainType := biz.ChainTypeAdd(req.ChainName)[req.ChainName]
-	if req.Platform == biz.WEB {
+	if req.Platform == biz.WEB || biz.IsBenfenStandalone() {
 		req.TransactionTypeNotInList = []string{biz.EVENTLOG}
 	} else if req.Platform == biz.ANDROID {
 		if req.OsVersion > 2022101201 {
@@ -326,7 +326,7 @@ func (s *TransactionService) ClientPageListAsset(ctx context.Context, req *pb.Pa
 		return nil, errors.New("currency must be CNY or USD")
 	}
 
-	if req.OrderBy == "" {
+	if req.OrderBy == "" && !biz.IsBenfenStandalone() {
 		req.OrderBy = "currencyAmount desc"
 	}
 

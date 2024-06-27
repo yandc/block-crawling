@@ -5,10 +5,11 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -16,15 +17,15 @@ import (
 
 // UserAssetHistory is a UserAssetHistory model.
 type UserAssetHistory struct {
-	Id           int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	ChainName    string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_dt_chain_name_address"`
-	Uid          string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
-	Address      string          `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_dt_chain_name_address"`
-	CnyAmount    decimal.Decimal `json:"cnyAmount" form:"cnyAmount" gorm:"type:decimal(256,2);"`
-	UsdAmount    decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`
-	Dt           int64           `json:"dt" form:"dt" gorm:"type:bigint;index:,unique,composite:unique_dt_chain_name_address"`
-	CreatedAt    int64           `json:"createdAt" form:"createdAt"`
-	UpdatedAt    int64           `json:"updatedAt" form:"updatedAt"`
+	Id        int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	ChainName string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_dt_chain_name_address"`
+	Uid       string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
+	Address   string          `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_dt_chain_name_address"`
+	CnyAmount decimal.Decimal `json:"cnyAmount" form:"cnyAmount" gorm:"type:decimal(256,2);"`
+	UsdAmount decimal.Decimal `json:"usdAmount" form:"usdAmount" gorm:"type:decimal(256,2);"`
+	Dt        int64           `json:"dt" form:"dt" gorm:"type:bigint;index:,unique,composite:unique_dt_chain_name_address"`
+	CreatedAt int64           `json:"createdAt" form:"createdAt"`
+	UpdatedAt int64           `json:"updatedAt" form:"updatedAt"`
 }
 
 type AssetHistoryRequest struct {
@@ -127,7 +128,7 @@ func (r *UserAssetHistoryRepoImpl) SaveOrUpdate(ctx context.Context, userAssetHi
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "dt"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{ "cny_amount", "usd_amount", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"cny_amount", "usd_amount", "updated_at"}),
 	}).Create(&userAssetHistory)
 	err := ret.Error
 	if err != nil {
@@ -147,7 +148,7 @@ func (r *UserAssetHistoryRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAs
 	}).Create(&userAssetHistorys)
 	err := ret.Error
 	if err != nil {
-		log.Info("统计四条链资",zap.Any("",userAssetHistorys))
+		log.Info("统计四条链资", zap.Any("", userAssetHistorys))
 		log.Errore("batch insert or update userAssetHistory failed", err)
 		return 0, err
 	}
@@ -191,12 +192,12 @@ func (r *UserAssetHistoryRepoImpl) BatchSaveOrUpdateSelectiveByColumns(ctx conte
 		Columns:   columnList,
 		UpdateAll: false,
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"chain_name":    gorm.Expr("case when excluded.chain_name != '' then excluded.chain_name else user_asset_history.chain_name end"),
-			"uid":           gorm.Expr("case when excluded.uid != '' then excluded.uid else user_asset_history.uid end"),
-			"address":       gorm.Expr("case when excluded.address != '' then excluded.address else user_asset_history.address end"),
-			"cny_amount":    gorm.Expr("case when excluded.cny_amount != '' then excluded.cny_amount else user_asset_history.cny_amount end"),
-			"usd_amount":    gorm.Expr("case when excluded.usd_amount != '' then excluded.usd_amount else user_asset_history.usd_amount end"),
-			"updated_at":    gorm.Expr("excluded.updated_at"),
+			"chain_name": gorm.Expr("case when excluded.chain_name != '' then excluded.chain_name else user_asset_history.chain_name end"),
+			"uid":        gorm.Expr("case when excluded.uid != '' then excluded.uid else user_asset_history.uid end"),
+			"address":    gorm.Expr("case when excluded.address != '' then excluded.address else user_asset_history.address end"),
+			"cny_amount": gorm.Expr("case when excluded.cny_amount != '' then excluded.cny_amount else user_asset_history.cny_amount end"),
+			"usd_amount": gorm.Expr("case when excluded.usd_amount != '' then excluded.usd_amount else user_asset_history.usd_amount end"),
+			"updated_at": gorm.Expr("excluded.updated_at"),
 		}),
 	}).Create(&userAssetHistorys)
 	err := ret.Error
@@ -373,8 +374,6 @@ func (r *UserAssetHistoryRepoImpl) List(ctx context.Context, req *AssetHistoryRe
 		db = db.Where("address in(?)", req.AddressList)
 	}
 
-
-
 	if req.StartTime > 0 {
 		db = db.Where("created_at >= ?", req.StartTime)
 	}
@@ -390,10 +389,6 @@ func (r *UserAssetHistoryRepoImpl) List(ctx context.Context, req *AssetHistoryRe
 	}
 	return userAssetHistoryList, nil
 }
-
-
-
-
 
 func (r *UserAssetHistoryRepoImpl) DeleteByID(ctx context.Context, id int64) (int64, error) {
 	ret := r.gormDB.WithContext(ctx).Delete(&UserAssetHistory{}, id)
@@ -436,7 +431,6 @@ func (r *UserAssetHistoryRepoImpl) Delete(ctx context.Context, req *AssetHistory
 		db = db.Where("address in(?)", req.AddressList)
 	}
 
-
 	ret := db.Delete(&UserAssetHistory{})
 	err := ret.Error
 	if err != nil {
@@ -446,8 +440,6 @@ func (r *UserAssetHistoryRepoImpl) Delete(ctx context.Context, req *AssetHistory
 	affected := ret.RowsAffected
 	return affected, nil
 }
-
-
 
 func (r *UserAssetHistoryRepoImpl) ListByRangeTimeAndAddressAndChainName(ctx context.Context, startTime int, endTime int, address string, chainName string) ([]*UserAssetHistory, error) {
 	var userAssetHistoryList []*UserAssetHistory

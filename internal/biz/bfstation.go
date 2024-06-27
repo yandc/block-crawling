@@ -59,6 +59,10 @@ func (c *BFStationUsecase) CountTokenHolders(ctx context.Context, chainName, coi
 	return data.BFCStationRepoIns.CountTokenHolders(ctx, chainName, coinType)
 }
 
+func (c *BFStationUsecase) BenfenCountTokenHolders(ctx context.Context, chainName, coinType string) (int64, error) {
+	return data.UserAssetRepoClient.CountTokenHolders(ctx, chainName, coinType)
+}
+
 func (c *BFStationUsecase) PageListCollectFees(ctx context.Context, req *pb.PageListFeesRequest) (*pb.PageListFeesResponse, error) {
 	records, total, err := data.BFCStationRepoIns.PageListCollectFees(ctx, req.ChainName, req)
 	if err != nil {

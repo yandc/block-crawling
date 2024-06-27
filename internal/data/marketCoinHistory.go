@@ -5,19 +5,20 @@ import (
 	"block-crawling/internal/log"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
-	"strings"
 )
 
 //每天资产履历
 
 type MarketCoinHistory struct {
 	Id                  int64           `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	Uid                 string          `json:"uid" form:"uid" gorm:"type:character varying(36);index"`
+	Uid                 string          `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
 	Address             string          `json:"address" form:"address" gorm:"type:character varying(42);index:,unique,composite:unique_dt_chain_name_address_token_address"`
 	ChainName           string          `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_dt_chain_name_address_token_address"`
 	Symbol              string          `json:"symbol" form:"symbol" gorm:"type:character varying(32);"`
@@ -102,7 +103,7 @@ func (r *MarketCoinHistoryRepoImpl) ListByCondition(ctx context.Context, req *Ma
 		}
 		if req.TokenAddress != "" {
 			tx = tx.Where("token_address = ?", req.TokenAddress)
-		}else {
+		} else {
 			tx = tx.Where("token_address = '' ")
 		}
 

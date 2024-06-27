@@ -111,11 +111,11 @@ func (s *bfstationDexSwap) extractPairFromMoveCall(txData *stypes.TransactionDat
 	}
 	switch moveCall.Function {
 	case dexA2BFunction:
-		inputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
-		outputToken = normalizeBenfenCoinType(moveCall.TypeArguments[1].(string))
+		inputToken = StationizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		outputToken = StationizeBenfenCoinType(moveCall.TypeArguments[1].(string))
 	case dexB2AFunction:
-		outputToken = normalizeBenfenCoinType(moveCall.TypeArguments[0].(string))
-		inputToken = normalizeBenfenCoinType(moveCall.TypeArguments[1].(string))
+		outputToken = StationizeBenfenCoinType(moveCall.TypeArguments[0].(string))
+		inputToken = StationizeBenfenCoinType(moveCall.TypeArguments[1].(string))
 	default:
 		return nil, nil
 	}

@@ -158,7 +158,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if owner == nil {
 			continue
 		}
-		if IsNativePrefixs(objectType) {
+		if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
 			continue
 		}
 		var toAddress string
@@ -232,7 +232,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			var fromAddress, toAddress, fromUid, toUid string
 			var fromAddressExist, toAddressExist bool
 
-			txType = amountChange.TxType
+			if amountChange.TxType != "" {
+				txType = amountChange.TxType
+			}
 			contractAddress = amountChange.TokenAddress
 			fromAddress = amountChange.FromAddress
 			toAddress = amountChange.ToAddress
@@ -601,11 +603,16 @@ func (h *txHandler) getTokenGasless(gasObjectType, gasUsed string) string {
 		return ""
 	}
 	tokenInfo.Amount = gasUsed
-	tokenGasless, _ := json.Marshal(map[string]interface{}{
-		"gasToken":          gasObjectType,
-		"chainPayTokenInfo": tokenInfo,
+	tokenGasless, _ := json.Marshal(ChainPayTokenGasless{
+		GasToken:  gasObjectType,
+		TokenInfo: tokenInfo,
 	})
 	return string(tokenGasless)
+}
+
+type ChainPayTokenGasless struct {
+	GasToken  string          `json:"gasToken"`
+	TokenInfo types.TokenInfo `json:"chainPayTokenInfo"`
 }
 
 func getFees(transactionInfo *stypes.TransactionInfo) (gasLimit, gasUsed string, feeAmount decimal.Decimal) {

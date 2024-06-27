@@ -9,6 +9,7 @@ import (
 	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -188,6 +189,34 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 			if fromUserAsset != nil {
 				userAssetMap[fromUserAssetKey] = fromUserAsset
 			}
+		}
+		var tokenGasless *ChainPayTokenGasless
+		if err := json.Unmarshal([]byte(record.TokenGasless), &tokenGasless); err == nil && tokenGasless.GasToken != "" {
+			log.Info("GOT TOKEN GASLESS ASSET CHANGE", zap.String("chainName", chainName), zap.Any("tokenGasless", tokenGasless))
+			tokenInfo := tokenGasless.TokenInfo
+			assetKey := chainName + record.FromAddress + tokenGasless.GasToken
+			if _, ok := userAssetMap[assetKey]; !ok {
+				// Token Gasless use transfer as the TransactionType instead.
+				fromUserAsset, err := doHandleUserAsset(chainName, client, biz.TRANSFER, record.FromUid, record.FromAddress, tokenGasless.GasToken, &tokenInfo, now)
+				for i := 0; i < 10 && err != nil; i++ {
+					time.Sleep(time.Duration(i*5) * time.Second)
+					fromUserAsset, err = doHandleUserAsset(chainName, client, biz.TRANSFER, record.FromUid, record.FromAddress, tokenGasless.GasToken, &tokenInfo, now)
+				}
+				if err != nil {
+					// 更新用户资产出错 接入lark报警
+					alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，查询用户资产失败", chainName)
+					alarmOpts := biz.WithMsgLevel("FATAL")
+					biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+					log.Error("更新用户资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("fromAddress", record.FromAddress), zap.Any("error", err))
+					return
+				}
+				log.Info("PARSED TOKEN GASLESS ASSET CHANGE", zap.String("chainName", chainName), zap.Any("tokenGasless", tokenGasless), zap.Any("asset", fromUserAsset))
+				if fromUserAsset != nil {
+					userAssetMap[assetKey] = fromUserAsset
+				}
+			}
+		} else {
+			log.Info("MISSED TOKEN GASLESS ASSET CHANGE", zap.String("chainName", chainName), zap.Error(err), zap.Any("tokenGasless", tokenGasless))
 		}
 	}
 

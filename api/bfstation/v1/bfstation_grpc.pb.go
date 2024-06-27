@@ -26,6 +26,7 @@ type BFStationClient interface {
 	CountPoolHolders(ctx context.Context, in *PoolHolderRequest, opts ...grpc.CallOption) (*CountResponse, error)
 	CountTokenHolders(ctx context.Context, in *TokenHolderRequest, opts ...grpc.CallOption) (*CountResponse, error)
 	PageListCollectFees(ctx context.Context, in *PageListFeesRequest, opts ...grpc.CallOption) (*PageListFeesResponse, error)
+	BenfenCountTokenHolders(ctx context.Context, in *BenfenTokenHolderRequest, opts ...grpc.CallOption) (*CountResponse, error)
 }
 
 type bFStationClient struct {
@@ -72,6 +73,15 @@ func (c *bFStationClient) PageListCollectFees(ctx context.Context, in *PageListF
 	return out, nil
 }
 
+func (c *bFStationClient) BenfenCountTokenHolders(ctx context.Context, in *BenfenTokenHolderRequest, opts ...grpc.CallOption) (*CountResponse, error) {
+	out := new(CountResponse)
+	err := c.cc.Invoke(ctx, "/api.bfstation.v1.BFStation/BenfenCountTokenHolders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BFStationServer is the server API for BFStation service.
 // All implementations must embed UnimplementedBFStationServer
 // for forward compatibility
@@ -80,6 +90,7 @@ type BFStationServer interface {
 	CountPoolHolders(context.Context, *PoolHolderRequest) (*CountResponse, error)
 	CountTokenHolders(context.Context, *TokenHolderRequest) (*CountResponse, error)
 	PageListCollectFees(context.Context, *PageListFeesRequest) (*PageListFeesResponse, error)
+	BenfenCountTokenHolders(context.Context, *BenfenTokenHolderRequest) (*CountResponse, error)
 	mustEmbedUnimplementedBFStationServer()
 }
 
@@ -98,6 +109,9 @@ func (UnimplementedBFStationServer) CountTokenHolders(context.Context, *TokenHol
 }
 func (UnimplementedBFStationServer) PageListCollectFees(context.Context, *PageListFeesRequest) (*PageListFeesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PageListCollectFees not implemented")
+}
+func (UnimplementedBFStationServer) BenfenCountTokenHolders(context.Context, *BenfenTokenHolderRequest) (*CountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BenfenCountTokenHolders not implemented")
 }
 func (UnimplementedBFStationServer) mustEmbedUnimplementedBFStationServer() {}
 
@@ -184,6 +198,24 @@ func _BFStation_PageListCollectFees_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BFStation_BenfenCountTokenHolders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BenfenTokenHolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BFStationServer).BenfenCountTokenHolders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.bfstation.v1.BFStation/BenfenCountTokenHolders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BFStationServer).BenfenCountTokenHolders(ctx, req.(*BenfenTokenHolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BFStation_ServiceDesc is the grpc.ServiceDesc for BFStation service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -206,6 +238,10 @@ var BFStation_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PageListCollectFees",
 			Handler:    _BFStation_PageListCollectFees_Handler,
+		},
+		{
+			MethodName: "BenfenCountTokenHolders",
+			Handler:    _BFStation_BenfenCountTokenHolders_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

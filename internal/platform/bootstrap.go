@@ -135,6 +135,13 @@ func (b *Bootstrap) Start() {
 			}
 		}
 	}()
+
+	if strings.HasPrefix(b.ChainName, "Benfen") && biz.IsBenfenStandalone() {
+		_, err := scheduling.Task.AddTask("*/5 * * * *", scheduling.NewBenfenPoolTask(b.ChainName))
+		if err != nil {
+			log.Error("FAILED TO START TASK", zap.Error(err))
+		}
+	}
 }
 
 func (b *Bootstrap) shouldStartIndexing() bool {
@@ -304,8 +311,6 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 		}
 	}()
 
-	innerquit := make(chan int)
-
 	//本地配置 链的爬取
 	log.Info("BOOTSTRAP CHAINS", zap.String("stage", "before"))
 	var wg sync.WaitGroup
@@ -322,41 +327,6 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 	}
 	wg.Wait()
 	log.Info("BOOTSTRAP CHAINS", zap.String("stage", "after"))
-
-	go func() {
-		platforms := InnerPlatforms
-		platformsLen := len(platforms)
-		for i := 0; i < platformsLen; i++ {
-			p := platforms[i]
-			if p == nil {
-				continue
-			}
-			go func(p biz.Platform) {
-				if btc, ok := p.(*bitcoin.Platform); ok {
-					log.Info("start inner main", zap.Any("platform", btc))
-					signal := make(chan bool)
-					go runGetPendingTransactionsByInnerNode(signal, btc)
-					signalGetPendingTransactionsByInnerNode(signal, btc)
-					liveInterval := p.Coin().LiveInterval
-					pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
-					for true {
-						select {
-						case <-pendingTransactions.C:
-							signalGetPendingTransactionsByInnerNode(signal, btc)
-						case <-innerquit:
-							close(signal) // close signal to make background goroutine to exit.
-							pendingTransactions.Stop()
-							return
-						}
-					}
-				}
-			}(p)
-		}
-	}()
-
-	for i := 0; i < 8; i++ {
-		go customChainRun(bs.customProvider, bs.mr)
-	}
 
 	//添加定时任务（每天23:55:00）执行
 	_, err := scheduling.Task.AddTask("55 23 * * *", scheduling.NewAssetEvmTask())
@@ -406,6 +376,47 @@ func (bs *serverImpl) Start(ctx context.Context) error {
 	//启动定时任务
 	scheduling.Task.Start()
 
+	if biz.IsBenfenStandalone() {
+		// Ignore custom chain
+		return nil
+	}
+
+	innerquit := make(chan int)
+
+	go func() {
+		platforms := InnerPlatforms
+		platformsLen := len(platforms)
+		for i := 0; i < platformsLen; i++ {
+			p := platforms[i]
+			if p == nil {
+				continue
+			}
+			go func(p biz.Platform) {
+				if btc, ok := p.(*bitcoin.Platform); ok {
+					log.Info("start inner main", zap.Any("platform", btc))
+					signal := make(chan bool)
+					go runGetPendingTransactionsByInnerNode(signal, btc)
+					signalGetPendingTransactionsByInnerNode(signal, btc)
+					liveInterval := p.Coin().LiveInterval
+					pendingTransactions := time.NewTicker(time.Duration(liveInterval) * time.Millisecond)
+					for true {
+						select {
+						case <-pendingTransactions.C:
+							signalGetPendingTransactionsByInnerNode(signal, btc)
+						case <-innerquit:
+							close(signal) // close signal to make background goroutine to exit.
+							pendingTransactions.Stop()
+							return
+						}
+					}
+				}
+			}(p)
+		}
+	}()
+
+	for i := 0; i < 8; i++ {
+		go customChainRun(bs.customProvider, bs.mr)
+	}
 	return nil
 }
 

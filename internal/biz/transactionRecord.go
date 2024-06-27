@@ -24,8 +24,8 @@ type TransactionRecord struct {
 	OriginalHash         string          `json:"originalHash" form:"originalHash" gorm:"type:character varying(80);default:null;index"`
 	FromAddress          string          `json:"fromAddress" form:"fromAddress" gorm:"type:character varying(42);index"`
 	ToAddress            string          `json:"toAddress" form:"toAddress" gorm:"type:character varying(46);index"`
-	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(36);index"`
-	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(36);index"`
+	FromUid              string          `json:"fromUid" form:"fromUid" gorm:"type:character varying(88);index"`
+	ToUid                string          `json:"toUid" form:"toUid" gorm:"type:character varying(88);index"`
 	FeeAmount            decimal.Decimal `json:"feeAmount" form:"feeAmount" sql:"type:decimal(128,0);"`
 	Amount               decimal.Decimal `json:"amount" form:"amount" sql:"type:decimal(128,0);"`
 	Status               string          `json:"status" form:"status" gorm:"type:character varying(20);index"`

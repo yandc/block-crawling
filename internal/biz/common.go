@@ -713,6 +713,11 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 		return false, "", nil
 	}
 
+	// Benfen 独立部署使用地址作为用户 ID
+	if IsBenfenStandalone() && IsBenfenNet(chainName) {
+		return true, address, nil
+	}
+
 	enable, uid, err := UserAddressSwitchNew(address)
 	/*if err != nil || !enable {
 		enable, uid, err = UserAddressSwitch(address)
@@ -1942,4 +1947,37 @@ func (c *CosmosClient) getResponse(target *url.URL, decTarget interface{}) (err 
 
 func IsDeFiTxType(txType string) bool {
 	return txType == ADDLIQUIDITY || txType == CONTRACT || txType == SWAP || txType == MINT
+}
+
+func StationizeBenfenCoinType(src string) string {
+	if len(src) == 0 {
+		return src
+	}
+	if strings.HasPrefix(src, "0x") {
+		src = src[2:]
+	}
+	parts := strings.Split(src, "::")
+	addr := parts[0]
+	nPrefixZero := 64 - len(addr)
+	parts[0] = strings.Repeat("0", nPrefixZero) + addr
+	return strings.Join(parts, "::")
+}
+
+func NormalizeBenfenCoinType(chainName, src string) string {
+	if utils.IsBenfenChain(chainName) && len(src) > 0 {
+		src = StationizeBenfenCoinType(src)
+		parts := strings.Split(src, "::")
+		parts[0] = utils.EVMAddressToBFC(chainName, parts[0])
+		return strings.Join(parts, "::")
+	}
+	return src
+}
+
+func DenormalizeBenfenCoinType(chainName, src string) string {
+	if utils.IsBenfenChain(chainName) && strings.HasPrefix(src, "BFC") {
+		parts := strings.Split(src, "::")
+		parts[0] = "0x" + strings.TrimLeft(parts[0][3:len(parts[0])-4], "0")
+		return strings.Join(parts, "::")
+	}
+	return src
 }

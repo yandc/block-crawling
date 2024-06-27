@@ -122,3 +122,7 @@ func NewConfig(conf *conf.App, bootstrap *conf.Bootstrap) AppConf {
 	}
 	return conf
 }
+
+func IsBenfenStandalone() bool {
+	return strings.ToLower(AppConfig.Mode) == strings.ToLower("BenfenStandalone")
+}

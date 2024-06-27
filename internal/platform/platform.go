@@ -40,17 +40,22 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 	}
 	confInnerPublicNodeList := bc.InnerPublicNodeList
 	testConfig := bc.PlatformTest
+
 	if appConfig.Mode != "" {
-		if strings.ToLower(appConfig.Mode) == "debug" {
-			for key, platInfo := range testConfig {
-				c[key] = platInfo
+		enabledTestChains := make(map[string]bool)
+		for _, chain := range strings.Split(appConfig.Mode, ",") {
+			enabledTestChains[strings.TrimSpace(chain)] = true
+		}
+
+		for chainName, platInfo := range testConfig {
+			if _, ok := enabledTestChains[chainName]; ok {
+				c[chainName] = platInfo
 			}
-		} else {
-			modes := strings.Split(appConfig.Mode, ",")
-			for _, chainName := range modes {
-				if platInfo := testConfig[chainName]; platInfo != nil {
-					c[chainName] = platInfo
-				}
+			if strings.ToLower(appConfig.Mode) == "debug" {
+				c[chainName] = platInfo
+			}
+			if biz.IsBenfenStandalone() && biz.IsBenfenNet(chainName) {
+				c[chainName] = platInfo
 			}
 		}
 	}
@@ -67,7 +72,10 @@ func NewPlatform(bc *conf.Bootstrap, bundle *data.Bundle, appConfig biz.AppConf,
 
 	bs := newServer(provider, mr)
 
-	for _, value := range c {
+	for chainName, value := range c {
+		if biz.IsBenfenStandalone() && !biz.IsBenfenNet(chainName) {
+			continue
+		}
 		platform := GetPlatform(value)
 		bt := NewBootstrap(platform, value, db, mr)
 		bs.inner[value.Chain] = bt
