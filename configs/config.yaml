@@ -66,7 +66,13 @@ app:
       benfenPairs:
         name: benfen_pair_info
         id: queue-DJtXNyPTJtkQ8WuyauuByp
-    endpoint: http://10.10.2.77:6371/api/cmq/send_queue_message
+    topic:
+      benfenCharge:
+        name: benfen_charge_onchain_result
+        id: topic-PYecESX5rsgyqs7GSPpe8m
+    endpoint:
+      queuesURL: http://10.10.2.77:6371/api/cmq/send_queue_message
+      benfenTopicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
 
   httpProxies:
     # https://gitlab.bixin.com/mili/block-crawling/-/issues/2

@@ -84,6 +84,7 @@ type SuiTransactionRecordRepo interface {
 	FindByTxHash(context.Context, string, string) (*SuiTransactionRecord, error)
 	SelectColumnByTxHash(context.Context, string, string, []string) (*SuiTransactionRecord, error)
 	ListIncompleteNft(context.Context, string, *TransactionRequest) ([]*SuiTransactionRecord, error)
+	FindListByTxHash(context.Context, string, string) ([]*SuiTransactionRecord, error)
 }
 
 type SuiTransactionRecordRepoImpl struct {
@@ -696,6 +697,17 @@ func (r *SuiTransactionRecordRepoImpl) FindByTxHash(ctx context.Context, tableNa
 	} else {
 		return nil, nil
 	}
+}
+
+func (r *SuiTransactionRecordRepoImpl) FindListByTxHash(ctx context.Context, tableName string, txHash string) ([]*SuiTransactionRecord, error) {
+	var suiTransactionRecord []*SuiTransactionRecord
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("transaction_hash like ?", txHash+"%").Find(&suiTransactionRecord)
+	err := ret.Error
+	if err != nil {
+		log.Errore("query suiTransactionRecord by txHash failed", err)
+		return nil, err
+	}
+	return suiTransactionRecord,nil
 }
 
 func (r *SuiTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*SuiTransactionRecord, error) {
