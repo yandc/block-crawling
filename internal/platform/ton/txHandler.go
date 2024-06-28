@@ -189,6 +189,14 @@ func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TX
 	return nil
 }
 
+func (h *txHandler) isIntermediateAct(act tonclient.TonAPIAction) bool {
+	// 分发返点
+	if act.Type == "JettonTransfer" && act.JettonTransfer.Comment == "Call: StonfiSwapOkRef" {
+		return true
+	}
+	return false
+}
+
 func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, suffixer *txHashSuffixer) (records []*data.TonTransactionRecord, err error) {
 	var mainRecord *data.TonTransactionRecord
 	var eventLogs []*itypes.EventLogUid
@@ -205,6 +213,9 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 
 	status := biz.SUCCESS
 	for _, act := range event.Actions {
+		if h.isIntermediateAct(act) {
+			continue
+		}
 		if act.Status == "failed" {
 			status = biz.FAIL
 		}
@@ -212,6 +223,10 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 
 	matchedNum := 0
 	for _, act := range event.Actions {
+		if h.isIntermediateAct(act) {
+			continue
+		}
+
 		if act.Type == "SmartContractExec" {
 			val := act.SmartContractExec
 			if unifyAddressToHuman(val.Executor.Address) == unifyAddressToHuman(tx.Account) {
@@ -320,6 +335,14 @@ func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, 
 						CreatedAt:       time.Now().Unix(),
 						UpdatedAt:       time.Now().Unix(),
 					}
+				}
+			} else { // mainRecord != nill
+				if act.Type == "JettonSwap" {
+					val := act.JettonSwap
+					mainRecord.ToAddress = unifyAddressToHuman(val.Router.Address)
+				} else if act.Type == "NftPurchase" {
+					val := act.NftPurchase
+					mainRecord.ToAddress = unifyAddressToHuman(val.Seller.Address)
 				}
 			}
 
