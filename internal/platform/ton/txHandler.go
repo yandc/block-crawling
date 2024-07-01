@@ -96,7 +96,7 @@ func (h *txHandler) handleTx(c chain.Clienter, tx *tontypes.TX) error {
 
 	// 处理交易产生的结果。
 	for _, msg := range tx.OutMsgs {
-		if err := h.handleMsg(c, tx, msg, suffixer); err != nil {
+		if err := h.handleMsg(c, tx, msg, suffixer, len(event.Actions)); err != nil {
 			return err
 		}
 	}
@@ -128,7 +128,7 @@ func (h *txHandler) matchAnyUsers(tx *tontypes.TX) (bool, error) {
 // For an incoming wallet transaction, the correct data consists of one incoming message and zero outgoing messages.
 // Otherwise, either an external message is sent to the wallet, in which case the owner spends Toncoin,
 // or the wallet is not deployed and the incoming transaction bounces back.
-func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TXMsg, suffixer *txHashSuffixer) (err error) {
+func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TXMsg, suffixer *txHashSuffixer, nActions int) (err error) {
 	fromAddress := unifyAddressToHuman(*msg.Source)
 	toAddress := unifyAddressToHuman(msg.Destination)
 	matchedFrom, fromUid, err := biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
@@ -149,7 +149,10 @@ func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TX
 		amount, _ = decimal.NewFromString(*msg.Value)
 	}
 	status := biz.SUCCESS
-	if msg.Bounced || tx.Description.Aborted {
+
+	// 浏览器显示交易成功，但是没有产生实际的交易作用（余额未变动），此时事件中的 actions 为空，
+	// 判定此类交易未失败的交易。
+	if msg.Bounced || tx.Description.Aborted || nActions == 0 {
 		status = biz.FAIL
 	}
 	txType := biz.NATIVE
