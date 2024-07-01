@@ -94,9 +94,15 @@ func (h *txHandler) handleTx(c chain.Clienter, tx *tontypes.TX) error {
 		return nil
 	}
 
-	// 处理交易产生的结果。
-	for _, msg := range tx.OutMsgs {
-		if err := h.handleMsg(c, tx, msg, suffixer, len(event.Actions)); err != nil {
+	if len(tx.OutMsgs) > 0 {
+		// 处理交易产生的结果。
+		for _, msg := range tx.OutMsgs {
+			if err := h.handleMsg(c, tx, msg, suffixer, len(event.Actions)); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := h.handleMsg(c, tx, tx.InMsg, suffixer, len(event.Actions)); err != nil {
 			return err
 		}
 	}
@@ -104,9 +110,17 @@ func (h *txHandler) handleTx(c chain.Clienter, tx *tontypes.TX) error {
 }
 
 func (h *txHandler) matchAnyUsers(tx *tontypes.TX) (bool, error) {
+	acount := unifyAddressToHuman(tx.Account)
+	matchedAccount, _, err := biz.UserAddressSwitchRetryAlert(h.chainName, acount)
+	if err != nil {
+		return false, nil
+	}
+	if matchedAccount {
+		return true, nil
+	}
+
 	for _, msg := range tx.OutMsgs {
 		fromAddress := unifyAddressToHuman(*msg.Source)
-		toAddress := unifyAddressToHuman(msg.Destination)
 		matchedFrom, _, err := biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 		if err != nil {
 			return false, nil
@@ -114,6 +128,7 @@ func (h *txHandler) matchAnyUsers(tx *tontypes.TX) (bool, error) {
 		if matchedFrom {
 			return true, nil
 		}
+		toAddress := unifyAddressToHuman(msg.Destination)
 		matchedTo, _, err := biz.UserAddressSwitchRetryAlert(h.chainName, toAddress)
 		if err != nil {
 			return false, nil
@@ -129,7 +144,12 @@ func (h *txHandler) matchAnyUsers(tx *tontypes.TX) (bool, error) {
 // Otherwise, either an external message is sent to the wallet, in which case the owner spends Toncoin,
 // or the wallet is not deployed and the incoming transaction bounces back.
 func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TXMsg, suffixer *txHashSuffixer, nActions int) (err error) {
-	fromAddress := unifyAddressToHuman(*msg.Source)
+	var fromAddress string
+	if msg.Source != nil {
+		fromAddress = unifyAddressToHuman(*msg.Source)
+	} else {
+		fromAddress = unifyAddressToHuman(tx.Account)
+	}
 	toAddress := unifyAddressToHuman(msg.Destination)
 	matchedFrom, fromUid, err := biz.UserAddressSwitchRetryAlert(h.chainName, fromAddress)
 	if err != nil {
