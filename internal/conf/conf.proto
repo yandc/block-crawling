@@ -87,7 +87,10 @@ message CMQ {
 message EndPoint {
   string queuesURL = 1;
   string benfenTopicURL = 2;
+  string topicURL = 3;
+
 }
+
 
 message CMQueues {
 	CMQueue swapPairs = 1;
@@ -101,6 +104,10 @@ message CMQueue {
 
 message CMTopics {
   CMTopic benfenCharge = 1;
+  CMTopic payCardCharge = 2;
+  CMTopic payCardAssem = 3;
+  CMTopic payCardTrans = 4;
+  CMTopic payCardRefund = 5;
 }
 
 
@@ -108,7 +115,6 @@ message CMTopic {
   string name = 1;
   string id = 2;
 }
-
 
 message AddressServer {
   string serverUrl = 1;

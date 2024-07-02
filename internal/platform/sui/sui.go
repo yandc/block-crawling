@@ -5,6 +5,7 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/utils"
 	"fmt"
 	"strings"
 	"time"
@@ -24,6 +25,11 @@ const (
 	BFC_CODE  = "0x2::bfc::BFC"
 	BFC_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
 	BFC_CODE2 = "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
+	PAY_CHAINGE_CATEGORY = 1
+	PAY_REFUND_CATEGORY = 11
+	PAY_ASSEM_CATEGORY = 2
+	PAY_TRANS_CATEGORY = 3
+
 )
 
 func IsNative(coinType string) bool {
@@ -135,4 +141,41 @@ func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string)
 	}
 	go biz.SyncStatus(ssr)
 	return nil
+}
+
+type pushSUIPayCardResq struct {
+	*data.SuiTransactionRecord
+	Chain string `json:"chain"`
+}
+//PushSUIPayCardCMQ
+/**
+category=1
+在to  推到主题  obcard_charge_onchain_result  topic-bZv2d5DoSmRo3YDHToGjTG
+在from  推到主题  obcard_refund_onchain_result  topic-9nHdeiiRvSck7afzCkBDTr
+category=2
+在to 推到主题  obcard_assem_onchain_result   topic-UwQWsxsWuq8dzNGdDZGGns
+category=3
+在from 推到主题 obpay_trans_onchain_result    topic-DfBim9dBKXRqEHLpqAFhcf
+ */
+func PushSUIPayCardCMQ(category int,chainName string, data *data.SuiTransactionRecord) {
+	topicId := getPayCardTopicId(category)
+	if data != nil && topicId != ""{
+		resq := pushSUIPayCardResq{data,chainName}
+		rawMsg, _ := utils.JsonEncode(resq)
+		biz.PushTopicCMQ(chainName, topicId, rawMsg,biz.AppConfig.Cmq.Endpoint.TopicURL)
+	}
+}
+
+func getPayCardTopicId(category int) string {
+	switch category {
+	case PAY_CHAINGE_CATEGORY:
+		return biz.AppConfig.Cmq.Topic.PayCardCharge.Id
+	case PAY_ASSEM_CATEGORY:
+		return biz.AppConfig.Cmq.Topic.PayCardAssem.Id
+	case PAY_TRANS_CATEGORY:
+		return biz.AppConfig.Cmq.Topic.PayCardTrans.Id
+	case PAY_REFUND_CATEGORY:   //from category = 1
+		return biz.AppConfig.Cmq.Topic.PayCardRefund.Id
+	}
+	return ""
 }

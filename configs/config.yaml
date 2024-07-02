@@ -70,9 +70,23 @@ app:
       benfenCharge:
         name: benfen_charge_onchain_result
         id: topic-PYecESX5rsgyqs7GSPpe8m
+      payCardCharge:
+        name: obcard_charge_onchain_result
+        id: topic-bZv2d5DoSmRo3YDHToGjTG
+      payCardAssem:
+        name: obcard_assem_onchain_result
+        id: topic-UwQWsxsWuq8dzNGdDZGGns
+      payCardTrans:
+        name: obpay_trans_onchain_result
+        id:  topic-DfBim9dBKXRqEHLpqAFhcf
+      payCardRefund:
+        name: obcard_refund_onchain_result
+        id: topic-9nHdeiiRvSck7afzCkBDTr
     endpoint:
       queuesURL: http://10.10.2.77:6371/api/cmq/send_queue_message
       benfenTopicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
+      topicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
+
 
   httpProxies:
     # https://gitlab.bixin.com/mili/block-crawling/-/issues/2

@@ -232,6 +232,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			var amount, contractAddress string
 			var fromAddress, toAddress, fromUid, toUid string
 			var fromAddressExist, toAddressExist bool
+			var fromCategory, toCategory int
 
 			if amountChange.TxType != "" {
 				txType = amountChange.TxType
@@ -246,6 +247,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
+				fromCategory, _ = biz.GetCategory(fromAddress)
 			}
 
 			if toAddress != "" {
@@ -254,6 +256,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 					return
 				}
+				toCategory, _ = biz.GetCategory(toAddress)
+				//if category, _ := biz.GetCategory(toAddress); category == 1 {
+				//	addressPayCardExist = true
+				//}
+
 			}
 			if !fromAddressExist && !toAddressExist && !biz.IsBenfenNet(h.chainName){
 				continue
@@ -319,6 +326,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				UpdatedAt:       h.now,
 			}
 			h.txRecords = append(h.txRecords, suiTransactionRecord)
+			if fromCategory == PAY_TRANS_CATEGORY || fromCategory == PAY_CHAINGE_CATEGORY {
+				if fromCategory == PAY_CHAINGE_CATEGORY {
+					fromCategory = PAY_REFUND_CATEGORY
+				}
+				go PushSUIPayCardCMQ(fromCategory, h.chainName, suiTransactionRecord)
+			}
+			if toCategory == PAY_CHAINGE_CATEGORY || toCategory == PAY_ASSEM_CATEGORY {
+				go PushSUIPayCardCMQ(toCategory, h.chainName, suiTransactionRecord)
+			}
 		}
 	} else {
 		var payload string
@@ -330,7 +346,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		var amount, contractAddress string
 		var fromAddress, toAddress, fromUid, toUid string
 		var fromAddressExist, toAddressExist bool
-
+		var fromCategory, toCategory int
 		fromAddress = tx.Data.Sender
 
 		if fromAddress != "" {
@@ -339,6 +355,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
+			fromCategory, _ = biz.GetCategory(fromAddress)
 		}
 
 		if toAddress != "" {
@@ -347,6 +364,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Error("扫块，从redis中获取用户地址失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", transactionHash), zap.Any("error", err))
 				return
 			}
+			toCategory, _ = biz.GetCategory(toAddress)
+			//if category, _ := biz.GetCategory(toAddress); category == 1 {
+			//	addressPayCardExist = true
+			//}
 		}
 		if fromAddress == toAddress {
 			return
@@ -510,9 +531,19 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			eventLogs = eventLogList
 		}
-
 		if fromAddressExist || toAddressExist || biz.IsBenfenNet(h.chainName)|| len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, suiContractRecord)
+		}
+
+		if fromCategory == PAY_TRANS_CATEGORY || fromCategory == PAY_CHAINGE_CATEGORY {
+			if fromCategory == PAY_CHAINGE_CATEGORY {
+				fromCategory = PAY_REFUND_CATEGORY
+			}
+			go PushSUIPayCardCMQ(fromCategory, h.chainName, suiContractRecord)
+		}
+
+		if toCategory == PAY_CHAINGE_CATEGORY || toCategory == PAY_ASSEM_CATEGORY {
+			go PushSUIPayCardCMQ(toCategory, h.chainName, suiContractRecord)
 		}
 
 		if eventLogs != nil {
