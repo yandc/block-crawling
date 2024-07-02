@@ -127,7 +127,7 @@ func (r *tonTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 // FindByStatus implements TonTransactionRecordRepo
 func (r *tonTransactionRecordRepoImpl) FindByStatus(ctx context.Context, tableName string, statuses []string) ([]*TonTransactionRecord, error) {
 	var tonTransactionRecordList []*TonTransactionRecord
-	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in (?)", statuses).Find(&tonTransactionRecordList)
+	ret := r.gormDB.WithContext(ctx).Table(tableName).Where("status in (?)", statuses).Limit(10).Find(&tonTransactionRecordList)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query "+tableName+" failed", err)
