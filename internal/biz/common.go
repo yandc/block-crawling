@@ -756,8 +756,9 @@ func UserAddressSwitch(address string) (bool, string, error) {
 //var UserInfoMap = &sync.Map{}
 
 type UserInfo struct {
-	Uid     string `json:"uid"`
-	UidType string `json:"uid_type"`
+	Uid      string `json:"uid"`
+	UidType  string `json:"uid_type"`
+	Category int    `json:"category"`   //1:benfen链需要发送消息到cmq
 }
 
 func GetUserInfo(address string) (*UserInfo, error) {
@@ -823,6 +824,22 @@ func GetUidType(address string) (string, error) {
 	}
 	return uidType, nil
 }
+
+func GetCategory(address string)(int,error){
+	category := -1
+	if address == "" {
+		return category, nil
+	}
+	userInfo, err := GetUserInfo(address)
+	if err != nil && err != redis.Nil {
+		return category, err
+	}
+	if userInfo != nil {
+		category = userInfo.Category
+	}
+	return category, nil
+}
+
 func ChainTypeAdd(chainName string) map[string]string {
 	chainType, _ := GetChainNameType(chainName)
 	if chainType == "" && strings.Contains(chainName, "evm") {
