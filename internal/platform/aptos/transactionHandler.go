@@ -331,15 +331,17 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 								balance := balancei.(string)
 								balance = utils.StringDecimals(balance, int(decimals))
 								var userAsset = &data.UserAsset{
-									ChainName:    chainName,
-									Uid:          record.FromUid,
-									Address:      record.FromAddress,
-									TokenAddress: tokenAddress,
-									Balance:      balance,
-									Decimals:     int32(decimals),
-									Symbol:       symbol,
-									CreatedAt:    now,
-									UpdatedAt:    now,
+									ChainName:     chainName,
+									Uid:           record.FromUid,
+									Address:       record.FromAddress,
+									TokenAddress:  tokenAddress,
+									Balance:       balance,
+									Decimals:      int32(decimals),
+									Symbol:        symbol,
+									IsSyncToChain: true,
+									SyncToChainTs: now,
+									CreatedAt:     now,
+									UpdatedAt:     now,
 								}
 								userAssetKey := chainName + record.FromAddress + tokenAddress
 								userAssetMap[userAssetKey] = userAsset
@@ -354,15 +356,17 @@ func HandleUserAsset(isPending bool, chainName string, client Client, txRecords 
 								balance := balancei.(string)
 								balance = utils.StringDecimals(balance, int(decimals))
 								var userAsset = &data.UserAsset{
-									ChainName:    chainName,
-									Uid:          record.ToUid,
-									Address:      record.ToAddress,
-									TokenAddress: tokenAddress,
-									Balance:      balance,
-									Decimals:     int32(decimals),
-									Symbol:       symbol,
-									CreatedAt:    now,
-									UpdatedAt:    now,
+									ChainName:     chainName,
+									Uid:           record.ToUid,
+									Address:       record.ToAddress,
+									TokenAddress:  tokenAddress,
+									Balance:       balance,
+									Decimals:      int32(decimals),
+									Symbol:        symbol,
+									IsSyncToChain: true,
+									SyncToChainTs: now,
+									CreatedAt:     now,
+									UpdatedAt:     now,
 								}
 								userAssetKey := chainName + record.ToAddress + tokenAddress
 								userAssetMap[userAssetKey] = userAsset
@@ -490,16 +494,18 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
-		ChainName:    chainName,
-		Uid:          uid,
-		Address:      address,
-		TokenAddress: tokenAddress,
-		TokenUri:     tokenInfo.TokenUri,
-		Balance:      balance,
-		Decimals:     int32(tokenInfo.Decimals),
-		Symbol:       tokenInfo.Symbol,
-		CreatedAt:    nowTime,
-		UpdatedAt:    nowTime,
+		ChainName:     chainName,
+		Uid:           uid,
+		Address:       address,
+		TokenAddress:  tokenAddress,
+		TokenUri:      tokenInfo.TokenUri,
+		Balance:       balance,
+		Decimals:      int32(tokenInfo.Decimals),
+		Symbol:        tokenInfo.Symbol,
+		IsSyncToChain: true,
+		SyncToChainTs: nowTime,
+		CreatedAt:     nowTime,
+		UpdatedAt:     nowTime,
 	}
 	return userAsset, nil
 }

@@ -5158,6 +5158,8 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 
 	diffBet := false
 	absentNfts := make([]string, 0, 2)
+	insyncAssets := make([]int64, 0, 2)
+	syncToChainAssets := make([]int64, 0, 2)
 	for _, newItem := range uniqAssets {
 		tokenAddress := newItem.TokenAddress
 		if req.Address == "0x0000000000000000000000000000000000000000" || req.Address == tokenAddress {
@@ -5177,6 +5179,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 				absentNfts = append(absentNfts, newItem.TokenAddress)
 			}
 			diffBet = true
+			insyncAssets = append(insyncAssets, oldItem.Id)
 			continue
 		}
 
@@ -5187,7 +5190,20 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			if newItem.Balance == "1" && newItem.Decimals == 0 {
 				absentNfts = append(absentNfts, newItem.TokenAddress)
 			}
+			insyncAssets = append(insyncAssets, oldItem.Id)
 			diffBet = true
+		} else {
+			syncToChainAssets = append(syncToChainAssets, oldItem.Id)
+		}
+	}
+	if len(insyncAssets) > 0 {
+		if err := data.UserAssetRepoClient.SetSyncToChain(ctx, insyncAssets, false); err != nil {
+			log.Info("MARKING ASSETS INSYNC FAILED", zap.String("chainName", req.ChainName), zap.String("address", req.Address), zap.Any("ids", insyncAssets))
+		}
+	}
+	if len(syncToChainAssets) > 0 {
+		if err := data.UserAssetRepoClient.SetSyncToChain(ctx, syncToChainAssets, true); err != nil {
+			log.Info("MARKING ASSETS SYNC FAILED", zap.String("chainName", req.ChainName), zap.String("address", req.Address), zap.Any("ids", syncToChainAssets))
 		}
 	}
 	if diffBet {
@@ -5267,7 +5283,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 		userSendRawHistory.UserAgent = device.UserAgent
 	}
 	//chaindataSendTx:chaindata发送交易失败；txHash:校验上链Hash
-	if req.ErrMsg != "" && req.Stage != "chaindataSendTx" && req.Stage != "txHash"{
+	if req.ErrMsg != "" && req.Stage != "chaindataSendTx" && req.Stage != "txHash" {
 		NotifyBroadcastTxFailed(ctx, req)
 	}
 	usrhs = append(usrhs, userSendRawHistory)
@@ -6006,7 +6022,6 @@ func handleNativeTokenEvent(chainName string, record *pb.TransactionRecord) {
 	}
 }
 
-
 func (s *TransactionUsecase) GetGasCoefficientByChainName(ctx context.Context, req *GasCoefficientReq) (*GasCoefficientResp, error) {
 	gasCoefficient := GetGasCoefficient(req.ChainName)
 	return &GasCoefficientResp{
@@ -6014,12 +6029,12 @@ func (s *TransactionUsecase) GetGasCoefficientByChainName(ctx context.Context, r
 	}, nil
 }
 func (s *TransactionUsecase) WriteRedis(ctx context.Context, req *WriteRedisReq) (bool, error) {
-	log.Info("WriteRedis:",zap.Any("type",req.WriteType))
+	log.Info("WriteRedis:", zap.Any("type", req.WriteType))
 	return WriteRedisByType(req)
 }
 
 func (s *TransactionUsecase) CreateRecordFromRecharge(ctx context.Context, req *CreateRecordFromRechargeReq) (*pb.CreateResponse, error) {
 	//处理订单和源交易的映射
-	go HandleRechargeOrderId(req.OrderId, req.TransactionHash, PENDING,req.ChainName,req.TxTime,decimal.NewFromInt(0))
+	go HandleRechargeOrderId(req.OrderId, req.TransactionHash, PENDING, req.ChainName, req.TxTime, decimal.NewFromInt(0))
 	return s.CreateRecordFromWallet(ctx, req.TransactionReq)
 }

@@ -441,6 +441,8 @@ message AssetResponse {
   string price = 13;
   int32 addressType = 14;//钱包类型: 1:PERSON(个人钱包), 2:COMPANY(企业钱包), 3:COADMIN(共管钱包)
   string tokenUri = 15;
+  bool isSyncToChain = 16;
+  int64 syncToChainTs = 17;
 }
 
 message AssetRequest {

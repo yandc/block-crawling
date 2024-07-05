@@ -140,6 +140,8 @@ func handleUserAsset(chainName string, userAssetList []*data.UserAsset, addresse
 		userAsset.Balance = utils.StringDecimals(userAsset.Balance, int(decimals))
 		userAsset.CreatedAt = now
 		userAsset.UpdatedAt = now
+		userAsset.IsSyncToChain = true
+		userAsset.SyncToChainTs = now
 		oldUserAsset, ok := userAssetMap[userAssetKey]
 		if ok {
 			userAssetBalance, _ := decimal.NewFromString(userAsset.Balance)

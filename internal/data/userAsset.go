@@ -16,19 +16,21 @@ import (
 
 // UserAsset is a UserAsset model.
 type UserAsset struct {
-	Id           int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
-	ChainName    string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
-	Uid          string `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
-	Address      string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address"`
-	TokenAddress string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
-	TokenUri     string `json:"tokenUri" form:"tokenUri" gorm:"type:character varying(256)"`
-	Balance      string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
-	Decimals     int32  `json:"decimals" form:"decimals"`
-	Symbol       string `json:"symbol" form:"symbol" gorm:"type:character varying(128);index"`
-	CostPrice    string `json:"costPrice" form:"costPrice" gorm:"type:character varying(40);index;default:'0'"` //成本价
-	UidType      int8   `json:"uidType" form:"uidType"`
-	CreatedAt    int64  `json:"createdAt" form:"createdAt"`
-	UpdatedAt    int64  `json:"updatedAt" form:"updatedAt"`
+	Id            int64  `json:"id" form:"id" gorm:"primary_key;AUTO_INCREMENT"`
+	ChainName     string `json:"chainName" form:"chainName" gorm:"type:character varying(20);index:,unique,composite:unique_chain_name_address_token_address"`
+	Uid           string `json:"uid" form:"uid" gorm:"type:character varying(88);index"`
+	Address       string `json:"address" form:"address" gorm:"type:character varying(512);index:,unique,composite:unique_chain_name_address_token_address"`
+	TokenAddress  string `json:"tokenAddress" form:"tokenAddress" gorm:"type:character varying(1024);index:,unique,composite:unique_chain_name_address_token_address"`
+	TokenUri      string `json:"tokenUri" form:"tokenUri" gorm:"type:character varying(256)"`
+	Balance       string `json:"balance" form:"balance" gorm:"type:character varying(256);"`
+	Decimals      int32  `json:"decimals" form:"decimals"`
+	Symbol        string `json:"symbol" form:"symbol" gorm:"type:character varying(128);index"`
+	CostPrice     string `json:"costPrice" form:"costPrice" gorm:"type:character varying(40);index;default:'0'"` //成本价
+	UidType       int8   `json:"uidType" form:"uidType"`
+	IsSyncToChain bool   `json:"isSyncToChain" form:"isSyncToChain"`
+	SyncToChainTs int64  `json:"syncToChainTs" form:"syncToChainTs"`
+	CreatedAt     int64  `json:"createdAt" form:"createdAt"`
+	UpdatedAt     int64  `json:"updatedAt" form:"updatedAt"`
 }
 
 type AssetRequest struct {
@@ -106,10 +108,17 @@ type UserAssetRepo interface {
 	Delete(context.Context, *AssetRequest) (int64, error)
 	ListByChainNames(context.Context, []string) ([]*UserAsset, error)
 	CountTokenHolders(ctx context.Context, chainName string, tokenAddress string) (int64, error)
+	SetSyncToChain(ctx context.Context, ids []int64, sync bool) error
 }
 
 type UserAssetRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// SetInsyncToChain implements UserAssetRepo
+func (r *UserAssetRepoImpl) SetSyncToChain(ctx context.Context, ids []int64, sync bool) error {
+	ret := r.gormDB.WithContext(ctx).Model(&UserAsset{}).Where("id in (?)", ids).Update("is_sync_to_chain", sync)
+	return ret.Error
 }
 
 // CountTokenHolders implements UserAssetRepo
@@ -185,7 +194,7 @@ func (r *UserAssetRepoImpl) BatchSaveOrUpdate(ctx context.Context, userAssets []
 	ret := r.gormDB.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chain_name"}, {Name: "address"}, {Name: "token_address"}},
 		UpdateAll: false,
-		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "token_uri", "updated_at", "cost_price"}),
+		DoUpdates: clause.AssignmentColumns([]string{"decimals", "symbol", "balance", "token_uri", "updated_at", "cost_price", "is_sync_to_chain", "sync_to_chain_ts"}),
 	}).Create(&userAssets)
 	err := ret.Error
 	if err != nil {

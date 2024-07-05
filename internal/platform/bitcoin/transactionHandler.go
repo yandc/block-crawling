@@ -9,10 +9,11 @@ import (
 	"block-crawling/internal/utils"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"golang.org/x/exp/slices"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"golang.org/x/exp/slices"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
@@ -421,14 +422,16 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
-		ChainName: chainName,
-		Uid:       uid,
-		Address:   address,
-		Balance:   balance,
-		Decimals:  decimals,
-		Symbol:    symbol,
-		CreatedAt: nowTime,
-		UpdatedAt: nowTime,
+		ChainName:     chainName,
+		Uid:           uid,
+		Address:       address,
+		Balance:       balance,
+		Decimals:      decimals,
+		Symbol:        symbol,
+		IsSyncToChain: true,
+		SyncToChainTs: nowTime,
+		CreatedAt:     nowTime,
+		UpdatedAt:     nowTime,
 	}
 	return userAsset, nil
 }
