@@ -422,16 +422,18 @@ func doHandleUserAsset(chainName string, client Client, transactionType string, 
 	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
-		ChainName:    realChainName,
-		Uid:          uid,
-		Address:      address,
-		TokenAddress: tokenAddress,
-		TokenUri:     tokenInfo.TokenUri,
-		Balance:      balance,
-		Decimals:     int32(tokenInfo.Decimals),
-		Symbol:       tokenInfo.Symbol,
-		CreatedAt:    nowTime,
-		UpdatedAt:    nowTime,
+		ChainName:     realChainName,
+		Uid:           uid,
+		Address:       address,
+		TokenAddress:  tokenAddress,
+		TokenUri:      tokenInfo.TokenUri,
+		Balance:       balance,
+		Decimals:      int32(tokenInfo.Decimals),
+		Symbol:        tokenInfo.Symbol,
+		IsSyncToChain: true,
+		SyncToChainTs: nowTime,
+		CreatedAt:     nowTime,
+		UpdatedAt:     nowTime,
 	}
 	return userAsset, nil
 }

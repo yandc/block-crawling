@@ -378,15 +378,17 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 	balance := result.(string)
 
 	var userAsset = &data.UserAsset{
-		ChainName:    chainName,
-		Uid:          uid,
-		Address:      address,
-		TokenAddress: tokenAddress,
-		Balance:      balance,
-		Decimals:     decimals,
-		Symbol:       symbol,
-		CreatedAt:    nowTime,
-		UpdatedAt:    nowTime,
+		ChainName:     chainName,
+		Uid:           uid,
+		Address:       address,
+		TokenAddress:  tokenAddress,
+		Balance:       balance,
+		Decimals:      decimals,
+		Symbol:        symbol,
+		IsSyncToChain: true,
+		SyncToChainTs: nowTime,
+		CreatedAt:     nowTime,
+		UpdatedAt:     nowTime,
 	}
 	return userAsset, nil
 }
@@ -413,16 +415,18 @@ func doHandleUserTokenAsset(chainName string, client Client, uid string, address
 		tokenInfo := tokenInfoMap[tokenAddress]
 
 		var userAsset = &data.UserAsset{
-			ChainName:    chainName,
-			Uid:          uid,
-			Address:      address,
-			TokenAddress: tokenAddress,
-			TokenUri:     tokenInfo.TokenUri,
-			Balance:      balance,
-			Decimals:     int32(tokenInfo.Decimals),
-			Symbol:       tokenInfo.Symbol,
-			CreatedAt:    nowTime,
-			UpdatedAt:    nowTime,
+			ChainName:     chainName,
+			Uid:           uid,
+			Address:       address,
+			TokenAddress:  tokenAddress,
+			TokenUri:      tokenInfo.TokenUri,
+			Balance:       balance,
+			Decimals:      int32(tokenInfo.Decimals),
+			Symbol:        tokenInfo.Symbol,
+			IsSyncToChain: true,
+			SyncToChainTs: nowTime,
+			CreatedAt:     nowTime,
+			UpdatedAt:     nowTime,
 		}
 		userAssets = append(userAssets, userAsset)
 	}
