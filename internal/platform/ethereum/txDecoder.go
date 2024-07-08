@@ -113,16 +113,17 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	}
 	h.matchedUser = meta.User.MatchFrom || meta.User.MatchTo || rechargeAddressFlag
 
+	var contractAddress string
+	if transaction.To() != nil {
+		contractAddress = transaction.To().String()
+	}
+
 	// Ignore this transaction.
 	if !h.matchedUser {
 		if methodId == "" || transaction.To() == nil {
 			if !(strings.HasPrefix(h.chainName, "Polygon") && tx.FromAddress == "0x0000000000000000000000000000000000000000" && tx.ToAddress == "0x0000000000000000000000000000000000000000") {
 				return nil
 			}
-		}
-		var contractAddress string
-		if transaction.To() != nil {
-			contractAddress = transaction.To().String()
 		}
 		inWhiteList := isMethodInWhiteList(h.chainName, contractAddress, methodId)
 
@@ -134,12 +135,16 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 		if !inWhiteList {
 			return nil
 		}
-		//校验合约地址是否是高风险代币
+	}
+
+	//校验合约地址是否是高风险代币
+	if meta.TransactionType == biz.TRANSFER {
 		if contractAddress != "" {
 			tokenInfo, err := biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, contractAddress)
 			if err == nil && tokenInfo.Symbol != "" && tokenInfo.Symbol != "Unknown Token" && tokenInfo.Address != "" {
 				isFake, FakeErr := biz.GetTokenIsFakeRetryAlert(context.Background(), h.chainName, contractAddress, tokenInfo.Symbol)
 				if isFake && FakeErr == nil {
+					log.Info("HIGH RISK TOKEN", zap.String("txHash", tx.Hash), zap.String("to", transaction.To().String()), zap.String("chainName", h.chainName))
 					return nil
 				}
 			}
@@ -616,9 +621,9 @@ func (h *txDecoder) handleEachTransaction(
 			ToAddress: meta.ToAddress,
 			Chain:     h.chainName,
 			//TokenInfo: tokenInfoStr,
-			Amount:    amountValue,
+			Amount: amountValue,
 		}
-		if tokenInfo.Address != ""{
+		if tokenInfo.Address != "" {
 			rechargeAddressInfo.TokenInfo = tokenInfoStr
 		}
 		biz.HandleBenfenRechargeAddress(rechargeAddressInfo)
