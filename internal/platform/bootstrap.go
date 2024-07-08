@@ -163,6 +163,10 @@ func (b *Bootstrap) onAvailablityChanged(available bool) {
 		return
 	}
 
+	if biz.IsCustomChainFeatured(b.ChainName) {
+		return
+	}
+
 	current := atomic.LoadInt32(&b.available) == 1
 	if current == available {
 		log.InfoS(
