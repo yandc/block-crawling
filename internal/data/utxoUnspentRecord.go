@@ -4,10 +4,12 @@ import (
 	pb "block-crawling/api/transaction/v1"
 	"block-crawling/internal/log"
 	"context"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -69,11 +71,19 @@ type UtxoUnspentRecordRepo interface {
 	Delete(context.Context, *UserUtxo) (int64, error)
 	FindAddressGroup(ctx context.Context) ([]string, error)
 	UpdateUidByAddress(context.Context, string, string) (int64, error)
-	FindNotPendingByTxHash(ctx context.Context, chainName,address,spendTxHash string) ([]*UtxoUnspentRecord, error)
+	FindNotPendingByTxHash(ctx context.Context, chainName, address, spendTxHash string) ([]*UtxoUnspentRecord, error)
+	Sum(ctx context.Context, chainName, address string) (decimal.Decimal, error)
 }
 
 type UtxoUnspentRecordRepoImpl struct {
 	gormDB *gorm.DB
+}
+
+// Sum implements UtxoUnspentRecordRepo
+func (r *UtxoUnspentRecordRepoImpl) Sum(ctx context.Context, chainName string, address string) (decimal.Decimal, error) {
+	total := decimal.Zero
+	err := r.gormDB.WithContext(ctx).Model(&UtxoUnspentRecord{}).Select("COALESCE(SUM(amount::DECIMAL), 0) AS t").Where("chain_name = ? AND address = ? AND unspent IN (1, 4)", chainName, address).Row().Scan(&total)
+	return total, err
 }
 
 var UtxoUnspentRecordRepoClient UtxoUnspentRecordRepo
@@ -188,9 +198,9 @@ func (r *UtxoUnspentRecordRepoImpl) FindBySpentTxHash(ctx context.Context, hash 
 	return utxos, nil
 }
 
-func (r *UtxoUnspentRecordRepoImpl) FindNotPendingByTxHash(ctx context.Context, chainName,address,spendTxHash string ) ([]*UtxoUnspentRecord, error) {
+func (r *UtxoUnspentRecordRepoImpl) FindNotPendingByTxHash(ctx context.Context, chainName, address, spendTxHash string) ([]*UtxoUnspentRecord, error) {
 	var utxos []*UtxoUnspentRecord
-	ret := r.gormDB.Where("chain_name = ? and address = ? and spent_tx_hash != ? and unspent = ?",chainName,address, spendTxHash, UtxoStatusPending).Find(&utxos)
+	ret := r.gormDB.Where("chain_name = ? and address = ? and spent_tx_hash != ? and unspent = ?", chainName, address, spendTxHash, UtxoStatusPending).Find(&utxos)
 	err := ret.Error
 	if err != nil {
 		log.Errore("query FindNotPendingByTxHash by spent tx hash failed", err)

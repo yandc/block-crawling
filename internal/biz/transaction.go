@@ -5099,8 +5099,10 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 			}
 		}
 	}
-
+	platInfo, _ := GetChainPlatInfo(req.ChainName)
 	chainType, _ := GetChainNameType(req.ChainName)
+	var err error
+	var utxoUnspentTotal decimal.Decimal
 	switch chainType {
 	case EVM:
 		if req.Address != "" {
@@ -5112,6 +5114,11 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	case COSMOS:
 		for i := range onchainAssets {
 			onchainAssets[i].TokenAddress = utils.AddressIbcToLower(onchainAssets[i].TokenAddress)
+		}
+	case BTC:
+		utxoUnspentTotal, err = data.UtxoUnspentRecordRepoClient.Sum(ctx, req.ChainName, req.Address)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -5155,7 +5162,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		key := fmt.Sprintf("%s%s%s", req.ChainName, req.Address, asset.TokenAddress)
 		uniqAssets[key] = asset
 	}
-
+	utxoBalance := utils.StringDecimals(utxoUnspentTotal.String(), int(platInfo.Decimal))
 	diffBet := false
 	absentNfts := make([]string, 0, 2)
 	insyncAssets := make([]int64, 0, 2)
@@ -5168,6 +5175,15 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 		if newItem.Decimals == 0 {
 			// all tokens in COSMOS are zero decimals
 			s.correctZeroDecimals(ctx, req, &newItem)
+		}
+		if tokenAddress == "" && chainType == BTC && newItem.Balance != utxoBalance {
+			log.Info(
+				"UTXO UNSPENT DIFF FROM BALANCE ON CHAIN",
+				zap.String("chainName", req.ChainName),
+				zap.String("balance", newItem.Balance),
+				zap.String("utxoBalance", utxoBalance),
+			)
+			diffBet = true
 		}
 
 		oldItem, ok := assetsGroupByToken[tokenAddress]
@@ -5217,6 +5233,7 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 	}
 	return map[string]interface{}{
 		"hasDiff":       diffBet,
+		"utxoBalance":   utxoBalance,
 		"onchainAssets": uniqAssets,
 		"dbAssets":      assetsGroupByToken,
 	}, nil
