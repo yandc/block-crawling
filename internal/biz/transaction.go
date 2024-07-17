@@ -5932,6 +5932,9 @@ func convertFeeData(chainName, chainType, reqAddress string, record *pb.Transact
 	record.ChainName = chainName
 	record.StatusDetail = "{}"
 	feeData := make(map[string]string)
+	if record.ParseData == "" {
+		record.ParseData = "{}"
+	}
 	switch chainType {
 	case BTC, SOLANA, KASPA:
 		feeData = nil
