@@ -2554,7 +2554,7 @@ chainFlag:
 	for {
 		var out DogeApiModel
 		reqUrl := url + strconv.Itoa(pageNum)
-		err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
+		err = httpclient.GetUseCloudscraper(reqUrl, &out, &timeout)
 		for i := 0; i < 10 && err != nil; i++ {
 			time.Sleep(time.Duration(i*5) * time.Second)
 			err = httpclient.GetResponse(reqUrl, nil, &out, &timeout)
