@@ -6,6 +6,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/common"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -477,12 +478,8 @@ type TransactionInfo struct {
 		TypeArguments []string      `json:"type_arguments"`
 		Arguments     []interface{} `json:"arguments"`
 	} `json:"payload,omitempty"`
-	Signature *struct {
-		Type      string `json:"type"`
-		PublicKey string `json:"public_key"`
-		Signature string `json:"signature"`
-	} `json:"signature,omitempty"`
-	Events []struct {
+	Signature json.RawMessage `json:"signature,omitempty"`
+	Events    []struct {
 		Guid struct {
 			CreationNumber string `json:"creation_number"`
 			AccountAddress string `json:"account_address"`
