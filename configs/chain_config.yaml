@@ -322,8 +322,6 @@ platform:
     httpURL:
       - https://api.etherscan.io/api?apikey=M7VFNK3Z4J5AG8JZRQB9E25EEEANJG4KXZ
       - https://api.etherscan.io/api?apikey=NJ4P2RHJ5E1N1Z9WZQTDREWD8KP35W49QW
-      - https://api.etherscan.io/api?apikey=N9FS92RQJ71KM5BQ5NUTVVA83Y8WD2PJTR
-
   Fantom:
     blockExplorerAddrUrl: https://ftmscan.com/address/
     blockExplorerTxUrl: https://ftmscan.com/tx/
@@ -1161,7 +1159,7 @@ platform:
       - https://scroll.blockpi.network/v1/rpc/public
       - https://rpc.scroll.io
     httpURL:
-      - https://blockscout.scroll.io/api
+      - https://api.scrollscan.com/api
     symbol: Scroll
     type: EVM
     safelyConcurrentBlockDelta: 20
