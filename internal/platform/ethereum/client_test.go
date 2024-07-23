@@ -1,6 +1,12 @@
 package ethereum
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
 
 func TestPairToken(t *testing.T) {
 	c := NewClient("https://rpc.ankr.com/bsc", "BSC")
@@ -25,4 +31,21 @@ func TestDodoPairToken(t *testing.T) {
 	}
 	t.Logf("token0: %s", token0)
 	t.Logf("token1: %s", token1)
+}
+
+func TestZapField(t *testing.T) {
+	f := zap.Any("xx", true)
+	enc := zapcore.NewJSONEncoder(zapcore.EncoderConfig{})
+	buf, _ := enc.EncodeEntry(
+		zapcore.Entry{
+			Level:      zap.ErrorLevel,
+			Time:       time.Now(),
+			LoggerName: "",
+			Message:    "",
+			Caller:     zapcore.EntryCaller{},
+			Stack:      "",
+		},
+		[]zapcore.Field{f},
+	)
+	t.Logf("%s", buf.String())
 }

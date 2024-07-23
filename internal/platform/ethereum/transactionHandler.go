@@ -5,6 +5,7 @@ import (
 	v1 "block-crawling/internal/client"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	pcommon "block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"context"
@@ -294,17 +295,13 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 		var err error
 		userAssetKey := chainName + address
 		if userAsset, ok := userAssetMap[userAssetKey]; !ok {
-			userAsset, err = doHandleUserAsset(chainName, client, uid, address, "", mainDecimals, mainSymbol, now)
-			for i := 0; i < 10 && err != nil; i++ {
-				time.Sleep(time.Duration(i*5) * time.Second)
-				userAsset, err = doHandleUserAsset(chainName, client, uid, address, "", mainDecimals, mainSymbol, now)
-			}
+			err = retryWithAlarm10(chainName, func() error {
+				var err error
+				userAsset, err = doHandleUserAsset(chainName, uid, address, "", mainDecimals, mainSymbol, now)
+				return err
+
+			}, zap.Any("address", address), zap.String("stage", "doHandleUserAsset"))
 			if err != nil {
-				// 更新用户资产出错 接入lark报警
-				alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，查询用户资产失败", chainName)
-				alarmOpts := biz.WithMsgLevel("FATAL")
-				biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-				log.Error("更新用户资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("error", err))
 				return
 			}
 			if userAsset != nil {
@@ -315,17 +312,19 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 
 	for key, tokenDecimalsMap := range addressTokenMap {
 		uidAddress := strings.Split(key, ",")
-		userAssetsList, err := doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenInfoMap, now)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			userAssetsList, err = doHandleUserTokenAsset(chainName, client, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenInfoMap, now)
-		}
+		var userAssetsList []*data.UserAsset
+		err := retryWithAlarm10(
+			chainName,
+			func() error {
+				var err error
+				userAssetsList, err = doHandleUserTokenAsset(chainName, uidAddress[0], uidAddress[1], tokenDecimalsMap, tokenInfoMap, now)
+				return err
+			},
+			zap.String("scope", "doHandlerUserTokenAsset"),
+			zap.Any("address", uidAddress[1]),
+			zap.Any("tokenAddress", tokenDecimalsMap),
+		)
 		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户资产，查询用户资产失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("address", uidAddress[1]), zap.Any("tokenAddress", tokenDecimalsMap), zap.Any("error", err))
 			return
 		}
 		for _, userAsset := range userAssetsList {
@@ -362,7 +361,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.EvmTrans
 	}
 }
 
-func doHandleUserAsset(chainName string, client Client, uid string, address string,
+func doHandleUserAsset(chainName string, uid string, address string,
 	tokenAddress string, decimals int32, symbol string, nowTime int64) (*data.UserAsset, error) {
 	if address == "" || uid == "" {
 		return nil, nil
@@ -393,7 +392,7 @@ func doHandleUserAsset(chainName string, client Client, uid string, address stri
 	return userAsset, nil
 }
 
-func doHandleUserTokenAsset(chainName string, client Client, uid string, address string,
+func doHandleUserTokenAsset(chainName string, uid string, address string,
 	tokenDecimalsMap map[string]int, tokenInfoMap map[string]*types.TokenInfo, nowTime int64) ([]*data.UserAsset, error) {
 	var userAssets []*data.UserAsset
 
@@ -826,17 +825,13 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 
 	for key, tokenAddressIdMap := range addressTokenMap {
 		uidAddress := strings.Split(key, ",")
-		userAssetsList, err := doHandleUserNftAsset(chainName, client, uidAddress[0], uidAddress[1], tokenAddressIdMap, now)
-		for i := 0; i < 10 && err != nil; i++ {
-			time.Sleep(time.Duration(i*5) * time.Second)
-			userAssetsList, err = doHandleUserNftAsset(chainName, client, uidAddress[0], uidAddress[1], tokenAddressIdMap, now)
-		}
+		var userAssetsList []*data.UserNftAsset
+		err := retryWithAlarm10(chainName, func() error {
+			var err error
+			userAssetsList, err = doHandleUserNftAsset(chainName, uidAddress[0], uidAddress[1], tokenAddressIdMap, now)
+			return err
+		}, zap.Any("address", uidAddress[1]), zap.Any("tokenAddress", tokenAddressIdMap), zap.String("stage", "doHandleUserNftAsset"))
 		if err != nil {
-			// 更新用户资产出错 接入lark报警
-			alarmMsg := fmt.Sprintf("请注意：%s链更新用户NFT资产，查询用户资产失败", chainName)
-			alarmOpts := biz.WithMsgLevel("FATAL")
-			biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-			log.Error("更新用户NFT资产，查询用户资产失败", zap.Any("chainName", chainName), zap.Any("address", uidAddress[1]), zap.Any("tokenAddress", tokenAddressIdMap), zap.Any("error", err))
 			return
 		}
 		for _, userAsset := range userAssetsList {
@@ -867,7 +862,7 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 	}
 }
 
-func doHandleUserNftAsset(chainName string, client Client, uid string, address string,
+func doHandleUserNftAsset(chainName string, uid string, address string,
 	tokenAddressIdMap map[string]map[string]*v1.GetNftReply_NftInfoResp, nowTime int64) ([]*data.UserNftAsset, error) {
 	var userAssets []*data.UserNftAsset
 	for tokenAddress, tokenIdMap := range tokenAddressIdMap {
@@ -1208,4 +1203,8 @@ func HandlerNativePriceHistory(chainName, address, uid string, dt int64, fromFla
 
 		data.MarketCoinHistoryRepoClient.Update(nil, marketCoinHistory)
 	}
+}
+
+func retryWithAlarm10(chainName string, fn func() error, fields ...zap.Field) error {
+	return pcommon.RetryWithAlarm10(chainName, fn, "更新用户资产", fields...)
 }
