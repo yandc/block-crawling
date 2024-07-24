@@ -12,6 +12,7 @@ import (
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // NotFound is returned by API methods if the requested item does not exist.
@@ -272,4 +273,43 @@ func LogBlock(chainName, level string, err error, optHeights ...chain.HeightInfo
 		"error occurred while handling block",
 		fields...,
 	)
+}
+
+func RetryWithAlarm10(chainName string, fn func() error, scope string, fields ...zap.Field) error {
+	err := fn()
+	for i := 0; i < 10 && err != nil; i++ {
+		time.Sleep(time.Duration(i*5) * time.Second)
+		err = fn()
+	}
+	if err != nil {
+		fields = append(fields, zap.Any("chainName", chainName), zap.Any("error", err))
+		// 更新用户资产出错 接入lark报警
+		alarmMsg := fmt.Sprintf("请注意：%s链%s失败：\n%s", chainName, scope, zapFieldsToJSON(fields...))
+		alarmOpts := biz.WithMsgLevel("FATAL")
+		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+		log.Error(scope+"失败", fields...)
+		return err
+	}
+	return nil
+}
+
+var defaultZapEnc = zapcore.NewJSONEncoder(zapcore.EncoderConfig{})
+var defaultZapEnt = zapcore.Entry{
+	Level:      zap.ErrorLevel,
+	Time:       time.Now(),
+	LoggerName: "",
+	Message:    "",
+	Caller:     zapcore.EntryCaller{},
+	Stack:      "",
+}
+
+func zapFieldsToJSON(fields ...zap.Field) string {
+	buf, _ := defaultZapEnc.EncodeEntry(
+		defaultZapEnt,
+		fields,
+	)
+	if buf != nil {
+		return buf.String()
+	}
+	return ""
 }
