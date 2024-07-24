@@ -239,6 +239,12 @@ var WhiteListTopicMap = map[string][]string{
 		"0x7d43AABC515C356145049227CeE54B608342c0ad_cdd1b25d_" + ARBITRUM_TRANSFERNATIVE,
 	},
 
+	// Merlin 跨链
+	"evm4200_Contract_Method_Topic": {
+		"0x25aB3Efd52e6470681CE037cD546Dc60726948D3_ab115fd8_0xfa628b578e095243f0544bfad9255f49d79d03a5bbf6c85875d05a215e247ad2",
+		"0x25ab3efd52e6470681ce037cd546dc60726948d3_ab115fd8_0xfa628b578e095243f0544bfad9255f49d79d03a5bbf6c85875d05a215e247ad2",
+	},
+
 	"Scroll_Contract_Method_Topic": {"0x781e90f1c8fc4611c9b7497c3b47f99ef6969cbc_8ef1332e_" + FINALIZEDEPOSITETH_TOPIC},
 	//支持所有链特定合约
 	"Contract_Method_Topic": {"0xe2b90003d4ab5a1c6885262865a38c074c5f3e2d_5b4363bf_" + CLAIMED_TOPIC,
