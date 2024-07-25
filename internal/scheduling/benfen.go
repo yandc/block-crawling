@@ -82,10 +82,10 @@ func (p *OnChainPool) ParseType() (string, string) {
 }
 
 var benfenPools = map[string]string{
-	"BenfenTEST_BUSD":      "BFCbb19240e197eeb924b0e5e1a9269fc8c2c985b6379f817b960cf8c4fc0676c0d6f87", // 0.05%
-	"BenfenTEST_BJPY":      "BFC6d5ff6cf9e6b9bbf521489bab420e48044a73175f76524e5353cb935b82fe300c51b", // 0.05%
-	"BenfenAlphaTEST_BUSD": "BFC06d1638fee691c2b40a11f8728c99f967d1a59e386e04cba8c10a3ca2965ff28e80f", // 0.05%
-	"BenfenAlphaTEST_BJPY": "BFCd7b29b49486d3f3da0d258088732c820b00922c7c32683ef731e6c50b71111385e27", // 0.05%
+	"BenfenTEST_BUSD": "BFCbb19240e197eeb924b0e5e1a9269fc8c2c985b6379f817b960cf8c4fc0676c0d6f87", // 0.05%
+	"BenfenTEST_BJPY": "BFC6d5ff6cf9e6b9bbf521489bab420e48044a73175f76524e5353cb935b82fe300c51b", // 0.05%
+	"Benfen_BUSD":     "BFC35b57d9c92815e555bb3c23ebbd7d6578ca5e9e42af4193e16910205e7fb2e50b422", // 0.05%
+	"Benfen_BJPY":     "BFCf6ab8d6679332c9c7e5194e19c5035f503f23f4b795511d7d96a47ef1862dd8b9058", // 0.05%
 
 }
 
