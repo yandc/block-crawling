@@ -1324,6 +1324,28 @@ platform:
     maxConcurrency: 2
     monitorHeightAlarmThr: 100
 
+  Benfen:
+    blockExplorerAddrUrl: https://testnet.benfen.org/addresses/
+    blockExplorerTxUrl: https://testnet.benfen.org/txblock/
+    blockExplorerUrl:  https://testnet.benfen.org/
+    chain: Benfen
+    chainId: ""
+    coinId: 1010120
+    decimal: 9
+    fullName: Benfen
+    getPriceKey: benfen-coin
+    handler: sui
+    icon: https://obstatic.243096.com/mili/images/currency/chain/Benfen2.png
+    nativeCurrency: BFC
+    netType: main
+    rpcURL:
+      -  https://rpc1.benfen.org
+    symbol: BFC
+    type: SUI
+    safelyConcurrentBlockDelta: 50
+    maxConcurrency: 15
+    monitorHeightAlarmThr: 0
+
 platformTest:
   AptosTEST:
     blockExplorerAddrUrl: https://explorer.aptoslabs.com/account/
@@ -1386,27 +1408,6 @@ platformTest:
     netType: test
     rpcURL:
       - https://testrpc.benfen.org/
-    symbol: BFC
-    type: SUI
-    safelyConcurrentBlockDelta: 50
-    maxConcurrency: 15
-    monitorHeightAlarmThr: 0
-  BenfenAlphaTEST:
-    blockExplorerAddrUrl: https://testnet.benfen.org/addresses/
-    blockExplorerTxUrl: https://testnet.benfen.org/txblock/
-    blockExplorerUrl:  https://testnet.benfen.org/
-    chain: BenfenAlphaTEST
-    chainId: ""
-    coinId: 1010120
-    decimal: 9
-    fullName: Benfen Alpha Test Net
-    getPriceKey: benfen-coin
-    handler: sui
-    icon: https://obstatic.243096.com/mili/images/currency/chain/Benfen2.png
-    nativeCurrency: BFC
-    netType: test
-    rpcURL:
-      -  https://rpc1.benfen.org
     symbol: BFC
     type: SUI
     safelyConcurrentBlockDelta: 50
