@@ -2,7 +2,6 @@ package biz
 
 import (
 	v1 "block-crawling/internal/client"
-	"block-crawling/internal/common"
 	"block-crawling/internal/log"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
@@ -28,13 +27,9 @@ const (
 	JSONRPC = "2.0"
 )
 
-var TokenInfoMap = &sync.Map{} // make(map[string]types.TokenInfo)
-var lock = common.NewSyncronized(0)
-var mutex = new(sync.Mutex)
-
-var NftInfoMap = make(map[string]*v1.GetNftReply_NftInfoResp)
-var nftLock = common.NewSyncronized(0)
-var nftMutex = new(sync.Mutex)
+var gTokenInfoMap = &sync.Map{}  // make(map[string]types.TokenInfo)
+var gNftInfoMap = &sync.Map{}    // make(map[string]*v1.GetNftReply_NftInfoResp)
+var gTokenCacheTTL = &sync.Map{} // make(map[string]int)
 
 func GetBTCUSDPrice(ctx context.Context) (string, error) {
 	return GetTokenPriceRetryAlert(ctx, BTC, USD, "")
@@ -262,19 +257,13 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	}
 
 	var key = chainName + tokenAddress
-	// FIX: read-write race
-	// var ok bool
-	// tokenInfo, ok := TokenInfoMap[key]
-	// if ok {
-	// 	return tokenInfo, nil
-	// }
 
-	lock.Lock(key)
-	defer lock.Unlock(key)
-	tokenInfoInner, ok := TokenInfoMap.Load(key)
+	tokenInfoInner, ok := gTokenInfoMap.Load(key)
 	if ok {
 		tokenInfo = *(tokenInfoInner.(*types.TokenInfo))
-		return tokenInfo, nil
+		if !isTokenInfoExpired(key) {
+			return tokenInfo, nil
+		}
 	}
 
 	conn, err := grpc.Dial(AppConfig.Addr, grpc.WithInsecure())
@@ -303,12 +292,30 @@ func GetTokenInfo(ctx context.Context, chainName string, tokenAddress string) (t
 	if len(data) > 0 {
 		respData := data[0]
 		tokenInfo = types.TokenInfo{Address: tokenAddress, Decimals: int64(respData.Decimals), Symbol: respData.Symbol, TokenUri: respData.LogoURI}
-		mutex.Lock()
-		TokenInfoMap.Store(key, &tokenInfo)
-		mutex.Unlock()
+		gTokenInfoMap.Store(key, &tokenInfo)
+		if tokenInfo.Symbol == "Unknown Token" {
+			setTokenInfoTTL(key, time.Now().Unix()+300) // retry in 5 minutes
+		}
 		return tokenInfo, nil
 	}
 	return tokenInfo, nil
+}
+
+func setTokenInfoTTL(key string, ttl int64) {
+	gTokenCacheTTL.Store(key, ttl)
+}
+
+func isTokenInfoExpired(key string) bool {
+	rawTTL, ok := gTokenCacheTTL.Load(key)
+	if ok {
+
+		ttl := rawTTL.(int64)
+		if ttl == 0 {
+			return false
+		}
+		return time.Now().Unix() > ttl
+	}
+	return false
 }
 
 func GetTokensInfo(ctx context.Context, chainNameTokenAddressMap map[string][]string) (map[string]map[string]types.TokenInfo, error) {
@@ -468,25 +475,14 @@ func GetRawNftInfo(ctx context.Context, chainName string, tokenAddress string, t
 		return nil, nil
 	}
 	var key = chainName + tokenAddress + tokenId
-	tokenInfo, ok := NftInfoMap[key]
-	if ok {
-		return tokenInfo, nil
+	if tokenInfo, ok := gNftInfoMap.Load(key); ok {
+		return tokenInfo.(*v1.GetNftReply_NftInfoResp), nil
 	}
-
-	lock.Lock(key)
-	defer lock.Unlock(key)
-	tokenInfo, ok = NftInfoMap[key]
-	if ok {
-		return tokenInfo, nil
-	}
-
 	tokenInfo, err := GetRawNftInfoDirectly(ctx, chainName, tokenAddress, tokenId)
 	if err != nil {
 		return nil, err
 	}
-	mutex.Lock()
-	NftInfoMap[key] = tokenInfo
-	mutex.Unlock()
+	gNftInfoMap.Store(key, tokenInfo)
 	return tokenInfo, nil
 }
 
