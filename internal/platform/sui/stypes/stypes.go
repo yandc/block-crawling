@@ -349,8 +349,8 @@ type MoveCall struct {
 	Module   string `json:"module"`
 	Function string `json:"function"`
 
-	TypeArguments []interface{} `json:"type_arguments"`
-	Args          []MoveCallArg `json:"arguments"`
+	TypeArguments []interface{}     `json:"type_arguments"`
+	Args          []json.RawMessage `json:"arguments"`
 }
 
 // FuncEquals returns true if the two are the same regardless of type arguments and arguments
@@ -371,7 +371,15 @@ func (m *MoveCall) GetArgInput(pos int, txData *TransactionData) (*TransactionIn
 	if pos >= len(m.Args) {
 		return nil, errors.New("arguments position overflow")
 	}
-	arg := m.Args[pos]
+	rawArg := m.Args[pos]
+	if string(rawArg) == `"GasCoin"` {
+		return nil, errors.New("TODO")
+	}
+	var arg MoveCallArg
+	err := json.Unmarshal(rawArg, &arg)
+	if err != nil {
+		return nil, err
+	}
 	if arg.Input >= len(txData.Inputs) {
 		return nil, errors.New("input position overflow")
 	}
