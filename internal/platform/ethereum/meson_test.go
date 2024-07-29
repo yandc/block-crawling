@@ -17,3 +17,15 @@ func TestExtractMesonDirectRelease(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestExtractMesonDirectRelease2(t *testing.T) {
+	data := `ab115fd8010000000baf980000000000c8e287ce00000002080066a70e512105ff003cffdc7327cff777338b2104ac93008c2126fc51f4c9d9f0876720bc67839f563624bed6cdb8f0d52aa02c791878e1c3e3e3ec46a8a1442f1f58a6c886112bc0935e00000000000000000000000069c53a067422ec5e839fb015c549ede997b474d70000000000000000000000004763adfb2544f349336e27e6211ec8900f293789`
+	encodedAmountByts, _ := hex.DecodeString(data[8 : 8+64])
+	amount, ok := extractMesonFiDirectReleaseAmount(data[0:8], encodedAmountByts)
+	if !ok {
+		t.Fail()
+	}
+	if amount.String() != "1971000000000000" {
+		t.Fatal(amount.String())
+	}
+}
