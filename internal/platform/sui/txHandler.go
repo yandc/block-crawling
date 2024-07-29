@@ -78,7 +78,9 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			bfh.Handle(transactionInfo, results, status)
 		}
 	}()
+
 	gasLimit, gasUsed, feeAmount := getFees(transactionInfo)
+	gasObjecType := h.getGasObjectType(transactionInfo)
 
 	fromAmountChangeMap := make(map[string]*AmountChange)
 	toAmountChangeMap := make(map[string][]*AmountChange)
@@ -93,6 +95,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			txType = biz.TRANSFER
 			tokenAddress = suiswap.NormalizeBenfenCoinType(h.chainName, balanceChange.CoinType)
 		}
+
 		if strings.HasPrefix(balanceChange.Amount, "-") {
 			fromAmountChangeMap[tokenAddress] = &AmountChange{
 				FromAddress:  utils.EVMAddressToBFC(h.chainName, address),
@@ -101,6 +104,15 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				Amount:       amount,
 			}
 		} else {
+			// GasObject is current balance change
+			if (IsNative(balanceChange.CoinType) && IsNative(gasObjecType)) || gasObjecType == tokenAddress {
+				if feeAmount.IsNegative() {
+					a, _ := decimal.NewFromString(amount)
+					a.Add(feeAmount) // 去除 GasFee 导致的变更
+					amount = a.String()
+				}
+			}
+
 			toAmountChangeMap[tokenAddress] = append(toAmountChangeMap[tokenAddress], &AmountChange{
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, address),
 				TxType:       txType,
@@ -109,8 +121,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			})
 		}
 	}
-
-	gasObjecType := h.getGasObjectType(transactionInfo)
 
 	for tokenAddress, toAmountChangeList := range toAmountChangeMap {
 		fromAmountChange := fromAmountChangeMap[tokenAddress]
@@ -262,7 +272,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				//}
 
 			}
-			if !fromAddressExist && !toAddressExist && !biz.IsBenfenNet(h.chainName){
+			if !fromAddressExist && !toAddressExist && !biz.IsBenfenNet(h.chainName) {
 				continue
 			}
 
@@ -419,7 +429,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			UpdatedAt:       h.now,
 		}
 		rechargeAmount = amountValue
-		if tokenInfo.Address != ""{
+		if tokenInfo.Address != "" {
 			rechargeTokenInfo = tokenInfoStr
 		}
 
@@ -451,7 +461,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 					return
 				}
 			}
-			if !fromAddressExist && !toAddressExist && !biz.IsBenfenNet(h.chainName){
+			if !fromAddressExist && !toAddressExist && !biz.IsBenfenNet(h.chainName) {
 				continue
 			}
 
@@ -531,7 +541,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			eventLogs = eventLogList
 		}
-		if fromAddressExist || toAddressExist || biz.IsBenfenNet(h.chainName)|| len(eventLogs) > 0 {
+		if fromAddressExist || toAddressExist || biz.IsBenfenNet(h.chainName) || len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, suiContractRecord)
 		}
 
@@ -613,7 +623,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				log.Info("HandlerRechargeBenfenTx return", zap.Error(err), zap.Any("sourceTxHash", sourceTxHash))
 				return
 			}
-			biz.HandlerRechargeBenfenTx(transactionHash, transactionInfo.TxTime(), h.chainName, status, sourceTxHash,rechargeTokenInfo, feeAmount, rechargeAmount)
+			biz.HandlerRechargeBenfenTx(transactionHash, transactionInfo.TxTime(), h.chainName, status, sourceTxHash, rechargeTokenInfo, feeAmount, rechargeAmount)
 		}
 	}()
 	return nil
