@@ -1727,7 +1727,7 @@ func (h *txDecoder) extractEventLogs(client *Client, meta *pCommon.TxMeta, recei
 			}
 		}
 
-		if methodId == "ab115fd8" {
+		if methodId == "ab115fd8" && fromAddress == "" && toAddress == "" {
 			var ok bool
 			amount, ok = extractMesonFiDirectReleaseAmount(methodId, txData[4:4+32])
 			if !ok {
@@ -2280,18 +2280,4 @@ func isTopic0InWhiteList(chainName, contractAddress, methodId, topic0 string) bo
 		}
 	}
 	return inWhiteList
-}
-
-// https://github.com/MesonFi/meson-contracts-solidity/blob/7283d390e2745ebf0d80f4773e84e9de296da7a7/contracts/Pools/MesonPools.sol#L254
-func extractMesonFiDirectReleaseAmount(methodId string, data []byte) (*big.Int, bool) {
-	if methodId != "ab115fd8" || len(data) != 32 {
-		return new(big.Int), false
-	}
-	encodedAmount := new(big.Int).SetBytes(data)
-	amountFrom := new(big.Int).Rsh(encodedAmount, 208)
-	amountFrom = new(big.Int).And(amountFrom, big.NewInt(0xFFFFFFFFFF))
-	feeForLp := new(big.Int).Rsh(encodedAmount, 88)
-	feeForLp = new(big.Int).And(feeForLp, big.NewInt(0xFFFFFFFFFF))
-	amount := new(big.Int).Sub(amountFrom, feeForLp)
-	return amount.Mul(amount, big.NewInt(1000000000000)), true // * 1e12
 }
