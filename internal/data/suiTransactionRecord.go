@@ -216,7 +216,7 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"transaction_type": gorm.Expr("case when " + tableName + ".transaction_type in('mint', 'swap') and excluded.transaction_type not in('mint', 'swap') then " + tableName + ".transaction_type else excluded.transaction_type end"),
 			"dapp_data":        gorm.Expr("case when excluded.dapp_data != '' then excluded.dapp_data else " + tableName + ".dapp_data end"),
 			"client_data":      gorm.Expr("case when excluded.client_data != '' then excluded.client_data else " + tableName + ".client_data end"),
-			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
+			"token_info":       gorm.Expr("case when excluded.status = 'success' or excluded.token_info != '" + utils.EmptyTokenInfo + "' or " + tableName + ".token_info = '' then excluded.token_info else " + tableName + ".token_info end"),
 			"token_gasless":    gorm.Expr("case when " + tableName + ".token_gasless != '' then " + tableName + ".token_gasless else  excluded.token_gasless  end"),
 			"send_time":        gorm.Expr("case when excluded.send_time != 0 then excluded.send_time else " + tableName + ".send_time end"),
 			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
@@ -707,7 +707,7 @@ func (r *SuiTransactionRecordRepoImpl) FindListByTxHash(ctx context.Context, tab
 		log.Errore("query suiTransactionRecord by txHash failed", err)
 		return nil, err
 	}
-	return suiTransactionRecord,nil
+	return suiTransactionRecord, nil
 }
 
 func (r *SuiTransactionRecordRepoImpl) SelectColumnByTxHash(ctx context.Context, tableName string, txHash string, selectColumn []string) (*SuiTransactionRecord, error) {

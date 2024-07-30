@@ -25,6 +25,8 @@ var recordRPCUrl sync.Map
 var dayFormat = "2006-01-02"
 var local, _ = time.LoadLocation("Asia/Shanghai")
 
+var EmptyTokenInfo, _ = JsonEncode(types.TokenInfo{})
+
 func RangeTimeConvertTime(rangeTime string) (int, int) {
 	endTime := time.Now()
 	if rangeTime == "ALL" {
