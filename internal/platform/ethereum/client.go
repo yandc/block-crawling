@@ -971,6 +971,11 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 			}
 			return "0", nil
 		}
+		// Polygon suspicious NFTs
+		if strings.Contains(err.Error(), "execution reverted") && c.chainName == "Polygon" {
+			return "0", nil
+		}
+
 		return "", err
 	}
 	if address == ownerAddress.String() {
@@ -1003,6 +1008,11 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 	hexAddress := common.HexToAddress(address)
 	balance, err := erc1155Token.BalanceOf(opts, hexAddress, tokenIdBig)
 	if err != nil {
+		// Polygon suspicious NFTs
+		if strings.Contains(err.Error(), "execution reverted") && c.chainName == "Polygon" {
+			return "0", nil
+		}
+
 		return "", err
 	}
 	return balance.String(), nil
