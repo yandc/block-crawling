@@ -104,15 +104,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				Amount:       amount,
 			}
 		} else {
-			// GasObject is current balance change
-			if (IsNative(balanceChange.CoinType) && IsNative(gasObjecType)) || gasObjecType == tokenAddress {
-				if feeAmount.IsNegative() {
-					a, _ := decimal.NewFromString(amount)
-					a.Add(feeAmount) // 去除 GasFee 导致的变更
-					amount = a.String()
-				}
-			}
-
 			toAmountChangeMap[tokenAddress] = append(toAmountChangeMap[tokenAddress], &AmountChange{
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, address),
 				TxType:       txType,
@@ -122,7 +113,19 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 	}
 
+	senderAddr := utils.EVMAddressToBFC(h.chainName, transactionInfo.Transaction.Data.Sender)
+
 	for tokenAddress, toAmountChangeList := range toAmountChangeMap {
+		for _, toAmountChange := range toAmountChangeList {
+			toAmount, _ := new(big.Int).SetString(toAmountChange.Amount, 0)
+			if h.isGasCoinAmountChange(transactionInfo, toAmountChange, gasObjecType) && toAmountChange.ToAddress == senderAddr {
+				gasUsedInt := transactionInfo.GasUsedInt()
+				// 接收的金额需要加上手续费
+				toAmount = toAmount.Add(toAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
+				toAmountChange.Amount = toAmount.String()
+			}
+		}
+
 		fromAmountChange := fromAmountChangeMap[tokenAddress]
 		toTotalAmount := new(big.Int)
 		if fromAmountChange != nil {
@@ -133,24 +136,25 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			}
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
-			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) {
-				gasUsedInt := transactionInfo.GasUsedInt()
-				fromAmount = fromAmount.Sub(fromAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
-			}
 			if fromAmount.Cmp(toTotalAmount) > 0 {
 				fromAmountChange.Amount = fromAmount.Sub(fromAmount, toTotalAmount).String()
 				amountChanges = append(amountChanges, fromAmountChange)
 			}
 			fromAmountChangeMap[tokenAddress] = nil
 		}
-		amountChanges = append(amountChanges, toAmountChangeList...)
+		for _, to := range toAmountChangeList {
+			if to.Amount != "0" {
+				amountChanges = append(amountChanges, to)
+			}
+		}
 	}
 
 	for _, fromAmountChange := range fromAmountChangeMap {
 		if fromAmountChange != nil {
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
-			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) {
+			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) && fromAmountChange.FromAddress == senderAddr {
+				// 发送的金额需要加上手续费
 				gasUsedInt := transactionInfo.GasUsedInt()
 				fromAmount = fromAmount.Sub(fromAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
 			}
