@@ -1339,11 +1339,11 @@ platform:
     nativeCurrency: BFC
     netType: main
     rpcURL:
-      -  https://rpc1.benfen.org
+      - https://rpc-mainnet.benfen.org
     symbol: BFC
     type: SUI
     safelyConcurrentBlockDelta: 50
-    maxConcurrency: 15
+    maxConcurrency: 5
     monitorHeightAlarmThr: 0
 
 platformTest:

@@ -18,8 +18,8 @@ var bfstationDexContracts = map[string]bool{
 	// "BFC4efe978bd7e02ed9f1cc199cec277c765357b7b3b812f8b63393b01d3000d391a3f8": true,
 	BFStationContract: true,
 
-	// rpc1.benfen.org
-	"BFC3512e1b4573a6579b6aa8e8ba65e9d7403c7d33b0ecbb23595c7c1f1334e40908288": true,
+	// rpc-mainnet.benfen.org
+	"BFC30a9fb40135476278f112fb0bb41a699f189bccbb8168a7aec9884141208b4f5c65a": true,
 }
 
 type bfstationDexSwap struct {

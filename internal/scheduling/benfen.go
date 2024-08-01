@@ -84,8 +84,8 @@ func (p *OnChainPool) ParseType() (string, string) {
 var benfenPools = map[string]string{
 	"BenfenTEST_BUSD": "BFCbb19240e197eeb924b0e5e1a9269fc8c2c985b6379f817b960cf8c4fc0676c0d6f87", // 0.05%
 	"BenfenTEST_BJPY": "BFC6d5ff6cf9e6b9bbf521489bab420e48044a73175f76524e5353cb935b82fe300c51b", // 0.05%
-	"Benfen_BUSD":     "BFC35b57d9c92815e555bb3c23ebbd7d6578ca5e9e42af4193e16910205e7fb2e50b422", // 0.05%
-	"Benfen_BJPY":     "BFCf6ab8d6679332c9c7e5194e19c5035f503f23f4b795511d7d96a47ef1862dd8b9058", // 0.05%
+	"Benfen_BUSD":     "BFC39aa609a447497fb9feba26ab0fc7f6ae78e84ac10e53d19194765ef03f66ba9286f", // 0.05%
+	"Benfen_BJPY":     "BFCf8507d873507ce3da7a5fd293fa6b03809608b149cc388c2e4615a732fd71c57266b", // 0.05%
 
 }
 
