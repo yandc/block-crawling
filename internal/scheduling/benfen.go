@@ -33,10 +33,10 @@ type OnChainPool struct {
 }
 
 func (p *OnChainPool) CoinBPrice() decimal.Decimal {
-	return decimal.NewFromInt(1).Div(p.BFCPriceInCoinB())
+	return decimal.NewFromInt(1).Div(p.CoinAPriceInCoinB())
 }
 
-func (p *OnChainPool) BFCPriceInCoinB() decimal.Decimal {
+func (p *OnChainPool) CoinAPriceInCoinB() decimal.Decimal {
 	coinA, _ := decimal.NewFromString(p.CurrentSqrtPrice)
 	power64, _ := decimal.NewFromString("18446744073709551616") // 2^64
 	return coinA.Div(power64).Pow(decimal.NewFromInt(2))
@@ -52,13 +52,21 @@ func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) 
 	}
 	coinBTokenInfo, err := biz.GetTokenInfo(context.Background(), chainName, coinB)
 	var coinbPriceInBUSD decimal.Decimal
+	var coinaPriceInBUSD decimal.Decimal
+
 	if coinA == benfenBUSDCoinType {
+		coinaPriceInBUSD = decimal.NewFromInt(1)
 		coinbPriceInBUSD = p.CoinBPrice()
-	} else if coinB == benfenBUSDCoinType {
-		coinbPriceInBUSD = decimal.NewFromInt(1)
 	} else {
-		coinbBFCPrice := p.CoinBPrice()
-		coinbPriceInBUSD = coinbBFCPrice.Mul(bfcPriceInUSD)
+		// CoinA MUST BE BFC
+		coinaPriceInBUSD = bfcPriceInUSD
+		if coinB == benfenBUSDCoinType {
+			coinbPriceInBUSD = decimal.NewFromInt(1)
+		} else {
+
+			coinbBFCPrice := p.CoinBPrice()
+			coinbPriceInBUSD = coinbBFCPrice.Mul(bfcPriceInUSD)
+		}
 	}
 	coinaAmount, _ := decimal.NewFromString(utils.StringDecimals(p.CoinA, int(coinATokenInfo.Decimals)))
 	coinbAmount, _ := decimal.NewFromString(utils.StringDecimals(p.CoinA, int(coinBTokenInfo.Decimals)))
@@ -68,7 +76,7 @@ func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) 
 		PairAddress:           p.ID.ID,
 		TokenBase:             coinA,
 		TokenQuote:            coinB,
-		TokenBasePriceInBUSD:  bfcPriceInUSD.String(),
+		TokenBasePriceInBUSD:  coinaPriceInBUSD.String(),
 		TokenQuotePriceInBUSD: coinbPriceInBUSD.String(),
 		TokenBaseBalance:      coinaAmount.String(),
 		TokenQuoteBalance:     coinbAmount.String(),
@@ -124,7 +132,7 @@ func (t *BenfenPoolTask) run() error {
 	if busdPool.CoinA == "0" || busdPool.CoinB == "0" {
 		return fmt.Errorf("no BFC BUSD price")
 	}
-	bfcBUSDPrice := busdPool.BFCPriceInCoinB()
+	bfcBUSDPrice := busdPool.CoinAPriceInCoinB() // BFC/BUSD
 	if err := t.pushPool(rawBusdPool, bfcBUSDPrice); err != nil {
 		return err
 	}
