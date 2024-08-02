@@ -108,7 +108,7 @@ var benfenBUSDBasePools = map[string]map[string]string{
 	"Benfen": {
 		"USDC_0.05": "BFC53c66bcb2240bcfb6216683ca829ec74857154e4d2fb1314b20afcd4385f4bead7ec",
 		"USDC_0.3":  "BFC725e455d526d2b652746e4cceb19089d3859a52383bdf9ec38b0838302e14d31cab0",
-		"USDC_1":    "BFC9cecdd60d5a2b103737bffa795dd05965afc18e5b75ea164e03acd298c27c0a80ada",
+		"USDC_1":    "BFC2ceddde7b2dff064b2917539c2655c02dd0fa904e7d179a928df02aa49f56c54d432",
 		"LONG_0.05": "BFCcc27098eacd4b807d5502deab9ce5e3b7bb079b9b7fa18344fc1d9d98fcde9a3d4ea",
 		"LONG_0.3":  "BFC15b9609c8e4d9e415834041fce08ccf0610f3cfbb7b58c56858672ea2f20fd0dd0ca",
 		"LONG_1":    "BFC9cecdd60d5a2b103737bffa795dd05965afc18e5b75ea164e03acd298c27c0a80ada",
