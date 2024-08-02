@@ -47,6 +47,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	curHeight := chainBlock.Number
 	transactionInfo := chainTx.Raw.(*stypes.TransactionInfo)
 	transactionHash := transactionInfo.Digest
+	senderAddr := utils.EVMAddressToBFC(h.chainName, transactionInfo.Transaction.Data.Sender)
 	var status string
 	var rechargeAmount decimal.Decimal
 	var rechargeTokenInfo string
@@ -97,12 +98,19 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		}
 
 		if strings.HasPrefix(balanceChange.Amount, "-") {
-			fromAmountChangeMap[tokenAddress] = &AmountChange{
+			fromAmountChange := &AmountChange{
 				FromAddress:  utils.EVMAddressToBFC(h.chainName, address),
 				TxType:       txType,
 				TokenAddress: tokenAddress,
 				Amount:       amount,
 			}
+			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) && fromAmountChange.FromAddress == senderAddr {
+				amt, _ := decimal.NewFromString(amount)
+				// 发送的金额需要减去手续费（负的变成 Add）
+				amt = amt.Add(feeAmount)
+				fromAmountChange.Amount = amt.String()
+			}
+			fromAmountChangeMap[tokenAddress] = fromAmountChange
 		} else {
 			toAmountChangeMap[tokenAddress] = append(toAmountChangeMap[tokenAddress], &AmountChange{
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, address),
@@ -112,8 +120,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			})
 		}
 	}
-
-	senderAddr := utils.EVMAddressToBFC(h.chainName, transactionInfo.Transaction.Data.Sender)
 
 	for tokenAddress, toAmountChangeList := range toAmountChangeMap {
 		for _, toAmountChange := range toAmountChangeList {
@@ -153,11 +159,6 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if fromAmountChange != nil {
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
-			if h.isGasCoinAmountChange(transactionInfo, fromAmountChange, gasObjecType) && fromAmountChange.FromAddress == senderAddr {
-				// 发送的金额需要加上手续费
-				gasUsedInt := transactionInfo.GasUsedInt()
-				fromAmount = fromAmount.Sub(fromAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
-			}
 			if fromAmount.Cmp(new(big.Int)) > 0 {
 				fromAmountChange.Amount = fromAmount.String()
 				amountChanges = append(amountChanges, fromAmountChange)
