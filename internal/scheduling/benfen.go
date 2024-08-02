@@ -44,8 +44,12 @@ func (p *OnChainPool) CoinAPriceInCoinB() decimal.Decimal {
 
 func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) (*biz.BenfenPool, error) {
 	benfenBUSDCoinType := swap.NormalizeBenfenCoinType(chainName, "0xc8::busd::BUSD")
+	benfenBFCCoinType := "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
 
 	coinA, coinB := p.ParseType()
+	if coinA != benfenBUSDCoinType && coinA != benfenBFCCoinType {
+		return nil, fmt.Errorf("[%s] coinA of the pool must be one of BFC or BUSD", coinA)
+	}
 	coinATokenInfo, err := biz.GetTokenInfo(context.Background(), chainName, coinA)
 	if err != nil {
 		return nil, err
@@ -106,8 +110,8 @@ var benfenBUSDBasePools = map[string]map[string]string{
 		"USDC_0.3":  "BFC725e455d526d2b652746e4cceb19089d3859a52383bdf9ec38b0838302e14d31cab0",
 		"USDC_1":    "BFC9cecdd60d5a2b103737bffa795dd05965afc18e5b75ea164e03acd298c27c0a80ada",
 		"LONG_0.05": "BFCcc27098eacd4b807d5502deab9ce5e3b7bb079b9b7fa18344fc1d9d98fcde9a3d4ea",
-		"LONG_0.3":  "BFC8ffcc0bafb7d483a4129cb7664711577017870853ad70a0b7c14da2ffd1f4ed89d67",
-		"LONG_1":    "BFCae1b961f4a8a831c742ace3ee512b5c1425642f7b917fdccce3d41d4509961648d15",
+		"LONG_0.3":  "BFC15b9609c8e4d9e415834041fce08ccf0610f3cfbb7b58c56858672ea2f20fd0dd0ca",
+		"LONG_1":    "BFC9cecdd60d5a2b103737bffa795dd05965afc18e5b75ea164e03acd298c27c0a80ada",
 	},
 }
 
