@@ -80,7 +80,7 @@ func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) 
 		TokenQuotePriceInBUSD: coinbPriceInBUSD.String(),
 		TokenBaseBalance:      coinaAmount.String(),
 		TokenQuoteBalance:     coinbAmount.String(),
-		FDVInBUSD:             coinaAmount.Mul(bfcPriceInUSD).Add(coinbAmount.Mul(coinbPriceInBUSD)).String(),
+		FDVInBUSD:             coinaAmount.Mul(coinaPriceInBUSD).Add(coinbAmount.Mul(coinbPriceInBUSD)).String(),
 	}, nil
 }
 
