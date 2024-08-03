@@ -33,28 +33,44 @@ type OnChainPool struct {
 }
 
 func (p *OnChainPool) CoinBPrice() decimal.Decimal {
-	return decimal.NewFromInt(1).Div(p.BFCPriceInCoinB())
+	return decimal.NewFromInt(1).Div(p.CoinAPriceInCoinB())
 }
 
-func (p *OnChainPool) BFCPriceInCoinB() decimal.Decimal {
+func (p *OnChainPool) CoinAPriceInCoinB() decimal.Decimal {
 	coinA, _ := decimal.NewFromString(p.CurrentSqrtPrice)
 	power64, _ := decimal.NewFromString("18446744073709551616") // 2^64
 	return coinA.Div(power64).Pow(decimal.NewFromInt(2))
 }
 
 func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) (*biz.BenfenPool, error) {
+	benfenBUSDCoinType := swap.NormalizeBenfenCoinType(chainName, "0xc8::busd::BUSD")
+	benfenBFCCoinType := "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
+
 	coinA, coinB := p.ParseType()
+	if coinA != benfenBUSDCoinType && coinA != benfenBFCCoinType {
+		return nil, fmt.Errorf("[%s] coinA of the pool must be one of BFC or BUSD", coinA)
+	}
 	coinATokenInfo, err := biz.GetTokenInfo(context.Background(), chainName, coinA)
 	if err != nil {
 		return nil, err
 	}
 	coinBTokenInfo, err := biz.GetTokenInfo(context.Background(), chainName, coinB)
 	var coinbPriceInBUSD decimal.Decimal
-	if coinB == swap.NormalizeBenfenCoinType(chainName, "0xc8::busd::BUSD") {
-		coinbPriceInBUSD = decimal.NewFromInt(1)
+	var coinaPriceInBUSD decimal.Decimal
+
+	if coinA == benfenBUSDCoinType {
+		coinaPriceInBUSD = decimal.NewFromInt(1)
+		coinbPriceInBUSD = p.CoinBPrice()
 	} else {
-		coinbBFCPrice := p.CoinBPrice()
-		coinbPriceInBUSD = coinbBFCPrice.Mul(bfcPriceInUSD)
+		// CoinA MUST BE BFC
+		coinaPriceInBUSD = bfcPriceInUSD
+		if coinB == benfenBUSDCoinType {
+			coinbPriceInBUSD = decimal.NewFromInt(1)
+		} else {
+
+			coinbBFCPrice := p.CoinBPrice()
+			coinbPriceInBUSD = coinbBFCPrice.Mul(bfcPriceInUSD)
+		}
 	}
 	coinaAmount, _ := decimal.NewFromString(utils.StringDecimals(p.CoinA, int(coinATokenInfo.Decimals)))
 	coinbAmount, _ := decimal.NewFromString(utils.StringDecimals(p.CoinA, int(coinBTokenInfo.Decimals)))
@@ -64,11 +80,11 @@ func (p *OnChainPool) IntoPool(chainName string, bfcPriceInUSD decimal.Decimal) 
 		PairAddress:           p.ID.ID,
 		TokenBase:             coinA,
 		TokenQuote:            coinB,
-		TokenBasePriceInBUSD:  bfcPriceInUSD.String(),
+		TokenBasePriceInBUSD:  coinaPriceInBUSD.String(),
 		TokenQuotePriceInBUSD: coinbPriceInBUSD.String(),
 		TokenBaseBalance:      coinaAmount.String(),
 		TokenQuoteBalance:     coinbAmount.String(),
-		FDVInBUSD:             coinaAmount.Mul(bfcPriceInUSD).Add(coinbAmount.Mul(coinbPriceInBUSD)).String(),
+		FDVInBUSD:             coinaAmount.Mul(coinaPriceInBUSD).Add(coinbAmount.Mul(coinbPriceInBUSD)).String(),
 	}, nil
 }
 
@@ -86,7 +102,17 @@ var benfenPools = map[string]string{
 	"BenfenTEST_BJPY": "BFC6d5ff6cf9e6b9bbf521489bab420e48044a73175f76524e5353cb935b82fe300c51b", // 0.05%
 	"Benfen_BUSD":     "BFC39aa609a447497fb9feba26ab0fc7f6ae78e84ac10e53d19194765ef03f66ba9286f", // 0.05%
 	"Benfen_BJPY":     "BFCf8507d873507ce3da7a5fd293fa6b03809608b149cc388c2e4615a732fd71c57266b", // 0.05%
+}
 
+var benfenBUSDBasePools = map[string]map[string]string{
+	"Benfen": {
+		"USDC_0.05": "BFC53c66bcb2240bcfb6216683ca829ec74857154e4d2fb1314b20afcd4385f4bead7ec",
+		"USDC_0.3":  "BFC725e455d526d2b652746e4cceb19089d3859a52383bdf9ec38b0838302e14d31cab0",
+		"USDC_1":    "BFC2ceddde7b2dff064b2917539c2655c02dd0fa904e7d179a928df02aa49f56c54d432",
+		"LONG_0.05": "BFCcc27098eacd4b807d5502deab9ce5e3b7bb079b9b7fa18344fc1d9d98fcde9a3d4ea",
+		"LONG_0.3":  "BFC15b9609c8e4d9e415834041fce08ccf0610f3cfbb7b58c56858672ea2f20fd0dd0ca",
+		"LONG_1":    "BFC9cecdd60d5a2b103737bffa795dd05965afc18e5b75ea164e03acd298c27c0a80ada",
+	},
 }
 
 type BenfenPoolTask struct {
@@ -110,7 +136,7 @@ func (t *BenfenPoolTask) run() error {
 	if busdPool.CoinA == "0" || busdPool.CoinB == "0" {
 		return fmt.Errorf("no BFC BUSD price")
 	}
-	bfcBUSDPrice := busdPool.BFCPriceInCoinB()
+	bfcBUSDPrice := busdPool.CoinAPriceInCoinB() // BFC/BUSD
 	if err := t.pushPool(rawBusdPool, bfcBUSDPrice); err != nil {
 		return err
 	}
@@ -123,6 +149,15 @@ func (t *BenfenPoolTask) run() error {
 		return err
 	}
 
+	for name, poolID := range benfenBUSDBasePools[t.chainName] {
+		rawPool, err := t.getPoolObject(poolID)
+		if err != nil {
+			return fmt.Errorf("[%sRead] %w", name, err)
+		}
+		if err := t.pushPool(rawPool, bfcBUSDPrice); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
