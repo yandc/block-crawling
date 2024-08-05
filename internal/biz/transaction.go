@@ -5300,7 +5300,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 		userSendRawHistory.UserAgent = device.UserAgent
 	}
 	//chaindataSendTx:chaindata发送交易失败；txHash:校验上链Hash
-	if req.ErrMsg != "" && req.Stage != "chaindataSendTx" && req.Stage != "txHash" {
+	if req.ErrMsg != ""  {
 		NotifyBroadcastTxFailed(ctx, req)
 	}
 	usrhs = append(usrhs, userSendRawHistory)
