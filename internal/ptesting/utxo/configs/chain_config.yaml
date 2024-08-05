@@ -41,7 +41,7 @@ platform:
     netType: main
     proxyCacheTime: 60
     rpcURL:
-      - https://fb1b5e90-a4ac-4db2-ba07-7a8babcebbab@www.oklink.com
+      - https://64b01104-8286-4ffc-a238-e7960c7ebe93@www.oklink.com
     standbyRPCURL:
       - https://chain.so/
     symbol: DOGE
