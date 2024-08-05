@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/types"
 	"block-crawling/internal/utils"
 	"errors"
@@ -143,6 +144,12 @@ func HandleUTXOAsset(chainName string, address string, transactionHash string) e
 	//如果数据库中 UTXO 总和与 balance 不相等，则更新 UTXO
 	if ub != balance {
 		err = RefreshUserUTXO(chainName, address, transactionHash, false)
+		if err != nil {
+
+			alarmMsg := fmt.Sprintf("请注意：%s链刷新用户UTXO失败", chainName)
+			common.AlarmWithFields(chainName, alarmMsg, err, zap.Any("chainName", chainName), zap.Any("address", address), zap.Any("txHash", transactionHash), zap.Any("error", err))
+			return err
+		}
 	}
 
 	return err
@@ -165,8 +172,11 @@ func RefreshUserUTXO(chainName, address, txHash string, refreshAll bool) (err er
 		})
 		utxos = utxoInterface.([]types.OklinkUTXO)
 	} else if chainName == "BTC" {
-		client := NewOklinkClient("BTC", "https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
+		client := NewOklinkClient("BTC", biz.OkLinkURLWithAPIKey)
 		utxos, err = client.GetUTXO(address)
+	}
+	if err != nil {
+		return err
 	}
 
 	//如果查出来没有，则不更新

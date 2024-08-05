@@ -105,6 +105,11 @@ var GetNervosUTXOTransaction func(string) (*types.TransactionWithStatus, error)
 var GetTxByHashFuncMap = make(map[string]func(string) (tx in.TX, err error))
 var GetKaspaUTXOTransaction func(string) (*in.KaspaTransactionInfo, error)
 
+const (
+	// OkLinkURLWithAPIKey = "https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com"
+	OkLinkURLWithAPIKey = "https://aad5a190-adff-4fb1-8e2f-728a84f58a1f@www.oklink.com"
+)
+
 type AppConf *conf.App
 
 var eventLogWhiteList = make(map[string]string)

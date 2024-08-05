@@ -88,12 +88,14 @@ func (c OklinkBtcClient) GetUTXO(address string) ([]types.OklinkUTXO, error) {
 		params["page"] = strconv.Itoa(page)
 
 		err := httpclient.HttpsSignGetForm(url, params, headers, &resp, &timeout)
-		time.Sleep(time.Second)
 		if err != nil {
 			return nil, err
 		}
 
 		if resp.Code != "0" || len(resp.Data) == 0 {
+			if resp.Code != "0" {
+				return nil, fmt.Errorf("%s(%s)", resp.Msg, resp.Code)
+			}
 			return nil, nil
 		}
 
@@ -104,6 +106,7 @@ func (c OklinkBtcClient) GetUTXO(address string) ([]types.OklinkUTXO, error) {
 		if page > totalPage {
 			break
 		}
+		time.Sleep(time.Second)
 	}
 
 	return utxos, nil
