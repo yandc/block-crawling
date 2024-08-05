@@ -282,15 +282,20 @@ func RetryWithAlarm10(chainName string, fn func() error, scope string, fields ..
 		err = fn()
 	}
 	if err != nil {
-		fields = append(fields, zap.Any("chainName", chainName), zap.Any("error", err))
 		// 更新用户资产出错 接入lark报警
-		alarmMsg := fmt.Sprintf("请注意：%s链%s失败：\n%s", chainName, scope, zapFieldsToJSON(fields...))
-		alarmOpts := biz.WithMsgLevel("FATAL")
-		biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
-		log.Error(scope+"失败", fields...)
+		message := fmt.Sprintf("请注意：%s链%s失败", chainName, scope)
+		AlarmWithFields(chainName, message, err, fields...)
 		return err
 	}
 	return nil
+}
+
+func AlarmWithFields(chainName string, message string, err error, fields ...zap.Field) {
+	fields = append(fields, zap.Any("chainName", chainName), zap.Any("error", err))
+	alarmMsg := fmt.Sprintf("%s：\n%s", message, zapFieldsToJSON(fields...))
+	alarmOpts := biz.WithMsgLevel("FATAL")
+	biz.LarkClient.NotifyLark(alarmMsg, nil, nil, alarmOpts)
+	log.Error(message, fields...)
 }
 
 var defaultZapEnc = zapcore.NewJSONEncoder(zapcore.EncoderConfig{})

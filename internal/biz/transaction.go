@@ -43,7 +43,7 @@ type TransactionUsecase struct {
 var sendLock sync.RWMutex
 
 func NewTransactionUsecase(grom *gorm.DB, lark Larker, bundle *data.Bundle, txcRepo TransactionRecordRepo, chainListClient v1.ChainListClient) *TransactionUsecase {
-	data.NewOklinkRepo("https://83c5939d-9051-46d9-9e72-ed69d5855209@www.oklink.com")
+	data.NewOklinkRepo(OkLinkURLWithAPIKey)
 	data.NewKaspaRepoClient("https://api.kaspa.org")
 	return &TransactionUsecase{
 		gormDB:          grom,
