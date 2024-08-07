@@ -20,6 +20,9 @@ var bfstationDexContracts = map[string]bool{
 
 	// rpc-mainnet.benfen.org
 	"BFC30a9fb40135476278f112fb0bb41a699f189bccbb8168a7aec9884141208b4f5c65a": true,
+
+	// testrpc.benfen.org
+	"BFCcc78fd233560cd4258d19ff1f90edaf235b05dda6b42cdeff1a29edddd40987734fa": true,
 }
 
 type bfstationDexSwap struct {

@@ -41,19 +41,6 @@ type txHandler struct {
 	txRecords []*data.TonTransactionRecord
 }
 
-type txHashSuffixer struct {
-	txHash  string
-	counter int
-}
-
-func (s *txHashSuffixer) WithSuffix() string {
-	s.counter++
-	if s.counter-1 == 0 {
-		return s.txHash
-	}
-	return fmt.Sprintf("%s#result-%d", s.txHash, s.counter-1)
-}
-
 func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *chain.Transaction) (err error) {
 	tx := chainTx.Raw.(tontypes.TX)
 	return h.handleTx(c, &tx)
@@ -74,10 +61,7 @@ func (h *txHandler) handleTx(c chain.Clienter, tx *tontypes.TX) error {
 		return nil
 	}
 
-	suffixer := &txHashSuffixer{
-		txHash:  tonutils.Base64ToHex(tx.InMsg.Hash),
-		counter: 0,
-	}
+	suffixer := common.NewTxHashSuffixer(tonutils.Base64ToHex(tx.InMsg.Hash))
 	event, err := c.(*Client).GetEventFromTonAPI(tx)
 	if err != nil {
 		return fmt.Errorf("[getTokenTransfers] %w", err)
@@ -143,7 +127,7 @@ func (h *txHandler) matchAnyUsers(tx *tontypes.TX) (bool, error) {
 // For an incoming wallet transaction, the correct data consists of one incoming message and zero outgoing messages.
 // Otherwise, either an external message is sent to the wallet, in which case the owner spends Toncoin,
 // or the wallet is not deployed and the incoming transaction bounces back.
-func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TXMsg, suffixer *txHashSuffixer, nActions int) (err error) {
+func (h *txHandler) handleMsg(c chain.Clienter, tx *tontypes.TX, msg tontypes.TXMsg, suffixer common.TxHashSuffixer, nActions int) (err error) {
 	var fromAddress string
 	if msg.Source != nil {
 		fromAddress = unifyAddressToHuman(*msg.Source)
@@ -220,7 +204,7 @@ func (h *txHandler) isIntermediateAct(act tonclient.TonAPIAction) bool {
 	return false
 }
 
-func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, suffixer *txHashSuffixer) (records []*data.TonTransactionRecord, err error) {
+func (h *txHandler) handleEvents(event *tonclient.TonAPIEvent, tx *tontypes.TX, suffixer common.TxHashSuffixer) (records []*data.TonTransactionRecord, err error) {
 	var mainRecord *data.TonTransactionRecord
 	var eventLogs []*itypes.EventLogUid
 
@@ -461,11 +445,11 @@ func (h *txHandler) fillUid(txRecord *data.TonTransactionRecord) (err error) {
 	return
 }
 
-func (h *txHandler) fillToken(txRecord *data.TonTransactionRecord, event interface{}, suffixer *txHashSuffixer, tokenAddress string) (err error) {
+func (h *txHandler) fillToken(txRecord *data.TonTransactionRecord, event interface{}, suffixer common.TxHashSuffixer, tokenAddress string) (err error) {
 	tokenAddress = unifyAddressToHuman(tokenAddress)
 	tokenInfo, err := biz.GetTokenInfoRetryAlert(nil, h.chainName, tokenAddress)
 	if err != nil {
-		log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", suffixer.txHash), zap.Any("error", err))
+		log.Error("扫块，从nodeProxy中获取代币精度失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", suffixer.Hash()), zap.Any("error", err))
 	}
 	tokenInfo.Amount = txRecord.Amount.String()
 	tokenInfo.Address = tokenAddress
@@ -478,12 +462,12 @@ func (h *txHandler) fillToken(txRecord *data.TonTransactionRecord, event interfa
 	return nil
 }
 
-func (h *txHandler) fillNFT(txRecord *data.TonTransactionRecord, event interface{}, suffixer *txHashSuffixer, nftAddress string, nftIndex int) (err error) {
+func (h *txHandler) fillNFT(txRecord *data.TonTransactionRecord, event interface{}, suffixer common.TxHashSuffixer, nftAddress string, nftIndex int) (err error) {
 	contractAddress := unifyAddressToHuman(nftAddress)
 	tokenId := strconv.Itoa(nftIndex)
 	tokenInfo, err := biz.GetNftInfoDirectlyRetryAlert(nil, h.chainName, contractAddress, tokenId)
 	if err != nil {
-		log.Error("扫块，从nodeProxy中获取NFT信息失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", suffixer.txHash), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
+		log.Error("扫块，从nodeProxy中获取NFT信息失败", zap.Any("chainName", h.chainName), zap.Any("current", h.curHeight), zap.Any("new", h.chainHeight), zap.Any("txHash", suffixer.Hash()), zap.Any("tokenAddress", contractAddress), zap.Any("tokenId", tokenId), zap.Any("error", err))
 	}
 	tokenInfo.Amount = "1"
 	tokenInfo.Address = contractAddress

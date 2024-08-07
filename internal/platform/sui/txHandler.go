@@ -74,6 +74,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			repo:        data.BFCStationRepoIns,
 			blockNumber: curHeight,
 			blockHash:   chainBlock.Hash,
+			suffixers:   make(map[string]common.TxHashSuffixer),
 		}
 		if biz.IsBenfenNet(h.chainName) {
 			bfh.Handle(transactionInfo, results, status)

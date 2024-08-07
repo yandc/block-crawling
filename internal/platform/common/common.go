@@ -318,3 +318,32 @@ func zapFieldsToJSON(fields ...zap.Field) string {
 	}
 	return ""
 }
+
+type TxHashSuffixer interface {
+	WithSuffix() string
+	Hash() string
+}
+
+func NewTxHashSuffixer(txHash string) TxHashSuffixer {
+	return &txHashSuffixer{
+		txHash:  txHash,
+		counter: 0,
+	}
+}
+
+type txHashSuffixer struct {
+	txHash  string
+	counter int
+}
+
+func (s *txHashSuffixer) WithSuffix() string {
+	s.counter++
+	if s.counter-1 == 0 {
+		return s.txHash
+	}
+	return fmt.Sprintf("%s#result-%d", s.txHash, s.counter-1)
+}
+
+func (s *txHashSuffixer) Hash() string {
+	return s.txHash
+}
