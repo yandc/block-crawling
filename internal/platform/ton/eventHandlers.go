@@ -3,6 +3,7 @@ package ton
 import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/platform/ton/tonclient"
 	"block-crawling/internal/types/tontypes"
 	"time"
@@ -15,7 +16,7 @@ type eventIn struct {
 	tx        *tontypes.TX
 	event     *tonclient.TonAPIEvent
 	act       *tonclient.TonAPIAction
-	suffixer  *txHashSuffixer
+	suffixer  common.TxHashSuffixer
 	status    string
 	feeAmount decimal.Decimal
 }
