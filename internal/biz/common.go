@@ -758,7 +758,7 @@ func UserAddressSwitch(address string) (bool, string, error) {
 type UserInfo struct {
 	Uid      string `json:"uid"`
 	UidType  string `json:"uid_type"`
-	Category int    `json:"category"`   //1:benfen链需要发送消息到cmq
+	Category int    `json:"category"` //1:benfen链需要发送消息到cmq
 }
 
 func GetUserInfo(address string) (*UserInfo, error) {
@@ -825,7 +825,7 @@ func GetUidType(address string) (string, error) {
 	return uidType, nil
 }
 
-func GetCategory(address string)(int,error){
+func GetCategory(address string) (int, error) {
 	category := -1
 	if address == "" {
 		return category, nil
@@ -1311,45 +1311,27 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 		if strings.Contains(errMsg, "gas price too low") {
 			HandlerGasCoefficient(ctx.ChainName)
 		}
-	} else {
+	} else if req.Stage == "txParamsLark" {
 		//txHash:校验txHash,urlCheck，txParams：获取交易参数
-		alarmOpts = WithCollectBot()
-		if req.Stage == "urlCheck" {
-			msg = "chainData校验URL失败。"
-		} else if req.Stage == "txHash" {
-			msg = fmt.Sprintf(
-				"%s 链校验上链失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
-				req.ChainName,
-				req.NodeURL,
-				req.Address,
-				userAgent,
-				req.ErrMsg,
-				req.TxInput,
-				user,
-				deviceId,
-			)
-			alarmOpts = WithAlarmChannel("node-proxy")
-		} else {
-			msg = fmt.Sprintf(
-				"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
-				req.ChainName,
-				req.NodeURL,
-				req.Address,
-				userAgent,
-				req.ErrMsg,
-				req.TxInput,
-				user,
-				deviceId,
-			)
-			if req.Stage == "txParamsLark" {
-				alarmOpts = WithAlarmChannel("node-proxy")
-			}
-
-		}
 		//alarmOpts = WithCollectBot()
-		//alarmOpts = WithAlarmChannel("node-proxy")
+		alarmOpts = WithAlarmChannel("node-proxy")
+		msg = fmt.Sprintf(
+			"%s 链获取交易参数失败。\n节点：%s\n钱包地址：%s\nUser-Agent：%s\n错误消息：%s\ntxInput: %s\n用户: %s\nDevice-Id: %s",
+			req.ChainName,
+			req.NodeURL,
+			req.Address,
+			userAgent,
+			req.ErrMsg,
+			req.TxInput,
+			user,
+			deviceId,
+		)
 	}
-	LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
+	//alarmOpts = WithCollectBot()
+	//alarmOpts = WithAlarmChannel("node-proxy")
+	if msg != ""{
+		LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
+	}
 }
 
 func HandlerGasCoefficient(chainName string) {
