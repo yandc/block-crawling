@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/biz"
 	"block-crawling/internal/data"
 	"block-crawling/internal/log"
+	"block-crawling/internal/platform/common"
 	"block-crawling/internal/platform/sui/stypes"
 	suiswap "block-crawling/internal/platform/sui/swap"
 	"block-crawling/internal/platform/swap"
@@ -25,6 +26,7 @@ type bfstationHandler struct {
 	repo        data.BFCStationRepo
 	blockNumber uint64
 	blockHash   string
+	suffixers   map[string]common.TxHashSuffixer
 }
 
 func (h *bfstationHandler) Handle(txInfo *stypes.TransactionInfo, pairs []*swap.Pair, status string) {
@@ -107,10 +109,14 @@ func (h *bfstationHandler) do(txInfo *stypes.TransactionInfo, pairs []*swap.Pair
 		if walletUID == "" {
 			walletUID = item.FromAddress
 		}
+		txHash := item.TxHash
+		if _, ok := h.suffixers[txHash]; !ok {
+			h.suffixers[txHash] = common.NewTxHashSuffixer(txHash)
+		}
 		record := data.BFCStationRecord{
 			BlockHash:       h.blockHash,
 			BlockNumber:     item.BlockNumber,
-			TransactionHash: item.TxHash,
+			TransactionHash: h.suffixers[txHash].WithSuffix(),
 			TxTime:          int64(item.TxTime),
 			WalletAddress:   item.FromAddress,
 			WalletUID:       walletUID,
