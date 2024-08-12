@@ -176,6 +176,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		objectType := objectChange.ObjectType
 		objectId := objectChange.ObjectId
 
+		if owner == nil && objectChange.Type != "deleted" {
+			continue
+		}
+
 		if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
 			continue
 		}
