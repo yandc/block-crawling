@@ -88,6 +88,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	toAmountChangeMap := make(map[string][]*AmountChange)
 	var amountChanges []*AmountChange
 	balanceChanges := transactionInfo.BalanceChanges
+	balanceChangeCoinTypes := make(map[string]bool)
 	for _, balanceChange := range balanceChanges {
 		txType := biz.NATIVE
 		var tokenAddress string
@@ -97,6 +98,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			txType = biz.TRANSFER
 			tokenAddress = suiswap.NormalizeBenfenCoinType(h.chainName, balanceChange.CoinType)
 		}
+		balanceChangeCoinTypes[tokenAddress] = true
 
 		if strings.HasPrefix(balanceChange.Amount, "-") {
 			fromAmountChange := &AmountChange{
@@ -173,22 +175,28 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		owner := objectChange.Owner
 		objectType := objectChange.ObjectType
 		objectId := objectChange.ObjectId
-		if owner == nil {
-			continue
-		}
+
 		if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
 			continue
 		}
-		var toAddress string
-		if objectChange.Owner != nil {
-			toAddress = getOwnerAddress(objectChange.Owner)
+		tokenAddress := suiswap.NormalizeBenfenCoinType(h.chainName, objectType)
+		if owner == nil {
+			// owner 为 nil 一般为对象被删除，此处忽略出现在余额变更中的对象。
+			if _, ok := balanceChangeCoinTypes[tokenAddress]; ok {
+				continue
+			}
 		}
-		if sender != "" && toAddress != "" && objectType != "" && objectId != "" {
+
+		var toAddress string
+		if owner != nil {
+			toAddress = getOwnerAddress(owner)
+		}
+		if sender != "" && objectType != "" && objectId != "" {
 			amountChange := &AmountChange{
 				FromAddress:  utils.EVMAddressToBFC(h.chainName, sender),
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, toAddress),
 				TxType:       biz.TRANSFERNFT,
-				TokenAddress: suiswap.NormalizeBenfenCoinType(h.chainName, objectType),
+				TokenAddress: tokenAddress,
 				TokenId:      objectId,
 				Amount:       "1",
 			}

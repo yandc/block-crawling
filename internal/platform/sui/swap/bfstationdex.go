@@ -23,6 +23,9 @@ var bfstationDexContracts = map[string]bool{
 
 	// testrpc.benfen.org
 	"BFCcc78fd233560cd4258d19ff1f90edaf235b05dda6b42cdeff1a29edddd40987734fa": true,
+
+	// devrpc.benfen.org
+	"BFCf5151f4b39365bdf767531cc0cefa7d68f99d766d08f8cbb87a0160f5288b0cd3401": true,
 }
 
 type bfstationDexSwap struct {
