@@ -73,6 +73,7 @@ const (
 
 	OKLINK              = "oklink"
 	GAS_COEFFICIENT_KEY = "gasCoefficient:"
+	BENFEN_CARD = "benfenCard:contract:"
 )
 
 const (
@@ -1979,4 +1980,19 @@ func DenormalizeBenfenCoinType(chainName, src string) string {
 		return strings.Join(parts, "::")
 	}
 	return src
+}
+
+// GetBenfenCardEvent 是否是card的固定合约的事件
+func GetBenfenCardEvent(txType string) (string, error) {
+	log.Info("GetBenfenCardEvent info:", zap.Any("txType", txType))
+	if txType == ""{
+		return "", nil
+	}
+	key := BENFEN_CARD + txType
+	result, err := data.RedisClient.Get(key).Result()
+	for i := 0; i < 3 && err != nil && err != redis.Nil; i++ {
+		time.Sleep(time.Duration(i) * time.Second)
+		result, err = data.RedisClient.Get(key).Result()
+	}
+	return result , err
 }

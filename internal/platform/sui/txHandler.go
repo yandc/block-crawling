@@ -358,11 +358,16 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				if fromCategory == PAY_CHAINGE_CATEGORY {
 					fromCategory = PAY_REFUND_CATEGORY
 				}
-				go PushSUIPayCardCMQ(fromCategory, h.chainName, suiTransactionRecord)
+				go PushSUIPayCardCMQ(fromCategory, pushSUIPayCardResq{SuiTransactionRecord:suiTransactionRecord,Chain: h.chainName})
 			}
-			if toCategory == PAY_CHAINGE_CATEGORY || toCategory == PAY_ASSEM_CATEGORY {
-				go PushSUIPayCardCMQ(toCategory, h.chainName, suiTransactionRecord)
+			if toCategory == PAY_ASSEM_CATEGORY {
+				go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord:suiTransactionRecord,Chain: h.chainName})
 			}
+			//判断合约的事件是否符合开卡
+			CheckContractCard(h.chainName, transactionInfo, suiTransactionRecord)
+			//if isCard,_ := biz.GetBenfenCardEvent(contractAddress,txType); isCard {
+			//	go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY,"", h.chainName, suiTransactionRecord)
+			//}
 		}
 	} else {
 		var payload string
@@ -567,12 +572,18 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if fromCategory == PAY_CHAINGE_CATEGORY {
 				fromCategory = PAY_REFUND_CATEGORY
 			}
-			go PushSUIPayCardCMQ(fromCategory, h.chainName, suiContractRecord)
+			go PushSUIPayCardCMQ(fromCategory,pushSUIPayCardResq{SuiTransactionRecord:suiContractRecord,Chain: h.chainName})
 		}
 
-		if toCategory == PAY_CHAINGE_CATEGORY || toCategory == PAY_ASSEM_CATEGORY {
-			go PushSUIPayCardCMQ(toCategory, h.chainName, suiContractRecord)
+		if toCategory == PAY_ASSEM_CATEGORY {
+			go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord:suiContractRecord,Chain: h.chainName})
 		}
+
+		//判断合约的事件是否符合开卡
+		CheckContractCard(h.chainName, transactionInfo, suiContractRecord)
+		//if isCard,_ := biz.GetBenfenCardEvent(contractAddress,txType); isCard {
+		//	go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY, h.chainName,"", suiContractRecord)
+		//}
 
 		if eventLogs != nil {
 			eventLog, _ := utils.JsonEncode(eventLogs)

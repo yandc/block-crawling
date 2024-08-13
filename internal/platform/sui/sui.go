@@ -5,8 +5,12 @@ import (
 	coins "block-crawling/internal/common"
 	"block-crawling/internal/conf"
 	"block-crawling/internal/data"
+	"block-crawling/internal/log"
+	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/utils"
 	"fmt"
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -20,16 +24,17 @@ type Platform struct {
 }
 
 const (
-	SUI_CODE  = "0x2::sui::SUI"
-	SUI_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
-	BFC_CODE  = "0x2::bfc::BFC"
-	BFC_CODE1 = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
-	BFC_CODE2 = "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
+	SUI_CODE             = "0x2::sui::SUI"
+	SUI_CODE1            = "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+	BFC_CODE             = "0x2::bfc::BFC"
+	BFC_CODE1            = "0x0000000000000000000000000000000000000000000000000000000000000002::bfc::BFC"
+	BFC_CODE2            = "BFC000000000000000000000000000000000000000000000000000000000000000268e4::bfc::BFC"
 	PAY_CHAINGE_CATEGORY = 1
-	PAY_REFUND_CATEGORY = 11
-	PAY_ASSEM_CATEGORY = 2
-	PAY_TRANS_CATEGORY = 3
-
+	PAY_REFUND_CATEGORY  = 11
+	PAY_ASSEM_CATEGORY   = 2
+	PAY_TRANS_CATEGORY   = 3
+	EVENT_TYPE_CHARGE = "charge"
+	EVENT_TYPE_RETRIEVEL = "retrieval"
 )
 
 func IsNative(coinType string) bool {
@@ -145,8 +150,14 @@ func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string)
 
 type pushSUIPayCardResq struct {
 	*data.SuiTransactionRecord
-	Chain string `json:"chain"`
+	Chain     string `json:"chain"`
+	CardUUID  string `json:"cardUUID"`
+	EventType string `json:"eventType"`
+	DepositAmount   decimal.Decimal `json:"depositAmount"`
+	AvailableAmount decimal.Decimal `json:"availableAmount"`
+	WithDrawAmount  decimal.Decimal `json:"withDrawAmount"`
 }
+
 //PushSUIPayCardCMQ
 /**
 category=1
@@ -156,13 +167,14 @@ category=2
 在to 推到主题  obcard_assem_onchain_result   topic-UwQWsxsWuq8dzNGdDZGGns
 category=3
 在from 推到主题 obpay_trans_onchain_result    topic-DfBim9dBKXRqEHLpqAFhcf
- */
-func PushSUIPayCardCMQ(category int,chainName string, data *data.SuiTransactionRecord) {
+*/
+func PushSUIPayCardCMQ(category int, data pushSUIPayCardResq) {
+	log.Info("PushSUIPayCardCMQ start", zap.Any("chainName", data.Chain), zap.Any("cardUUID", data.CardUUID), zap.Any("eventType", data.EventType))
 	topicId := getPayCardTopicId(category)
-	if data != nil && topicId != ""{
-		resq := pushSUIPayCardResq{data,chainName}
-		rawMsg, _ := utils.JsonEncode(resq)
-		biz.PushTopicCMQ(chainName, topicId, rawMsg,biz.AppConfig.Cmq.Endpoint.TopicURL)
+	if data.SuiTransactionRecord != nil && topicId != "" {
+		//resq := pushSUIPayCardResq{SuiTransactionRecord: data, Chain: chainName, CardUUID: cardUuid,EventType: eventType}
+		rawMsg, _ := utils.JsonEncode(data)
+		biz.PushTopicCMQ(data.Chain, topicId, rawMsg, biz.AppConfig.Cmq.Endpoint.TopicURL)
 	}
 }
 
@@ -174,8 +186,66 @@ func getPayCardTopicId(category int) string {
 		return biz.AppConfig.Cmq.Topic.PayCardAssem.Id
 	case PAY_TRANS_CATEGORY:
 		return biz.AppConfig.Cmq.Topic.PayCardTrans.Id
-	case PAY_REFUND_CATEGORY:   //from category = 1
+	case PAY_REFUND_CATEGORY: //from category = 1
 		return biz.AppConfig.Cmq.Topic.PayCardRefund.Id
 	}
 	return ""
+}
+
+func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo, data *data.SuiTransactionRecord) {
+	if transactionInfo == nil {
+		return
+	}
+	//get events
+	events, err := transactionInfo.Events()
+	if err != nil {
+		log.Error("CheckContractCard get events error ", zap.Error(err))
+		return
+	}
+	for _, event := range events {
+		if !strings.Contains(event.Type,"::"){
+			log.Error("CheckContractCard events type is error ", zap.Any("eventsType",event.Type))
+			return
+		}
+		eventTypeKey := strings.SplitN(event.Type,"::",2)[1]
+		if eventType, _ := biz.GetBenfenCardEvent(eventTypeKey); eventType != "" {
+			parseJson := &stypes.FundsParseJson{}
+			if err := event.ParseJson(parseJson); err != nil {
+				log.Error("CheckContractCard get parseJson error ", zap.Error(err))
+			}
+			suiResq :=  pushSUIPayCardResq{SuiTransactionRecord:data,Chain: chainName, CardUUID: parseJson.CardUuid,
+				DepositAmount: decimal.Zero,AvailableAmount: decimal.Zero,WithDrawAmount: decimal.Zero}
+			switch eventType {
+			//充值
+			case "DepositEvent":
+				suiResq.EventType = EVENT_TYPE_CHARGE
+				if parseJson.AvailableAmount != ""{
+					suiResq.AvailableAmount,err  = decimal.NewFromString(parseJson.AvailableAmount)
+					if err != nil {
+						log.Error("CheckContractCard  NewFromString AvailableAmount error ", zap.Error(err))
+					}
+				}
+				if parseJson.DepositAmount != ""{
+					suiResq.DepositAmount,err  = decimal.NewFromString(parseJson.DepositAmount)
+					if err != nil {
+						log.Error("CheckContractCard  NewFromString DepositAmount error ", zap.Error(err))
+					}
+				}
+				//提取
+			case "WithdrawEvent":
+				suiResq.EventType = EVENT_TYPE_RETRIEVEL
+				if parseJson.WithdrawAmount != ""{
+					suiResq.WithDrawAmount,err = decimal.NewFromString(parseJson.WithdrawAmount)
+					if err != nil {
+						log.Error("CheckContractCard  NewFromString WithdrawAmount error ", zap.Error(err))
+					}
+				}
+			default:
+				log.Error("CheckContractCard dont support eventType.",zap.Any("eventType",eventType))
+				return
+
+			}
+			go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY,suiResq)
+		}
+	}
 }

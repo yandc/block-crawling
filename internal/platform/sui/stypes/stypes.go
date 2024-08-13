@@ -415,6 +415,13 @@ type Event struct {
 	Bcs               string          `json:"bcs"`
 }
 
+type FundsParseJson struct {
+	CardUuid string `json:"card_uuid"`
+	AvailableAmount string `json:"available_amount"`
+	DepositAmount string `json:"deposit_amount"`
+	WithdrawAmount string `json:"withdraw_amount"`
+}
+
 func (ev *Event) ParseJson(out interface{}) error {
 	return json.Unmarshal(ev.RawParsedJson, out)
 }
