@@ -175,32 +175,22 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		owner := objectChange.Owner
 		objectType := objectChange.ObjectType
 		objectId := objectChange.ObjectId
-
-		if owner == nil && objectChange.Type != "deleted" {
+		if owner == nil {
 			continue
 		}
-
 		if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
 			continue
 		}
-		tokenAddress := suiswap.NormalizeBenfenCoinType(h.chainName, objectType)
-		if owner == nil {
-			// owner 为 nil 一般为对象被删除，此处忽略出现在余额变更中的对象。
-			if _, ok := balanceChangeCoinTypes[tokenAddress]; ok {
-				continue
-			}
-		}
-
 		var toAddress string
-		if owner != nil {
-			toAddress = getOwnerAddress(owner)
+		if objectChange.Owner != nil {
+			toAddress = getOwnerAddress(objectChange.Owner)
 		}
-		if sender != "" && objectType != "" && objectId != "" {
+		if sender != "" && toAddress != "" && objectType != "" && objectId != "" {
 			amountChange := &AmountChange{
 				FromAddress:  utils.EVMAddressToBFC(h.chainName, sender),
 				ToAddress:    utils.EVMAddressToBFC(h.chainName, toAddress),
 				TxType:       biz.TRANSFERNFT,
-				TokenAddress: tokenAddress,
+				TokenAddress: suiswap.NormalizeBenfenCoinType(h.chainName, objectType),
 				TokenId:      objectId,
 				Amount:       "1",
 			}
