@@ -9,10 +9,11 @@ import (
 	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/utils"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
 	"gitlab.bixin.com/mili/node-driver/chain"
 )
@@ -33,7 +34,7 @@ const (
 	PAY_REFUND_CATEGORY  = 11
 	PAY_ASSEM_CATEGORY   = 2
 	PAY_TRANS_CATEGORY   = 3
-	EVENT_TYPE_CHARGE = "charge"
+	EVENT_TYPE_CHARGE    = "charge"
 	EVENT_TYPE_RETRIEVEL = "retrieval"
 )
 
@@ -62,9 +63,12 @@ func IsNativeContains(objectType string) bool {
 
 func IsNativePrefixs(objectType string) bool {
 	return strings.HasPrefix(objectType, "0x2::") || strings.HasPrefix(objectType, "0x3::") ||
+		strings.HasPrefix(objectType, "0xc8") ||
 		strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000002::") ||
 		strings.HasPrefix(objectType, "0x0000000000000000000000000000000000000000000000000000000000000003::") ||
-		strings.HasPrefix(objectType, "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::")
+		strings.HasPrefix(objectType, "0x00000000000000000000000000000000000000000000000000000000000000c8::") ||
+		strings.HasPrefix(objectType, "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::") ||
+		strings.HasPrefix(objectType, "BFC00000000000000000000000000000000000000000000000000000000000000c8e30a::")
 }
 
 func IsNativeStakedBfc(objectType string) bool {
@@ -150,9 +154,9 @@ func BatchSaveOrUpdate(txRecords []*data.SuiTransactionRecord, tableName string)
 
 type pushSUIPayCardResq struct {
 	*data.SuiTransactionRecord
-	Chain     string `json:"chain"`
-	CardUUID  string `json:"cardUUID"`
-	EventType string `json:"eventType"`
+	Chain           string          `json:"chain"`
+	CardUUID        string          `json:"cardUUID"`
+	EventType       string          `json:"eventType"`
 	DepositAmount   decimal.Decimal `json:"depositAmount"`
 	AvailableAmount decimal.Decimal `json:"availableAmount"`
 	WithDrawAmount  decimal.Decimal `json:"withDrawAmount"`
@@ -175,6 +179,7 @@ func PushSUIPayCardCMQ(category int, data pushSUIPayCardResq) {
 		//resq := pushSUIPayCardResq{SuiTransactionRecord: data, Chain: chainName, CardUUID: cardUuid,EventType: eventType}
 		rawMsg, _ := utils.JsonEncode(data)
 		biz.PushTopicCMQ(data.Chain, topicId, rawMsg, biz.AppConfig.Cmq.Endpoint.TopicURL)
+
 	}
 }
 
@@ -203,30 +208,30 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 		return
 	}
 	for _, event := range events {
-		if !strings.Contains(event.Type,"::"){
-			log.Error("CheckContractCard events type is error ", zap.Any("eventsType",event.Type))
+		if !strings.Contains(event.Type, "::") {
+			log.Error("CheckContractCard events type is error ", zap.Any("eventsType", event.Type))
 			return
 		}
-		eventTypeKey := strings.SplitN(event.Type,"::",2)[1]
+		eventTypeKey := strings.SplitN(event.Type, "::", 2)[1]
 		if eventType, _ := biz.GetBenfenCardEvent(eventTypeKey); eventType != "" {
 			parseJson := &stypes.FundsParseJson{}
 			if err := event.ParseJson(parseJson); err != nil {
 				log.Error("CheckContractCard get parseJson error ", zap.Error(err))
 			}
-			suiResq :=  pushSUIPayCardResq{SuiTransactionRecord:data,Chain: chainName, CardUUID: parseJson.CardUuid,
-				DepositAmount: decimal.Zero,AvailableAmount: decimal.Zero,WithDrawAmount: decimal.Zero}
+			suiResq := pushSUIPayCardResq{SuiTransactionRecord: data, Chain: chainName, CardUUID: parseJson.CardUuid,
+				DepositAmount: decimal.Zero, AvailableAmount: decimal.Zero, WithDrawAmount: decimal.Zero}
 			switch eventType {
 			//充值
 			case "DepositEvent":
 				suiResq.EventType = EVENT_TYPE_CHARGE
-				if parseJson.AvailableAmount != ""{
-					suiResq.AvailableAmount,err  = decimal.NewFromString(parseJson.AvailableAmount)
+				if parseJson.AvailableAmount != "" {
+					suiResq.AvailableAmount, err = decimal.NewFromString(parseJson.AvailableAmount)
 					if err != nil {
 						log.Error("CheckContractCard  NewFromString AvailableAmount error ", zap.Error(err))
 					}
 				}
-				if parseJson.DepositAmount != ""{
-					suiResq.DepositAmount,err  = decimal.NewFromString(parseJson.DepositAmount)
+				if parseJson.DepositAmount != "" {
+					suiResq.DepositAmount, err = decimal.NewFromString(parseJson.DepositAmount)
 					if err != nil {
 						log.Error("CheckContractCard  NewFromString DepositAmount error ", zap.Error(err))
 					}
@@ -234,18 +239,18 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 				//提取
 			case "WithdrawEvent":
 				suiResq.EventType = EVENT_TYPE_RETRIEVEL
-				if parseJson.WithdrawAmount != ""{
-					suiResq.WithDrawAmount,err = decimal.NewFromString(parseJson.WithdrawAmount)
+				if parseJson.WithdrawAmount != "" {
+					suiResq.WithDrawAmount, err = decimal.NewFromString(parseJson.WithdrawAmount)
 					if err != nil {
 						log.Error("CheckContractCard  NewFromString WithdrawAmount error ", zap.Error(err))
 					}
 				}
 			default:
-				log.Error("CheckContractCard dont support eventType.",zap.Any("eventType",eventType))
+				log.Error("CheckContractCard dont support eventType.", zap.Any("eventType", eventType))
 				return
 
 			}
-			go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY,suiResq)
+			go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY, suiResq)
 		}
 	}
 }
