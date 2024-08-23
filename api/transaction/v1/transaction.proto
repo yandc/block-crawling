@@ -386,6 +386,7 @@ message TransactionRecord {
   string statusDetail = 42;
 	string shortHost = 43;
 	string memo = 44;
+	string eventLogCount=45;
 }
 
 message AmountRequest {

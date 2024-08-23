@@ -73,7 +73,7 @@ const (
 
 	OKLINK              = "oklink"
 	GAS_COEFFICIENT_KEY = "gasCoefficient:"
-	BENFEN_CARD = "benfenCard:contract:"
+	BENFEN_CARD         = "benfenCard:contract:"
 )
 
 const (
@@ -519,6 +519,11 @@ type GasCoefficientReq struct {
 
 type GasCoefficientResp struct {
 	GasCoefficient float32 `json:"gas_coefficient"`
+}
+
+type EventLogReq struct {
+	ChainName string `json:"chainName"`
+	TxHash    string `json:"tx_hash"`
 }
 
 func CreatePendingInfo(amount, deciamlAmount string, isPositive string, token map[string]PendingTokenInfo) PendingInfo {
@@ -1330,7 +1335,7 @@ func NotifyBroadcastTxFailed(ctx *JsonRpcContext, req *BroadcastRequest) {
 	}
 	//alarmOpts = WithCollectBot()
 	//alarmOpts = WithAlarmChannel("node-proxy")
-	if msg != ""{
+	if msg != "" {
 		LarkClient.NotifyLark(msg, nil, nil, alarmOpts)
 	}
 }
@@ -1985,7 +1990,7 @@ func DenormalizeBenfenCoinType(chainName, src string) string {
 // GetBenfenCardEvent 是否是card的固定合约的事件
 func GetBenfenCardEvent(txType string) (string, error) {
 	log.Info("GetBenfenCardEvent info:", zap.Any("txType", txType))
-	if txType == ""{
+	if txType == "" {
 		return "", nil
 	}
 	key := BENFEN_CARD + txType
@@ -1994,5 +1999,48 @@ func GetBenfenCardEvent(txType string) (string, error) {
 		time.Sleep(time.Duration(i) * time.Second)
 		result, err = data.RedisClient.Get(key).Result()
 	}
-	return result , err
+	return result, err
+}
+
+func IsInArray(arr []string, target string) bool {
+	for _, value := range arr {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func UpdateBenfenEventLogInfo(chainName, platform, address string, record *data.SuiTransactionRecord, fromAddressList []string) (bool, string) {
+	if utils.IsBenfenChain(chainName) && platform == WEB && record != nil {
+		if record.EventLog != "" {
+			var eventLogs []types.EventLogUid
+			if err := json.Unmarshal([]byte(record.EventLog), &eventLogs); err != nil {
+				log.Errore("page query suiTransactionRecord Unmarshal error ", err)
+				return false, ""
+			}
+			if len(eventLogs) > 10 {
+				addAmount, subAmount, totalAmount := 0, 0, len(eventLogs)
+				for _, eventLog := range eventLogs {
+					if eventLog.From != address || eventLog.To == address || IsInArray(fromAddressList, eventLog.To) {
+						addAmount += 1
+					} else {
+						subAmount += 1
+					}
+				}
+				eventInfo := map[string]int{
+					"addAmount": addAmount,
+					"subAmount": subAmount,
+					"total":     totalAmount,
+				}
+				eventLogsCont, err := utils.JsonEncode(eventInfo)
+				if err != nil {
+					log.Errore("page query suiTransactionRecord Unmarshal error ", err)
+					return false, ""
+				}
+				return true, eventLogsCont
+			}
+		}
+	}
+	return false, ""
 }
