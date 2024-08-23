@@ -2024,8 +2024,19 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 	case SUI:
 		var recordList []*data.SuiTransactionRecord
 		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
-		if err == nil {
-			err = utils.CopyProperties(recordList, &list)
+		//UpdateBenfenEventLogInfo(req.ChainName, req.Platform, req.Address, recordList, req.FromAddressList)
+		if err == nil && len(recordList) > 0{
+			for _,record := range recordList {
+				isEventLogCount,eventLogCount := UpdateBenfenEventLogInfo(req.ChainName, req.Platform, req.Address, record, req.FromAddressList)
+				var ptr *pb.TransactionRecord
+				err = utils.CopyProperties(record, &ptr)
+				if isEventLogCount {
+					ptr.EventLog = ""
+					ptr.EventLogCount = eventLogCount
+				}
+				list = append(list, ptr)
+			}
+			//err = utils.CopyProperties(recordList, &list)
 		}
 	case SOLANA:
 		var recordList []*data.SolTransactionRecord
@@ -5300,7 +5311,7 @@ func (s *TransactionUsecase) CreateBroadcast(ctx *JsonRpcContext, req *Broadcast
 		userSendRawHistory.UserAgent = device.UserAgent
 	}
 	//chaindataSendTx:chaindata发送交易失败；txHash:校验上链Hash
-	if req.ErrMsg != ""  {
+	if req.ErrMsg != "" {
 		NotifyBroadcastTxFailed(ctx, req)
 	}
 	usrhs = append(usrhs, userSendRawHistory)
@@ -6057,4 +6068,15 @@ func (s *TransactionUsecase) CreateRecordFromRecharge(ctx context.Context, req *
 	//处理订单和源交易的映射
 	go HandleRechargeOrderId(req.OrderId, req.TransactionHash, PENDING, req.ChainName, req.TxTime, decimal.NewFromInt(0))
 	return s.CreateRecordFromWallet(ctx, req.TransactionReq)
+}
+
+func (s *TransactionUsecase) GetBenfenEventLog(ctx context.Context,req *EventLogReq) (string,error){
+	record,err := data.SuiTransactionRecordRepoClient.FindByTxHash(ctx,GetTableName(req.ChainName),req.TxHash)
+	if err != nil {
+		return "", err
+	}
+	if record != nil {
+		return record.EventLog, nil
+	}
+	return "", nil
 }
