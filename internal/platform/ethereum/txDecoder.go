@@ -140,14 +140,11 @@ func (h *txDecoder) OnNewTx(c chain.Clienter, block *chain.Block, tx *chain.Tran
 	//校验合约地址是否是高风险代币
 	if meta.TransactionType == biz.TRANSFER {
 		if contractAddress != "" {
-			tokenInfo, err := biz.GetTokenInfoRetryAlert(context.Background(), h.chainName, contractAddress)
-			if err == nil && tokenInfo.Symbol != "" && tokenInfo.Symbol != "Unknown Token" && tokenInfo.Address != "" {
-				isFake, FakeErr := biz.GetTokenIsFakeRetryAlert(context.Background(), h.chainName, contractAddress, tokenInfo.Symbol)
+				isFake, FakeErr := biz.GetTokenIsFakeRetryAlert(context.Background(), h.chainName, contractAddress)
 				if isFake && FakeErr == nil {
 					log.Info("HIGH RISK TOKEN", zap.String("txHash", tx.Hash), zap.String("to", transaction.To().String()), zap.String("chainName", h.chainName))
 					return nil
 				}
-			}
 		}
 	}
 	/*log.Info(
@@ -695,8 +692,16 @@ func (h *txDecoder) handleEachTransaction(
 		if _, ok := handledLogs[uniqKey]; ok {
 			continue
 		}
+		//判断高风险代币
 		handledLogs[uniqKey] = true
+		if meta.TransactionType == biz.TRANSFER && eventLog.Token.Address != ""{
+			isFake, FakeErr := biz.GetTokenIsFakeRetryAlert(context.Background(), h.chainName, eventLog.Token.Address)
+			if isFake && FakeErr == nil {
+				log.Info("EVENTLOG HIGH RISK TOKEN", zap.String("txHash", transactionHash), zap.String("address", eventLog.Token.Address), zap.String("chainName", h.chainName))
+				continue
+			}
 
+		}
 		eventMap := map[string]interface{}{
 			"evm": map[string]string{
 				"nonce": fmt.Sprintf("%v", transaction.Nonce()),
