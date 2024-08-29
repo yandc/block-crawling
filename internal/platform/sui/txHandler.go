@@ -48,6 +48,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 	transactionInfo := chainTx.Raw.(*stypes.TransactionInfo)
 	transactionHash := transactionInfo.Digest
 	senderAddr := utils.EVMAddressToBFC(h.chainName, transactionInfo.Transaction.Data.Sender)
+
+	if senderAddr == "BFC000000000000000000000000000000000000000000000000000000000000000060e0" {
+		return nil
+	}
 	var status string
 	var rechargeAmount decimal.Decimal
 	var rechargeTokenInfo string
@@ -348,10 +352,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				if fromCategory == PAY_CHAINGE_CATEGORY {
 					fromCategory = PAY_REFUND_CATEGORY
 				}
-				go PushSUIPayCardCMQ(fromCategory, pushSUIPayCardResq{SuiTransactionRecord:suiTransactionRecord,Chain: h.chainName})
+				go PushSUIPayCardCMQ(fromCategory, pushSUIPayCardResq{SuiTransactionRecord: suiTransactionRecord, Chain: h.chainName})
 			}
 			if toCategory == PAY_ASSEM_CATEGORY {
-				go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord:suiTransactionRecord,Chain: h.chainName})
+				go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord: suiTransactionRecord, Chain: h.chainName})
 			}
 			//判断合约的事件是否符合开卡
 			CheckContractCard(h.chainName, transactionInfo, suiTransactionRecord)
@@ -562,11 +566,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if fromCategory == PAY_CHAINGE_CATEGORY {
 				fromCategory = PAY_REFUND_CATEGORY
 			}
-			go PushSUIPayCardCMQ(fromCategory,pushSUIPayCardResq{SuiTransactionRecord:suiContractRecord,Chain: h.chainName})
+			go PushSUIPayCardCMQ(fromCategory, pushSUIPayCardResq{SuiTransactionRecord: suiContractRecord, Chain: h.chainName})
 		}
 
 		if toCategory == PAY_ASSEM_CATEGORY {
-			go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord:suiContractRecord,Chain: h.chainName})
+			go PushSUIPayCardCMQ(toCategory, pushSUIPayCardResq{SuiTransactionRecord: suiContractRecord, Chain: h.chainName})
 		}
 
 		//判断合约的事件是否符合开卡

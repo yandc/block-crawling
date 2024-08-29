@@ -721,6 +721,9 @@ func UserAddressSwitchRetryAlert(chainName, address string) (bool, string, error
 
 	// Benfen 独立部署使用地址作为用户 ID
 	if IsBenfenStandalone() && IsBenfenNet(chainName) {
+		if address == "BFC000000000000000000000000000000000000000000000000000000000000000060e0" || address == "" {
+			return false, "", nil
+		}
 		return true, address, nil
 	}
 

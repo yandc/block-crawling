@@ -55,10 +55,7 @@ func BulkPushSwapPairs(chainName string, pairs []*SwapPair) error {
 		if IsCustomChain(item.Chain) && !IsCustomChainFeatured(chainName) {
 			continue
 		}
-		if IsTestNet(item.Chain) && !IsBenfenNet(chainName) {
-			continue
-		}
-		if item.Dex == BFStationStable || item.Dex == BFStationDexLiq {
+		if IsTestNet(item.Chain) {
 			continue
 		}
 
