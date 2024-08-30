@@ -225,11 +225,11 @@ func GetTokenInfos(ctx context.Context, chainName string, tokenAddress string) (
 	return tokenInfo, err
 }
 
-func GetTokenIsFakeRetryAlert(ctx context.Context, chainName, address, symbol string) (bool, error) {
-	isFake, err := TokenAddressIsFake(ctx, chainName, symbol, address)
+func GetTokenIsFakeRetryAlert(ctx context.Context, chainName, address string) (bool, error) {
+	isFake, err := TokenAddressIsFake(ctx, chainName, address)
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Duration(i) * time.Second)
-		isFake, err = TokenAddressIsFake(ctx, chainName, symbol, address)
+		isFake, err = TokenAddressIsFake(ctx, chainName, address)
 	}
 	return isFake, err
 }
@@ -986,7 +986,7 @@ func GetContractAbi(ctx context.Context, chainName string, contractAddress strin
 	return resultList, nil
 }
 
-func TokenAddressIsFake(ctx context.Context, chainName, symbol, address string) (bool, error) {
+func TokenAddressIsFake(ctx context.Context, chainName, address string) (bool, error) {
 	data := []*v1.GetTokenInfoReq_Data{{Chain: chainName, Address: address}}
 	getTokenInfoReq := &v1.GetTokenInfoReq{
 		Data: data,
