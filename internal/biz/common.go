@@ -2047,3 +2047,16 @@ func UpdateBenfenEventLogInfo(chainName, platform, address string, record *data.
 	}
 	return false, ""
 }
+
+func IsBenfenStakedObject(tokenAddress string) bool {
+	return strings.HasPrefix(tokenAddress, benfenStableStaked) || tokenAddress == benfenBFCStaked
+}
+
+const (
+	benfenStableStaked = "BFC0000000000000000000000000000000000000000000000000000000000000003ac7e::stable_pool::StakedStable<"
+	benfenBFCStaked    = "BFC0000000000000000000000000000000000000000000000000000000000000003ac7e::staking_pool::StakedBfc"
+)
+
+const (
+	BenfenStakedNFTImageURL = "https://static.benfen.org/images/DPOS.png"
+)

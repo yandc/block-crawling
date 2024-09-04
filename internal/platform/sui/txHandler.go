@@ -315,6 +315,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				if tokenInfo.TokenId == "" {
 					tokenInfo.TokenId = tokenId
 				}
+
+				if tokenInfo.ItemUri == "" {
+					if biz.IsBenfenStakedObject(tokenInfo.Address) {
+						tokenInfo.ItemUri = biz.BenfenStakedNFTImageURL
+					}
+				}
 			}
 			suiMap := map[string]interface{}{
 				"token": tokenInfo,
@@ -502,6 +508,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				}
 				if tokenInfo.TokenId == "" {
 					tokenInfo.TokenId = tokenId
+				}
+
+				if tokenInfo.ItemUri == "" {
+					if biz.IsBenfenStakedObject(tokenInfo.Address) {
+						tokenInfo.ItemUri = biz.BenfenStakedNFTImageURL
+					}
 				}
 			}
 			amountValue, _ := decimal.NewFromString(amount)
