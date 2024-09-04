@@ -2025,9 +2025,9 @@ func (s *TransactionUsecase) ClientPageList(ctx context.Context, req *pb.PageLis
 		var recordList []*data.SuiTransactionRecord
 		recordList, total, err = data.SuiTransactionRecordRepoClient.PageList(ctx, GetTableName(req.ChainName), request)
 		//UpdateBenfenEventLogInfo(req.ChainName, req.Platform, req.Address, recordList, req.FromAddressList)
-		if err == nil && len(recordList) > 0{
-			for _,record := range recordList {
-				isEventLogCount,eventLogCount := UpdateBenfenEventLogInfo(req.ChainName, req.Platform, req.Address, record, req.FromAddressList)
+		if err == nil && len(recordList) > 0 {
+			for _, record := range recordList {
+				isEventLogCount, eventLogCount := UpdateBenfenEventLogInfo(req.ChainName, req.Platform, req.Address, record, req.FromAddressList)
 				var ptr *pb.TransactionRecord
 				err = utils.CopyProperties(record, &ptr)
 				if isEventLogCount {
@@ -3418,6 +3418,12 @@ func (s *TransactionUsecase) ClientPageListNftAssetGroup(ctx context.Context, re
 						record.TokenAddress = nftInfo.TokenId
 					}
 				}
+
+				if record.TokenUri == "" {
+					if IsBenfenStakedObject(record.TokenAddress) {
+						record.TokenUri = BenfenStakedNFTImageURL
+					}
+				}
 			}
 		}
 	}
@@ -3519,6 +3525,12 @@ func (s *TransactionUsecase) ClientPageListNftAsset(ctx context.Context, req *pb
 					record.ItemUri = nftInfo.ImageURL
 					record.ItemOriginalUri = nftInfo.ImageOriginalURL
 					record.ItemAnimationUri = nftInfo.AnimationURL
+				}
+				if record.TokenUri == "" {
+					if IsBenfenStakedObject(record.TokenAddress) {
+						record.TokenUri = BenfenStakedNFTImageURL
+						record.ItemUri = BenfenStakedNFTImageURL
+					}
 				}
 			}
 		}
@@ -6070,8 +6082,8 @@ func (s *TransactionUsecase) CreateRecordFromRecharge(ctx context.Context, req *
 	return s.CreateRecordFromWallet(ctx, req.TransactionReq)
 }
 
-func (s *TransactionUsecase) GetBenfenEventLog(ctx context.Context,req *EventLogReq) (string,error){
-	record,err := data.SuiTransactionRecordRepoClient.FindByTxHash(ctx,GetTableName(req.ChainName),req.TxHash)
+func (s *TransactionUsecase) GetBenfenEventLog(ctx context.Context, req *EventLogReq) (string, error) {
+	record, err := data.SuiTransactionRecordRepoClient.FindByTxHash(ctx, GetTableName(req.ChainName), req.TxHash)
 	if err != nil {
 		return "", err
 	}

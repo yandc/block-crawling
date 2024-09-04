@@ -72,7 +72,7 @@ func IsNativePrefixs(objectType string) bool {
 }
 
 func IsNativeStakedBfc(objectType string) bool {
-	return strings.HasPrefix(objectType, "0x3::stable_pool::StakedStable<") && strings.HasSuffix(objectType, ">")
+	return (strings.HasPrefix(objectType, "0x3::stable_pool::StakedStable<") && strings.HasSuffix(objectType, ">")) || (objectType == "0x3::staking_pool::StakedBfc")
 }
 
 func Init(handler string, value *conf.PlatInfo, nodeURL []string) *Platform {

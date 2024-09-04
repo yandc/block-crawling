@@ -522,6 +522,11 @@ func HandleUserNftAsset(isPending bool, chainName string, client Client, txRecor
 			nftInfo.TokenType = tokenType
 		}
 
+		if nftInfo.ImageURL == "" && biz.IsBenfenStakedObject(nftInfo.TokenAddress) {
+			nftInfo.ImageURL = biz.BenfenStakedNFTImageURL
+			nftInfo.CollectionImageURL = biz.BenfenStakedNFTImageURL
+		}
+
 		if !isPending {
 			if record.FromAddress != "" && record.FromUid != "" {
 				payload, _ := utils.JsonEncode(map[string]interface{}{"collectionDescription": nftInfo.CollectionDescription,
