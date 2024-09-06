@@ -190,7 +190,7 @@ func HandleUserAsset(chainName string, client Client, txRecords []*data.SuiTrans
 				userAssetMap[fromUserAssetKey] = fromUserAsset
 			}
 		}
-		var tokenGasless *ChainPayTokenGasless
+		var tokenGasless *biz.ChainPayTokenGasless
 		if err := json.Unmarshal([]byte(record.TokenGasless), &tokenGasless); err == nil && tokenGasless.GasToken != "" {
 			log.Info("GOT TOKEN GASLESS ASSET CHANGE", zap.String("chainName", chainName), zap.Any("tokenGasless", tokenGasless))
 			tokenInfo := tokenGasless.TokenInfo
