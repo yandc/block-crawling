@@ -134,6 +134,11 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			if h.isGasCoinAmountChange(transactionInfo, toAmountChange, gasObjecType) && toAmountChange.ToAddress == senderAddr {
 				gasUsedInt := transactionInfo.GasUsedInt()
 				// 接收的金额需要加上手续费
+				log.Info(
+					"RECEIVING AMOUNT ADD GAS", zap.String("txHash", chainTx.Hash),
+					zap.String("toAmount", toAmount.String()),
+					zap.String("gasUseInt", gasUsed),
+				)
 				toAmount = toAmount.Add(toAmount, new(big.Int).SetInt64(int64(gasUsedInt)))
 				toAmountChange.Amount = toAmount.String()
 			}
@@ -150,6 +155,12 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 			fromAmount, _ := new(big.Int).SetString(fromAmountChange.Amount, 0)
 			fromAmount = fromAmount.Abs(fromAmount)
 			if fromAmount.Cmp(toTotalAmount) > 0 {
+				log.Info(
+					"SENDING AMOUNT SUB GAS", zap.String("txHash", chainTx.Hash),
+					zap.String("fromAmount", fromAmount.String()),
+					zap.String("toTotalAmount", toTotalAmount.String()),
+					zap.String("gasUseInt", gasUsed),
+				)
 				fromAmountChange.Amount = fromAmount.Sub(fromAmount, toTotalAmount).String()
 				amountChanges = append(amountChanges, fromAmountChange)
 			}
@@ -696,16 +707,11 @@ func (h *txHandler) getTokenGasless(gasObjectType, gasUsed string) string {
 		return ""
 	}
 	tokenInfo.Amount = gasUsed
-	tokenGasless, _ := json.Marshal(ChainPayTokenGasless{
+	tokenGasless, _ := json.Marshal(biz.ChainPayTokenGasless{
 		GasToken:  gasObjectType,
 		TokenInfo: tokenInfo,
 	})
 	return string(tokenGasless)
-}
-
-type ChainPayTokenGasless struct {
-	GasToken  string          `json:"gasToken"`
-	TokenInfo types.TokenInfo `json:"chainPayTokenInfo"`
 }
 
 func getFees(transactionInfo *stypes.TransactionInfo) (gasLimit, gasUsed string, feeAmount decimal.Decimal) {

@@ -2060,3 +2060,8 @@ const (
 const (
 	BenfenStakedNFTImageURL = "https://static.benfen.org/images/DPOS.png"
 )
+
+type ChainPayTokenGasless struct {
+	GasToken  string          `json:"gasToken"`
+	TokenInfo types.TokenInfo `json:"chainPayTokenInfo"`
+}

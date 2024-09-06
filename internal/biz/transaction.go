@@ -4926,12 +4926,22 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 			} else {
 				tokenInfo, _ = ParseGetTokenInfo(chainName, record.ParseData)
 			}
+			var tokenGasless *ChainPayTokenGasless
+			if record.TokenGasless != "" {
+				_ = json.Unmarshal([]byte(record.TokenGasless), &tokenGasless)
+			}
+			var gasToken string
+			var gasTokenInfo types.TokenInfo
+			if tokenGasless != nil {
+				gasToken = tokenGasless.GasToken
+				gasTokenInfo = tokenGasless.TokenInfo
+			}
 
 			switch record.TransactionType {
 			case NATIVE, "":
 				var totalAmount decimal.Decimal
 				oldTotal := userAssetMap[addChainName]
-				if record.FromAddress == add {
+				if record.FromAddress == add && gasToken == "" {
 					totalAmount = feeAmount.Add(amount)
 					totalAmount = oldTotal.Sub(totalAmount)
 				} else {
@@ -4949,7 +4959,9 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				ta := tokenInfo.Amount
 				tokenAmount, _ := decimal.NewFromString(ta)
 				if record.FromAddress == add {
-					totalAmount = oldTotal.Sub(feeAmount)
+					if gasToken == "" {
+						totalAmount = oldTotal.Sub(feeAmount)
+					}
 					oldTokenAmount := userAssetTokenMap[add][tokenAddress]
 					totalTokenAmount = oldTokenAmount.Sub(tokenAmount)
 
@@ -4973,7 +4985,7 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				utv[tokenAddress] = totalToken
 				userAssetTokenDecimalResult[addChainName] = utv
 			case APPROVENFT, CONTRACT, APPROVE, TRANSFERNFT, SAFETRANSFERFROM, SAFEBATCHTRANSFERFROM, SETAPPROVALFORALL, CREATEACCOUNT, CLOSEACCOUNT, REGISTERTOKEN, DIRECTTRANSFERNFTSWITCH, MINT, SWAP, ADDLIQUIDITY:
-				if record.FromAddress == add {
+				if record.FromAddress == add && gasToken == "" {
 					oldTotal := userAssetMap[addChainName]
 					totalAmount := oldTotal.Sub(feeAmount)
 					userAssetMap[addChainName] = totalAmount
@@ -4982,6 +4994,29 @@ func (s *TransactionUsecase) GetPendingAmount(ctx context.Context, req *AddressP
 				}
 			default:
 				continue
+			}
+			if gasToken != "" && record.FromAddress == add {
+				totalAmount := userAssetTokenMap[addChainName][gasToken]
+				totalTokenAmount := totalAmount.Sub(feeAmount)
+				tv := userAssetTokenMap[addChainName]
+				if tv == nil {
+					tv = make(map[string]decimal.Decimal)
+				}
+				tv[gasToken] = totalTokenAmount
+				userAssetTokenMap[addChainName] = tv
+
+				utv := userAssetTokenDecimalResult[addChainName]
+				if utv == nil {
+					utv = make(map[string]string)
+				}
+				totalToken := utils.StringDecimalsValue(totalTokenAmount.String(), int(gasTokenInfo.Decimals))
+				utv[gasToken] = totalToken
+				userAssetTokenDecimalResult[addChainName] = utv
+
+				if _, ok := userAssetMap[addChainName]; !ok {
+					userAssetMap[addChainName] = decimal.Zero
+					userAssetDecimalResult[addChainName] = utils.StringDecimals(decimal.Zero.String(), int(decimals))
+				}
 			}
 		}
 	}
