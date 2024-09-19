@@ -75,7 +75,7 @@ message App {
 	// 展示 DeFi 平台资产交互次数阈值，当 DeFi 平台交互次数大于此值才展示其资产。
 	int64 defiPlatformInteractionThr = 13;
   ChainData chainData = 14;
-
+  RabbitMQ rabbitMQ = 15;
 }
 
 message CMQ {
@@ -206,4 +206,16 @@ message LarkSubscription {
 
 message ChainData {
   map<string, float> gasCoefficient = 1;
+}
+
+message RabbitMQ {
+  string url = 1;
+  string userName = 2;
+  string password = 3;
+  BenfenPay benfenPay = 4;
+}
+
+message BenfenPay {
+  string queues = 1;
+  string virtualHost = 2;
 }

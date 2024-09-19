@@ -364,6 +364,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 				CreatedAt:       h.now,
 				UpdatedAt:       h.now,
 			}
+			// checkou benfen pay event
+			if biz.IsBenfenStandalone() && biz.IsBenfenNet(h.chainName) {
+				CheckoutBenfenPayEvent(h.chainName, transactionInfo, suiTransactionRecord)
+			}
 			h.txRecords = append(h.txRecords, suiTransactionRecord)
 			if fromCategory == PAY_TRANS_CATEGORY || fromCategory == PAY_CHAINGE_CATEGORY {
 				if fromCategory == PAY_CHAINGE_CATEGORY {
@@ -584,7 +588,10 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if fromAddressExist || toAddressExist || biz.IsBenfenNet(h.chainName) || len(eventLogs) > 0 {
 			h.txRecords = append(h.txRecords, suiContractRecord)
 		}
-
+		// checkou benfen pay event
+		if biz.IsBenfenStandalone() && biz.IsBenfenNet(h.chainName) {
+			CheckoutBenfenPayEvent(h.chainName, transactionInfo, suiContractRecord)
+		}
 		if fromCategory == PAY_TRANS_CATEGORY || fromCategory == PAY_CHAINGE_CATEGORY {
 			if fromCategory == PAY_CHAINGE_CATEGORY {
 				fromCategory = PAY_REFUND_CATEGORY

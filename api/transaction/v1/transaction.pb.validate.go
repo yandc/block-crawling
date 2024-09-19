@@ -3379,6 +3379,10 @@ func (m *PageListRequest) validate(all bool) error {
 
 	// no validation rules for AssetType
 
+	// no validation rules for PaymentId
+
+	// no validation rules for PayEventType
+
 	if m.Nonce != nil {
 		// no validation rules for Nonce
 	}
@@ -3746,6 +3750,10 @@ func (m *TransactionRecord) validate(all bool) error {
 	// no validation rules for Memo
 
 	// no validation rules for EventLogCount
+
+	// no validation rules for PaymentId
+
+	// no validation rules for PayEventType
 
 	if len(errors) > 0 {
 		return TransactionRecordMultiError(errors)
