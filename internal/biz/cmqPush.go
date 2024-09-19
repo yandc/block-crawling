@@ -5,6 +5,7 @@ import (
 	"block-crawling/internal/log"
 	"fmt"
 	uuid "github.com/satori/go.uuid"
+	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 )
 
@@ -32,4 +33,57 @@ func PushTopicCMQ(chainName, topicId, msg, topicURL string) error {
 		return err
 	}
 	return nil
+}
+
+func RabbitMQPush(addr,queueName,msg string){
+	log.Info("RabbitMQPush start",zap.Any("addr",addr))
+	// 连接到RabbitMQ服务器
+	conn, err := amqp.Dial("amqp://"+addr)
+	if err != nil {
+		log.Error("RabbitMQPush Failed to connect to RabbitMQ",zap.Error(err))
+		return
+	}
+
+	defer conn.Close()
+
+	// 创建一个channel
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Error("RabbitMQPush Failed to open a channel",zap.Error(err))
+		return
+	}
+
+	defer ch.Close()
+
+
+	// 声明一个队列
+	q, err := ch.QueueDeclare(
+		queueName, // 队列名称
+		true,   // 是否持久化
+		false,   // 是否自动删除
+		false,   // 是否排他
+		false,   // 是否随机名称
+		nil,     // 额外属性
+	)
+	if err != nil {
+		log.Error("RabbitMQPush Failed to declare a queue",zap.Error(err))
+		return
+	}
+
+
+	// 发布一条消息到队列中
+	err = ch.Publish(
+		"",     // 交换器
+		q.Name, // 路由键
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(msg),
+		})
+	if err != nil {
+		log.Error("RabbitMQPush Failed to publish a message",zap.Error(err))
+		return
+	}
+	log.Info("RabbitMQPush send success",zap.Any("msg",msg))
 }

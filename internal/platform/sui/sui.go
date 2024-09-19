@@ -8,6 +8,7 @@ import (
 	"block-crawling/internal/log"
 	"block-crawling/internal/platform/sui/stypes"
 	"block-crawling/internal/utils"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -36,6 +37,15 @@ const (
 	PAY_TRANS_CATEGORY   = 3
 	EVENT_TYPE_CHARGE    = "charge"
 	EVENT_TYPE_RETRIEVEL = "retrieval"
+	BENFNE_PAY_CARATE    = "create"    //预下单
+	BENFNE_PAY_PAY       = "pay"       //转账，支付
+	BENFNE_PAY_ARBITRATE = "arbitrate" //仲裁
+	BENFNE_PAY_REFUND    = "refund"    //退款
+	BENFNE_PAY_SETTLE    = "settle"    //结算
+	BENFNE_PAY_FREEZE    = "freeze"    //冻结
+	BENFNE_PAY_UPDATE    = "update"    //修改
+	BENFNE_PAY_DELETE    = "delete"    //删除
+
 )
 
 func IsNative(coinType string) bool {
@@ -162,6 +172,13 @@ type pushSUIPayCardResq struct {
 	WithDrawAmount  decimal.Decimal `json:"withDrawAmount"`
 }
 
+type pushBenfenPayResq struct {
+	*data.SuiTransactionRecord
+	Chain           string            `json:"chain"`
+	OrderPaymentMap map[string]string `json:"order_payment_map"` //key:paymentId,value:id
+	OrderEvent      []json.RawMessage   `json:"order_event"`
+}
+
 //PushSUIPayCardCMQ
 /**
 category=1
@@ -197,6 +214,11 @@ func getPayCardTopicId(category int) string {
 	return ""
 }
 
+/**
+SET benfenCard:contract:funds::DepositEvent DepositEvent
+SET benfenCard:contract:funds::WithdrawEvent WithdrawEvent
+*/
+
 func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo, data *data.SuiTransactionRecord) {
 	if transactionInfo == nil {
 		return
@@ -213,7 +235,7 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 			return
 		}
 		eventTypeKey := strings.SplitN(event.Type, "::", 2)[1]
-		if eventType, _ := biz.GetBenfenCardEvent(eventTypeKey); eventType != "" {
+		if eventType, _ := biz.GetBenfenCardEvent(biz.BENFEN_CARD, eventTypeKey); eventType != "" {
 			parseJson := &stypes.FundsParseJson{}
 			if err := event.ParseJson(parseJson); err != nil {
 				log.Error("CheckContractCard get parseJson error ", zap.Error(err))
@@ -253,4 +275,89 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 			go PushSUIPayCardCMQ(PAY_CHAINGE_CATEGORY, suiResq)
 		}
 	}
+}
+
+/**
+set benfenPay:event:event::CreateOrderEvent CreateOrderEvent
+set benfenPay:event:event::PayOrderEvent PayOrderEvent
+set benfenPay:event:event::ArbitrateOrderEvent ArbitrateOrderEvent
+set benfenPay:event:event::RefundOrderEvent RefundOrderEvent
+set benfenPay:event:event::SettleOrderEvent SettleOrderEvent
+set benfenPay:event:event::FreezeOrderEvent FreezeOrderEvent
+set benfenPay:event:event::UpdateOrderParameterEvent UpdateOrderParameterEvent
+set benfenPay:event:event::DeleteOrderEvent DeleteOrderEvent
+*/
+
+func CheckoutBenfenPayEvent(chainName string, transactionInfo *stypes.TransactionInfo, data *data.SuiTransactionRecord) {
+	log.Info("CheckoutBenfenPayEvent start")
+	if transactionInfo == nil || data == nil {
+		return
+	}
+	//get events
+	events, err := transactionInfo.Events()
+	if err != nil {
+		log.Error("CheckoutBenfenPayEvent get events error ", zap.Error(err))
+		return
+	}
+	var paymentId, payEventType string
+	orderPamentIdMap := make(map[string]string)
+	suiResq := pushBenfenPayResq{Chain: chainName}
+	for _, event := range events {
+		if !strings.Contains(event.Type, "::") {
+			log.Error("CheckoutBenfenPayEvent events type is error ", zap.Any("eventsType", event.Type))
+			return
+		}
+		eventTypeKey := strings.SplitN(event.Type, "::", 2)[1]
+		if eventType, _ := biz.GetBenfenCardEvent(biz.BENFEN_PAY, eventTypeKey); eventType != "" {
+			parseJson := &stypes.PayEventParseJson{}
+			if err := event.ParseJson(parseJson); err != nil {
+				log.Error("CheckoutBenfenPayEvent get parseJson error ", zap.Error(err))
+				return
+			}
+			if parseJson.PaymentId != "" && eventType != "DeleteOrderEvent" && eventType != "SettleOrderEvent"{
+				paymentId = parseJson.PaymentId
+			}
+			if eventType != "SettleOrderEvent" && eventType != "DeleteOrderEvent"{
+				suiResq.OrderEvent = make([]json.RawMessage,0,1)
+				suiResq.OrderEvent = append(suiResq.OrderEvent,event.RawParsedJson)
+			}
+			switch eventType {
+			case "CreateOrderEvent":
+				payEventType = BENFNE_PAY_CARATE //预下单
+			case "PayOrderEvent":
+				payEventType = BENFNE_PAY_PAY //转账，支付
+			case "ArbitrateOrderEvent":
+				payEventType = BENFNE_PAY_ARBITRATE //仲裁
+			case "RefundOrderEvent":
+				payEventType = BENFNE_PAY_REFUND //退款
+			case "SettleOrderEvent":
+				payEventType = BENFNE_PAY_SETTLE //结算  批量
+				suiResq.OrderEvent = append(suiResq.OrderEvent,event.RawParsedJson)
+				paymentId += parseJson.PaymentId + ","
+			case "FreezeOrderEvent":
+				payEventType = BENFNE_PAY_FREEZE //冻结
+			case "UpdateOrderParameterEvent":
+				payEventType = BENFNE_PAY_UPDATE //修改
+			case "DeleteOrderEvent":
+				if payEventType == "" || payEventType == BENFNE_PAY_DELETE{
+					payEventType = BENFNE_PAY_DELETE //删除
+					suiResq.OrderEvent = append(suiResq.OrderEvent,event.RawParsedJson)
+					paymentId += parseJson.PaymentId + ","
+				}
+			}
+		}
+	}
+	log.Info("CheckoutBenfenPayEvent push", zap.Any("paymentId", paymentId), zap.Any("payEventType", payEventType))
+	if paymentId != "" || payEventType != "" {
+		paymentId = strings.Trim(paymentId, ",")
+		data.PaymentId = paymentId
+		data.PayEventType = payEventType
+		suiResq.SuiTransactionRecord = data
+		suiResq.OrderPaymentMap = orderPamentIdMap
+		rawMsg, _ := utils.JsonEncode(suiResq)
+		addr := fmt.Sprintf("%s:%s@%s/%s", biz.AppConfig.RabbitMQ.UserName, biz.AppConfig.RabbitMQ.Password,
+			biz.AppConfig.RabbitMQ.Url, biz.AppConfig.RabbitMQ.BenfenPay.VirtualHost)
+		go biz.RabbitMQPush(addr, biz.AppConfig.RabbitMQ.BenfenPay.Queues, rawMsg)
+	}
+
 }

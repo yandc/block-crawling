@@ -41,6 +41,8 @@ type TransactionRequest struct {
 	PageSize                 int32
 	Total                    bool
 	OrParamList              []TransactionRequest
+	PaymentId 				 string
+	PayEventType             string
 }
 
 type TBTransactionRecord struct {

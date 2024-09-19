@@ -334,6 +334,8 @@ message PageListRequest {
   string tokenAddress = 25;
   string assetType = 26;
   optional int64 nonce = 27;
+  string paymentId = 28;
+  string payEventType = 29;
 }
 
 message PageListResponse {
@@ -387,6 +389,8 @@ message TransactionRecord {
 	string shortHost = 43;
 	string memo = 44;
 	string eventLogCount=45;
+	string paymentId = 46;
+	string payEventType = 47;
 }
 
 message AmountRequest {

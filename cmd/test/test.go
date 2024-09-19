@@ -40,7 +40,6 @@ func init() {
 }
 
 func main() {
-
 	testJsonrpcCreateRecordWallet()
 	str := "[{\"from\":\"0x0b068018dF753618d87e05862d2a05303efbb519\",\"to\":\"0xBA12222222228d8Ba445958a75a0704d566BF2C8\",\"amount\":146896760000000000,\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}},{\"from\":\"0x0b068018dF753618d87e05862d2a05303efbb519\",\"to\":\"0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57\",\"amount\":7197941240000000000,\"token\":{\"address\":\"\",\"amount\":\"\",\"decimals\":0,\"symbol\":\"\"}}]"
 	var resp []types.EventLog

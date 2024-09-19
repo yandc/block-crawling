@@ -49,10 +49,12 @@ type SuiTransactionRecord struct {
 	ShortHost       string          `json:"shortHost" form:"shortHost" gorm:"type:character varying(200);default:null;"`
 	CreatedAt       int64           `json:"createdAt" form:"createdAt" gorm:"type:bigint;index"`
 	UpdatedAt       int64           `json:"updatedAt" form:"updatedAt"`
+	PaymentId       string          `json:"paymentId" from:"paymentId"`
+	PayEventType 	string 			`json:"payEventType" from:"payEventType"`
 }
 
 func (*SuiTransactionRecord) Version() string {
-	return "20240408"
+	return "20240826"
 }
 
 // SuiTransactionRecordRepo is a Greater repo.
@@ -222,6 +224,8 @@ func (r *SuiTransactionRecordRepoImpl) BatchSaveOrUpdateSelective(ctx context.Co
 			"session_id":       gorm.Expr("case when excluded.session_id != '' then excluded.session_id else " + tableName + ".session_id end"),
 			"short_host":       gorm.Expr("case when excluded.short_host != '' then excluded.short_host else " + tableName + ".short_host end"),
 			"updated_at":       gorm.Expr("excluded.updated_at"),
+			"payment_id":       clause.Column{Table: "excluded", Name: "payment_id"},
+			"pay_event_type":       clause.Column{Table: "excluded", Name: "pay_event_type"},
 		}),
 	}).Create(&suiTransactionRecords)
 	err := ret.Error
@@ -473,6 +477,25 @@ func (r *SuiTransactionRecordRepoImpl) PageList(ctx context.Context, tableName s
 		} else if req.AssetType == NFT {
 			db = db.Where("(transaction_type in('approveNFT', 'transferNFT') or (transaction_type in('contract', 'swap', 'mint') and event_log like '%\"token_type\":\"%'))")
 		}
+	}
+	if req.PaymentId != ""{
+		if strings.Contains(req.PaymentId,","){
+			paymentIds := strings.Split(req.PaymentId,",")
+			var paymentLike string
+			for index,paymentId := range paymentIds {
+				if index == len(paymentIds) - 1 {
+					paymentLike += "payment_id like '%"+paymentId+"%'"
+				}else {
+					paymentLike += "payment_id like '%"+paymentId+"%' or "
+				}
+			}
+			if paymentLike != ""{
+				db = db.Where(paymentLike)
+			}
+		}else {
+			db = db.Where("payment_id like ?","%"+req.PaymentId+"%")
+		}
+
 	}
 
 	if req.Total {

@@ -87,6 +87,13 @@ app:
       queuesURL: http://10.10.2.77:6371/api/cmq/send_queue_message
       benfenTopicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
       topicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
+  rabbitMQ:
+    url: 10.10.2.79:5672
+    userName: haobtc
+    password: IEcS0P0xgQ2rbYRQ
+    benfenPay:
+      queues: benpay_transaction_queue
+      virtualHost: benfenpay01-vhost
 
 
   httpProxies:
