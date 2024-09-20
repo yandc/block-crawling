@@ -193,7 +193,7 @@ func (h *txHandler) OnNewTx(c chain.Clienter, chainBlock *chain.Block, chainTx *
 		if owner == nil {
 			continue
 		}
-		if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
+		if !CanObjectBeNFT(objectType) {
 			continue
 		}
 		var toAddress string
@@ -849,4 +849,31 @@ func (h *txHandler) Save(c chain.Clienter) error {
 		}
 	}
 	return nil
+}
+
+func CanObjectBeNFT(objectType string) bool {
+	if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
+		return false
+	}
+	if isOrderObject(objectType) {
+		return false
+	}
+
+	return true
+}
+
+func isOrderObject(objectType string) bool {
+	orderPkgs := []string{
+		// testnet
+		"BFCbcb4bd0d56c905d15f3238a8c1e6903cbba2a00773e30c4315c4e59b6d7e088f62a3",
+		// mainnet
+		"BFCb8559407ff43cbc45787db98f93a4d217a0dac4279e71006ccb2b7bbdcf87dddc769",
+	}
+	for _, pkg := range orderPkgs {
+		objType := fmt.Sprintf("%s::order::Order", pkg)
+		if objType == objectType {
+			return true
+		}
+	}
+	return false
 }
