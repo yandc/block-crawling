@@ -749,22 +749,23 @@ func (h *txDecoder) handleEachTransaction(
 			UpdatedAt:            h.now,
 		}
 
-		//处理benfen充值地址
-		go func() {
-			rechargeAddressInfo := biz.BenfenRechargeAddress{
-				TxHash:    transactionHash,
-				TxTime:    h.block.Time,
-				ToAddress: eventLog.To,
-				Chain:     h.chainName,
-				//TokenInfo: tokenInfoStr,
-				Amount: amountValue,
-			}
-			if eventTokenInfoStr != "" {
-				rechargeAddressInfo.TokenInfo = eventTokenInfoStr
-			}
-			biz.HandleBenfenRechargeAddress(rechargeAddressInfo)
-		}()
-
+		if meta.ToAddress != eventLog.To && meta.TransactionType == biz.CONTRACT {
+			//处理benfen充值地址
+			go func() {
+				rechargeAddressInfo := biz.BenfenRechargeAddress{
+					TxHash:    transactionHash,
+					TxTime:    h.block.Time,
+					ToAddress: eventLog.To,
+					Chain:     h.chainName,
+					//TokenInfo: tokenInfoStr,
+					Amount: amountValue,
+				}
+				if eventTokenInfoStr != "" {
+					rechargeAddressInfo.TokenInfo = eventTokenInfoStr
+				}
+				biz.HandleBenfenRechargeAddress(rechargeAddressInfo)
+			}()
+		}
 		if isPlatformUser && meta.TransactionType == biz.CONTRACT {
 			h.txRecords = append(h.txRecords, evmlogTransactionRecord)
 			if !h.newTxs {
