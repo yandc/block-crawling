@@ -30,7 +30,7 @@ data:
 
 app:
   # Possible values: "debug", "release"
-#  mode: ""
+  pattern: "debug"
   mode: "BSCTEST,SUITEST,NervosTEST,CosmosTEST,ScrollL2TEST,SeiTEST,CelestiaMochaTEST,BenfenTEST,BenfenDevTEST"
   scanAll: false
   addr: 127.0.0.1:9001
