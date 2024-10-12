@@ -223,6 +223,9 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 	if transactionInfo == nil {
 		return
 	}
+	if !((biz.AppConfig.Pattern == "debug" && chainName == "BenfenTEST") || (biz.AppConfig.Pattern == "release" && chainName == "Benfen")) {
+		return
+	}
 	//get events
 	events, err := transactionInfo.Events()
 	if err != nil {

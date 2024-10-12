@@ -76,6 +76,7 @@ message App {
 	int64 defiPlatformInteractionThr = 13;
   ChainData chainData = 14;
   RabbitMQ rabbitMQ = 15;
+  string pattern = 16;
 }
 
 message CMQ {
