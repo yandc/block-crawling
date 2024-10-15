@@ -5253,7 +5253,6 @@ func (s *TransactionUsecase) UpdateUserAsset(ctx context.Context, req *UserAsset
 				absentNfts = append(absentNfts, newItem.TokenAddress)
 			}
 			diffBet = true
-			insyncAssets = append(insyncAssets, oldItem.Id)
 			continue
 		}
 
