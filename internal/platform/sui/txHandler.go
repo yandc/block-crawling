@@ -852,6 +852,9 @@ func (h *txHandler) Save(c chain.Clienter) error {
 }
 
 func CanObjectBeNFT(objectType string) bool {
+	if isBenfenUpgradeCap(objectType) {
+		return true
+	}
 	if IsNativePrefixs(objectType) && !IsNativeStakedBfc(objectType) {
 		return false
 	}
@@ -860,6 +863,16 @@ func CanObjectBeNFT(objectType string) bool {
 	}
 
 	return true
+}
+
+func isBenfenUpgradeCap(objectType string) bool {
+	if objectType == "0x2::package::UpgradeCap" {
+		return true
+	}
+	if objectType == "BFC00000000000000000000000000000000000000000000000000000000000002e7e9::package::UpgradeCap" {
+		return true
+	}
+	return false
 }
 
 func isOrderObject(objectType string) bool {
