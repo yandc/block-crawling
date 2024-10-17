@@ -420,11 +420,12 @@ type FundsParseJson struct {
 	AvailableAmount string `json:"available_amount"`
 	DepositAmount   string `json:"deposit_amount"`
 	WithdrawAmount  string `json:"withdraw_amount"`
+	Fee             string `json:"fee"`
 }
 
 type PayEventParseJson struct {
-	Id         string `json:"id"`
-	PaymentId  string `json:"payment_id"`
+	Id        string `json:"id"`
+	PaymentId string `json:"payment_id"`
 	//PayAt      string `json:"pay_at"`
 	//Old        uint64 `json:"old"` //修改事件
 	//New        uint64 `json:"new"`
