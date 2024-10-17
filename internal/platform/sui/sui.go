@@ -37,6 +37,8 @@ const (
 	PAY_TRANS_CATEGORY   = 3
 	EVENT_TYPE_CHARGE    = "charge"
 	EVENT_TYPE_RETRIEVEL = "retrieval"
+	EVENT_TYPE_CARD_OPEN_FEE = "card_open_fee"   //开卡费
+	EVENT_TYPE_REFUND_CARD_OPEN_FEE = "refund_card_open_fee"   //退开卡费
 	BENFNE_PAY_CARATE    = "create"    //预下单
 	BENFNE_PAY_PAY       = "pay"       //转账，支付
 	BENFNE_PAY_ARBITRATE = "arbitrate" //仲裁
@@ -217,6 +219,9 @@ func getPayCardTopicId(category int) string {
 /**
 SET benfenCard:contract:funds::DepositEvent DepositEvent
 SET benfenCard:contract:funds::WithdrawEvent WithdrawEvent
+
+SET benfenCard:contract:funds::WithdrawFeeEvent WithdrawFeeEvent
+SET benfenCard:contract:funds::PayFeeEvent PayFeeEvent
 */
 
 func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo, data *data.SuiTransactionRecord) {
@@ -261,7 +266,7 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 						log.Error("CheckContractCard  NewFromString DepositAmount error ", zap.Error(err))
 					}
 				}
-				//提取
+			//提取
 			case "WithdrawEvent":
 				suiResq.EventType = EVENT_TYPE_RETRIEVEL
 				if parseJson.WithdrawAmount != "" {
@@ -270,6 +275,18 @@ func CheckContractCard(chainName string, transactionInfo *stypes.TransactionInfo
 						log.Error("CheckContractCard  NewFromString WithdrawAmount error ", zap.Error(err))
 					}
 				}
+			//开卡费用
+			case "PayFeeEvent":
+				suiResq.EventType = EVENT_TYPE_CARD_OPEN_FEE
+				if parseJson.Fee != ""{
+					suiResq.DepositAmount, err =decimal.NewFromString(parseJson.Fee)
+					if err != nil {
+						log.Error("CheckContractCard  NewFromString Fee error ", zap.Error(err))
+					}
+				}
+			//退开卡费
+			case "WithdrawFeeEvent":
+				suiResq.EventType = EVENT_TYPE_REFUND_CARD_OPEN_FEE
 			default:
 				log.Error("CheckContractCard dont support eventType.", zap.Any("eventType", eventType))
 				return
