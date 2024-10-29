@@ -971,8 +971,7 @@ func (c *Client) Erc721Balance(address string, tokenAddress string, tokenId stri
 			}
 			return "0", nil
 		}
-		// Polygon suspicious NFTs
-		if strings.Contains(err.Error(), "execution reverted") && c.chainName == "Polygon" {
+		if strings.Contains(err.Error(), "execution reverted") && c.manySuspiciousNFTs() {
 			return "0", nil
 		}
 
@@ -1008,14 +1007,18 @@ func (c *Client) Erc1155Balance(address string, tokenAddress string, tokenId str
 	hexAddress := common.HexToAddress(address)
 	balance, err := erc1155Token.BalanceOf(opts, hexAddress, tokenIdBig)
 	if err != nil {
-		// Polygon suspicious NFTs
-		if strings.Contains(err.Error(), "execution reverted") && c.chainName == "Polygon" {
+		if strings.Contains(err.Error(), "execution reverted") && c.manySuspiciousNFTs() {
 			return "0", nil
 		}
 
 		return "", err
 	}
 	return balance.String(), nil
+}
+
+func (c *Client) manySuspiciousNFTs() bool {
+	// Chains that may receive a lot suspicious NFTs
+	return (c.chainName == "Polygon" || c.chainName == "Scroll")
 }
 
 func (c *Client) IsErc721Contract(tokenAddress string) (bool, error) {
