@@ -102,3 +102,5 @@ require (
 	gorm.io/driver/mysql v1.3.2 // indirect
 
 )
+
+replace gitlab.bixin.com/mili/node-driver => ../node-driver/

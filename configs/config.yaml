@@ -8,7 +8,7 @@ server:
 data:
   database:
     driver: postgres
-    source: host=127.0.0.1 user=haobtc password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    source: host=127.0.0.1 user=postgres password=password dbname=wallets port=15433 sslmode=disable TimeZone=Asia/Shanghai
 #    source: host=127.0.0.1 user=postgres password=haobtc.asd dbname=blockcrawling port=5432 sslmode=disable TimeZone=Asia/Shanghai
     pool:
       connMaxLifetime: 3
@@ -22,7 +22,7 @@ data:
     write_timeout: 0.2s
   user:
     driver: postgres
-    source: host=10.10.2.77 user=haobtc password=haobtc.asd dbname=mpcwallet port=5432 sslmode=disable TimeZone=Asia/Shanghai
+    source: host=127.0.0.1 user=postgres password=password dbname=wallets port=15433 sslmode=disable TimeZone=Asia/Shanghai
     pool:
       connMaxLifetime: 3
       maxOpenConns: 10
@@ -31,7 +31,7 @@ data:
 app:
   # Possible values: "debug", "release"
   pattern: "debug"
-  mode: "BSCTEST,SUITEST,NervosTEST,CosmosTEST,ScrollL2TEST,SeiTEST,CelestiaMochaTEST,BenfenTEST,BenfenDevTEST"
+  mode: ""
   scanAll: false
   addr: 127.0.0.1:9001
   marketRpc: 10.10.2.77:9011
@@ -84,190 +84,35 @@ app:
         name: obcard_refund_onchain_result
         id: topic-9nHdeiiRvSck7afzCkBDTr
     endpoint:
-      queuesURL: http://10.10.2.77:6371/api/cmq/send_queue_message
-      benfenTopicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
-      topicURL: http://10.10.2.77:6371/api/cmq/send_topic_message
-  rabbitMQ:
-    url: 10.10.2.79:5672
-    userName: haobtc
-    password: IEcS0P0xgQ2rbYRQ
-    benfenPay:
-      queues: benpay_transaction_queue
-      virtualHost: benfenpay01-vhost
-
-
-  httpProxies:
-    # https://gitlab.bixin.com/mili/block-crawling/-/issues/2
-    ## 测试用公网
-    - http://mpcuser01:4fa0cbd14703bb@16.163.66.2:13228         # <-------------------------------+
-    - http://mpcuser01:4fa0cbd14703bb@16.162.179.108:13228      # <-----------------------------+ |
-    - http://mpcuser01:4fa0cbd14703bb@43.198.69.85:13228        # <---------------------------+ | |
-    - http://mpcuser01:4fa0cbd14703bb@43.198.62.186:13228       # <-------------------------+ | | |
-    - http://mpcuser01:4fa0cbd14703bb@43.198.42.7:13228         # <-----------------------+ | | | |
-    - http://mpcuser01:4fa0cbd14703bb@43.198.35.97:13228        # <---------------------+ | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@43.198.32.58:13228        # <-------------------+ | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@16.162.66.48:13228        # <-----------------+ | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@16.163.125.46:13228       # <--------- -----+ | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.162.202.34:13228       # <-------------+ | | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.162.68.137:13228       # <-----------+ | | | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.162.69.17:13228        # <---------+ | | | | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.166.183.64:13228       # <-------+ | | | | | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.167.188.97:13228       # <-----+ | | | | | | | | | | | | |
-    - http://mpcuser01:4fa0cbd14703bb@18.167.77.131:13228       # <---+ | | | | | | | | | | | | | |
-                                                                #     | | | | | | | | | | | | | | |
-    ## Production                                               #     | | | | | | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.1.186:13228      # <---+ | | | | | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.5.26:13228       # <-----+ | | | | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.143:13228      # <-------+ | | | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.237:13228      # <---------+ | | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.74:13228       # <-----------+ | | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.14.10:13228      # <-------------+ | | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.104:13228      # <---------------+ | | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.7.89:13228       # <-----------------+ | | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.1.206:13228      # <-------------------+ | | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.13.15:13228      # <---------------------+ | | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.13.31:13228      # <-----------------------+ | | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.3.13:13228       # <-------------------------+ | | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.11.67:13228      # <---------------------------+ | |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.4.166:13228      # <-----------------------------+ |
-    # - http://mpcuser01:4fa0cbd14703bb@10.229.6.184:13228      # <-------------------------------+
+      queuesURL: ""
+      benfenTopicURL: ""
+      topicURL: ""
+      
   chainData:
     gasCoefficient:
       default: 1
       evm4200: 1.2
 
 lark:
-  larkAlarmTitle: "BlockCrawling 测试环境"
-  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9"
-#  larkHost: "https://open.larksuite.com/open-apis/bot/v2/hook/1de00c8b-8b00-42e8-a4a0-111a465303d9_"
-  larkSecret: "ZaIgbNX9rwSyOGhq4URhMb"
-  larkAtList: "1dd9747c"
+  larkAlarmTitle: "测试环境"
+  larkHost: ""
+  larkSecret: ""
+  larkAtList: ""
   larkUids:
-    dechen: a964d8f6
-    wanghui: 1dd9747c
-    qingliang: bfe7128f
+    xyz: a964d8f6
 
   larkSubscriptions:
-    APTOS:
-      uids: [ wanghui ]
-    COSMOS:
-      uids: [ wanghui ]
-    CKB:
-      uids: [ wanghui ]
-    CSPR:
-      uids: [ wanghui ]
     EVM:
-      uids: [ wanghui ]
-    POLKADOT:
-      uids: [ qingliang ]
-    SOL:
-      uids: [ wanghui ]
-    STC:
-      uids: [ wanghui ]
-    SUI:
-      uids: [ wanghui ]
+      uids: [ xyz ]
     TVM:
-      uids: [ qingliang ]
-    BTC:
-      uids: [ wanghui ]
-    node-proxy:
-      uids: [ qingliang ]
-    txinput:
-      uids: [ dechen ]
-    KASPA:
-      uids: [ wanghui ]
-    kanban:
-      uids: [ wanghui ]
+      uids: [ xyz ]
 
   lockNum: 64
-  larkBots:
-    collect:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/c0381778-67ba-4060-b4d0-6f80c75ff920
-      secret: y9dycC1hJ6IeXHiOStYw7d
-      atUids:
-        - qingliang
-    bfstation:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/c78baed1-e814-4df4-b949-e93330749237
-      secret: NFl9SLcTGZ2Uh5QgIlyD6
-      atUids:
-        - wanghui
-    reportFailure:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/ea550b4b-7d7a-449a-90c6-81a6cb37ce02
-      secret: 6qSBeAq8fm45oZf14F1GOf
-      atUids:
-        - wanghui
-        - dechen
-        - qingliang
-    defi:
-      host: https://open.larksuite.com/open-apis/bot/v2/hook/99c572d9-60a3-41e0-934b-7e79b6ae9e7c
-      secret: Q7oNzVtLPVoS9E0IJw3I8
-      atUids:
-        - wanghui
 
 logger:
   DEBUG: true
   fileName: "stdout"
   level: "info"
-
-innerNodeList:
-  BTC:
-    chain: "BTC"
-    decimal: 8
-    fullName: "Bitcoin"
-    getPriceKey: "bitcoin"
-    chainName: "BTC"
-    handler: "bitcoin"
-    nativeCurrency: BTC
-    rpcURL:
-      - "https://haotech:phzxiTvtjqHikHTBTnTthqg3@btc.benfen.org:8943"
-    symbol: "BTC"
-    type: "BTC"
-
-  DOGE:
-    chain: "DOGE"
-    decimal: 8
-    fullName: "Dogecoin"
-    getPriceKey: "dogecoin"
-    chainName: "DOGE"
-    handler: "dogecoin"
-    nativeCurrency: DOGE
-    rpcURL:
-      - "https://haotech:jHoNTnHnZZY6pXuiUWoUwZKC@doge.benfen.org:8943"
-    symbol: DOGE
-    type: "BTC"
-
-  LTC:
-    chain: "LTC"
-    decimal: 8
-    fullName: "litecoin"
-    getPriceKey: "litecoin"
-    chainName: "LTC"
-    handler: "litecoin"
-    nativeCurrency: LTC
-    rpcURL:
-      - "https://haotech:BFHGDCQHbaTZBvHJER4fyHy@ltc.benfen.org:8943"
-    symbol: LTC
-    type: "BTC"
-
-innerPublicNodeList:
-  Cronos:
-    blockExplorerAddrUrl: https://cronoscan.com/address/
-    blockExplorerTxUrl: https://cronoscan.com/tx/
-    blockExplorerUrl: https://cronoscan.com/
-    chain: Cronos
-    chainId: "25"
-    coinId: 60
-    decimal: 18
-    fullName: Cronos
-    getPriceKey: Cronos
-    handler: cronos
-    icon: https://bxhp.243096.com/mili/images/currency/chain/Cronos.png
-    nativeCurrency: CRO
-    netType: main
-    rpcURL:
-      - https://cronosrpc-1.xstaking.sg
-    symbol: CRO
-    type: EVM
 
 eventLogWhiteList:
   ETH: ETH

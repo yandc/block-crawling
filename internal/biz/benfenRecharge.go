@@ -71,6 +71,9 @@ type BenfenRechargeMq struct {
 }
 
 func BenfenRechargePushMq(rechargeMQ BenfenRechargeMq, chainName string) {
+        if AppConfig.Cmq.Endpoint.BenfenTopicURL == "" {
+                return
+        }
 	msg, _ := utils.JsonEncode(rechargeMQ)
 	log.Info("BenfenRechargePushMq:", zap.Any("type", rechargeMQ.RechargeType), zap.Any("info", msg))
 	PushTopicCMQ(chainName, AppConfig.Cmq.Topic.BenfenCharge.Id, msg, AppConfig.Cmq.Endpoint.BenfenTopicURL)

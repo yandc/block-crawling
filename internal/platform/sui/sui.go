@@ -192,6 +192,9 @@ category=3
 在from 推到主题 obpay_trans_onchain_result    topic-DfBim9dBKXRqEHLpqAFhcf
 */
 func PushSUIPayCardCMQ(category int, data pushSUIPayCardResq) {
+        if biz.AppConfig.Cmq.Endpoint.TopicURL == "" {
+                return
+        }
 	log.Info("PushSUIPayCardCMQ start", zap.Any("chainName", data.Chain), zap.Any("cardUUID", data.CardUUID), zap.Any("eventType", data.EventType))
 	topicId := getPayCardTopicId(category)
 	if data.SuiTransactionRecord != nil && topicId != "" {

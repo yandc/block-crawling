@@ -127,6 +127,9 @@ type eventOut struct {
 }
 
 func pushTransMq(chainName string, s *TransMq) error {
+	if AppConfig.Cmq.Endpoint.QueuesURL == "" {
+		return nil
+	}
 	rawMsg, _ := utils.JsonEncode(s)
 	eventId := uuid.NewV1().String()
 	var out *eventOut
@@ -166,6 +169,9 @@ type BenfenPool struct {
 }
 
 func PushBenfenPool(pool *BenfenPool) error {
+        if AppConfig.Cmq.Endpoint.QueuesURL == "" {
+                return nil
+        }
 	rawMsg, _ := utils.JsonEncode(pool)
 	eventId := uuid.NewV1().String()
 	var out *eventOut

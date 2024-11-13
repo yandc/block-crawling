@@ -158,6 +158,9 @@ func (lark *Lark) MonitorLark(msg string, opts ...AlarmOption) {
 }
 
 func (lark *Lark) NotifyLark(msg string, usableRPC, disabledRPC []string, opts ...AlarmOption) {
+        if lark.conf.LarkHost == "" {
+                return
+        }
 	lark.lock.Lock(msg)
 	defer func() {
 		lark.lock.Unlock(msg)
