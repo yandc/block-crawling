@@ -57,6 +57,9 @@ type Content struct {
 }
 
 func (lark *Lark) MonitorLark(msg string, opts ...AlarmOption) {
+        if lark.conf.LarkHost == "" {
+                return
+        }
 	// 默认报警参数
 	alarmOpts := DefaultAlarmOptions
 	// 根据用户自定义信息更新报警参数
@@ -345,6 +348,9 @@ func (lark *Lark) handleBotAtList(atUids []string) []Content {
 }
 
 func (lark *Lark) SendRichText(larkBot, title string, content [][]Content) {
+        if lark.conf.LarkHost == "" {
+                return
+        }
 	larkConf := lark.conf.LarkBots[larkBot]
 	content = append(content, lark.handleBotAtList(larkConf.AtUids))
 
